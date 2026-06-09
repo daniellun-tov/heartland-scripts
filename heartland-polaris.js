@@ -664,6 +664,10 @@ $("input[data-total-contribute='true']").click(function () {
       break;
   }
   updateTotalPrice();
+
+  console.log('link      :', JSON.stringify(selectedUnitXraiIframeLink));
+  console.log('radio attr:', $("input[data-total-contribute='true'][data-class='unit']:checked").attr('data-xrai-iframe-link'));
+  console.log('# iframes :', document.querySelectorAll('#xrai-iframe').length);
 });
 
 function updateTotalPrice() {
