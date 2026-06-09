@@ -505,7 +505,7 @@ $("input[data-total-contribute='true']").click(function () {
 
       $('#addon-1-display-price').html('R ' + numberWithSpaces($(this).data('upgrade-1-price')));
       $('#addon-2-display-price').html('R ' + numberWithSpaces($(this).data('upgrade-2-price')));
-      $('#addon-2-display-price-alt').html(priceOrDash($(this).data('upgrade-2-price')));
+      $('#addon-2-display-price-alt').html('-');
       $('#addon-3-display-price, #addon-3-display-price-alt').html($(this).data('unit-upgrade-3-display-price'));
       $('#floor-display-price').html('R ' + numberWithSpaces($(this).data('unit-floor-2-price')));
       $('#kitchen-display-price').html('R ' + numberWithSpaces($(this).data('kitchen-upgrade-price')));
@@ -836,6 +836,7 @@ function addOnSelected(addonCheck) {
     });
     $('#cart-' + addonCheck.data('image-class-name') + '-wrap').css('display', 'flex');
     $('#cart-' + addonCheck.data('image-class-name') + '-price').html('R ' + numberWithSpaces(addonCheck.attr('data-price')));
+    if (addonCheck.data('image-class-name') === 'upgrade-2') $('#addon-2-display-price-alt').html(priceOrDash(addonCheck.attr('data-price')));
     if (addonCheck.data('addon-counter')) {
       if (addonsSelected.indexOf(addonCheck.data('image-class-name')) < 0) addonsSelected.push(addonCheck.data('image-class-name'));
       addonsSelected.sort();
@@ -872,6 +873,7 @@ function addOnSelected(addonCheck) {
     });
     $('#cart-' + addonCheck.data('image-class-name') + '-wrap').css('display', 'none');
     $('#cart-' + addonCheck.data('image-class-name') + '-price').html('-');
+    if (addonCheck.data('image-class-name') === 'upgrade-2') $('#addon-2-display-price-alt').html('-');
     if (addonCheck.data('addon-counter')) {
       var ei = addonsSelected.indexOf(addonCheck.data('image-class-name'));
       if (ei > -1) addonsSelected.splice(ei, 1);
