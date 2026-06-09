@@ -198,6 +198,15 @@ window.addEventListener('message', function (e) {
   }
 });
 
+// XR/VR tour fullscreen toggle (moved out of the embed)
+window.addEventListener('message', function (e) {
+  if (!e.data || e.data.type !== 'xrai-tour-fullscreen') return;
+  document.querySelectorAll('.xrai-tour iframe').forEach(function (f) {
+    if (f.contentWindow === e.source) f.parentNode.classList.toggle('xrai-tour-full', !!e.data.value);
+  });
+  document.documentElement.style.overflow = e.data.value ? 'hidden' : '';
+});
+
 $(document).ready(function () {
   var cart = document.querySelector('.cart-wrap');
   var selectUnitWrap = document.querySelector('.select-unit-wrap');
@@ -550,7 +559,7 @@ $("input[data-total-contribute='true']").click(function () {
       $("input[data-filter-unit-type-name='" + $(this).attr('data-unit-type-name') + "']").click();
 
       if (selectedUnitXraiIframeLink != oldselectedUnitXraiIframeLink) {
-        $('#xrai-iframe').src = '';
+        document.getElementById('xrai-iframe').src = '';
         $('#3d-walkthrough-curtain').css({ display: 'flex', opacity: '1' });
       }
 
@@ -898,6 +907,7 @@ function addOnSelected(addonCheck) {
 
 function startGame() {
   document.getElementById('xrai-iframe').src = selectedUnitXraiIframeLink;
+  $('#3d-walkthrough-curtain').stop(true, true).fadeOut(200);
 }
 
 document.addEventListener('DOMContentLoaded', function () {
