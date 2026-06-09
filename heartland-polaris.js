@@ -416,7 +416,7 @@ $("input[data-total-contribute='true']").click(function () {
 
       dontListenFloorChanged = true;
       for (var i = 1; i < numberOfFloors + 1; i++) {
-        if (floorOptionSelected != 'floor-' + i) $("input[data-floor-select-slug='floor-" + i + "']").click();
+        if (floorOptionSelected != 'floor-' + i) $('#flooring-floor-' + i + '-' + selectedUnitType).click();
       }
       dontListenFloorChanged = false;
 
@@ -481,8 +481,8 @@ $("input[data-total-contribute='true']").click(function () {
 
       for (let i = 1; i <= numberOfFloors; i++) {
         var fp = Number($(this).data('unit-floor-' + i + '-price')) || 0;
-        $("input[data-floor-select-slug='floor-" + i + "']").attr('data-floor-select-price', fp);
-        $('#floor-' + i + '-price-label').html('R ' + numberWithSpaces(fp));
+        $('#flooring-floor-' + i + '-' + selectedUnitType).attr('data-floor-select-price', fp);
+        $('#floor-' + i + '-price-label-' + selectedUnitType).html('R ' + numberWithSpaces(fp));
       }
 
       $("input[data-outdoor-select-option='true']").each(function () {
@@ -505,8 +505,8 @@ $("input[data-total-contribute='true']").click(function () {
       $('#security-display-price').html('R ' + numberWithSpaces($(this).data('myplace-price')));
       $('#addon-subtotal-display-price').html('R ' + numberWithSpaces($(this).data('all-upgrades-price')));
 
-      if (floorOptionSelected == '') $("input[data-floor-select-slug='floor-1']").click();
-      else $("input[data-floor-select-slug='" + floorOptionSelected + "']").click();
+      if (floorOptionSelected == '') $('#flooring-floor-1-' + selectedUnitType).click();
+      else $('#flooring-' + floorOptionSelected + '-' + selectedUnitType).click();
 
       // Flythrough video
       var ftBase = 'https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f' + $(this).attr('data-unit-flythrough-url');
@@ -748,6 +748,9 @@ var floorConfig = {
   priceOrFn: priceOrDash,
   bgImageId: 'flooring-image',
   bgImageAttr: 'data-floor-select-image-source',
+  splitByUnitType: true,
+  setSplitBg: true,
+  splitShowValue: '',
 };
 var outdoorConfig = {
   key: 'outdoor',
@@ -986,7 +989,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return shouldCheck ? !cb.checked : cb.checked;
     });
     function handleDefaultFloor() {
-      var tf = document.querySelector('input[data-floor-select-slug="' + (shouldCheck ? 'floor-2' : 'floor-1') + '"]');
+      var tf = document.getElementById('flooring-floor-' + (shouldCheck ? '2' : '1') + '-' + selectedUnitType);
       if (tf && !tf.checked) tf.click();
     }
     var index = 0;
