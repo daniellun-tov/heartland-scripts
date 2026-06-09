@@ -423,6 +423,10 @@ $("input[data-total-contribute='true']").click(function () {
       oldselectedUnitXraiIframeLink = selectedUnitXraiIframeLink;
       selectedUnitXraiIframeLink = $(this).attr('data-xrai-iframe-link');
 
+      console.log('link      :', JSON.stringify(selectedUnitXraiIframeLink));
+      console.log('radio attr:', $("input[data-total-contribute='true'][data-class='unit']:checked").attr('data-xrai-iframe-link'));
+      console.log('# iframes :', document.querySelectorAll('#xrai-iframe').length);
+
       dontListenFloorChanged = true;
       for (var i = 1; i < numberOfFloors + 1; i++) {
         if (floorOptionSelected != 'floor-' + i) $('#flooring-floor-' + i + '-' + selectedUnitType).click();
@@ -663,11 +667,9 @@ $("input[data-total-contribute='true']").click(function () {
       addOnSelected($(this));
       break;
   }
+  
   updateTotalPrice();
-
-  console.log('link      :', JSON.stringify(selectedUnitXraiIframeLink));
-  console.log('radio attr:', $("input[data-total-contribute='true'][data-class='unit']:checked").attr('data-xrai-iframe-link'));
-  console.log('# iframes :', document.querySelectorAll('#xrai-iframe').length);
+  
 });
 
 function updateTotalPrice() {
@@ -694,7 +696,7 @@ function updateTotalPrice() {
     $(o).val('R ' + numberWithSpaces(totalUnitCost));
   });
 
-  updateBondDisplay();
+  // updateBondDisplay();
 }
 
 function selectionTypeChanged(elem, config, onLoad) {
