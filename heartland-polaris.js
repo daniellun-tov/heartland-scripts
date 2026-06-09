@@ -508,6 +508,21 @@ $("input[data-total-contribute='true']").click(function () {
       if (floorOptionSelected == '') $('#flooring-floor-1-' + selectedUnitType).click();
       else $('#flooring-' + floorOptionSelected + '-' + selectedUnitType).click();
 
+      // Default the outdoor selection to the FIRST option on the correct (A/B) card,
+      // on every unit change — re-fire even if already selected so the wrapper, image,
+      // price label and cart refresh against the newly selected unit type.
+      (function () {
+        var t = selectedUnitType;
+        requestAnimationFrame(function () {
+          setTimeout(function () {
+            var $first = $("input[data-outdoor-select-option='true'][id$='-" + t + "']").first();
+            if (!$first.length) return;
+            $first.prop('checked', false); // force a state change so the click always fires
+            $first.click();                // fires the outdoor change handler → selectionTypeChanged
+          }, 30);
+        });
+      })();
+
       // Flythrough video
       var ftBase = 'https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f' + $(this).attr('data-unit-flythrough-url');
       $('#flythrough_poster_wrapper').attr({ 'data-poster-url': ftBase + '_poster.0000000.jpg', 'data-video-urls': ftBase + '_mp4.mp4, https://assets-global.website-files.com/61110f294933f9d0faf6d77f/' + $(this).attr('data-unit-flythrough-url') + '-_webm.webm' });
