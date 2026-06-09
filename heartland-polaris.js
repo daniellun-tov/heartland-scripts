@@ -722,11 +722,16 @@ function selectionTypeChanged(elem, config, onLoad) {
   }
 
   var renderSrc = $(elem).attr('data-' + config.key + '-render-type-' + selectedUnitType);
-  if (renderSrc)
-    $('#' + config.renderId)
-      .attr('src', renderSrc)
-      .attr('srcset', renderSrc)
-      .show();
+  if (config.splitRenderByType) {
+    var rActive = selectedUnitType === 'b' ? 'b' : 'a';
+    var rInactive = rActive === 'a' ? 'b' : 'a';
+    $('#' + config.renderId + '-' + rInactive).hide();
+    var $rActive = $('#' + config.renderId + '-' + rActive);
+    if (renderSrc) $rActive.attr('src', renderSrc).attr('srcset', renderSrc);
+    $rActive.show();
+  } else if (renderSrc) {
+    $('#' + config.renderId).attr('src', renderSrc).attr('srcset', renderSrc).show();
+  }
   unitCostValues[config.costKey] = parseFloat((price || '').replace(/[^\d.-]/g, '')) || 0;
   if (!onLoad) updateTotalPrice();
 }
@@ -751,6 +756,7 @@ var floorConfig = {
   splitByUnitType: true,
   setSplitBg: true,
   splitShowValue: '',
+  splitRenderByType: true,
 };
 var outdoorConfig = {
   key: 'outdoor',
