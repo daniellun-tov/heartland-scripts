@@ -978,6 +978,18 @@ document.addEventListener('DOMContentLoaded', function () {
 document.addEventListener('DOMContentLoaded', function () {
   var masterToggle = document.getElementById('toggle-all-addons');
   if (!masterToggle) return;
+
+  // Robust "is this toggle currently on?" — handles native checkboxes/radios
+  // AND Webflow custom toggles (link/div with a hidden input or .w--redirected-checked).
+  function isToggleOn(el) {
+    if (!el) return false;
+    if (typeof el.checked === 'boolean') return el.checked;
+    var input = el.querySelector ? el.querySelector('input[type="checkbox"], input[type="radio"]') : null;
+    if (input) return input.checked;
+    if (el.classList && el.classList.contains('w--redirected-checked')) return true;
+    return el.getAttribute && el.getAttribute('aria-checked') === 'true';
+  }
+
   var masterToggleBusy = false;
   masterToggle.addEventListener('change', function () {
     if (masterToggleBusy) return;
@@ -985,6 +997,22 @@ document.addEventListener('DOMContentLoaded', function () {
     masterToggle.style.opacity = '0.6';
     masterToggle.style.pointerEvents = 'none';
     isBatchTogglingAddons = true;
+
+    var shouldCheck = masterToggle.checked;
+
+    // Always-runs cleanup so a thrown click can never freeze the control.
+    function finish() {
+      isBatchTogglingAddons = false;
+      try { updateTotalPrice(); } catch (err) { console.error('[ADD-ALL] updateTotalPrice failed', err); }
+      try { handleDefaultFloor(); } catch (err) { console.error('[ADD-ALL] handleDefaultFloor failed', err); }
+      try { handleDefaultOutdoor(); } catch (err) { console.error('[ADD-ALL] handleDefaultOutdoor failed', err); }
+      setTimeout(function () {
+        masterToggle.style.opacity = '1';
+        masterToggle.style.pointerEvents = 'auto';
+        masterToggleBusy = false;
+      }, 150);
+    }
+
     var addonCheckboxes = Array.from(document.querySelectorAll('#appliance-addon, #furniture-addon, #kitchen-upgrade-input, #kitchen2-upgrade-input, #kitchen3-upgrade-input, [data-add-all-toggle="true"]'));
 
     // Type A has no pool/kitchen3 upgrade — keep it out of the add-all batch
@@ -994,9 +1022,9 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }
 
-    console.log('[ADD-ALL] selectedUnitType =', selectedUnitType, '| matched checkboxes =', addonCheckboxes.length); // [DEBUG]
-    console.table(addonCheckboxes.map(function (cb) { return { id: cb.id || '(no id)', checked: cb.checked, disabled: cb.disabled, addAll: cb.getAttribute('data-add-all-toggle') }; })); // [DEBUG]
-    var shouldCheck = masterToggle.checked;
+    console.log('[ADD-ALL] selectedUnitType =', selectedUnitType, '| shouldCheck =', shouldCheck, '| matched =', addonCheckboxes.length); // [DEBUG]
+    console.table(addonCheckboxes.map(function (cb) { return { id: cb.id || '(no id)', tag: cb.tagName, type: cb.type || '', on: isToggleOn(cb), disabled: cb.disabled }; })); // [DEBUG]
+
     var unitImage = document.getElementById('unit-image');
     var unitImageAllUpgrades = document.getElementById('unit-image-all-upgrades');
     if (shouldCheck) {
@@ -1006,27 +1034,40 @@ document.addEventListener('DOMContentLoaded', function () {
       if (unitImage) unitImage.style.display = 'block';
       if (unitImageAllUpgrades) unitImageAllUpgrades.style.display = 'none';
     }
+
     var queue = addonCheckboxes.filter(function (cb) {
-      return shouldCheck ? !cb.checked : cb.checked;
+      return shouldCheck ? !isToggleOn(cb) : isToggleOn(cb);
     });
+
     function handleDefaultFloor() {
       var tf = document.getElementById('flooring-floor-' + (shouldCheck ? '2' : '1') + '-' + selectedUnitType);
       if (tf && !tf.checked) tf.click();
     }
+
+    // Default outdoor to the 2nd option on add-all (mirrors the floor → option 2 behaviour),
+    // and back to the 1st option when add-all is turned off.
+    function handleDefaultOutdoor() {
+      var t = selectedUnitType === 'b' ? 'b' : 'a';
+      var $opts = $("input[data-outdoor-select-option='true'][id$='-" + t + "']");
+      var $target = shouldCheck ? $opts.eq(1) : $opts.eq(0);
+      if (!$target.length) $target = $opts.eq(0);
+      if (!$target.length) return;
+      $target.prop('checked', false); // force a state change so the change handler always fires
+      $target[0].click();
+    }
+
     var index = 0;
     function processNext() {
       if (index >= queue.length) {
-        isBatchTogglingAddons = false;
-        updateTotalPrice();
-        handleDefaultFloor();
-        setTimeout(function () {
-          masterToggle.style.opacity = '1';
-          masterToggle.style.pointerEvents = 'auto';
-          masterToggleBusy = false;
-        }, 150);
+        finish();
         return;
       }
-      queue[index++].click();
+      var cb = queue[index++];
+      try {
+        cb.click();
+      } catch (err) {
+        console.error('[ADD-ALL] click failed for', cb && cb.id, err);
+      }
       requestAnimationFrame(function () {
         setTimeout(processNext, 30);
       });
