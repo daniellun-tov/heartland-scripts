@@ -416,7 +416,11 @@
         oldselectedUnitXraiIframeLink = selectedUnitXraiIframeLink;
         selectedUnitXraiIframeLink = $(this).attr('data-xrai-iframe-link');
 
-        // (legacy floor-1..6 reset removed — flooring now resets via the deferred first-option block below)
+        dontListenFloorChanged = true;
+        for (var i = 1; i < numberOfFloors + 1; i++) {
+          if (floorOptionSelected != 'floor-' + i) $("input[data-floor-select-slug='floor-" + i + "']").click();
+        }
+        dontListenFloorChanged = false;
 
         // Kitchen upgrade prices & images
         var k1Checked = $('#kitchen-upgrade-input').is(':checked');
@@ -477,15 +481,11 @@
 
         $('#cart-unit-label, #cart-unit-main-label').html($(this).data('unit-display-name'));
 
-        // Pre-populate every flooring option's type-specific price label (mirrors the outdoor loop below)
-        $("input[data-floor-select-option='true']").each(function () {
-          var id = $(this).attr('data-floor-select-slug');
-          var rid = $(this).attr('id') || '';
-          var type = rid.slice(-1).toLowerCase();
-          var $lbl = $('#' + id + '-price-label-' + type);
-          if (!$lbl.length) $lbl = $('#' + id + '-price-label');
-          $lbl.html(priceOrZero($(this).attr('data-floor-select-price')));
-        });
+        for (let i = 1; i <= numberOfFloors; i++) {
+          var fp = Number($(this).data('unit-floor-' + i + '-price')) || 0;
+          $("input[data-floor-select-slug='floor-" + i + "']").attr('data-floor-select-price', fp);
+          $('#floor-' + i + '-price-label').html('R ' + numberWithSpaces(fp));
+        }
 
         $("input[data-outdoor-select-option='true']").each(function () {
           var id = $(this).attr('data-outdoor-select-slug');
@@ -507,19 +507,8 @@
         $('#security-display-price').html('R ' + numberWithSpaces($(this).data('myplace-price')));
         $('#addon-subtotal-display-price').html('R ' + numberWithSpaces($(this).data('all-upgrades-price')));
 
-        // Default flooring to the FIRST option on the correct (A/B) card, on every unit change —
-        // re-fire even if already selected so render, price label and cart refresh (mirrors outdoor).
-        (function () {
-          var t = selectedUnitType;
-          requestAnimationFrame(function () {
-            setTimeout(function () {
-              var $first = $("input[data-floor-select-option='true'][id$='-" + t + "']").first();
-              if (!$first.length) return;
-              $first.prop('checked', false);
-              $first.click();
-            }, 30);
-          });
-        })();
+        if (floorOptionSelected == '') $("input[data-floor-select-slug='floor-1']").click();
+        else $("input[data-floor-select-slug='" + floorOptionSelected + "']").click();
 
         // Flythrough video
         var ftBase = 'https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f' + $(this).attr('data-unit-flythrough-url');
@@ -761,8 +750,6 @@
     priceOrFn: priceOrDash,
     bgImageId: 'flooring-image',
     bgImageAttr: 'data-floor-select-image-source',
-    splitByUnitType: true,
-    splitShowValue: '',
   };
   var outdoorConfig = {
     key: 'outdoor',
@@ -1001,10 +988,8 @@
         return shouldCheck ? !cb.checked : cb.checked;
       });
       function handleDefaultFloor() {
-        // Active-card flooring options in CMS order; bump to the 2nd on "add all", 1st on "remove all"
-        var opts = document.querySelectorAll('input[data-floor-select-option="true"][id$="-' + selectedUnitType + '"]');
-        var target = opts[shouldCheck ? 1 : 0];
-        if (target && !target.checked) target.click();
+        var tf = document.querySelector('input[data-floor-select-slug="' + (shouldCheck ? 'floor-2' : 'floor-1') + '"]');
+        if (tf && !tf.checked) tf.click();
       }
       var index = 0;
       function processNext() {
