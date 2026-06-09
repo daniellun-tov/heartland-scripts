@@ -496,6 +496,7 @@ $("input[data-total-contribute='true']").click(function () {
 
       $('#addon-1-display-price').html('R ' + numberWithSpaces($(this).data('upgrade-1-price')));
       $('#addon-2-display-price').html('R ' + numberWithSpaces($(this).data('upgrade-2-price')));
+      $('#addon-2-display-price-alt').html(priceOrDash($(this).data('upgrade-2-price')));
       $('#addon-3-display-price, #addon-3-display-price-alt').html($(this).data('unit-upgrade-3-display-price'));
       $('#floor-display-price').html('R ' + numberWithSpaces($(this).data('unit-floor-2-price')));
       $('#kitchen-display-price').html('R ' + numberWithSpaces($(this).data('kitchen-upgrade-price')));
@@ -787,7 +788,7 @@ var outdoorConfig = {
   labelPrefix: 'Outdoor: ',
   renderId: 'outdoor-unit-render',
   costKey: 'outdoorPrice',
-  priceOrFn: priceOrZero,
+  priceOrFn: priceOrDash,
   bgImageId: 'outdoor-image',
   bgImageAttr: 'data-outdoor-select-image-source',
   splitByUnitType: true,
