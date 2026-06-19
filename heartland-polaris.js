@@ -296,6 +296,9 @@ $('#kitchen-upgrade-input').on('change', function () {
     $('.kitchen-upgrade-hiddenInput').each(function (i, o) {
       $(o).val('Yes');
     });
+    $('.kitchen-upgrade-price-hiddenInput').each(function (i, o) {
+      $(o).val('R ' + numberWithSpaces(price));
+    });
     unitCostValues['kitchen-upgrade-price'] = price;
   } else {
     setImg('kitchen-upgrade-image', ur.data('kitchen-base-image-url'));
@@ -303,6 +306,9 @@ $('#kitchen-upgrade-input').on('change', function () {
     $('#cart-kitchen-price').html('-');
     $('.kitchen-upgrade-hiddenInput').each(function (i, o) {
       $(o).val('No');
+    });
+    $('.kitchen-upgrade-price-hiddenInput').each(function (i, o) {
+      $(o).val('');
     });
     unitCostValues['kitchen-upgrade-price'] = 0;
   }
@@ -322,6 +328,9 @@ $('#kitchen2-upgrade-input').on('change', function () {
     $('.kitchen2-upgrade-hiddenInput').each(function (i, o) {
       $(o).val('Yes');
     });
+    $('.kitchen2-upgrade-price-hiddenInput').each(function (i, o) {
+      $(o).val('R ' + numberWithSpaces(price));
+    });
     unitCostValues['kitchen2-upgrade-price'] = price;
   } else {
     setImg('kitchen2-upgrade-image', ur.data('kitchen2-base-image-url'));
@@ -329,6 +338,9 @@ $('#kitchen2-upgrade-input').on('change', function () {
     $('#cart-kitchen2-price').html('-');
     $('.kitchen2-upgrade-hiddenInput').each(function (i, o) {
       $(o).val('No');
+    });
+    $('.kitchen2-upgrade-price-hiddenInput').each(function (i, o) {
+      $(o).val('');
     });
     unitCostValues['kitchen2-upgrade-price'] = 0;
   }
@@ -348,6 +360,9 @@ $('#kitchen3-upgrade-input').on('change', function () {
     $('.kitchen3-upgrade-hiddenInput').each(function (i, o) {
       $(o).val('Yes');
     });
+    $('.kitchen3-upgrade-price-hiddenInput').each(function (i, o) {
+      $(o).val('R ' + numberWithSpaces(price));
+    });
     unitCostValues['kitchen3-upgrade-price'] = price;
   } else {
     setImg('kitchen3-upgrade-image', ur.data('kitchen3-base-image-url'));
@@ -355,6 +370,9 @@ $('#kitchen3-upgrade-input').on('change', function () {
     $('#cart-kitchen3-price').html('-');
     $('.kitchen3-upgrade-hiddenInput').each(function (i, o) {
       $(o).val('No');
+    });
+    $('.kitchen3-upgrade-price-hiddenInput').each(function (i, o) {
+      $(o).val('');
     });
     unitCostValues['kitchen3-upgrade-price'] = 0;
   }
