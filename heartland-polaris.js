@@ -619,7 +619,7 @@ $("input[data-total-contribute='true']").click(function () {
         upgradeEls.forEach(function (el) {
           if (el) el.style.display = 'flex';
         });
-        if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" class="text-color-polaris-blue">Change Unit</a><div class="text-block-16">|</div><a href="#reservation" class="text-color-polaris-blue">Enquire Now</a>';
+        // if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" class="text-color-polaris-blue">Change Unit</a><div class="text-block-16">|</div><a href="#reserve-home" class="text-color-polaris-blue">Enquire Now</a>';
       }
 
       unitIDInput.val($(this).data('unit-id'));
