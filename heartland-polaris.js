@@ -992,14 +992,14 @@ $('.fp-dot-wrap').click(function () {
     upgradeEls.forEach(function (el) {
       if (el) el.style.display = 'none';
     });
-    if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" class="text-color-polaris-blue">Change Unit</a><div class="text-block-16">|</div><a id="enquire-now-link" href="#reservation" class="text-color-polaris-blue">Rent Now</a>';
+    // if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" class="text-color-polaris-blue">Change Unit</a><div class="text-block-16">|</div><a id="enquire-now-link" href="#reservation" class="text-color-polaris-blue">Rent Now</a>';
   } else {
     if (totalCostLabel) totalCostLabel.textContent = 'R ' + numberWithSpaces(price);
     if (unitPriceLabel) unitPriceLabel.textContent = 'R ' + numberWithSpaces(price);
     upgradeEls.forEach(function (el) {
       if (el) el.style.display = 'flex';
     });
-    if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" class="text-color-polaris-blue">Change Unit</a><div class="text-block-16">|</div><a id="reserve-now-link" href="#reservation" class="text-color-polaris-blue">Reserve Now</a>';
+    // if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" class="text-color-polaris-blue">Change Unit</a><div class="text-block-16">|</div><a id="reserve-now-link" href="#reservation" class="text-color-polaris-blue">Reserve Now</a>';
   }
 });
 
