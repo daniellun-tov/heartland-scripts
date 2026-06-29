@@ -961,12 +961,12 @@ document.addEventListener('DOMContentLoaded', function () {
       setTimeout(function () {
         switchToTab('Enquire');
       }, 800);
-    // if (e.target.matches('#reserve-now-link')) setTimeout(function() { switchToTab('Reserve'); }, 800);
+     if (e.target.matches('#reserve-now-link')) setTimeout(function() { switchToTab('Reserve'); }, 800);
   });
   document.querySelectorAll('.fp-dot-wrap').forEach(function (unit) {
     unit.addEventListener('click', function () {
       setTimeout(function () {
-        switchToTab('Enquire');
+        switchToTab('Reserve');
       }, 100);
       var input = unit.parentElement.querySelector('input[data-class="unit"]');
       if (input) toggleSections(input.getAttribute('data-for-rent') || 'false');
