@@ -1169,7 +1169,7 @@ document.getElementById('reservation-form').addEventListener(
     window.location.href = fullUrl;
   },
   true,
-);
+);d
 
 (function () {
   function preloadOutdoorBackgrounds() {
@@ -1193,3 +1193,55 @@ document.getElementById('reservation-form').addEventListener(
   if (document.readyState !== 'loading') start();
   else document.addEventListener('DOMContentLoaded', start);
 })();
+
+
+// ─── BOND CALCULATOR — Polaris Heart ───────────────────────────────────────
+// CMS-driven variables. In Webflow, swap the hardcoded values below with
+// your CMS field embed tags, e.g. {{wf {"path":"interest-rate"} }}
+// ──────────────────────────────────────────────────────────────────────────
+
+var BOND_INTEREST_RATE  = 0.105;   // Annual interest rate  → CMS field: interest-rate
+var BOND_LOAN_YEARS     = 20;      // Loan term in years     → CMS field: loan-years
+var BOND_DEPOSIT_PERCENT = 0.10;   // Deposit %  (10% = 0.10) → CMS field: deposit-percent
+
+// ──────────────────────────────────────────────────────────────────────────
+// PMT formula:  =PMT( rate/12, years*12, -(price * (1 - deposit%)) )
+// ──────────────────────────────────────────────────────────────────────────
+
+function calcBondPMT(salePrice) {
+  var monthlyRate  = BOND_INTEREST_RATE / 12;
+  var nPayments    = BOND_LOAN_YEARS * 12;
+  var loanAmount   = salePrice * (1 - BOND_DEPOSIT_PERCENT);
+
+  if (monthlyRate === 0) return loanAmount / nPayments;
+
+  // Standard PMT: rate * PV / (1 - (1+rate)^-n)
+  return (monthlyRate * loanAmount) / (1 - Math.pow(1 + monthlyRate, -nPayments));
+}
+
+function updateBondDisplay() {
+  var priceNum    = parseNum('purchase-price');
+  var upgradesNum = parseNum('upgrades-price');
+
+  if (!priceNum || priceNum === 0) return;
+
+  var includeUpgrades = $("#finance-upgrades-cb").prop("checked");
+  var salePrice       = includeUpgrades ? priceNum + upgradesNum : priceNum;
+
+  var monthlyPayment  = calcBondPMT(salePrice);
+  var loanAmount      = salePrice * (1 - BOND_DEPOSIT_PERCENT);
+  var depositAmount   = salePrice * BOND_DEPOSIT_PERCENT;
+
+  // Update display elements
+  $("#bond-monthly-repayment").text("R " + numberWithSpaces(Math.round(monthlyPayment)));
+  $("#bond-loan-amount").text("R " + numberWithSpaces(Math.round(loanAmount)));
+  $("#bond-deposit-amount").text("R " + numberWithSpaces(Math.round(depositAmount)));
+  $("#bond-sale-price").text("R " + numberWithSpaces(Math.round(salePrice)));
+  $("#bond-interest-rate").text((BOND_INTEREST_RATE * 100).toFixed(1) + "%");
+  $("#bond-loan-years").text(BOND_LOAN_YEARS + " years");
+}
+
+// Re-calculate whenever the upgrades toggle changes
+$("#finance-upgrades-cb").on("change", function () {
+  updateBondDisplay();
+});
