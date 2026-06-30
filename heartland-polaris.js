@@ -1169,7 +1169,7 @@ document.getElementById('reservation-form').addEventListener(
     window.location.href = fullUrl;
   },
   true,
-);d
+);
 
 (function () {
   function preloadOutdoorBackgrounds() {
