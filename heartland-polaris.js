@@ -84,10 +84,6 @@ var distanceFromTopBefore, distanceFromTopAfter, distanceFromTopDifference;
 var originalFloorPrice = 0;
 var clickedFromFloorPlan = false;
 
-var BOND_INTEREST_RATE   = 0.105;  // Annual interest rate   → CMS field: interest-rate
-var BOND_LOAN_YEARS      = 20;     // Loan term in years      → CMS field: loan-years
-var BOND_DEPOSIT_PERCENT = 0.10;   // Deposit % (10% = 0.10)  → CMS field: deposit-percent
-
 $(document).ready(function () {
   document.dispatchEvent(docReadyEvent);
   for (var i = 1; i < totalNumberOfAddons + 1; i++) allAddonNumbers.push(i);
@@ -691,6 +687,7 @@ $("input[data-total-contribute='true']").click(function () {
   }
   
   updateTotalPrice();
+  updateBondDisplay()
 });
 
 function updateTotalPrice() {
@@ -717,7 +714,7 @@ function updateTotalPrice() {
     $(o).val('R ' + numberWithSpaces(totalUnitCost));
   });
 
-  updateBondDisplay();
+  // updateBondDisplay();
 }
 
 function selectionTypeChanged(elem, config, onLoad) {
@@ -1203,6 +1200,10 @@ document.getElementById('reservation-form').addEventListener(
 // e.g. {{wf {"path":"interest-rate","type":"Number"} }}
 // ──────────────────────────────────────────────────────────────────────────
 
+var BOND_INTEREST_RATE   = 0.105;  // Annual interest rate   → CMS field: interest-rate
+var BOND_LOAN_YEARS      = 20;     // Loan term in years      → CMS field: loan-years
+var BOND_DEPOSIT_PERCENT = 0.10;   // Deposit % (10% = 0.10)  → CMS field: deposit-percent
+
 // PMT formula: =PMT( rate/12, years*12, -(price * (1 - deposit%)) )
 function calcBondPMT(salePrice) {
   var monthlyRate = BOND_INTEREST_RATE / 12;
@@ -1215,46 +1216,37 @@ function calcBondPMT(salePrice) {
 
 function isFinanceUpgradesChecked() {
   var el = document.getElementById('finance-upgrades-cb');
-  if (!el) return true; // default-checked in Webflow
-
-  // The visual state lives on .w-checkbox-input — find it whether the ID is on
-  // the <input>, the wrapper, or the label.
-  var label = el.closest('.w-checkbox') || el.parentNode;
-  var visual = (label && label.querySelector('.w-checkbox-input')) ||
-               (el.classList.contains('w-checkbox-input') ? el : null);
-
-  if (visual) return visual.classList.contains('w--redirected-checked');
-  if (typeof el.checked === 'boolean') return el.checked; // native fallback
-  return true;
-}  
-
-function updateBondDisplay() {
-  try {
-    var priceNum = parseFloat(unitCostValues.unit) || 0;
-    if (!priceNum) return;
-
-    var upgradesNum = Object.keys(unitCostValues)
-      .filter(function (k) { return !['unit', 'bondPrice'].includes(k); })
-      .reduce(function (s, k) { return s + (parseFloat(unitCostValues[k]) || 0); }, 0);
-
-    var includeUpgrades = isFinanceUpgradesChecked();
-    var salePrice = includeUpgrades ? priceNum + upgradesNum : priceNum;
-
-    var monthlyPayment = calcBondPMT(salePrice);
-    var loanAmount     = salePrice * (1 - BOND_DEPOSIT_PERCENT);
-    var depositAmount  = salePrice * BOND_DEPOSIT_PERCENT;
-
-    $('#bond-monthly-repayment').text('R ' + numberWithSpaces(Math.round(monthlyPayment)));
-    $('#bond-loan-amount').text('R ' + numberWithSpaces(Math.round(loanAmount)));
-    $('#bond-deposit-amount').text('R ' + numberWithSpaces(Math.round(depositAmount)));
-    $('#bond-sale-price').text('R ' + numberWithSpaces(Math.round(salePrice)));
-    $('#bond-interest-rate').text((BOND_INTEREST_RATE * 100).toFixed(1) + '%');
-    $('#bond-loan-years').text(BOND_LOAN_YEARS + ' years');
-  } catch (err) {
-    console.error('[BOND] updateBondDisplay failed', err);
-  }
+  if (!el) return false;
+  if (typeof el.checked === 'boolean') return el.checked; // ID is on the <input>
+  var input = el.querySelector('input[type="checkbox"]'); // ID is on a wrapper
+  if (input) return input.checked;
+  return el.classList.contains('w--redirected-checked');  // fallback
 }
 
+function updateBondDisplay() {
+  var priceNum = parseFloat(unitCostValues.unit) || 0;
+  if (!priceNum) return;
+
+  var upgradesNum = Object.keys(unitCostValues)
+    .filter(function (k) { return !['unit', 'bondPrice'].includes(k); })
+    .reduce(function (s, k) { return s + (parseFloat(unitCostValues[k]) || 0); }, 0);
+
+  var includeUpgrades = isFinanceUpgradesChecked();
+  var salePrice = includeUpgrades ? priceNum + upgradesNum : priceNum;
+
+  var monthlyPayment = calcBondPMT(salePrice);
+  var loanAmount      = salePrice * (1 - BOND_DEPOSIT_PERCENT);
+  var depositAmount   = salePrice * BOND_DEPOSIT_PERCENT;
+
+  $('#bond-monthly-repayment').text('R ' + numberWithSpaces(Math.round(monthlyPayment)));
+  $('#bond-loan-amount').text('R ' + numberWithSpaces(Math.round(loanAmount)));
+  $('#bond-deposit-amount').text('R ' + numberWithSpaces(Math.round(depositAmount)));
+  $('#bond-sale-price').text('R ' + numberWithSpaces(Math.round(salePrice)));
+  $('#bond-interest-rate').text((BOND_INTEREST_RATE * 100).toFixed(1) + '%');
+  $('#bond-loan-years').text(BOND_LOAN_YEARS + ' years');
+}
+
+// Match the click-based pattern your other #finance-upgrades-cb handler already uses
 $('#finance-upgrades-cb').on('click', function () {
-  setTimeout(updateBondDisplay, 0); // let Webflow flip .w--redirected-checked first
+  setTimeout(updateBondDisplay, 0); // let Webflow's toggle class update first
 });
