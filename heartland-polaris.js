@@ -687,7 +687,7 @@ $("input[data-total-contribute='true']").click(function () {
   }
   
   updateTotalPrice();
-  
+  updateBondDisplay()
 });
 
 function updateTotalPrice() {
