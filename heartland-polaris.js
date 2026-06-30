@@ -84,6 +84,10 @@ var distanceFromTopBefore, distanceFromTopAfter, distanceFromTopDifference;
 var originalFloorPrice = 0;
 var clickedFromFloorPlan = false;
 
+var BOND_INTEREST_RATE   = 0.105;  // Annual interest rate   → CMS field: interest-rate
+var BOND_LOAN_YEARS      = 20;     // Loan term in years      → CMS field: loan-years
+var BOND_DEPOSIT_PERCENT = 0.10;   // Deposit % (10% = 0.10)  → CMS field: deposit-percent
+
 $(document).ready(function () {
   document.dispatchEvent(docReadyEvent);
   for (var i = 1; i < totalNumberOfAddons + 1; i++) allAddonNumbers.push(i);
@@ -687,7 +691,6 @@ $("input[data-total-contribute='true']").click(function () {
   }
   
   updateTotalPrice();
-  updateBondDisplay()
 });
 
 function updateTotalPrice() {
@@ -1200,10 +1203,6 @@ document.getElementById('reservation-form').addEventListener(
 // e.g. {{wf {"path":"interest-rate","type":"Number"} }}
 // ──────────────────────────────────────────────────────────────────────────
 
-var BOND_INTEREST_RATE   = 0.105;  // Annual interest rate   → CMS field: interest-rate
-var BOND_LOAN_YEARS      = 20;     // Loan term in years      → CMS field: loan-years
-var BOND_DEPOSIT_PERCENT = 0.10;   // Deposit % (10% = 0.10)  → CMS field: deposit-percent
-
 // PMT formula: =PMT( rate/12, years*12, -(price * (1 - deposit%)) )
 function calcBondPMT(salePrice) {
   var monthlyRate = BOND_INTEREST_RATE / 12;
@@ -1230,26 +1229,30 @@ function isFinanceUpgradesChecked() {
 }  
 
 function updateBondDisplay() {
-  var priceNum = parseFloat(unitCostValues.unit) || 0;
-  if (!priceNum) return;
+  try {
+    var priceNum = parseFloat(unitCostValues.unit) || 0;
+    if (!priceNum) return;
 
-  var upgradesNum = Object.keys(unitCostValues)
-    .filter(function (k) { return !['unit', 'bondPrice'].includes(k); })
-    .reduce(function (s, k) { return s + (parseFloat(unitCostValues[k]) || 0); }, 0);
+    var upgradesNum = Object.keys(unitCostValues)
+      .filter(function (k) { return !['unit', 'bondPrice'].includes(k); })
+      .reduce(function (s, k) { return s + (parseFloat(unitCostValues[k]) || 0); }, 0);
 
-  var includeUpgrades = isFinanceUpgradesChecked();
-  var salePrice = includeUpgrades ? priceNum + upgradesNum : priceNum;
+    var includeUpgrades = isFinanceUpgradesChecked();
+    var salePrice = includeUpgrades ? priceNum + upgradesNum : priceNum;
 
-  var monthlyPayment = calcBondPMT(salePrice);
-  var loanAmount      = salePrice * (1 - BOND_DEPOSIT_PERCENT);
-  var depositAmount   = salePrice * BOND_DEPOSIT_PERCENT;
+    var monthlyPayment = calcBondPMT(salePrice);
+    var loanAmount     = salePrice * (1 - BOND_DEPOSIT_PERCENT);
+    var depositAmount  = salePrice * BOND_DEPOSIT_PERCENT;
 
-  $('#bond-monthly-repayment').text('R ' + numberWithSpaces(Math.round(monthlyPayment)));
-  $('#bond-loan-amount').text('R ' + numberWithSpaces(Math.round(loanAmount)));
-  $('#bond-deposit-amount').text('R ' + numberWithSpaces(Math.round(depositAmount)));
-  $('#bond-sale-price').text('R ' + numberWithSpaces(Math.round(salePrice)));
-  $('#bond-interest-rate').text((BOND_INTEREST_RATE * 100).toFixed(1) + '%');
-  $('#bond-loan-years').text(BOND_LOAN_YEARS + ' years');
+    $('#bond-monthly-repayment').text('R ' + numberWithSpaces(Math.round(monthlyPayment)));
+    $('#bond-loan-amount').text('R ' + numberWithSpaces(Math.round(loanAmount)));
+    $('#bond-deposit-amount').text('R ' + numberWithSpaces(Math.round(depositAmount)));
+    $('#bond-sale-price').text('R ' + numberWithSpaces(Math.round(salePrice)));
+    $('#bond-interest-rate').text((BOND_INTEREST_RATE * 100).toFixed(1) + '%');
+    $('#bond-loan-years').text(BOND_LOAN_YEARS + ' years');
+  } catch (err) {
+    console.error('[BOND] updateBondDisplay failed', err);
+  }
 }
 
 $('#finance-upgrades-cb').on('click', function () {
