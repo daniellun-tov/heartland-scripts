@@ -714,7 +714,7 @@ function updateTotalPrice() {
     $(o).val('R ' + numberWithSpaces(totalUnitCost));
   });
 
-  // updateBondDisplay();
+  updateBondDisplay();
 }
 
 function selectionTypeChanged(elem, config, onLoad) {
@@ -1216,12 +1216,18 @@ function calcBondPMT(salePrice) {
 
 function isFinanceUpgradesChecked() {
   var el = document.getElementById('finance-upgrades-cb');
-  if (!el) return false;
-  if (typeof el.checked === 'boolean') return el.checked; // ID is on the <input>
-  var input = el.querySelector('input[type="checkbox"]'); // ID is on a wrapper
-  if (input) return input.checked;
-  return el.classList.contains('w--redirected-checked');  // fallback
-}
+  if (!el) return true; // default-checked in Webflow
+
+  // The visual state lives on .w-checkbox-input — find it whether the ID is on
+  // the <input>, the wrapper, or the label.
+  var label = el.closest('.w-checkbox') || el.parentNode;
+  var visual = (label && label.querySelector('.w-checkbox-input')) ||
+               (el.classList.contains('w-checkbox-input') ? el : null);
+
+  if (visual) return visual.classList.contains('w--redirected-checked');
+  if (typeof el.checked === 'boolean') return el.checked; // native fallback
+  return true;
+}  
 
 function updateBondDisplay() {
   var priceNum = parseFloat(unitCostValues.unit) || 0;
@@ -1246,7 +1252,6 @@ function updateBondDisplay() {
   $('#bond-loan-years').text(BOND_LOAN_YEARS + ' years');
 }
 
-// Match the click-based pattern your other #finance-upgrades-cb handler already uses
 $('#finance-upgrades-cb').on('click', function () {
-  setTimeout(updateBondDisplay, 0); // let Webflow's toggle class update first
+  setTimeout(updateBondDisplay, 0); // let Webflow flip .w--redirected-checked first
 });
