@@ -1218,11 +1218,13 @@ function updateBondDisplay() {
   var priceNum = parseFloat(unitCostValues.unit) || 0;
   if (!priceNum) return; // no unit selected yet
 
+  // Upgrades total = everything in unitCostValues except the unit price
+  // and the bondPrice line item (mirrors totalAddonsCost logic above)
   var upgradesNum = Object.keys(unitCostValues)
     .filter(function (k) { return !['unit', 'bondPrice'].includes(k); })
     .reduce(function (s, k) { return s + (parseFloat(unitCostValues[k]) || 0); }, 0);
 
-  var includeUpgrades = $('#bond-price-cb').prop('checked');
+  var includeUpgrades = $('#finance-upgrades-cb').prop('checked');
   var salePrice = includeUpgrades ? priceNum + upgradesNum : priceNum;
 
   var monthlyPayment = calcBondPMT(salePrice);
@@ -1237,6 +1239,7 @@ function updateBondDisplay() {
   $('#bond-loan-years').text(BOND_LOAN_YEARS + ' years');
 }
 
-$('#bond-price-cb').on('change', function () {
+// Recalculate whenever the finance-upgrades toggle changes
+$('#finance-upgrades-cb').on('change', function () {
   updateBondDisplay();
 });
