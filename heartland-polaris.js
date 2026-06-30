@@ -1214,17 +1214,24 @@ function calcBondPMT(salePrice) {
   return (monthlyRate * loanAmount) / (1 - Math.pow(1 + monthlyRate, -nPayments));
 }
 
+function isFinanceUpgradesChecked() {
+  var el = document.getElementById('finance-upgrades-cb');
+  if (!el) return false;
+  if (typeof el.checked === 'boolean') return el.checked; // ID is on the <input>
+  var input = el.querySelector('input[type="checkbox"]'); // ID is on a wrapper
+  if (input) return input.checked;
+  return el.classList.contains('w--redirected-checked');  // fallback
+}
+
 function updateBondDisplay() {
   var priceNum = parseFloat(unitCostValues.unit) || 0;
-  if (!priceNum) return; // no unit selected yet
+  if (!priceNum) return;
 
-  // Upgrades total = everything in unitCostValues except the unit price
-  // and the bondPrice line item (mirrors totalAddonsCost logic above)
   var upgradesNum = Object.keys(unitCostValues)
     .filter(function (k) { return !['unit', 'bondPrice'].includes(k); })
     .reduce(function (s, k) { return s + (parseFloat(unitCostValues[k]) || 0); }, 0);
 
-  var includeUpgrades = $('#finance-upgrades-cb').prop('checked');
+  var includeUpgrades = isFinanceUpgradesChecked();
   var salePrice = includeUpgrades ? priceNum + upgradesNum : priceNum;
 
   var monthlyPayment = calcBondPMT(salePrice);
@@ -1239,7 +1246,7 @@ function updateBondDisplay() {
   $('#bond-loan-years').text(BOND_LOAN_YEARS + ' years');
 }
 
-// Recalculate whenever the finance-upgrades toggle changes
-$('#finance-upgrades-cb').on('change', function () {
-  updateBondDisplay();
+// Match the click-based pattern your other #finance-upgrades-cb handler already uses
+$('#finance-upgrades-cb').on('click', function () {
+  setTimeout(updateBondDisplay, 0); // let Webflow's toggle class update first
 });
