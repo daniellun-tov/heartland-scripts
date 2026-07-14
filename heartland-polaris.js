@@ -1163,8 +1163,14 @@ document.getElementById('reservation-form').addEventListener(
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
+    
     var params = new URLSearchParams(new FormData(e.target)).toString().replace(/\+/g, '%20');
-    var fullUrl = 'https://www.heartland.co.za/reserve/1?' + params;
+    
+    // 1. Use the current window's origin (e.g., https://www.heartland.co.za or https://heartlandpropertydevelopers.webflow.io)
+    // 2. Append your relative path '/reserve/1' and your query parameters
+    var relativePath = '/reserve/1?' + params;
+    var fullUrl = new URL(relativePath, window.location.origin).href;
+    
     console.log('[RESERVATION FORM] Submitting to URL:', fullUrl);
     window.location.href = fullUrl;
   },
