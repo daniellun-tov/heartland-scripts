@@ -1503,3 +1503,284 @@ window.fsAttributes.push([
   "cmsload",
   () => scheduleBedFilterAfterUnitChange()
 ]);
+
+
+// Bed counts / aggregation
+(function () {
+  'use strict';
+ 
+  var UNIT_KEY_ATTR = 'data-unit-id'; // attribute on the radio input that matches data-bed-unit
+  var HIDE_EMPTY_COUNTERS = true;     // hide the .selection-counter block when total === 0
+ 
+  // ---- normalisers -------------------------------------------------
+  function norm(v) { return (v || '').toString().trim().toLowerCase(); }
+ 
+  function isReserved(v) {
+    var s = norm(v);
+    return s === 'true' || s === 'yes' || s === '1' || s === 'on';
+  }
+ 
+  function bedType(v) {
+    var s = norm(v);
+    if (s.indexOf('shar') === 0 || s.indexOf('shar') > -1) return 'sharing';
+    if (s.indexOf('single') > -1) return 'single';
+    return null; // unknown type is ignored rather than mis-counted
+  }
+ 
+  // ---- aggregation -------------------------------------------------
+  function blankBucket() {
+    return {
+      sharingTotal: 0, sharingReserved: 0,
+      singleTotal: 0,  singleReserved: 0
+    };
+  }
+ 
+  function collect() {
+    var units = {};
+    var levels = {};
+    var seen = {}; // dedupe guard
+    var counted = 0;
+ 
+    var beds = document.querySelectorAll('.bed-source-item');
+ 
+    for (var i = 0; i < beds.length; i++) {
+      var el = beds[i];
+ 
+      var id     = (el.getAttribute('data-bed-id') || '').trim();
+      var unit   = (el.getAttribute('data-bed-unit') || '').trim();
+      var level  = (el.getAttribute('data-bed-level') || '').trim();
+      var number = (el.getAttribute('data-bed-number') || '').trim();
+      var type   = bedType(el.getAttribute('data-bed-type'));
+      var res    = isReserved(el.getAttribute('data-bed-reserved'));
+ 
+      if (!type) continue;
+ 
+      // DEDUPE — this is what kills the duplicate bed problem.
+      // Primary key: CMS item id. Fallback/secondary: unit + bed number + type,
+      // which catches genuine duplicate CMS records for the same physical bed.
+      var idKey  = id ? 'id:' + id : null;
+      var natKey = 'nat:' + unit + '|' + number + '|' + type;
+ 
+      if (idKey && seen[idKey]) continue;
+      if (seen[natKey]) continue;      // <-- remove this line if two real beds
+      if (idKey) seen[idKey] = true;   //     can legitimately share unit+number+type
+      seen[natKey] = true;
+      counted++;
+ 
+      if (unit) {
+        if (!units[unit]) units[unit] = blankBucket();
+        tally(units[unit], type, res);
+      }
+      if (level) {
+        if (!levels[level]) levels[level] = blankBucket();
+        tally(levels[level], type, res);
+      }
+    }
+ 
+    return { units: units, levels: levels, counted: counted };
+  }
+ 
+  function tally(bucket, type, reserved) {
+    if (type === 'sharing') {
+      bucket.sharingTotal++;
+      if (reserved) bucket.sharingReserved++;
+    } else {
+      bucket.singleTotal++;
+      if (reserved) bucket.singleReserved++;
+    }
+  }
+ 
+  // ---- writing -----------------------------------------------------
+  function setText(scope, selector, value) {
+    var nodes = scope.querySelectorAll(selector);
+    for (var i = 0; i < nodes.length; i++) nodes[i].textContent = value;
+  }
+ 
+  function paintUnits(units) {
+    var inputs = document.querySelectorAll('input[data-class="unit"]');
+ 
+    for (var i = 0; i < inputs.length; i++) {
+      var input = inputs[i];
+      var key = (input.getAttribute(UNIT_KEY_ATTR) || '').trim();
+      var label = input.closest('label') || input.parentElement;
+      if (!label) continue;
+ 
+      var b = units[key] || blankBucket();
+ 
+      var sharingAvail = b.sharingTotal - b.sharingReserved;
+      var singleAvail  = b.singleTotal - b.singleReserved;
+      var totalBeds    = b.sharingTotal + b.singleTotal;
+ 
+      setText(label, '.count-sharing-available', sharingAvail);
+      setText(label, '.count-sharing-total', b.sharingTotal);
+      setText(label, '.count-single-available', singleAvail);
+      setText(label, '.count-single-total', b.singleTotal);
+      setText(label, '.count-unit-total', totalBeds);
+ 
+      // expose on the input so downstream logic can read it without re-querying
+      input.setAttribute('data-sharing-available', sharingAvail);
+      input.setAttribute('data-single-available', singleAvail);
+      input.setAttribute('data-beds-available', sharingAvail + singleAvail);
+      input.setAttribute('data-beds-total', totalBeds);
+ 
+      // sold-out state
+      var soldOut = (sharingAvail + singleAvail) <= 0;
+      label.classList.toggle('is-sold-out', soldOut);
+ 
+      if (HIDE_EMPTY_COUNTERS) {
+        var sh = label.querySelector('.selection-counter.is-sharing');
+        var sg = label.querySelector('.selection-counter.is-single');
+        if (sh) sh.style.display = b.sharingTotal ? '' : 'none';
+        if (sg) sg.style.display = b.singleTotal ? '' : 'none';
+      }
+    }
+  }
+ 
+  function paintLevels(levels) {
+    var blocks = document.querySelectorAll('[data-level-slug]');
+ 
+    for (var i = 0; i < blocks.length; i++) {
+      var block = blocks[i];
+      var key = (block.getAttribute('data-level-slug') || '').trim();
+      var b = levels[key] || blankBucket();
+ 
+      var sharingAvail = b.sharingTotal - b.sharingReserved;
+      var singleAvail  = b.singleTotal - b.singleReserved;
+ 
+      setText(block, '.count-level-sharing-available', sharingAvail);
+      setText(block, '.count-level-sharing-total', b.sharingTotal);
+      setText(block, '.count-level-sharing-reserved', b.sharingReserved);
+      setText(block, '.count-level-single-available', singleAvail);
+      setText(block, '.count-level-single-total', b.singleTotal);
+      setText(block, '.count-level-single-reserved', b.singleReserved);
+      setText(block, '.count-level-total', b.sharingTotal + b.singleTotal);
+      setText(block, '.count-level-available', sharingAvail + singleAvail);
+    }
+  }
+ 
+  // ---- integrity check ---------------------------------------------
+  // Everything renders server-side now, so there is nothing to wait for.
+  // But split lists have their own silent failure mode: a list that hits
+  // its 100-item limit, or a Designer filter that drops beds, loses data
+  // with no error. So verify rather than assume.
+  function expectedBeds() {
+    var el = document.querySelector('.bed-source-expected');
+    var n = el ? parseInt(el.getAttribute('data-expected-beds'), 10) : 0;
+    return isNaN(n) ? 0 : n;
+  }
+ 
+  function checkIntegrity(counted) {
+    var lists = document.querySelectorAll('.bed-source-list');
+    var expected = expectedBeds();
+    var rendered = document.querySelectorAll('.bed-source-item').length;
+ 
+    if (!lists.length) {
+      console.error('[bedcounts] No .bed-source-list found — counts will all be zero.');
+      return false;
+    }
+ 
+    var ok = true;
+ 
+    // A list sitting exactly on 100 is almost certainly truncated.
+    for (var i = 0; i < lists.length; i++) {
+      var n = lists[i].querySelectorAll('.bed-source-item').length;
+      var lvl = lists[i].getAttribute('data-source-level') || '(unnamed)';
+      if (n >= 100) {
+        console.error(
+          '[bedcounts] Floor "' + lvl + '" rendered ' + n + ' beds and has hit ' +
+          "Webflow's 100-item cap. This floor is truncated — split it further " +
+          'or move to CMS Load.'
+        );
+        ok = false;
+      }
+      if (n === 0) {
+        console.warn('[bedcounts] Floor "' + lvl + '" rendered 0 beds — check its Designer filter.');
+      }
+    }
+ 
+    if (expected && rendered !== expected) {
+      console.error(
+        '[bedcounts] Rendered ' + rendered + ' beds but expected ' + expected + '. ' +
+        (rendered < expected
+          ? 'Beds are missing — a floor filter is excluding them, or a bed has no Floor Level set.'
+          : 'Beds are duplicated across lists — check that the floor filters do not overlap.')
+      );
+      ok = false;
+    }
+ 
+    // Beds that carry no level slug never reach any level bucket.
+    var orphans = 0;
+    var items = document.querySelectorAll('.bed-source-item');
+    for (var j = 0; j < items.length; j++) {
+      if (!(items[j].getAttribute('data-bed-level') || '').trim()) orphans++;
+    }
+    if (orphans) {
+      console.warn('[bedcounts] ' + orphans + ' bed(s) have no Floor Level — counted in unit totals but not floor totals.');
+      ok = false;
+    }
+ 
+    if (typeof counted === 'number' && counted !== rendered) {
+      console.warn('[bedcounts] ' + (rendered - counted) + ' bed(s) removed by dedupe.');
+    }
+ 
+    return ok;
+  }
+ 
+  // ---- run ---------------------------------------------------------
+  var lastRun = 0;
+  var checked = false;
+ 
+  function run() {
+    var now = Date.now();
+    if (now - lastRun < 50) return; // cheap debounce
+    lastRun = now;
+ 
+    var data = collect();
+    paintUnits(data.units);
+    paintLevels(data.levels);
+ 
+    window.BedCounts = data; // available for other scripts / debugging
+ 
+    if (!checked) {
+      checked = true;
+      window.BedCountsHealthy = checkIntegrity(data.counted);
+    }
+ 
+    document.documentElement.setAttribute('data-bedcounts', 'ready');
+    document.dispatchEvent(new CustomEvent('bedcounts:updated', { detail: data }));
+  }
+ 
+  window.recalcBedCounts = run;
+ 
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    run();
+  }
+ 
+  window.Webflow = window.Webflow || [];
+  window.Webflow.push(run);
+ 
+  // The bed lists are static, but the UNIT list may be filtered/paginated by
+  // Finsweet — repaint whenever it re-renders, or new radios appear blank.
+  window.fsAttributes = window.fsAttributes || [];
+  window.fsAttributes.push(['cmsfilter', function (instances) {
+    instances.forEach(function (inst) {
+      inst.listInstance.on('renderitems', run);
+    });
+    run();
+  }]);
+  window.fsAttributes.push(['cmsload', function (instances) {
+    instances.forEach(function (inst) {
+      inst.listInstance.on('renderitems', run);
+    });
+    run();
+  }]);
+ 
+  // safety net: Dynamo can hydrate late
+  var observer = new MutationObserver(function () { run(); });
+  var src = document.querySelector('.bed-source');
+  if (src) observer.observe(src, { childList: true, subtree: true });
+ 
+  setTimeout(run, 1200);
+})();
