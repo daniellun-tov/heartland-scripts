@@ -1535,18 +1535,27 @@ window.fsAttributes.push([
     };
   }
  
-  function collect() {
-    var units = {};
-    var levels = {};
-    var seen = {}; // dedupe guard
-    var counted = 0;
+  // A physical bed can have MORE THAN ONE CMS record — the same bed is
+  // duplicated per floor so the configurator can show a radio for each
+  // floor view. That means two different aggregations:
+  //
+  //   unit counts  — each PHYSICAL bed once (76), regardless of how many
+  //                  records represent it. This is real inventory.
+  //   floor counts — each RECORD once per floor it appears on (126), so
+  //                  gw-2 shows the units displayed on gw-2.
+  //
+  // Reserved state is OR-merged across every record of a physical bed:
+  // if any copy is reserved, the bed is reserved. Never "first record
+  // wins" — that made the answer depend on DOM order.
  
+  function collect() {
     var beds = document.querySelectorAll('.bed-source-item');
+    var physical = {}; // natural key -> { unit, reserved, levels: {} }
+    var records = 0;
  
     for (var i = 0; i < beds.length; i++) {
       var el = beds[i];
  
-      var id     = (el.getAttribute('data-bed-id') || '').trim();
       var unit   = (el.getAttribute('data-bed-unit') || '').trim();
       var level  = (el.getAttribute('data-bed-level') || '').trim();
       var number = (el.getAttribute('data-bed-number') || '').trim();
@@ -1554,30 +1563,48 @@ window.fsAttributes.push([
       var res    = isReserved(el.getAttribute('data-bed-reserved'));
  
       if (!type) continue;
+      records++;
  
-      // DEDUPE — this is what kills the duplicate bed problem.
-      // Primary key: CMS item id. Fallback/secondary: unit + bed number + type,
-      // which catches genuine duplicate CMS records for the same physical bed.
-      var idKey  = id ? 'id:' + id : null;
-      var natKey = 'nat:' + unit + '|' + number + '|' + type;
+      // Identity of the PHYSICAL bed. Item ID is per-record, not per-bed,
+      // so it deliberately plays no part in this key.
+      var key = unit + '|' + number + '|' + type;
  
-      if (idKey && seen[idKey]) continue;
-      if (seen[natKey]) continue;      // <-- remove this line if two real beds
-      if (idKey) seen[idKey] = true;   //     can legitimately share unit+number+type
-      seen[natKey] = true;
-      counted++;
- 
-      if (unit) {
-        if (!units[unit]) units[unit] = blankBucket();
-        tally(units[unit], type, res);
+      if (!physical[key]) {
+        physical[key] = { unit: unit, type: type, reserved: false, levels: {} };
       }
-      if (level) {
-        if (!levels[level]) levels[level] = blankBucket();
-        tally(levels[level], type, res);
+      physical[key].reserved = physical[key].reserved || res; // OR-merge
+      if (level) physical[key].levels[level] = true;
+    }
+ 
+    // ---- roll up -----------------------------------------------------
+    var units = {};
+    var levels = {};
+    var physicalCount = 0;
+ 
+    for (var k in physical) {
+      if (!Object.prototype.hasOwnProperty.call(physical, k)) continue;
+      var bed = physical[k];
+      physicalCount++;
+ 
+      if (bed.unit) {
+        if (!units[bed.unit]) units[bed.unit] = blankBucket();
+        tally(units[bed.unit], bed.type, bed.reserved);
+      }
+ 
+      // One tally per floor this bed is shown on.
+      for (var lvl in bed.levels) {
+        if (!Object.prototype.hasOwnProperty.call(bed.levels, lvl)) continue;
+        if (!levels[lvl]) levels[lvl] = blankBucket();
+        tally(levels[lvl], bed.type, bed.reserved);
       }
     }
  
-    return { units: units, levels: levels, counted: counted };
+    return {
+      units: units,
+      levels: levels,
+      physical: physicalCount,
+      records: records
+    };
   }
  
   function tally(bucket, type, reserved) {
@@ -1669,7 +1696,7 @@ window.fsAttributes.push([
     return isNaN(n) ? 0 : n;
   }
  
-  function checkIntegrity(counted) {
+  function checkIntegrity(data) {
     var lists = document.querySelectorAll('.bed-source-list');
     var expected = expectedBeds();
     var rendered = document.querySelectorAll('.bed-source-item').length;
@@ -1678,49 +1705,56 @@ window.fsAttributes.push([
       console.error('[bedcounts] No .bed-source-list found — counts will all be zero.');
       return false;
     }
+    if (!document.querySelectorAll('[data-level-slug]').length) {
+      console.warn('[bedcounts] No [data-level-slug] elements on this page — floor totals have nowhere to render.');
+    }
  
     var ok = true;
  
-    // A list sitting exactly on 100 is almost certainly truncated.
     for (var i = 0; i < lists.length; i++) {
       var n = lists[i].querySelectorAll('.bed-source-item').length;
       var lvl = lists[i].getAttribute('data-source-level') || '(unnamed)';
       if (n >= 100) {
         console.error(
-          '[bedcounts] Floor "' + lvl + '" rendered ' + n + ' beds and has hit ' +
-          "Webflow's 100-item cap. This floor is truncated — split it further " +
-          'or move to CMS Load.'
+          '[bedcounts] Floor "' + lvl + '" rendered ' + n + ' records and has hit ' +
+          "Webflow's 100-item cap — this floor is truncated."
         );
         ok = false;
       }
       if (n === 0) {
-        console.warn('[bedcounts] Floor "' + lvl + '" rendered 0 beds — check its Designer filter.');
+        console.warn('[bedcounts] Floor "' + lvl + '" rendered 0 records — check its Designer filter.');
       }
     }
  
     if (expected && rendered !== expected) {
-      console.error(
-        '[bedcounts] Rendered ' + rendered + ' beds but expected ' + expected + '. ' +
-        (rendered < expected
-          ? 'Beds are missing — a floor filter is excluding them, or a bed has no Floor Level set.'
-          : 'Beds are duplicated across lists — check that the floor filters do not overlap.')
-      );
+      console.error('[bedcounts] Rendered ' + rendered + ' bed records but expected ' + expected + '.');
       ok = false;
     }
  
-    // Beds that carry no level slug never reach any level bucket.
     var orphans = 0;
     var items = document.querySelectorAll('.bed-source-item');
     for (var j = 0; j < items.length; j++) {
       if (!(items[j].getAttribute('data-bed-level') || '').trim()) orphans++;
     }
     if (orphans) {
-      console.warn('[bedcounts] ' + orphans + ' bed(s) have no Floor Level — counted in unit totals but not floor totals.');
+      console.warn('[bedcounts] ' + orphans + ' record(s) have no Floor Level — in unit totals but not floor totals.');
       ok = false;
     }
  
-    if (typeof counted === 'number' && counted !== rendered) {
-      console.warn('[bedcounts] ' + (rendered - counted) + ' bed(s) removed by dedupe.');
+    console.log(
+      '[bedcounts] ' + data.records + ' records -> ' + data.physical +
+      ' physical beds (' + (data.records - data.physical) + ' per-floor duplicates).'
+    );
+ 
+    var radios = document.querySelectorAll('input[data-class="unit"]');
+    var unmatched = 0;
+    for (var r = 0; r < radios.length; r++) {
+      var key = (radios[r].getAttribute(UNIT_KEY_ATTR) || '').trim();
+      if (!data.units[key]) unmatched++;
+    }
+    if (unmatched) {
+      console.warn('[bedcounts] ' + unmatched + ' of ' + radios.length +
+        ' unit radios matched no beds and will show 0/0.');
     }
  
     return ok;
@@ -1743,7 +1777,7 @@ window.fsAttributes.push([
  
     if (!checked) {
       checked = true;
-      window.BedCountsHealthy = checkIntegrity(data.counted);
+      window.BedCountsHealthy = checkIntegrity(data);
     }
  
     document.documentElement.setAttribute('data-bedcounts', 'ready');
@@ -1763,19 +1797,26 @@ window.fsAttributes.push([
  
   // The bed lists are static, but the UNIT list may be filtered/paginated by
   // Finsweet — repaint whenever it re-renders, or new radios appear blank.
+  // v1 hands CMS Filter an array of { listInstance }, but CMS Load an array
+  // of list instances directly. Handle both shapes and never assume.
+  function bindList(inst) {
+    if (!inst) return;
+    var li = inst.listInstance || (typeof inst.on === 'function' ? inst : null);
+    if (li && typeof li.on === 'function') li.on('renderitems', run);
+  }
+ 
+  function bindAll(instances) {
+    try {
+      (instances || []).forEach(bindList);
+    } catch (e) {
+      console.warn('[bedcounts] could not bind Finsweet listener:', e.message);
+    }
+    run();
+  }
+ 
   window.fsAttributes = window.fsAttributes || [];
-  window.fsAttributes.push(['cmsfilter', function (instances) {
-    instances.forEach(function (inst) {
-      inst.listInstance.on('renderitems', run);
-    });
-    run();
-  }]);
-  window.fsAttributes.push(['cmsload', function (instances) {
-    instances.forEach(function (inst) {
-      inst.listInstance.on('renderitems', run);
-    });
-    run();
-  }]);
+  window.fsAttributes.push(['cmsfilter', bindAll]);
+  window.fsAttributes.push(['cmsload', bindAll]);
  
   // safety net: Dynamo can hydrate late
   var observer = new MutationObserver(function () { run(); });
