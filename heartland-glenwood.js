@@ -1511,6 +1511,7 @@ window.fsAttributes.push([
  
   var UNIT_KEY_ATTR = 'data-unit-id'; // attribute on the radio input that matches data-bed-unit
   var HIDE_EMPTY_COUNTERS = true;     // hide the .selection-counter block when total === 0
+  var OWN_COUNTER_WRAPPER = true;     // force .selection-counter-list visible when the unit has beds
  
   // ---- normalisers -------------------------------------------------
   function norm(v) { return (v || '').toString().trim().toLowerCase(); }
@@ -1659,6 +1660,15 @@ window.fsAttributes.push([
         var sg = label.querySelector('.selection-counter.is-single');
         if (sh) sh.style.display = b.sharingTotal ? '' : 'none';
         if (sg) sg.style.display = b.singleTotal ? '' : 'none';
+ 
+        // Own the wrapper too. Something else (most likely a Webflow
+        // Interaction) sets display:none on it inline, which outranks any
+        // stylesheet rule — so it has to be cleared inline as well.
+        // Set OWN_COUNTER_WRAPPER = false if you find and fix that source.
+        if (OWN_COUNTER_WRAPPER) {
+          var wrap = label.querySelector('.selection-counter-list');
+          if (wrap) wrap.style.display = totalBeds ? 'flex' : 'none';
+        }
       }
     }
   }
@@ -1823,5 +1833,30 @@ window.fsAttributes.push([
   var src = document.querySelector('.bed-source');
   if (src) observer.observe(src, { childList: true, subtree: true });
  
-  setTimeout(run, 1200);
+  // The unit radios live in a Finsweet-filtered CMS list. Every filter or
+  // load re-renders those nodes as fresh markup showing 0, wiping whatever
+  // was painted. Watch their container and repaint whenever it changes.
+  // Guarded against self-triggering: painting only sets textContent and
+  // attributes, which this observer ignores.
+  var unitObserver = null;
+  function watchUnitList() {
+    var radio = document.querySelector('input[data-class="unit"]');
+    var container = radio
+      ? (radio.closest('.w-dyn-items') || radio.closest('.w-dyn-list') || radio.parentElement.parentElement)
+      : null;
+    if (!container || container === (unitObserver && unitObserver._target)) return;
+ 
+    if (unitObserver) unitObserver.disconnect();
+    unitObserver = new MutationObserver(function () { run(); });
+    unitObserver._target = container;
+    unitObserver.observe(container, { childList: true, subtree: true });
+  }
+ 
+  watchUnitList();
+ 
+  // Retry schedule — covers Dynamo hydrating the unit list after first paint,
+  // and re-attaches the observer if the list itself was replaced wholesale.
+  [300, 800, 1500, 3000, 5000].forEach(function (ms) {
+    setTimeout(function () { watchUnitList(); run(); }, ms);
+  });
 })();
