@@ -1886,7 +1886,7 @@ const check = (el) => {
 });
 };
 
-const listEl = document.querySelector('.w-dyn-items');
+const listEl = document.querySelector('.bed-visual_form .w-dyn-items');
 const run = () => listEl.querySelectorAll('[data-bed-slug]').forEach(check);
 new MutationObserver(run).observe(listEl, { childList: true, subtree: true });
 run();
