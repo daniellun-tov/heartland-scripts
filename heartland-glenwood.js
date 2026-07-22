@@ -1886,7 +1886,8 @@ const check = (el) => {
 });
 };
 
-const listEl = document.querySelector('.bed-visual_form .w-dyn-items');
-const run = () => listEl.querySelectorAll('[data-bed-slug]').forEach(check);
-new MutationObserver(run).observe(listEl, { childList: true, subtree: true });
+let bedTimer;
+const run = () => document.querySelectorAll('[data-bed-slug]').forEach(check);
+const scheduleBedCheck = () => { clearTimeout(bedTimer); bedTimer = setTimeout(run, 50); };
+new MutationObserver(scheduleBedCheck).observe(document.body, { childList: true, subtree: true });
 run();
