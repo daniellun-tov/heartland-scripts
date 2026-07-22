@@ -1860,3 +1860,33 @@ window.fsAttributes.push([
     setTimeout(function () { watchUnitList(); run(); }, ms);
   });
 })();
+
+// Fetch fresh reserved states for beds
+const cache = new Map();
+
+const check = (el) => {
+  const slug = el.dataset.bedSlug;
+  if (!slug) return;
+
+  if (!cache.has(slug)) {
+    cache.set(slug, fetch(`/beds/${slug}?t=${Date.now()}`)
+      .then(r => r.text())
+      .then(t => new DOMParser().parseFromString(t, 'text/html'))
+      .then(d => d.querySelector('[data-reserved-flag]')?.dataset.reservedFlag === 'true')
+      .catch(() => { cache.delete(slug); return true; })
+    );
+  }
+
+  cache.get(slug).then(reserved => {
+  el.dataset.reserved = String(reserved);
+  el.querySelector('.bed-visual_highlight')?.classList.toggle('is-reserved', reserved);
+  el.querySelector('.bed-visual_radio-label')?.classList.toggle('is-reserved', reserved);
+  const input = el.querySelector('input[type="radio"]');
+  if (input) input.disabled = reserved;
+});
+};
+
+const listEl = document.querySelector('.w-dyn-items');
+const run = () => listEl.querySelectorAll('[data-bed-slug]').forEach(check);
+new MutationObserver(run).observe(listEl, { childList: true, subtree: true });
+run();
