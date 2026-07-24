@@ -438,24 +438,12 @@ function isMobile () {
 
 function updateReserveButtonState() {
   const hasBed = !!document.querySelector("input[data-bed-select='true']:checked");
-  const btn = document.getElementById("reserve-bed-button");
-  if (!btn) return;
 
-  if (btn.tagName === "BUTTON" || btn.tagName === "INPUT") {
-    btn.disabled = !hasBed;
-  } else {
-    // Webflow link block / <a> — can't use disabled
-    btn.setAttribute("aria-disabled", String(!hasBed));
-    btn.style.pointerEvents = hasBed ? "" : "none";
-    btn.style.opacity = hasBed ? "" : "0.5";
-    if (hasBed) {
-      if (btn.dataset.href) { btn.href = btn.dataset.href; delete btn.dataset.href; }
-    } else if (btn.href) {
-      btn.dataset.href = btn.href;
-      btn.removeAttribute("href");
-    }
-  }
-  btn.classList.toggle("is-disabled", !hasBed);
+  const reserveWrap = document.getElementById("reserve-bed-button-wrapper");
+  const selectWrap  = document.getElementById("select-bed-button-wrapper");
+
+  if (reserveWrap) reserveWrap.style.display = hasBed ? "flex" : "none";
+  if (selectWrap)  selectWrap.style.display  = hasBed ? "none" : "flex";
 }
 
 document.addEventListener("change", (e) => {
