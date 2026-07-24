@@ -938,7 +938,7 @@ $("input[data-total-contribute='true']").click(function () {
 			$("#viewGameNowBtn").show();
 			
 			//$("#cart-container").css("display", "block");
-			$("#cart-container").fadeIn(500);
+			//$("#cart-container").fadeIn(500);
 
 			
 			unitIDInput.val($(this).data("unit-id"));
@@ -1074,13 +1074,17 @@ function setPriceFromBedSelection() {
     baseUnitName = baseUnitName.replace(/\s*\((M|F)\)/, "");
   }
 
-  // Build final label: Unit 18 (Sharing, F)
-  const combinedLabel = gender
+  // Build final label: Unit 18 (Sharing, F), Bed 6
+  let combinedLabel = gender
     ? `${baseUnitName} (${bedType}, ${gender})`
     : `${baseUnitName} (${bedType})`;
 
+  if (bedNum) combinedLabel += `, Bed ${bedNum}`;
+
   // Update UI
   $(".unit-bed-name").html(combinedLabel);
+
+  $("#cart-container").fadeIn(500);
 
   unitCostValues.unit = bedPrice;
 
@@ -1126,6 +1130,8 @@ function clearBedSelection() {
 
   // reset cart price display
   $("#cart-unit-price").html("R " + numberWithSpaces(0));
+
+  $("#cart-container").fadeOut(200);
 
   updateTotalPrice();
   
