@@ -436,6 +436,33 @@ function isMobile () {
   });
 })();
 
+function updateReserveButtonState() {
+  const hasBed = !!document.querySelector("input[data-bed-select='true']:checked");
+  const btn = document.getElementById("reserve-bed-button");
+  if (!btn) return;
+
+  if (btn.tagName === "BUTTON" || btn.tagName === "INPUT") {
+    btn.disabled = !hasBed;
+  } else {
+    // Webflow link block / <a> — can't use disabled
+    btn.setAttribute("aria-disabled", String(!hasBed));
+    btn.style.pointerEvents = hasBed ? "" : "none";
+    btn.style.opacity = hasBed ? "" : "0.5";
+    if (hasBed) {
+      if (btn.dataset.href) { btn.href = btn.dataset.href; delete btn.dataset.href; }
+    } else if (btn.href) {
+      btn.dataset.href = btn.href;
+      btn.removeAttribute("href");
+    }
+  }
+  btn.classList.toggle("is-disabled", !hasBed);
+}
+
+document.addEventListener("change", (e) => {
+  if (e.target.matches?.("input[data-bed-select='true']")) updateReserveButtonState();
+});
+document.addEventListener("DOMContentLoaded", updateReserveButtonState);
+updateReserveButtonState();
 
 // sync floor number selection
 function floorIsActive(attrName, floorNumber) {
@@ -1090,9 +1117,9 @@ function setPriceFromBedSelection() {
 
   updateTotalPrice();
 
-  document
-    .querySelector(".unit_selector_confirm-wrapper")
-    ?.classList.remove("hide");
+  document.querySelector(".unit_selector_confirm-wrapper")?.classList.remove("hide");
+
+  updateReserveButtonState();
 }
 
 function clearBedSelection() {
@@ -1116,6 +1143,8 @@ function clearBedSelection() {
   
   // hide NEXT button
   document.querySelector(".unit_selector_confirm-wrapper")?.classList.add("hide");
+
+  updateReserveButtonState();
 
   $(".bedNameHiddenInput").each(function () {
     $(this).val("");
@@ -1882,7 +1911,13 @@ const check = (el) => {
   el.querySelector('.bed-visual_highlight')?.classList.toggle('is-reserved', reserved);
   el.querySelector('.bed-visual_radio-label')?.classList.toggle('is-reserved', reserved);
   const input = el.querySelector('input[type="radio"]');
-  if (input) input.disabled = reserved;
+  if (input) {
+    input.disabled = reserved;
+    if (reserved && input.checked) {
+      clearBedSelection();   // this already unchecks every bed radio
+    }
+  }
+  updateReserveButtonState();
 });
 };
 
