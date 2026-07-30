@@ -1157,25 +1157,99 @@ function updateUnitTotals() {
 }
 updateUnitTotals();
 
-document.getElementById('reservation-form').addEventListener(
-  'submit',
-  function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    
-    var params = new URLSearchParams(new FormData(e.target)).toString().replace(/\+/g, '%20');
-    
-    // 1. Use the current window's origin (e.g., https://www.heartland.co.za or https://heartlandpropertydevelopers.webflow.io)
-    // 2. Append your relative path '/reserve/1' and your query parameters
-    var relativePath = '/reserve/1?' + params;
-    var fullUrl = new URL(relativePath, window.location.origin).href;
-    
-    console.log('[RESERVATION FORM] Submitting to URL:', fullUrl);
-    window.location.href = fullUrl;
-  },
-  true,
-);
+// ─── RESERVATION FORM — submit + loading state ─────────────────────────────
+(function () {
+  var resForm = document.getElementById('reservation-form');
+  if (!resForm) return; // page variant without the form — don't throw
+
+  var spinTimer = null;
+
+  function getBtn() {
+    return resForm.querySelector('input[type="submit"], button[type="submit"], [data-res-submit="true"]');
+  }
+
+  function ensureSpinnerCss() {
+    if (document.getElementById('res-spinner-css')) return;
+    var st = document.createElement('style');
+    st.id = 'res-spinner-css';
+    st.textContent =
+      '.res-spinner{display:inline-block;width:.85em;height:.85em;margin-left:.5em;vertical-align:-.1em;' +
+      'border:2px solid currentColor;border-right-color:transparent;border-radius:50%;' +
+      'animation:res-spin .6s linear infinite}' +
+      '@keyframes res-spin{to{transform:rotate(360deg)}}' +
+      '.res-busy{opacity:.65;cursor:default;pointer-events:none}';
+    document.head.appendChild(st);
+  }
+
+  function setLoading(on) {
+    var btn = getBtn();
+    if (!btn) return;
+    clearInterval(spinTimer);
+    spinTimer = null;
+
+    if (!on) {
+      btn.classList.remove('res-busy');
+      btn.removeAttribute('aria-busy');
+      if (btn.tagName === 'INPUT') {
+        if (btn.dataset.resOriginal != null) btn.value = btn.dataset.resOriginal;
+        btn.disabled = false;
+      } else if (btn.dataset.resOriginal != null) {
+        btn.innerHTML = btn.dataset.resOriginal;
+      }
+      delete btn.dataset.resOriginal;
+      return;
+    }
+
+    ensureSpinnerCss();
+    var wait = btn.getAttribute('data-wait') || 'Reserving your home';
+    btn.classList.add('res-busy');
+    btn.setAttribute('aria-busy', 'true');
+
+    if (btn.tagName === 'INPUT') {
+      // an <input> can't hold child elements — animate dots inside the value
+      if (btn.dataset.resOriginal == null) btn.dataset.resOriginal = btn.value;
+      btn.value = wait;
+      btn.disabled = true;
+      var n = 0;
+      spinTimer = setInterval(function () {
+        n = (n + 1) % 4;
+        btn.value = wait + '...'.slice(0, n);
+      }, 350);
+    } else {
+      if (btn.dataset.resOriginal == null) btn.dataset.resOriginal = btn.innerHTML;
+      btn.innerHTML = wait + '<span class="res-spinner"></span>';
+    }
+  }
+
+  resForm.addEventListener(
+    'submit',
+    function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      // Read the form data BEFORE the button is disabled — disabled fields
+      // are dropped from FormData.
+      var params = new URLSearchParams(new FormData(e.target)).toString().replace(/\+/g, '%20');
+      setLoading(true);
+
+      try {
+        var fullUrl = new URL('/reserve/1?' + params, window.location.origin).href;
+        console.log('[RESERVATION FORM] Submitting to URL:', fullUrl);
+        window.location.href = fullUrl;
+      } catch (err) {
+        console.error('[RESERVATION FORM] Navigation failed', err);
+        setLoading(false);
+      }
+    },
+    true,
+  );
+
+  // Don't leave the button stuck if the visitor returns via the back button (bfcache)
+  window.addEventListener('pageshow', function () {
+    setLoading(false);
+  });
+})();
 
 (function () {
   function preloadOutdoorBackgrounds() {
