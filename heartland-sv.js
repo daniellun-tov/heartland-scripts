@@ -1,17 +1,21 @@
-/* =========================================================
-     Stellenbosch Village — Interactive site plan controller
+/* ============================================================================
+   heartland-sv.js — Stellenbosch Village (Oakhills Estate)
+   Home page behaviour. Source of truth; the Webflow copy lives in
+   Home > Page Settings > Footer Code.
 
-     WHY THIS LIVES ON THE PAGE AND NOT IN THE COMPONENT:
-     The unit filter section on THIS page is a detached (unlinked) copy of
-     the "Section / Unit Filter" component — it carries only 7 of the
-     component's 19 embeds, so none of the component's behaviour embeds
-     render here. /unit-selection uses the real component instance and gets
-     its scripts from the embeds. Until the Home section is re-linked to the
-     component, this page code is the ONLY copy of these scripts on Home.
-     Do not delete it thinking it is a duplicate. (2026-08-11)
-     ========================================================= */
-  
-  window.Wized = window.Wized || [];
+   Consolidated 2026-08-13:
+   - the detail-panel gallery and the unit types slider now share ONE lightbox
+     (was: a panel-only gallery, plus an appended v2 copy of it)
+   - Swiper is mounted on the unit types slider, which never had one
+   - removed: the duplicate sub-nav scroll handler, the dead `activeImage`
+     write, and a console.log of the buyer's contact details
+   ============================================================================ */
+
+
+/* ============================================================
+   Interactive site plan controller - filters, map, detail panel
+   ============================================================ */
+window.Wized = window.Wized || [];
   window.Wized.push((Wized) => {
     const FACETS = {
       status: { key: 'status' },
@@ -291,7 +295,6 @@
       document.getElementById(u.plot_id)?.classList.add('is-selected');
 
       Wized.data.v.selectedUnit = u;
-      Wized.data.v.activeImage = 0;
 
       const s = panelScroll();
       if (s) s.scrollTop = 0;
@@ -388,7 +391,6 @@
       });
 
       const overlay = document.querySelector('.site-plan_detail-overlay');
-      const scrollNav = document.querySelector('.unit-details_scroll-nav');
 
       overlay?.addEventListener(
         'wheel',
@@ -401,27 +403,12 @@
         },
         { passive: false },
       );
-
-      scrollNav?.addEventListener('click', (e) => {
-        const a = e.target.closest('a[href^="#"]');
-        if (!a) return;
-        e.preventDefault();
-        e.stopPropagation();
-
-        const s = panelScroll();
-        const target = s?.querySelector(a.getAttribute('href'));
-        if (!s || !target) return;
-
-        const navOffset = scrollNav.offsetHeight;
-        const top = target.getBoundingClientRect().top - s.getBoundingClientRect().top + s.scrollTop - navOffset;
-
-        s.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-      });
     }
   });
 
-// Extra facets (View / Position / Garage Type) refining the controller's output
-
+/* ============================================================
+   Extra facets (View / Position / Garage Type) refining the controller's output
+   ============================================================ */
 (function(){
   window.Wized=window.Wized||[];
   window.Wized.push(function(Wized){
@@ -525,9 +512,10 @@
   });
 })();
 
-
-// Plot tooltip controller
-  window.Wized = window.Wized || [];
+/* ============================================================
+   Plot tooltip controller
+   ============================================================ */
+window.Wized = window.Wized || [];
   window.Wized.push((Wized) => {
     if (window.matchMedia('(hover: none)').matches) return;
 
@@ -621,7 +609,10 @@
     window.addEventListener('scroll', hide, { passive: true });
   });
 
-  // BOL CODE
+/* ============================================================
+   Reservation flow - BOL / REDi
+   ============================================================ */
+// BOL CODE
   (function () {
     const API_ENDPOINT = 'https://bol-server-prod0.red-i.co.za/api/reservationSession/start?manualRedirect=true';
     const ACCOUNT_CODE = 'evening-shade-properties-109';
@@ -716,7 +707,10 @@
         },
       };
 
-      console.log('📦 Final Payload:', payload);
+      // Kept for debugging, commented out on purpose: this prints the buyer's
+      // name, email and phone number into the browser console.
+      // console.log('📦 Final Payload:', payload);
+
       return payload;
     }
 
@@ -776,7 +770,10 @@
     });
   })();
 
-  let audioContext;
+/* ============================================================
+   AudioContext unlock on first interaction
+   ============================================================ */
+let audioContext;
   let started = false;
 
   function startAudio() {
@@ -796,9 +793,10 @@
   document.addEventListener('touchstart', startAudio, { once: true });
   document.addEventListener('keydown', startAudio, { once: true });
 
-
-// Tablet/Mobile: map/list view switch + filter drawer + active-count badge
-  (function () {
+/* ============================================================
+   Tablet/Mobile: map/list view switch + filter drawer + active-count badge
+   ============================================================ */
+(function () {
     function boot() {
       var component = document.querySelector('.unit-filter_component');
       if (!component) return;
@@ -872,8 +870,9 @@
     }
   })();
 
-// More filters disclosure + Lenis opt-out for the drawer 
-
+/* ============================================================
+   More filters disclosure + Lenis opt-out for the drawer
+   ============================================================ */
 (function () {
   function boot() {
     var drawer = document.querySelector('.unit-filter_filters');
@@ -936,8 +935,9 @@
   else boot();
 })();
 
-
-// Floorplan lightbox 
+/* ============================================================
+   Floorplan lightbox
+   ============================================================ */
 (function () {
   function boot() {
     var box = document.createElement('div');
@@ -979,7 +979,9 @@
   else boot();
 })();
 
-// ?unit= URL param sync, deep-link restore, and WhatsApp share -->
+/* ============================================================
+   ?unit= URL param sync, deep-link restore, and WhatsApp share
+   ============================================================ */
 (function(){
   var PARAM = 'unit';
   window.Wized = window.Wized || [];
@@ -1046,333 +1048,497 @@
   });
 })();
 
-
 /* ============================================================
-   UNIT DETAIL PANEL + UNIT TYPES SLIDER
-   1. Sticky sub-nav (+ scrollspy) inside the detail panel - unchanged.
-   2. Galleries: the detail panel gallery and the unit types slider, sharing one
-      lightbox. Images, mp4 and YouTube; YouTube is detected from the URL, so a
-      wrong `kind` in Xano cannot break it. Nothing plays inline - a click always
-      opens the lightbox.
-   3. Mounts Swiper on the unit types slider. The markup is Swiper-shaped but the
-      site-wide initialiser only picks up [data-swiper-container="true"], so no
-      Swiper was ever started: the arrows set a slideIndex variable nothing read
-      and the track could not move.
-   Part 2/3 is minified to stay inside Webflow's 50,000 character page-code
-   limit. Readable source: gallery-v3.js - keep the two in step.
+   Unit detail panel - sticky sub-nav (+ scrollspy)
    ============================================================ */
 
-/* ---- 1. sticky sub-nav ---- */
 (function () {
-    'use strict';
+  'use strict';
 
-    function initSubnav() {
-      var panel = document.querySelector('.site-plan_detail-panel');
-      var nav = document.querySelector('.unit-details_scroll-nav');
-      if (!panel || !nav) return;
+  function initSubnav() {
+    var panel = document.querySelector('.site-plan_detail-panel');
+    var nav = document.querySelector('.unit-details_scroll-nav');
+    if (!panel || !nav) return;
 
-      var wrap = document.querySelector('.site-plan_detail-wrap');
-      var links = [].slice.call(nav.querySelectorAll('a'));
+    var wrap = document.querySelector('.site-plan_detail-wrap');
+    var links = [].slice.call(nav.querySelectorAll('a'));
 
-      function scroller() {
-        if (panel.scrollHeight > panel.clientHeight + 5) return panel;
-        return wrap && wrap.scrollHeight > wrap.clientHeight + 5 ? wrap : panel;
-      }
+    function scroller() {
+      if (panel.scrollHeight > panel.clientHeight + 5) return panel;
+      return (wrap && wrap.scrollHeight > wrap.clientHeight + 5) ? wrap : panel;
+    }
 
-      function sectionFor(link) {
-        var href = link.getAttribute('href') || '';
-        var id = href.indexOf('#') !== -1 ? href.split('#').pop() : '';
-        return id ? document.getElementById(id) : null;
-      }
+    function sectionFor(link) {
+      var href = link.getAttribute('href') || '';
+      var id = href.indexOf('#') !== -1 ? href.split('#').pop() : '';
+      return id ? document.getElementById(id) : null;
+    }
 
-      links.forEach(function (l) {
-        l.addEventListener('click', function (e) {
-          var s = sectionFor(l);
-          if (!s) return;
-          e.preventDefault();
-          var sc = scroller();
-          var top = s.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - (nav.offsetHeight + 8);
-          sc.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
-        });
+    links.forEach(function (l) {
+      l.addEventListener('click', function (e) {
+        var s = sectionFor(l);
+        if (!s) return;
+        e.preventDefault();
+        var sc = scroller();
+        var top = s.getBoundingClientRect().top
+                - sc.getBoundingClientRect().top
+                + sc.scrollTop
+                - (nav.offsetHeight + 8);
+        sc.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
       });
+    });
 
-      function spy() {
-        var navB = nav.getBoundingClientRect().bottom + 12;
-        var currentIdx = 0;
-        links.forEach(function (l, i) {
-          var s = sectionFor(l);
-          if (s && s.getBoundingClientRect().top <= navB) currentIdx = i;
-        });
-        links.forEach(function (l, i) {
-          l.classList.toggle('is-active', i === currentIdx);
-        });
-      }
-
-      panel.addEventListener('scroll', spy, { passive: true });
-      if (wrap) wrap.addEventListener('scroll', spy, { passive: true });
-      spy();
-
-      if (wrap) {
-        new MutationObserver(function () {
-          if (wrap.classList.contains('is-open')) setTimeout(spy, 50);
-        }).observe(wrap, { attributes: true, attributeFilter: ['class'] });
-      }
+    function spy() {
+      var navB = nav.getBoundingClientRect().bottom + 12;
+      var currentIdx = 0;
+      links.forEach(function (l, i) {
+        var s = sectionFor(l);
+        if (s && s.getBoundingClientRect().top <= navB) currentIdx = i;
+      });
+      links.forEach(function (l, i) { l.classList.toggle('is-active', i === currentIdx); });
     }
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initSubnav);
+    panel.addEventListener('scroll', spy, { passive: true });
+    if (wrap) wrap.addEventListener('scroll', spy, { passive: true });
+    spy();
+
+    if (wrap) {
+      new MutationObserver(function () {
+        if (wrap.classList.contains('is-open')) setTimeout(spy, 50);
+      }).observe(wrap, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSubnav);
+  } else {
+    initSubnav();
+  }
+})();
+
+/* ============================================================
+   Galleries - detail panel + unit types slider, one shared lightbox
+   ============================================================ */
+
+(function () {
+  'use strict';
+
+  /* ==========================================================
+     Shared media handling for the Stellenbosch Village galleries.
+
+     Two consumers, one lightbox:
+       1. the unit detail panel gallery (site plan -> unit)
+       2. the unit types slider on the home page
+
+     Items may arrive from Xano as plain URL strings or as objects
+     ({url|src|path|href, type|mime, kind, poster, caption}). YouTube is
+     detected from the URL, so a wrong or missing `kind` cannot break it.
+     ========================================================== */
+
+  var PLAY_SVG = '<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  var BADGE_SVG = '<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  var EXPAND_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 15v5h-5M15 4h5v5M9 20H4v-5"/></svg>';
+
+  /* watch?v= | youtu.be | embed | shorts -> video id */
+  function ytId(url) {
+    var m = String(url || '').match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([\w-]{11})/);
+    return m ? m[1] : '';
+  }
+
+  function norm(it) {
+    var url = '', type = '';
+    if (typeof it === 'string') {
+      url = it;
+    } else if (it && typeof it === 'object') {
+      url = it.url || it.src || it.path || it.href || '';
+      type = it.type || it.mime || '';
+    }
+    if (!url) return null;
+
+    var yt = ytId(url);
+    if (yt) return {
+      url: url,
+      kind: 'youtube',
+      embed: 'https://www.youtube-nocookie.com/embed/' + yt + '?rel=0&playsinline=1',
+      poster: (it && it.poster) || 'https://i.ytimg.com/vi/' + yt + '/maxresdefault.jpg',
+      poster2: 'https://i.ytimg.com/vi/' + yt + '/hqdefault.jpg',
+      caption: (it && it.caption) || ''
+    };
+    if (/youtube/i.test(type) || (it && it.kind === 'youtube')) return null;
+
+    var isVid = /^video\//i.test(type) || /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url);
+    return { url: url, kind: isVid ? 'video' : 'image', poster: (it && it.poster) || '', caption: (it && it.caption) || '' };
+  }
+
+  /* Order preserved - callers that index into the source array depend on it. */
+  function normList(raw) {
+    if (raw == null) return [];
+    if (typeof raw === 'string') {
+      try {
+        var p = JSON.parse(raw);
+        raw = Array.isArray(p) ? p : [raw];
+      } catch (e) {
+        raw = [raw];
+      }
+    }
+    if (!Array.isArray(raw)) raw = [raw];
+    return raw.map(norm).filter(Boolean);
+  }
+
+  /* first frame of an mp4, without loading the whole file */
+  function stillOf(url) {
+    return url + (url.indexOf('#') === -1 ? '#t=0.1' : '');
+  }
+
+  /* A still frame for any kind, so nothing ever points an <img> at a video URL. */
+  function stillNode(it, className) {
+    if (it.kind === 'video') {
+      var v = document.createElement('video');
+      v.src = stillOf(it.url);
+      v.muted = true;
+      v.playsInline = true;
+      v.preload = 'metadata';
+      v.className = className;
+      return v;
+    }
+    var im = document.createElement('img');
+    im.className = className;
+    im.alt = '';
+    if (it.kind === 'youtube') {
+      /* maxres exists only for HD uploads - fall back to the always-there frame */
+      im.onerror = function () { if (it.poster2 && im.src !== it.poster2) im.src = it.poster2; };
+      im.src = it.poster;
     } else {
-      initSubnav();
+      im.src = it.url;
     }
-  })();
+    return im;
+  }
 
-  /* ---- 2 + 3. galleries, shared lightbox, slider ---- */
-  !(function () {
-    'use strict';
-    var e, t, n;
-    function r(e) {
-      var t = '',
-        n = '';
-      if (('string' == typeof e ? (t = e) : e && 'object' == typeof e && ((t = e.url || e.src || e.path || e.href || ''), (n = e.type || e.mime || '')), !t)) return null;
-      var r = (function (e) {
-        var t = String(e || '').match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([\w-]{11})/);
-        return t ? t[1] : '';
-      })(t);
-      return r ? { url: t, kind: 'youtube', embed: 'https://www.youtube-nocookie.com/embed/' + r + '?rel=0&playsinline=1', poster: (e && e.poster) || 'https://i.ytimg.com/vi/' + r + '/maxresdefault.jpg', poster2: 'https://i.ytimg.com/vi/' + r + '/hqdefault.jpg', caption: (e && e.caption) || '' } : /youtube/i.test(n) || (e && 'youtube' === e.kind) ? null : { url: t, kind: /^video\//i.test(n) || /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(t) ? 'video' : 'image', poster: (e && e.poster) || '', caption: (e && e.caption) || '' };
+  /* ==========================================================
+     Shared lightbox. Playback always happens here - never inline -
+     so the panel and the slider behave the same for every media kind.
+     ========================================================== */
+
+  var lb, lbStage, lbCounter;
+  var items = [];
+  var index = 0;
+  var onIndex = null;
+
+  function build() {
+    if (lb) return;
+    lb = document.createElement('div');
+    lb.className = 'ud-lightbox';
+    lb.innerHTML =
+      '<button class="ud-lb-btn ud-lb-close" aria-label="Close">&#10005;</button>' +
+      '<button class="ud-lb-btn ud-lb-prev" aria-label="Previous">&lsaquo;</button>' +
+      '<div class="ud-lightbox_stage" data-lb="stage"></div>' +
+      '<button class="ud-lb-btn ud-lb-next" aria-label="Next">&rsaquo;</button>' +
+      '<div class="ud-lb-counter" data-lb="counter"></div>';
+    document.body.appendChild(lb);
+
+    lbStage = lb.querySelector('[data-lb="stage"]');
+    lbCounter = lb.querySelector('[data-lb="counter"]');
+
+    lb.querySelector('.ud-lb-close').addEventListener('click', close);
+    lb.querySelector('.ud-lb-prev').addEventListener('click', function () { step(-1); });
+    lb.querySelector('.ud-lb-next').addEventListener('click', function () { step(1); });
+    lb.addEventListener('click', function (e) { if (e.target === lb) close(); });
+
+    document.addEventListener('keydown', function (e) {
+      if (!isOpen()) return;
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+    });
+  }
+
+  function isOpen() {
+    return !!lb && lb.classList.contains('is-open');
+  }
+
+  function render() {
+    var it = items[index];
+    if (!it) return;
+    lbStage.innerHTML = '';
+
+    var node;
+    if (it.kind === 'youtube') {
+      node = document.createElement('iframe');
+      node.src = it.embed + '&autoplay=1';
+      node.style.cssText = 'width:min(92vw,1180px);aspect-ratio:16/9;max-height:82vh;border:0;border-radius:8px;background:#000';
+      node.setAttribute('allow', 'autoplay; encrypted-media; fullscreen');
+      node.setAttribute('allowfullscreen', '');
+      node.setAttribute('title', it.caption || 'Video');
+    } else if (it.kind === 'video') {
+      node = document.createElement('video');
+      node.src = it.url;
+      node.controls = true;
+      node.autoplay = true;
+      node.playsInline = true;
+    } else {
+      node = document.createElement('img');
+      node.src = it.url;
+      node.alt = '';
     }
-    function i(e) {
-      if (null == e) return [];
-      if ('string' == typeof e)
-        try {
-          var t = JSON.parse(e);
-          e = Array.isArray(t) ? t : [e];
-        } catch (t) {
-          e = [e];
+    lbStage.appendChild(node);
+
+    lbCounter.textContent = (index + 1) + ' / ' + items.length;
+    var single = items.length < 2;
+    lb.querySelector('.ud-lb-prev').style.display = single ? 'none' : '';
+    lb.querySelector('.ud-lb-next').style.display = single ? 'none' : '';
+  }
+
+  function open(list, i, sync) {
+    if (!list || !list.length) return;
+    build();
+    items = list;
+    index = Math.max(0, Math.min(i || 0, list.length - 1));
+    onIndex = sync || null;
+    lb.classList.add('is-open');
+    render();
+  }
+
+  function close() {
+    if (!lb) return;
+    lb.classList.remove('is-open');
+    lbStage.innerHTML = '';   /* destroys the iframe / video, stopping playback */
+  }
+
+  function step(d) {
+    if (!items.length) return;
+    index = (index + d + items.length) % items.length;
+    render();
+    if (onIndex) onIndex(index);
+  }
+
+  /* ==========================================================
+     Consumer 1 - unit detail panel gallery
+     ========================================================== */
+
+  function initPanel(Wized) {
+    var wrap = document.querySelector('.site-plan_detail-wrap');
+    var stage = document.querySelector('[data-gallery="stage"]');
+    var thumbs = document.querySelector('[data-gallery="thumbs"]');
+    if (!wrap || !stage || !thumbs) return;
+
+    var media = [];
+    var current = 0;
+
+    /* A still image reads better as the opening frame than a video poster. */
+    function itemsFor(u) {
+      if (!u) return [];
+      var raw = (u.media == null || (Array.isArray(u.media) && !u.media.length))
+        ? (u.hero_image ? [u.hero_image] : [])
+        : u.media;
+      var out = normList(raw);
+      if (out.length && out[0].kind !== 'image') {
+        var i = out.findIndex(function (m) { return m.kind === 'image'; });
+        if (i > 0) out.unshift(out.splice(i, 1)[0]);
+      }
+      return out;
+    }
+
+    function renderStage() {
+      var it = media[current];
+      stage.innerHTML = '';
+      if (!it) return;
+
+      stage.appendChild(stillNode(it, 'ud-media'));
+
+      /* both video kinds get a play affordance; the stage itself always opens
+         the lightbox, which is where playback happens */
+      if (it.kind !== 'image') {
+        var play = document.createElement('div');
+        play.className = 'ud-playbtn';
+        play.innerHTML = PLAY_SVG;
+        stage.appendChild(play);
+      }
+
+      var exp = document.createElement('div');
+      exp.className = 'ud-expand';
+      exp.innerHTML = EXPAND_SVG;
+      stage.appendChild(exp);
+    }
+
+    function renderThumbs() {
+      thumbs.innerHTML = '';
+      media.forEach(function (it, i) {
+        var t = document.createElement('div');
+        t.className = 'unit-details_thumbnail' + (i === current ? ' is-current' : '');
+        t.setAttribute('data-thumb', i);
+
+        var node = stillNode(it, '');
+        node.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+        if (it.kind === 'youtube') node.src = it.poster2 || it.poster;   /* small frame is plenty */
+        t.appendChild(node);
+
+        if (it.kind !== 'image') {
+          var b = document.createElement('div');
+          b.className = 'unit-details_thumb-badge';
+          b.innerHTML = BADGE_SVG;
+          t.appendChild(b);
         }
-      return (Array.isArray(e) || (e = [e]), e.map(r).filter(Boolean));
+        thumbs.appendChild(t);
+      });
+      thumbs.style.display = media.length > 1 ? '' : 'none';
     }
-    function a(e, t) {
-      if ('video' === e.kind) {
-        var n = document.createElement('video');
-        return ((n.src = (r = e.url) + (-1 === r.indexOf('#') ? '#t=0.1' : '')), (n.muted = !0), (n.playsInline = !0), (n.preload = 'metadata'), (n.className = t), n);
+
+    function markThumbs() {
+      thumbs.querySelectorAll('[data-thumb]').forEach(function (t) {
+        t.classList.toggle('is-current', Number(t.getAttribute('data-thumb')) === current);
+      });
+    }
+
+    function show(i) {
+      current = i;
+      renderStage();
+      markThumbs();
+    }
+
+    function openHere() {
+      open(media, current, show);
+    }
+
+    thumbs.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-thumb]');
+      if (t) show(Number(t.getAttribute('data-thumb')));
+    });
+
+    stage.addEventListener('click', openHere);
+    stage.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHere(); }
+      else if (!media.length) return;
+      else if (e.key === 'ArrowRight') show((current + 1) % media.length);
+      else if (e.key === 'ArrowLeft') show((current - 1 + media.length) % media.length);
+    });
+
+    function selected() {
+      return (Wized.data && Wized.data.v) ? Wized.data.v.selectedUnit : null;
+    }
+
+    function load(u) {
+      media = itemsFor(u);
+      current = 0;
+      renderStage();
+      renderThumbs();
+    }
+
+    new MutationObserver(function () {
+      if (wrap.classList.contains('is-open')) {
+        load(selected());
+      } else {
+        close();
+        var v = stage.querySelector('video');
+        if (v) { try { v.pause(); } catch (e) {} }
       }
-      var r,
-        i = document.createElement('img');
-      return (
-        (i.className = t),
-        (i.alt = ''),
-        'youtube' === e.kind
-          ? ((i.onerror = function () {
-              e.poster2 && i.src !== e.poster2 && (i.src = e.poster2);
-            }),
-            (i.src = e.poster))
-          : (i.src = e.url),
-        i
-      );
-    }
-    var l = [],
-      o = 0,
-      d = null;
-    function u() {
-      e ||
-        (((e = document.createElement('div')).className = 'ud-lightbox'),
-        (e.innerHTML = '<button class="ud-lb-btn ud-lb-close" aria-label="Close">&#10005;</button><button class="ud-lb-btn ud-lb-prev" aria-label="Previous">&lsaquo;</button><div class="ud-lightbox_stage" data-lb="stage"></div><button class="ud-lb-btn ud-lb-next" aria-label="Next">&rsaquo;</button><div class="ud-lb-counter" data-lb="counter"></div>'),
-        document.body.appendChild(e),
-        (t = e.querySelector('[data-lb="stage"]')),
-        (n = e.querySelector('[data-lb="counter"]')),
-        e.querySelector('.ud-lb-close').addEventListener('click', p),
-        e.querySelector('.ud-lb-prev').addEventListener('click', function () {
-          v(-1);
-        }),
-        e.querySelector('.ud-lb-next').addEventListener('click', function () {
-          v(1);
-        }),
-        e.addEventListener('click', function (t) {
-          t.target === e && p();
-        }),
-        document.addEventListener('keydown', function (t) {
-          e && e.classList.contains('is-open') && ('Escape' === t.key ? p() : 'ArrowRight' === t.key ? (t.preventDefault(), v(1)) : 'ArrowLeft' === t.key && (t.preventDefault(), v(-1)));
-        }));
-    }
-    function s() {
-      var r = l[o];
-      if (r) {
-        var i;
-        ((t.innerHTML = ''), 'youtube' === r.kind ? (((i = document.createElement('iframe')).src = r.embed + '&autoplay=1'), (i.style.cssText = 'width:min(92vw,1180px);aspect-ratio:16/9;max-height:82vh;border:0;border-radius:8px;background:#000'), i.setAttribute('allow', 'autoplay; encrypted-media; fullscreen'), i.setAttribute('allowfullscreen', ''), i.setAttribute('title', r.caption || 'Video')) : 'video' === r.kind ? (((i = document.createElement('video')).src = r.url), (i.controls = !0), (i.autoplay = !0), (i.playsInline = !0)) : (((i = document.createElement('img')).src = r.url), (i.alt = '')), t.appendChild(i), (n.textContent = o + 1 + ' / ' + l.length));
-        var a = l.length < 2;
-        ((e.querySelector('.ud-lb-prev').style.display = a ? 'none' : ''), (e.querySelector('.ud-lb-next').style.display = a ? 'none' : ''));
-      }
-    }
-    function c(t, n, r) {
-      t && t.length && (u(), (l = t), (o = Math.max(0, Math.min(n || 0, t.length - 1))), (d = r || null), e.classList.add('is-open'), s());
-    }
-    function p() {
-      e && (e.classList.remove('is-open'), (t.innerHTML = ''));
-    }
-    function v(e) {
-      l.length && ((o = (o + e + l.length) % l.length), s(), d && d(o));
-    }
-    function m(e) {
-      var t = document.querySelector('.site-plan_detail-wrap'),
-        n = document.querySelector('[data-gallery="stage"]'),
-        r = document.querySelector('[data-gallery="thumbs"]');
-      if (t && n && r) {
-        var l = [],
-          o = 0;
-        (r.addEventListener('click', function (e) {
-          var t = e.target.closest('[data-thumb]');
-          t && u(Number(t.getAttribute('data-thumb')));
-        }),
-          n.addEventListener('click', s),
-          n.addEventListener('keydown', function (e) {
-            if ('Enter' === e.key || ' ' === e.key) (e.preventDefault(), s());
-            else {
-              if (!l.length) return;
-              'ArrowRight' === e.key ? u((o + 1) % l.length) : 'ArrowLeft' === e.key && u((o - 1 + l.length) % l.length);
-            }
-          }),
-          new MutationObserver(function () {
-            if (t.classList.contains('is-open')) m(v());
-            else {
-              p();
-              var e = n.querySelector('video');
-              if (e)
-                try {
-                  e.pause();
-                } catch (e) {}
-            }
-          }).observe(t, {
-            attributes: !0,
-            attributeFilter: ['class'],
-          }),
-          t.classList.contains('is-open') && m(v()));
-      }
-      function d() {
-        var e = l[o];
-        if (((n.innerHTML = ''), e)) {
-          if ((n.appendChild(a(e, 'ud-media')), 'image' !== e.kind)) {
-            var t = document.createElement('div');
-            ((t.className = 'ud-playbtn'), (t.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'), n.appendChild(t));
-          }
-          var r = document.createElement('div');
-          ((r.className = 'ud-expand'), (r.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 15v5h-5M15 4h5v5M9 20H4v-5"/></svg>'), n.appendChild(r));
+    }).observe(wrap, { attributes: true, attributeFilter: ['class'] });
+
+    if (wrap.classList.contains('is-open')) load(selected());
+  }
+
+  /* ==========================================================
+     Consumer 2 - unit types slider
+
+     The slide's contents are rendered by Wized (unitTypeSlideImage /
+     unitTypeSlideYoutube / unitTypeSlideVideo). This only adds the lightbox:
+     a click anywhere on the slide opens the selected type's full media set
+     at the current slide, and playback happens there.
+     ========================================================== */
+
+  function initTypeSlider(Wized) {
+    var slider = document.querySelector('[wized="unitTypeSlider"]');
+    if (!slider) return;
+
+    /* The markup is Swiper-shaped (.swiper > .swiper-wrapper > .swiper-slide) but
+       nothing ever started a Swiper on it: the site-wide initialiser only picks up
+       [data-swiper-container="true"]. So every slide rendered stacked in the track,
+       the arrows set a slideIndex variable nothing reads, and dragging did nothing.
+       Swiper 11 is already loaded site-wide, so just mount it. */
+    function mountSwiper() {
+      if (slider.swiper || typeof window.Swiper !== 'function') return;
+      new window.Swiper(slider, {
+        slidesPerView: 1,
+        speed: 400,
+        grabCursor: true,
+        rewind: true,              /* wraps around WITHOUT cloning the Wized-bound slides */
+        observer: true,            /* the slides are a render list - they change on tab switch */
+        observeParents: true,
+        observeSlideChildren: true,
+        keyboard: { enabled: true, onlyInViewport: true },
+        navigation: {
+          prevEl: slider.querySelector('[data-swiper-nav="prev"]'),
+          nextEl: slider.querySelector('[data-swiper-nav="next"]')
         }
-      }
-      function u(e) {
-        ((o = e),
-          d(),
-          r.querySelectorAll('[data-thumb]').forEach(function (e) {
-            e.classList.toggle('is-current', Number(e.getAttribute('data-thumb')) === o);
-          }));
-      }
-      function s() {
-        c(l, o, u);
-      }
-      function v() {
-        return e.data && e.data.v ? e.data.v.selectedUnit : null;
-      }
-      function m(e) {
-        ((l = (function (e) {
-          if (!e) return [];
-          var t = i(null == e.media || (Array.isArray(e.media) && !e.media.length) ? (e.hero_image ? [e.hero_image] : []) : e.media);
-          if (t.length && 'image' !== t[0].kind) {
-            var n = t.findIndex(function (e) {
-              return 'image' === e.kind;
-            });
-            n > 0 && t.unshift(t.splice(n, 1)[0]);
-          }
-          return t;
-        })(e)),
-          (o = 0),
-          d(),
-          (r.innerHTML = ''),
-          l.forEach(function (e, t) {
-            var n = document.createElement('div');
-            ((n.className = 'unit-details_thumbnail' + (t === o ? ' is-current' : '')), n.setAttribute('data-thumb', t));
-            var i = a(e, '');
-            if (((i.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;'), 'youtube' === e.kind && (i.src = e.poster2 || e.poster), n.appendChild(i), 'image' !== e.kind)) {
-              var l = document.createElement('div');
-              ((l.className = 'unit-details_thumb-badge'), (l.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'), n.appendChild(l));
-            }
-            r.appendChild(n);
-          }),
-          (r.style.display = l.length > 1 ? '' : 'none'));
+      });
+    }
+
+    /* No Swiper stylesheet is loaded on this page, so the track needs the two
+       rules Swiper cannot do without. Scoped to this slider only. */
+    if (!document.getElementById('ut-swiper-css')) {
+      var st = document.createElement('style');
+      st.id = 'ut-swiper-css';
+      st.textContent =
+        '[wized="unitTypeSlider"]{overflow:hidden}' +
+        '[wized="unitTypeSlider"]>.swiper-wrapper{display:flex;flex-direction:row}' +
+        '[wized="unitTypeSlider"] .swiper-slide{flex-shrink:0}';
+      document.head.appendChild(st);
+    }
+
+    mountSwiper();
+    if (!slider.swiper) {
+      /* Swiper's script is async and the slides arrive with the render list */
+      var tries = 0;
+      var timer = setInterval(function () {
+        mountSwiper();
+        if (slider.swiper || ++tries > 40) clearInterval(timer);
+      }, 250);
+    }
+
+    function media() {
+      try {
+        var t = Wized.data.v.selectedType;
+        return normList(t && t.media);
+      } catch (e) {
+        return [];
       }
     }
-    function f(e) {
-      var t = document.querySelector('[wized="unitTypeSlider"]');
-      if (t) {
-        if (!document.getElementById('ut-swiper-css')) {
-          var n = document.createElement('style');
-          ((n.id = 'ut-swiper-css'), (n.textContent = '[wized="unitTypeSlider"]{overflow:hidden}[wized="unitTypeSlider"]>.swiper-wrapper{display:flex;flex-direction:row}[wized="unitTypeSlider"] .swiper-slide{flex-shrink:0}'), document.head.appendChild(n));
-        }
-        if ((l(), !t.swiper))
-          var r = 0,
-            a = setInterval(function () {
-              (l(), (t.swiper || ++r > 40) && clearInterval(a));
-            }, 250);
-        (t.addEventListener('click', o),
-          t.addEventListener('keydown', function (e) {
-            ('Enter' !== e.key && ' ' !== e.key) || o(e);
-          }));
-      }
-      function l() {
-        t.swiper ||
-          'function' != typeof window.Swiper ||
-          new window.Swiper(t, {
-            slidesPerView: 1,
-            speed: 400,
-            grabCursor: !0,
-            rewind: !0,
-            observer: !0,
-            observeParents: !0,
-            observeSlideChildren: !0,
-            keyboard: { enabled: !0, onlyInViewport: !0 },
-            navigation: {
-              prevEl: t.querySelector('[data-swiper-nav="prev"]'),
-              nextEl: t.querySelector('[data-swiper-nav="next"]'),
-            },
-          });
-      }
-      function o(n) {
-        var r = n.target.closest && n.target.closest('[wized="unitTypeSlide"]');
-        if (r) {
-          (n.preventDefault(), n.stopPropagation());
-          var a = (function (e) {
-            var n = t.querySelectorAll('[wized="unitTypeSlide"]');
-            return Array.prototype.indexOf.call(n, e);
-          })(r);
-          c(
-            (function () {
-              try {
-                var t = e.data.v.selectedType;
-                return i(t && t.media);
-              } catch (e) {
-                return [];
-              }
-            })(),
-            a < 0
-              ? (function () {
-                  if (t.swiper) return t.swiper.activeIndex;
-                  try {
-                    return Number(e.data.v.slideIndex) || 0;
-                  } catch (e) {
-                    return 0;
-                  }
-                })()
-              : a,
-            function (n) {
-              t.swiper && t.swiper.slideTo(n);
-              try {
-                e.data.v.slideIndex = n;
-              } catch (e) {}
-            },
-          );
-        }
-      }
+
+    /* Slide order matches the media array (no loop, so no cloned slides). */
+    function indexOf(el) {
+      var all = slider.querySelectorAll('[wized="unitTypeSlide"]');
+      return Array.prototype.indexOf.call(all, el);
     }
-    ((window.Wized = window.Wized || []),
-      window.Wized.push(function (e) {
-        (m(e), f(e));
-      }));
-  })();
+
+    function current() {
+      if (slider.swiper) return slider.swiper.activeIndex;
+      try { return Number(Wized.data.v.slideIndex) || 0; } catch (e) { return 0; }
+    }
+
+    function openHere(e) {
+      /* Nav buttons sit outside the slides, so they are excluded by this test.
+         Swiper suppresses the click that ends a drag (preventClicks). */
+      var el = e.target.closest && e.target.closest('[wized="unitTypeSlide"]');
+      if (!el) return;
+      /* stop the site-wide [data-youtube-facade] handler mounting an inline player */
+      e.preventDefault();
+      e.stopPropagation();
+      var i = indexOf(el);
+      open(media(), i < 0 ? current() : i, function (n) {
+        /* leave the slider on whatever they stopped at */
+        if (slider.swiper) slider.swiper.slideTo(n);
+        try { Wized.data.v.slideIndex = n; } catch (err) {}
+      });
+    }
+
+    slider.addEventListener('click', openHere);
+    slider.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') openHere(e);
+    });
+  }
+
+  window.Wized = window.Wized || [];
+  window.Wized.push(function (Wized) {
+    initPanel(Wized);
+    initTypeSlider(Wized);
+  });
+})();
