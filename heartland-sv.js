@@ -94,7 +94,12 @@ window.Wized = window.Wized || [];
 
       units = list.map((u) => {
         const flat = { ...(u.unit_variant || {}), ...u };
-        flat.price_display = formatPrice(flat.price);
+        // Honour the global price switch. When site_settings.prices_visible is
+        // off, /units already sends the placeholder ("TBC") in price_display and
+        // sets prices_hidden - overwriting it here put the real figure back on
+        // every card and in the detail panel, which is exactly what the switch
+        // exists to prevent. Only reformat when prices are actually on.
+        if (!flat.prices_hidden) flat.price_display = formatPrice(flat.price);
         return flat;
       });
 
@@ -570,7 +575,13 @@ window.Wized = window.Wized || [];
 
       field.specs.textContent = [u.bedrooms + ' bed', u.bathrooms + ' bath', Math.round(u.total_area) + ' m²'].join(' · ');
 
-      field.price.textContent = u.price ? money.format(u.price) : 'Price on request';
+      // Same switch as the cards: when prices are hidden the endpoint's
+      // placeholder wins over the real figure.
+      field.price.textContent = u.prices_hidden
+        ? u.price_display || 'Price on request'
+        : u.price
+          ? money.format(u.price)
+          : 'Price on request';
     }
 
     function place(e) {
