@@ -1464,12 +1464,22 @@ let audioContext;
         observer: true,            /* the slides are a render list - they change on tab switch */
         observeParents: true,
         observeSlideChildren: true,
+        /* Swiper calls preventDefault on touchstart by default, which cancels the
+           click that a tap would otherwise produce - that is why tapping a slide
+           did nothing on mobile while clicking worked on desktop. */
+        touchStartPreventDefault: false,
         keyboard: { enabled: true, onlyInViewport: true },
         navigation: {
           prevEl: slider.querySelector('[data-swiper-nav="prev"]'),
           nextEl: slider.querySelector('[data-swiper-nav="next"]')
         }
       });
+
+      /* Second, independent path to the lightbox. Swiper's own tap event fires
+         for mouse and touch alike, and deliberately does NOT fire when the
+         gesture turned out to be a swipe. openHere() is idempotent, so it does
+         not matter if this and the delegated click below both land. */
+      slider.swiper.on('tap', function (s, e) { openHere(e); });
     }
 
     /* No Swiper stylesheet is loaded on this page, so the track needs the two
@@ -1515,6 +1525,7 @@ let audioContext;
     }
 
     function openHere(e) {
+      if (isOpen()) return;   /* already showing - a second trigger must be a no-op */
       /* Nav buttons sit outside the slides, so they are excluded by this test.
          Swiper suppresses the click that ends a drag (preventClicks). */
       var el = e.target.closest && e.target.closest('[wized="unitTypeSlide"]');
