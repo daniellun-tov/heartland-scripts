@@ -135,7 +135,7 @@ window.Wized = window.Wized || [];
     setTimeout(() => {
       if (booted) return;
       console.warn('[site-plan] falling back to direct Xano fetch');
-      fetch('https://x7aj-untn-pq4t.n7e.xano.io/api:gcBt2DIO/units')
+      fetch('https://x7aj-untn-pq4t.n7e.xano.io/api:p34ccxq4/units')
         .then((r) => r.json())
         .then((data) => { if (Array.isArray(data)) boot(data); })
         .catch((e) => console.error('[site-plan] fetch failed', e));
