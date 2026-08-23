@@ -1,0 +1,44 @@
+Heartland reservation rebuild — docs
+Reference for moving reservations out of Memberstack custom fields into Xano,
+confirmed by the Payfast ITN, across three properties (Polaris, Sanford, Eridanus).
+File
+What it's for
+Read it when
+naming-registry.md
+What things are called and why. Claimed prefixes, rules per namespace, what's frozen.
+Before naming anything. Shortest of the three.
+phase-1-runbook.md
+Build order, eight stages, with a done-when test per step. Includes the live-site inventory and the full legacy field map.
+While building.
+reservation-architecture.md
+The full design — schema, CMS sync, ITN, sales console, later phases, costs.
+When a decision needs its reasoning.
+The short version
+Xano owns the reservation, the money, and whether a unit is available.
+Memberstack is login and page gating. Payfast's ITN is the only trustworthy
+signal that money moved.
+The Webflow CMS stays the catalogue. Units, add-ons and properties are
+edited there as they are today; Xano mirrors what it needs to price and lock.
+The CMS knows sold and reserved; Xano knows held.
+Never rename across a boundary. Webflow form field names, CMS slugs,
+Memberstack sub-status values and Payfast field names are all frozen.
+Translation happens in field-map.js and nowhere else.
+Rules that are easy to get wrong
+Money is integer _cents everywhere. Format to two decimals only when
+handing an amount to Payfast.
+The Payfast amount comes from the CMS (payment-amount on the Reservation
+Step 3 collection), read server-side. The request body never carries an
+amount.
+Rebuild the ITN signature from the raw body in the order received —
+parsed input objects don't preserve it.
+use-live-payments is per property. A property left on sandbox takes no
+real money.
+sales_stage values stay kebab-case because they came from Memberstack and
+the portal still reads them. Our own statuses are snake_case. This is
+deliberate — see the registry.
+Keeping these current
+These are exports of three artifacts on claude.ai. If you edit here, they're the
+source of truth and the artifacts are stale — say so at the top of the file
+rather than letting two versions drift, which is the exact failure the naming
+registry exists to prevent.
+Generated 22 Aug 2026.
