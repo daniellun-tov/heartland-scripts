@@ -159,12 +159,30 @@
      typing a plain address exactly as they do now. */
   var PHOTON = "https://photon.komoot.io/api/";
 
+  /* SOUTH AFRICA, UNLESS TOLD OTHERWISE.
+     Photon ranks by a mix of prominence and distance, and with no hint it answered
+     "17 Alice Road" with West Islip, Randolph, Croton Falls and Aireys Inlet - four
+     countries, none of them this one. Every buyer of a Pretoria house is typing a
+     South African address.
+
+     bbox is a HARD bound - results outside it are not returned at all - and lat/lon
+     bias the ranking within it towards Gauteng, where the developments are. Both are
+     overridable per call, so a property somewhere else needs no code change.
+     bbox is minLon,minLat,maxLon,maxLat and covers the mainland plus a margin. */
+  var SA_BBOX = "16.45,-34.84,32.95,-22.13";
+  var SA_LAT = -25.75;    // Pretoria
+  var SA_LON = 28.19;
+
   function addressSuggest(term, opts) {
     opts = opts || {};
     var q = String(term || "").trim();
     if (q.length < 4) { return Promise.resolve([]); }
     var url = PHOTON + "?q=" + encodeURIComponent(q) + "&limit=5&lang=en";
-    if (opts.lat && opts.lon) { url += "&lat=" + opts.lat + "&lon=" + opts.lon; }
+    var bbox = (opts.bbox === undefined) ? SA_BBOX : opts.bbox;
+    if (bbox) { url += "&bbox=" + encodeURIComponent(bbox); }
+    var lat = (opts.lat === undefined) ? SA_LAT : opts.lat;
+    var lon = (opts.lon === undefined) ? SA_LON : opts.lon;
+    if (lat !== null && lon !== null) { url += "&lat=" + lat + "&lon=" + lon; }
     return fetch(url, { signal: opts.signal })
       .then(function (r) { return r.ok ? r.json() : { features: [] }; })
       .then(function (j) { return ((j && j.features) || []).map(formatFeature); })
@@ -173,12 +191,16 @@
 
   function formatFeature(f) {
     var p = (f && f.properties) || {};
+    /* The country is dropped when it is the one we already bounded the search to -
+       five suggestions all ending "South Africa" is five wasted lines on a phone. */
+    var country = (String(p.country || "").toLowerCase() === "south africa") ? null : p.country;
     var line = [
       [p.housenumber, p.street || p.name].filter(Boolean).join(" "),
       p.district,
       p.city,
+      p.state,
       p.postcode,
-      p.country
+      country
     ].filter(Boolean).join(", ");
     return { label: line, raw: p };
   }
@@ -890,6 +912,130 @@
     return d.querySelector('[data-hl-field="' + name + '"]');
   }
 
+  /* ------------------------------------------------------- saying what is wrong
+
+     A single line at the top reading "Please complete: first_name, dob" was two
+     failures at once. It named COLUMNS rather than the things on screen, and it put
+     the complaint at the top of a two-column form where the empty box might be well
+     out of sight.
+
+     The contract, and it is all attribute-driven so the wording lives in the Designer:
+
+       [data-hl-error="dob"]              where this field's message is written. Its
+                                          space is always reserved, so nothing shifts
+                                          when a message appears.
+       data-hl-label="date of birth"      on that element - what to call the field to
+                                          a person. Falls back to the label in the
+                                          same wrapper, then to the field name.
+       data-hl-required-message="..."     an exact message, when the composed one is
+                                          not good enough.
+
+     The WRAPPER is found by walking up from the control until an ancestor contains
+     this field's error element - so it does not depend on a class name or on the
+     markup keeping a particular shape. */
+
+  function errorEl(field) {
+    return d.querySelector('[data-hl-error="' + field + '"]');
+  }
+
+  function fieldWrap(el, field) {
+    var target = errorEl(field);
+    if (!target) { return null; }
+    var n = el;
+    while (n && n.nodeType === 1) {
+      if (n.contains(target)) { return n; }
+      n = n.parentNode;
+    }
+    return null;
+  }
+
+  function labelEl(el, field) {
+    var wrap = fieldWrap(el, field);
+    if (!wrap) { return null; }
+    return wrap.querySelector("[data-hl-label-text], label, .hl-label");
+  }
+
+  function prettyName(el, field) {
+    var box = errorEl(field);
+    var given = box && box.getAttribute("data-hl-label");
+    if (given) { return given; }
+    var lab = labelEl(el, field);
+    if (lab) {
+      /* The asterisk we added, and any trailing punctuation from a label written as a
+         question - "How are you paying?" reads badly inside a sentence. */
+      var t = String(lab.textContent || "").replace(/\*/g, "").replace(/[?:.!]+\s*$/, "").trim();
+      if (t) { return t.toLowerCase(); }
+    }
+    return String(field).replace(/_/g, " ");
+  }
+
+  function isChoice(el) {
+    return el && (el.tagName === "SELECT" || el.type === "date");
+  }
+
+  function requiredMessage(el, field) {
+    var box = errorEl(field);
+    var exact = box && box.getAttribute("data-hl-required-message");
+    if (exact) { return exact; }
+    var name = prettyName(el, field);
+    return (isChoice(el) ? "Please choose " : "Please enter ") +
+           (/^(your|a|an|the)\b/.test(name) ? "" : "your ") + name + ".";
+  }
+
+  function showError(field, msg) {
+    var box = errorEl(field);
+    if (box) { box.textContent = msg || ""; }
+    var el = fieldEl(field);
+    if (el && el.classList) { el.classList.toggle("is-invalid", !!msg); }
+  }
+
+  function clearErrors() {
+    var boxes = d.querySelectorAll("[data-hl-error]");
+    for (var i = 0; i < boxes.length; i++) {
+      boxes[i].textContent = "";
+      var el = fieldEl(boxes[i].getAttribute("data-hl-error"));
+      if (el && el.classList) { el.classList.remove("is-invalid"); }
+    }
+  }
+
+  /* A native date picker will happily accept the year 0219 or a buyer born last week.
+     The bounds come from MIN_AGE - the same rule that decides the century when a date
+     of birth is read out of an ID number - so the two cannot disagree, and neither
+     goes stale the way a hardcoded year would. */
+  function boundDateOfBirth() {
+    var el = fieldEl("dob");
+    if (!el || el.type !== "date") { return; }
+    var minAge = (w.HLBuyer && w.HLBuyer.MIN_AGE) || 18;
+    var now = new Date();
+    function iso(y) {
+      return y + "-" + ("0" + (now.getMonth() + 1)).slice(-2) + "-" + ("0" + now.getDate()).slice(-2);
+    }
+    el.setAttribute("max", iso(now.getFullYear() - minAge));
+    el.setAttribute("min", iso(now.getFullYear() - 120));
+  }
+
+  /* The asterisk comes from data-hl-required, not from someone remembering to type
+     one - so the mark and the rule can never disagree. */
+  function markRequired() {
+    var els = d.querySelectorAll("[data-hl-field]");
+    for (var i = 0; i < els.length; i++) {
+      var field = els[i].getAttribute("data-hl-field");
+      var lab = labelEl(els[i], field);
+      if (!lab) { continue; }
+      var star = lab.querySelector(".hl-req");
+      var need = els[i].hasAttribute("data-hl-required");
+      if (need && !star) {
+        star = d.createElement("span");
+        star.className = "hl-req";
+        star.setAttribute("aria-hidden", "true");
+        star.textContent = "*";
+        lab.appendChild(star);
+      } else if (!need && star) {
+        star.parentNode.removeChild(star);
+      }
+    }
+  }
+
   /* The live control wins over the response: the buyer may have just changed it and
      the save is still inside the debounce window. */
   function buyerTypeNow() {
@@ -930,6 +1076,11 @@
          stylesheet, which means a block may safely be hidden by default to stop it
          flashing up before this runs. */
       els[i].style.display = show ? "block" : "none";
+      /* A field that has just been hidden must not keep a complaint on it. */
+      if (!show) {
+        var f = els[i].querySelector("[data-hl-field]");
+        if (f) { showError(f.getAttribute("data-hl-field"), ""); }
+      }
     }
   }
 
@@ -1023,6 +1174,8 @@
     renderStep();
     applyBuyerType();
     syncDobFromId();
+    markRequired();
+    boundDateOfBirth();
   }
 
   /* --------------------------------------------------------------- writing */
@@ -1220,11 +1373,23 @@
   }
 
   function advance(next) {
+    clearErrors();
     var missing = missingRequired();
     if (missing.length) {
-      status("Please complete: " + missing.join(", "), true);
+      for (var m = 0; m < missing.length; m++) {
+        var el = fieldEl(missing[m]);
+        showError(missing[m], requiredMessage(el, missing[m]));
+      }
+      /* The top line no longer lists column names. Each empty box says what it wants,
+         where the buyer is looking; this only points them at the first one. */
+      status(missing.length === 1
+        ? "One thing is still needed before you can continue."
+        : "A few things are still needed before you can continue.", true);
       var first = currentScope().querySelector('[data-hl-field="' + missing[0] + '"]');
       if (first && first.focus) { first.focus(); }
+      if (first && first.scrollIntoView) {
+        try { first.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+      }
       return;
     }
     /* ONE write per navigation. Confirming is what locks the OTP, so that write must
@@ -1343,6 +1508,8 @@
      ID rule, so it is applied first. */
   function fieldTouched(t) {
     var f = t.getAttribute("data-hl-field");
+    /* An error that stays up while the buyer is fixing it is just noise. */
+    if (String(t.value || "").trim() !== "") { showError(f, ""); }
     if (f === "dob") { dobIsOurs = false; }        // they typed it; it is theirs now
     queueSave();
     if (f === "buyer_type") { applyBuyerType(); }
