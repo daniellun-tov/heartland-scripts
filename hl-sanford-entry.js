@@ -51,11 +51,17 @@
      back into the flimsy flow this whole exercise exists to replace. */
   var CREATE_TIMEOUT_MS = 8000;
 
-  /* A value long enough to be prose, or carrying an @, is not a unit identifier - it
-     is the buyer's address or email. Dropping those keeps the payload small and keeps
-     contact details out of a request that has no use for them. Nothing that could
-     identify a unit is short of this bar: ids, slugs, names and numbers are all tiny. */
-  var MAX_VALUE_LEN = 64;
+  /* CHANGED 25 Aug, and the reason matters.
+
+     This used to drop any value carrying an @ or longer than 64 characters, on the
+     grounds that an email or an address cannot identify a unit and had no business in
+     a request that only resolved units. That was right then and is wrong now: the
+     endpoint also carries the buyer's answers into the reservation, so an email and an
+     address are the whole point. Withholding them is what makes someone type their
+     name twice.
+
+     The cap stays, raised, purely to keep a runaway field from bloating the request. */
+  var MAX_VALUE_LEN = 200;
 
   var DEBUG = /[?&]hl_debug=1/.test(w.location.search);
   var FORCE_LEGACY = /[?&]hl_legacy=1/.test(w.location.search);
@@ -82,7 +88,9 @@
   }
 
   /* Every field, as {k, v}. No opinion about which one matters - that is the server's
-     job now, and every browser-side opinion so far has been wrong. */
+     job now, and every browser-side opinion so far has been wrong. The server uses this
+     for two things: working out WHICH UNIT was meant, and carrying WHAT THE BUYER
+     ALREADY TYPED into the reservation so it is never asked for a second time. */
   function pairsFrom(form) {
     var out = [];
     try {
@@ -94,7 +102,7 @@
         var v = e.value[1];
         if (typeof v === "string") {
           var s = v.trim();
-          if (s !== "" && s.length <= MAX_VALUE_LEN && s.indexOf("@") === -1) {
+          if (s !== "" && s.length <= MAX_VALUE_LEN) {
             out.push({ k: String(k), v: s });
           }
         }
@@ -137,6 +145,12 @@
           store(UNIT_KEY, (j && j.wf_unit_id) || "");
           log("draft", uuid, "unit", j.wf_unit_id, "matched by", j.resolved_by,
               "from", j.units_considered, "units");
+          log("carried over:", (j.carried_over || []).join(", ") || "nothing");
+          if (j.unmapped_fields && j.unmapped_fields.length) {
+            /* Not an error - but a field the buyer filled in that nobody is reading is
+               worth knowing about, because it is a field they may be asked for again. */
+            log("form fields nobody maps:", j.unmapped_fields.join(", "));
+          }
           return uuid;
         });
       })
