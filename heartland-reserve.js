@@ -964,7 +964,16 @@
       /* The asterisk we added, and any trailing punctuation from a label written as a
          question - "How are you paying?" reads badly inside a sentence. */
       var t = String(lab.textContent || "").replace(/\*/g, "").replace(/[?:.!]+\s*$/, "").trim();
-      if (t) { return t.toLowerCase(); }
+      if (t) {
+        /* Only the FIRST LETTER is lowered, and not even that when the label opens
+           with an acronym. Lowercasing the whole label turned "ID or registration
+           number" into "id or registration number" - which is not a word anyone in
+           this business writes. The rest of the label is left exactly as the Designer
+           wrote it, because whoever typed it knew which words are proper nouns. */
+        var firstWord = t.split(/\s+/)[0];
+        if (/^[A-Z0-9]{2,}$/.test(firstWord)) { return t; }
+        return t.charAt(0).toLowerCase() + t.slice(1);
+      }
     }
     return String(field).replace(/_/g, " ");
   }
