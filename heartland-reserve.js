@@ -523,6 +523,16 @@
   var UUID_KEY = "hl_v2_uuid";
   var DEBOUNCE_MS = 800;
 
+  /* Set the instant before the browser leaves for Payfast, and read when it comes
+     back. It exists because the return URL is not ours to rely on: it is built and
+     SIGNED in Xano, it has already been changed once for a reason that had nothing
+     to do with this page, and a query string can be dropped by anything in between.
+     This marker cannot be. It expires so that abandoning a payment and wandering
+     back tomorrow does not present a buyer with a page waiting for money nobody
+     sent. */
+  var PAY_KEY = "hl_v2_paying";
+  var PAY_WINDOW_MS = 30 * 60 * 1000;
+
   /* Exact match on the canonical slug, never a substring test - trap 8. Polaris is
      live and selling through the legacy path; this must be unable to write against
      it, not merely absent from the pages its buyers use. */
@@ -538,6 +548,14 @@
   ];
 
   var STEPS = ["unit", "details", "pay", "done"];
+
+  /* The done step waits for Payfast's ITN, which arrives server-to-server and is not
+     what brings the buyer back. So the browser returns first and polls. One minute at
+     two and a half seconds; a payment that has not confirmed by then has almost
+     always gone to awaiting_clearance, which the page says out loud rather than
+     spinning forever. */
+  var POLL_MS = 2500;
+  var POLL_MAX = 24;
 
   var DEBUG = /[?&]hl_debug=1/.test(w.location.search);
   function log() {
@@ -643,6 +661,11 @@
     for (var i = 0; i < els.length; i++) {
       els[i].textContent = msg || "";
       els[i].setAttribute("data-hl-status-state", bad ? "error" : (msg ? "info" : ""));
+      /* The attribute is the honest description of the state; the classes exist
+         because Webflow styles classes and cannot style an attribute selector.
+         Both, rather than one, so the markup still reads correctly to a human. */
+      els[i].classList.toggle("is-error", !!bad);
+      els[i].classList.toggle("is-info", !bad && !!msg);
     }
     if (msg) { (bad ? warn : log)(msg); }
   }
@@ -686,6 +709,11 @@
     }
   }
 
+  /* What we last put into each control. It is how an unsaved edit is told apart
+     from a control nobody has touched, which is the difference between refreshing a
+     field and destroying an answer. */
+  var rendered = {};
+
   function renderInputs() {
     var els = d.querySelectorAll("[data-hl-field]");
     for (var i = 0; i < els.length; i++) {
@@ -693,16 +721,36 @@
       if (WRITABLE.indexOf(f) === -1) { continue; }
       var v = R && R[f];
       if (v === null || v === undefined) { v = ""; }
+      var srv = String(v);
+      var cur = String(els[i].value === null || els[i].value === undefined ? "" : els[i].value);
+
       // Do not clobber what the buyer is currently typing.
-      if (d.activeElement === els[i]) { continue; }
-      els[i].value = String(v);
+      if (d.activeElement === els[i]) { rendered[f] = cur; continue; }
+
+      /* THE BUYER'S UNSAVED EDIT WINS OVER A STALE RESPONSE.
+         Every save re-reads the reservation and re-renders, and a save is in flight
+         for most of the time a buyer spends on this step. Writing the response over
+         every unfocused control means an answer given while an earlier save was in
+         the air is silently replaced by the value that save did not yet know about.
+         It cost a whole afternoon: the date of birth derived from an ID number
+         appeared and then vanished, and the derivation looked like the culprit.
+         A control is only refreshed when it still holds what we last put in it. */
+      if (cur !== srv && cur !== "" && cur !== (rendered[f] || "")) { continue; }
+
+      els[i].value = srv;
+      rendered[f] = srv;
     }
   }
 
   function renderStep() {
     var secs = d.querySelectorAll("[data-hl-step]");
     for (var i = 0; i < secs.length; i++) {
-      secs[i].style.display = (secs[i].getAttribute("data-hl-step") === step) ? "" : "none";
+      /* "block", not "" - and the difference is a page that works versus a page that
+         is permanently blank. Clearing the inline style hands the decision back to
+         the stylesheet, and the stylesheet hides .hl-step by default so the four
+         steps do not all flash up before this runs. The active step would then be
+         hidden by the very rule that exists to stop the flash. */
+      secs[i].style.display = (secs[i].getAttribute("data-hl-step") === step) ? "block" : "none";
     }
     var prog = d.querySelectorAll("[data-hl-progress]");
     var at = STEPS.indexOf(step);
@@ -713,11 +761,156 @@
     }
   }
 
+  /* ------------------------------------------------- buyer-field behaviours
+
+     window.HLBuyer holds the rules - SA-ID dates, the individual test, address
+     lookup - as pure functions with no DOM in them. This is the wiring, and it
+     lives here because it is the FLOW that knows which markup exists.
+
+     Until this was written the three behaviours Daniel asked for on 24 Aug only
+     existed on /reserve-v2, whose panel was drawn in JavaScript. On the Designer
+     page the module was loaded and never called - present, and doing nothing.
+
+       data-hl-only-for="individual"   shown only to an individual buyer
+       data-hl-only-for="entity"       shown only to a company or trust
+       data-hl-id-hint                 where the ID number check writes its note
+       data-hl-suggest                 on the address input, to offer suggestions
+       data-hl-suggest-list            where suggestions are drawn
+  */
+
+  var dobIsOurs = false;   // true while the date of birth is one we derived
+
+  function fieldEl(name) {
+    return d.querySelector('[data-hl-field="' + name + '"]');
+  }
+
+  /* The live control wins over the response: the buyer may have just changed it and
+     the save is still inside the debounce window. */
+  function buyerTypeNow() {
+    var el = fieldEl("buyer_type");
+    if (el) { return el.value; }
+    return (R && R.buyer_type) || "";
+  }
+
+  /* Only counts display:none that WE set, walking up through the inline styles.
+     Deliberately not offsetParent: it needs layout, so it reports every element as
+     hidden under jsdom and would have made the tests agree with anything. */
+  function hiddenByUs(el) {
+    var n = el;
+    while (n && n.nodeType === 1) {
+      if (n.style && n.style.display === "none") { return true; }
+      n = n.parentNode;
+    }
+    return false;
+  }
+
+  function applyBuyerType() {
+    var individual = w.HLBuyer && w.HLBuyer.isIndividual
+      ? w.HLBuyer.isIndividual(buyerTypeNow())
+      : false;
+    var els = d.querySelectorAll("[data-hl-only-for]");
+    for (var i = 0; i < els.length; i++) {
+      var want = String(els[i].getAttribute("data-hl-only-for") || "").toLowerCase().trim();
+      var show = (want === "individual") ? individual
+               : (want === "entity") ? !individual
+               : true;
+      if (want !== "individual" && want !== "entity") {
+        warn('data-hl-only-for should read individual or entity, got "' + want + '"');
+      }
+      els[i].style.display = show ? "" : "none";
+    }
+  }
+
+  /* An ID number is 13 digits only for an individual. A company registration parsed
+     as a date produces a confident wrong answer, which is why this refuses to run
+     unless the buyer type says individual. */
+  function syncDobFromId() {
+    var idEl = fieldEl("id_number");
+    var dobEl = fieldEl("dob");
+    var hint = d.querySelector("[data-hl-id-hint]");
+    if (!idEl) { return; }
+
+    function note(msg) { if (hint) { hint.textContent = msg || ""; } }
+
+    if (!(w.HLBuyer && w.HLBuyer.isIndividual && w.HLBuyer.isIndividual(buyerTypeNow()))) {
+      note("");
+      return;
+    }
+    var raw = String(idEl.value || "").trim();
+    if (raw === "") { note(""); return; }
+
+    var r = w.HLBuyer.dobFromSaId(raw, new Date().getFullYear());
+    if (!r.ok) {
+      note("That does not look like a 13-digit South African ID number.");
+      return;
+    }
+    note(r.checkDigitOk ? "" : "Please check this ID number — the last digit does not add up.");
+
+    /* Never overwrite a date the buyer typed. Ours is replaceable; theirs is not. */
+    if (dobEl && (String(dobEl.value || "").trim() === "" || dobIsOurs)) {
+      if (dobEl.value !== r.iso) {
+        dobEl.value = r.iso;
+        queueSave();
+      }
+      dobIsOurs = true;
+    }
+  }
+
+  /* ---- address suggestions. Strictly additive: every failure path leaves the
+     buyer typing a plain address exactly as they would have anyway. */
+  var sugTimer = null;
+  var sugAbort = null;
+
+  function clearSuggestions() {
+    var box = d.querySelector("[data-hl-suggest-list]");
+    if (!box) { return; }
+    while (box.firstChild) { box.removeChild(box.firstChild); }
+    box.style.display = "none";
+  }
+
+  function suggestAddress() {
+    var el = fieldEl("address");
+    var box = d.querySelector("[data-hl-suggest-list]");
+    if (!el || !box || !el.hasAttribute("data-hl-suggest")) { return; }
+    if (sugTimer) { w.clearTimeout(sugTimer); }
+    sugTimer = w.setTimeout(function () {
+      sugTimer = null;
+      if (sugAbort && sugAbort.abort) { try { sugAbort.abort(); } catch (e) {} }
+      var ctl = (typeof w.AbortController === "function") ? new w.AbortController() : null;
+      sugAbort = ctl;
+      w.HLBuyer.addressSuggest(el.value, { signal: ctl && ctl.signal })
+        .then(function (list) {
+          clearSuggestions();
+          if (!list || !list.length) { return; }
+          box.style.display = "";
+          for (var i = 0; i < list.length; i++) {
+            var item = d.createElement("div");
+            item.setAttribute("data-hl-suggest-item", "");
+            item.setAttribute("role", "button");
+            item.setAttribute("tabindex", "0");
+            item.textContent = list[i].label;
+            box.appendChild(item);
+          }
+        })
+        .catch(function () { clearSuggestions(); });
+    }, 300);
+  }
+
+  function takeSuggestion(el) {
+    var input = fieldEl("address");
+    if (!input) { return; }
+    input.value = el.textContent || "";
+    clearSuggestions();
+    queueSave();
+  }
+
   function render() {
     if (!R) { return; }
     renderDisplays();
     renderInputs();
     renderStep();
+    applyBuyerType();
+    syncDobFromId();
   }
 
   /* --------------------------------------------------------------- writing */
@@ -749,6 +942,11 @@
     var out = [];
     var els = currentScope().querySelectorAll("[data-hl-field][data-hl-required]");
     for (var i = 0; i < els.length; i++) {
+      /* A hidden field cannot be a blocker. A company buyer never sees the date of
+         birth, so requiring it would refuse them the next step over a control they
+         were never shown - an error they could do nothing about, which is the same
+         bug currentScope() was written to fix, one level down. */
+      if (hiddenByUs(els[i])) { continue; }
       var v = String(els[i].value || "").trim();
       if (v === "") { out.push(els[i].getAttribute("data-hl-field")); }
     }
@@ -849,6 +1047,7 @@
         d.body.appendChild(form);
         log("posting", pairs.length, "fields to", CO.process_url, CO.is_live ? "LIVE" : "sandbox");
         lastNav = CO.process_url;
+        store(PAY_KEY, R.uuid + "|" + Date.now());
         form.submit();
       })
       .catch(function (e) { status("Could not start payment: " + e.message, true); })
@@ -861,9 +1060,11 @@
 
   function go(next) {
     if (STEPS.indexOf(next) === -1) { warn("unknown step", next); return; }
+    if (next !== "done") { stopPolling(); }
     step = next;
     renderStep();
     status("");
+    applyBuyerType();
   }
 
   function advance(next) {
@@ -910,20 +1111,115 @@
       .catch(function (e) { status("Could not load your reservation: " + e.message, true); return null; });
   }
 
+  /* ----------------------------------------------------- waiting for the money
+
+     Payfast tells US the payment succeeded, server to server, on a connection the
+     buyer is not part of. The buyer just gets sent back. So arriving here proves
+     nothing about the money, and the page has to ask.
+
+     It asks the reservation, never Payfast, and never anything the return URL says:
+     a query string is written by whoever built the link. status comes from the ITN
+     gauntlet in Xano and is the only thing worth believing. */
+  var pollTimer = null;
+  var polls = 0;
+
+  var SETTLED = { confirmed: 1, payment_failed: 1, expired: 1, cancelled: 1, refunded: 1 };
+
+  function stopPolling() {
+    if (pollTimer) { w.clearTimeout(pollTimer); pollTimer = null; }
+  }
+
+  function pollStatus() {
+    stopPolling();
+    if (!R) { return; }
+    var st = String(R.status || "");
+    if (SETTLED[st]) {
+      clearPaying();
+      if (st === "confirmed") { status(""); }
+      else if (st === "payment_failed") { status("That payment did not go through. Nothing has been charged - you can try again.", true); }
+      return;
+    }
+    if (polls >= POLL_MAX) {
+      status("Your payment is still being confirmed. We will email you as soon as it clears - you can close this page.");
+      return;
+    }
+    polls++;
+    pollTimer = w.setTimeout(function () {
+      pollTimer = null;
+      load(R.uuid).then(function () { pollStatus(); });
+    }, POLL_MS);
+  }
+
+  /* Walk up to the step this element sits in, if any. Written out rather than using
+     closest() so it behaves the same in every browser this site still serves. */
+  function closestStep(el) {
+    var n = el;
+    while (n && n.nodeType === 1) {
+      if (n.getAttribute && n.getAttribute("data-hl-step")) { return n; }
+      n = n.parentNode;
+    }
+    return null;
+  }
+
+  /* Did THIS browser send THIS reservation to Payfast, recently? */
+  function justPaid(uuid) {
+    var raw = stored(PAY_KEY);
+    if (!raw) { return false; }
+    var bar = raw.indexOf("|");
+    var who = bar > -1 ? raw.slice(0, bar) : raw;
+    var when = bar > -1 ? Number(raw.slice(bar + 1)) : 0;
+    if (who !== uuid) { return false; }
+    if (!isFinite(when) || (Date.now() - when) > PAY_WINDOW_MS) { clearPaying(); return false; }
+    return true;
+  }
+
+  function clearPaying() { store(PAY_KEY, ""); }
+
+  /* One place that reacts to a buyer touching a control, so the three behaviours
+     cannot drift apart from the save. Order matters: the buyer type is read by the
+     ID rule, so it is applied first. */
+  function fieldTouched(t) {
+    var f = t.getAttribute("data-hl-field");
+    if (f === "dob") { dobIsOurs = false; }        // they typed it; it is theirs now
+    queueSave();
+    if (f === "buyer_type") { applyBuyerType(); }
+    if (f === "buyer_type" || f === "id_number") { syncDobFromId(); }
+    if (f === "address") { suggestAddress(); }
+  }
+
   function bind() {
     d.addEventListener("input", function (e) {
       var t = e.target;
-      if (t && t.getAttribute && t.getAttribute("data-hl-field")) { queueSave(); }
+      if (t && t.getAttribute && t.getAttribute("data-hl-field")) { fieldTouched(t); }
     }, true);
     d.addEventListener("change", function (e) {
       var t = e.target;
-      if (t && t.getAttribute && t.getAttribute("data-hl-field")) { queueSave(); }
+      if (t && t.getAttribute && t.getAttribute("data-hl-field")) { fieldTouched(t); }
+    }, true);
+
+    /* Webflow will not create a text input outside a Form, so the details step is
+       wrapped in one - and a Webflow form means Enter inside any field submits it.
+       Left alone that reloads the page with the answers in the query string and the
+       reservation lost. Capture phase, and stopPropagation, so this runs before
+       Webflow's own submit handler rather than racing it.
+
+       Enter then does what the buyer meant: the step's forward action. */
+    d.addEventListener("submit", function (e) {
+      var f = e.target;
+      if (!f || !closestStep(f)) { return; }
+      e.preventDefault();
+      e.stopPropagation();
+      var fwd = currentScope().querySelector("[data-hl-goto]");
+      if (fwd) { advance(fwd.getAttribute("data-hl-goto")); }
     }, true);
 
     d.addEventListener("click", function (e) {
       var t = e.target;
       while (t && t !== d.body) {
         if (t.getAttribute) {
+          if (t.hasAttribute("data-hl-suggest-item")) {
+            e.preventDefault(); takeSuggestion(t); return;
+          }
           var goto = t.getAttribute("data-hl-goto");
           if (goto) { e.preventDefault(); advance(goto); return; }
           var back = t.getAttribute("data-hl-back");
@@ -957,7 +1253,13 @@
       problems: checkoutProblems,
       writable: WRITABLE.slice(),
       lastNavigation: function () { return lastNav; },
-      money: money
+      money: money,
+      buyerType: buyerTypeNow,
+      applyBuyerType: applyBuyerType,
+      syncDob: syncDobFromId,
+      missing: missingRequired,
+      poll: pollStatus,
+      polls: function () { return polls; }
     };
 
     var uuid = param("r") || stored(UUID_KEY);
@@ -965,11 +1267,33 @@
       status("We could not find your reservation. Please start again from the property page.", true);
       return;
     }
+    /* Coming back from Payfast. The parameter only says WHERE to look, never what
+       happened - the status does that, and it comes from Xano. A forged
+       ?payment=success therefore buys nothing: the done step would sit there
+       reporting a payment that never cleared. */
+    var flag = String(param("payment")).toLowerCase();
+    var cancelled = /^(cancel|cancelled)$/.test(flag);
+    var returning = /^(success|cancel|cancelled)$/.test(flag) || justPaid(uuid);
+
     load(uuid).then(function (r) {
       if (!r) { return; }
+      if (cancelled) {
+        clearPaying();
+        go("pay");
+        status("Payment cancelled. Your home is still held - you can pay when you are ready.");
+        return;
+      }
+      if (returning) {
+        go("done");
+        polls = 0;
+        pollStatus();
+        return;
+      }
       // Resume where they left off.
       var ls = String(r.last_step || "").toLowerCase();
-      if (ls === "confirm" || ls === "activate") { go("pay"); }
+      var st = String(r.status || "").toLowerCase();
+      if (st === "confirmed") { go("done"); }
+      else if (ls === "confirm" || ls === "activate") { go("pay"); }
       else if (ls === "details") { go("details"); }
       else { go("unit"); }
     });
