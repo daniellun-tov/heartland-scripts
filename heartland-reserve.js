@@ -183,7 +183,81 @@
     return { label: line, raw: p };
   }
 
+  /* ------------------------------------------------------------ 4. busy buttons
+
+     Lifted from heartland-polaris.js so the two behave identically - same class
+     names, same spinner, same default wording. It is deliberately a copy of the
+     BEHAVIOUR rather than a shared import: the brochure scripts are per-property,
+     pinned per-property, and one of them is live and selling. Nothing here may make
+     Polaris depend on this file.
+
+     The button says what is happening and stops accepting clicks. pointer-events on
+     .res-busy is what makes a double submit impossible, which matters more here than
+     the spinner: the second click of an impatient double-click would otherwise file a
+     second reservation. */
+  function ensureSpinnerCss() {
+    if (document.getElementById("res-spinner-css")) { return; }
+    var st = document.createElement("style");
+    st.id = "res-spinner-css";
+    st.textContent =
+      ".res-spinner{display:inline-block;width:.85em;height:.85em;margin-left:.5em;vertical-align:-.1em;" +
+      "border:2px solid currentColor;border-right-color:transparent;border-radius:50%;" +
+      "animation:res-spin .6s linear infinite}" +
+      "@keyframes res-spin{to{transform:rotate(360deg)}}" +
+      ".res-busy{opacity:.65;cursor:default;pointer-events:none}";
+    document.head.appendChild(st);
+  }
+
+  var spinTimers = [];
+
+  function setBusy(btn, on, waitText) {
+    if (!btn) { return; }
+    for (var t = 0; t < spinTimers.length; t++) { clearInterval(spinTimers[t]); }
+    spinTimers = [];
+
+    if (!on) {
+      btn.classList.remove("res-busy");
+      btn.removeAttribute("aria-busy");
+      if (btn.tagName === "INPUT") {
+        if (btn.getAttribute("data-res-original") !== null) { btn.value = btn.getAttribute("data-res-original"); }
+        btn.disabled = false;
+      } else if (btn.getAttribute("data-res-original") !== null) {
+        btn.innerHTML = btn.getAttribute("data-res-original");
+      }
+      btn.removeAttribute("data-res-original");
+      return;
+    }
+
+    ensureSpinnerCss();
+    var wait = btn.getAttribute("data-wait") || waitText || "Reserving your home";
+    btn.classList.add("res-busy");
+    btn.setAttribute("aria-busy", "true");
+
+    if (btn.tagName === "INPUT") {
+      if (btn.getAttribute("data-res-original") === null) { btn.setAttribute("data-res-original", btn.value); }
+      btn.value = wait;
+      btn.disabled = true;
+      /* An <input> cannot hold a spinner element, so the dots are the spinner. */
+      var n = 0;
+      spinTimers.push(setInterval(function () {
+        n = (n + 1) % 4;
+        btn.value = wait + "...".slice(0, n);
+      }, 350));
+    } else {
+      if (btn.getAttribute("data-res-original") === null) { btn.setAttribute("data-res-original", btn.innerHTML); }
+      btn.innerHTML = wait + '<span class="res-spinner"></span>';
+    }
+  }
+
+  /* The submit control of a form, by the same rule Polaris uses. */
+  function submitButton(form) {
+    if (!form) { return null; }
+    return form.querySelector('input[type="submit"], button[type="submit"], [data-res-submit="true"]');
+  }
+
   w.HLBuyer = {
+    setBusy: setBusy,
+    submitButton: submitButton,
     dobFromSaId: dobFromSaId,
     isIndividual: isIndividual,
     luhnOk: luhnOk,
@@ -247,6 +321,15 @@
      Sanford-only by construction. */
   var PROPERTY = "";
   var UUID_KEY = "hl_v2_uuid";
+
+  /* Read through window each time rather than captured at load: the modules are
+     separate IIFEs in one file and this one must not care about their order. */
+  function setBusy(btn, on, txt) {
+    if (w.HLBuyer && w.HLBuyer.setBusy) { w.HLBuyer.setBusy(btn, on, txt); }
+  }
+  function submitButton(form) {
+    return (w.HLBuyer && w.HLBuyer.submitButton) ? w.HLBuyer.submitButton(form) : null;
+  }
   var UNIT_KEY = "hl_v2_unit";
 
   /* The server reads two pages of the CMS collection before it can answer, which
@@ -370,9 +453,23 @@
   var lastNav = "";
   function go(url) { lastNav = url; w.location.href = url; }
 
+  /* One submit at a time. The busy button takes pointer-events away, which stops a
+     human double-click, but nothing stops a second submit event arriving another way
+     - and a second one would file a SECOND reservation against the same buyer. The
+     flag is the guarantee; the button is the courtesy. */
+  var submitting = false;
+
   function handleSubmit(e) {
     var form = e.target;
     if (!form || form.id !== "reservation-form") { return; }
+
+    if (submitting) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) { e.stopImmediatePropagation(); }
+      log("already submitting - ignored");
+      return;
+    }
 
     var legacy = legacyUrl(form);
     if (FORCE_LEGACY) { log("hl_legacy=1"); return; }   // let their handler run untouched
@@ -383,6 +480,14 @@
     e.preventDefault();
     e.stopPropagation();
     if (e.stopImmediatePropagation) { e.stopImmediatePropagation(); }
+
+    /* THE BUYER HAS TO SEE THAT SOMETHING HAPPENED. Until now this handler swallowed
+       the submit and then sat silent for as long as Xano took, on a button that still
+       looked clickable - so an impatient second click was not just likely, it was
+       reasonable. Same treatment Polaris has had all along, and it is never cleared:
+       every path below ends in a navigation. */
+    setBusy(submitButton(form), true);
+    submitting = true;
 
     if (!pairs.length) {
       warn("the form carried no usable fields - going legacy");
@@ -629,6 +734,7 @@
 
   var R = null;          // the reservation, exactly as Xano returned it
   var step = "unit";
+  var pending = null;    // the write behind the step the buyer is looking at
   var patchTimer = null;
   var inFlight = false;
 
@@ -817,7 +923,13 @@
       if (want !== "individual" && want !== "entity") {
         warn('data-hl-only-for should read individual or entity, got "' + want + '"');
       }
-      els[i].style.display = show ? "" : "none";
+      /* "block", not "" - the same lesson renderStep learned, and it bit here too.
+         Webflow turns an inline style="display:none" in a Code Embed into a GENERATED
+         CLASS (inline-div-0), so clearing the inline style reveals nothing: the class
+         is still hiding it. Setting an explicit value cannot be outvoted by a
+         stylesheet, which means a block may safely be hidden by default to stop it
+         flashing up before this runs. */
+      els[i].style.display = show ? "block" : "none";
     }
   }
 
@@ -882,7 +994,7 @@
         .then(function (list) {
           clearSuggestions();
           if (!list || !list.length) { return; }
-          box.style.display = "";
+          box.style.display = "block";   // explicit, for the reason in applyBuyerType
           for (var i = 0; i < list.length; i++) {
             var item = d.createElement("div");
             item.setAttribute("data-hl-suggest-item", "");
@@ -961,6 +1073,22 @@
     return api.patch("/public/reservations/" + encodeURIComponent(R.uuid), body)
       .then(function (res) {
         log("saved", body.last_step, "otp_locked=" + (res && res.otp_locked));
+
+        /* A TYPING SAVE NO LONGER RE-READS THE RESERVATION.
+           Every debounced save used to be followed by a full GET, so each pause in
+           typing cost two round trips instead of one - visible in the request log as
+           a PATCH and a GET on the same second, over and over, and felt as a page
+           that keeps thinking while you fill it in. Nothing server-derived changes on
+           a details write, so there is nothing to read back: R is updated with what
+           we sent, which is exactly what the GET would have returned.
+
+           Confirming is different and still reloads. That write can move status and
+           is the last one before money, so the page should carry on from what the
+           server actually holds rather than from what it hoped it wrote. */
+        if (!confirming) {
+          Object.keys(body).forEach(function (k) { R[k] = body[k]; });
+          return R;
+        }
         return load(R.uuid);
       })
       .catch(function (e) { status("Could not save: " + e.message, true); return null; })
@@ -1022,16 +1150,37 @@
     return p;
   }
 
+  function payButton() {
+    return d.querySelector('[data-hl-action="checkout"]');
+  }
+
+  function busy(on, text) {
+    if (w.HLBuyer && w.HLBuyer.setBusy) { w.HLBuyer.setBusy(payButton(), on, text); }
+  }
+
   function checkout() {
     if (!R || coBusy) { return; }
     coBusy = true;
+    /* The same treatment as the brochure form, for the same reason and one more:
+       this button spends money. .res-busy takes pointer-events away, so the second
+       half of an impatient double-click cannot start a second checkout - which would
+       mint a second m_payment_id and increment payment_attempt for nothing. */
+    busy(true, "Taking you to Payfast");
     status("Preparing payment…");
-    api.post("/public/reservations/" + encodeURIComponent(R.uuid) + "/checkout", {})
+
+    /* Wait for the confirm write if it is still in the air. The step moved ahead of
+       it on purpose; this is the one place that has to catch up with it, because
+       checkout reads the reservation server-side. */
+    Promise.resolve(pending)
+      .then(function () {
+        return api.post("/public/reservations/" + encodeURIComponent(R.uuid) + "/checkout", {});
+      })
       .then(function (res) {
         CO = res;
         var problems = checkoutProblems(CO, R.uuid);
         if (problems.length) {
           status("Payment could not be prepared. " + problems.join("; "), true);
+          busy(false);
           return;
         }
         var pairs = fieldsToPost(CO);
@@ -1050,7 +1199,10 @@
         store(PAY_KEY, R.uuid + "|" + Date.now());
         form.submit();
       })
-      .catch(function (e) { status("Could not start payment: " + e.message, true); })
+      .catch(function (e) {
+        status("Could not start payment: " + e.message, true);
+        busy(false);
+      })
       .then(function () { coBusy = false; });
   }
 
@@ -1081,7 +1233,18 @@
        saving immediately is exactly equivalent, and avoids the back-to-back pair of
        PATCHes an earlier version sent. */
     flush();
-    save(next === "pay").then(function () { go(next); });
+
+    /* THE STEP CHANGES FIRST, THE SAVE FOLLOWS.
+       Waiting for the write before moving made every step change cost a round trip to
+       Xano and back from South Africa, for a decision that was already made and
+       already validated locally. Nothing about the next step depends on the answer:
+       the figures it shows are ones we already hold.
+
+       This is not fire-and-forget. The promise is kept, checkout waits on it, and a
+       failed write puts its error on the step the buyer is now looking at - which is
+       where they can do something about it. */
+    pending = save(next === "pay");
+    go(next);
   }
 
   /* --------------------------------------------------------------- load */
