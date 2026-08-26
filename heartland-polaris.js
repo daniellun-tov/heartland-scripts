@@ -40,6 +40,9 @@ function docReady(fn) {
 
 const docReadyEvent = new Event('docreadyEvent');
 
+var HL_POLARIS_CONFIG = window.HL_POLARIS_CONFIG || { addonsAffectTotal: false };
+window.HL_POLARIS_CONFIG = HL_POLARIS_CONFIG;
+
 let totalNumberOfAddons = 3;
 let numberOfFloors = 6;
 
@@ -692,6 +695,58 @@ $("input[data-total-contribute='true']").click(function () {
 
 function updateTotalPrice() {
   if (isBatchTogglingAddons) return;
+ 
+  // Add-ons excluded from the total: publish the unit price, sum nothing.
+  if (!HL_POLARIS_CONFIG.addonsAffectTotal) {
+    totalUnitCost = parseFloat(String(unitCostValues.unit || 0).replace(/[^\d.-]/g, '')) || 0;
+    totalAddonsCost = 0;
+ 
+    var unitOnly = 'R ' + numberWithSpaces(totalUnitCost);
+ 
+    $('#total_addons_cost').html('R 0');
+    $('.totalUpgradesTypeHiddenInput').each(function (i, o) {
+      $(o).val('R 0');
+    });
+    totalUnitCostDiv.each(function (i, o) {
+      $(o).html(unitOnly);
+    });
+    totalCostHiddenInput.val(unitOnly);
+    $('.totalCostHiddenInput').each(function (i, o) {
+      $(o).val(unitOnly);
+    });
+    return;
+  }
+ 
+  // ---- original behaviour below, unchanged ----
+  totalUnitCost = 0;
+  totalAddonsCost = 0;
+  for (var key in unitCostValues) totalUnitCost += parseFloat(unitCostValues[key]) || 0;
+  totalAddonsCost = Object.keys(unitCostValues)
+    .filter(function (k) {
+      return !['bondPrice', 'addOn', 'unit'].includes(k);
+    })
+    .reduce(function (s, k) {
+      return s + (parseFloat(unitCostValues[k]) || 0);
+    }, 0);
+  $('#total_addons_cost').html('R ' + numberWithSpaces(totalAddonsCost));
+  $('.totalUpgradesTypeHiddenInput').each(function (i, o) {
+    $(o).val('R ' + numberWithSpaces(totalAddonsCost));
+  });
+  totalUnitCostDiv.each(function (i, o) {
+    $(o).html('R ' + numberWithSpaces(totalUnitCost));
+  });
+  totalCostHiddenInput.val('R ' + numberWithSpaces(totalUnitCost));
+  $('.totalCostHiddenInput').each(function (i, o) {
+    $(o).val('R ' + numberWithSpaces(totalUnitCost));
+  });
+ 
+  // updateBondDisplay();
+}
+
+/*
+// Old version that includes addons and upgrades all the time.
+function updateTotalPrice() {
+  if (isBatchTogglingAddons) return;
   totalUnitCost = 0;
   totalAddonsCost = 0;
   for (var key in unitCostValues) totalUnitCost += parseFloat(unitCostValues[key]) || 0;
@@ -715,7 +770,8 @@ function updateTotalPrice() {
   });
 
   // updateBondDisplay();
-}
+} 
+*/
 
 function selectionTypeChanged(elem, config, onLoad) {
   var price = $(elem).attr(config.priceAttr);
