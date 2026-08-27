@@ -106,6 +106,8 @@ $(document).ready(function () {
   setTimeout(function () {
     isInitializingAddonList = false;
   }, 0);
+
+  updateSelectedHomeUI();  
 });
 
 $('.add-on-card').each(function (index, elem) {
@@ -690,6 +692,7 @@ $("input[data-total-contribute='true']").click(function () {
   }
   
   updateTotalPrice();
+  updateSelectedHomeUI();
   updateBondDisplay()
 });
 
@@ -741,6 +744,46 @@ function updateTotalPrice() {
   });
  
   // updateBondDisplay();
+}
+
+function updateSelectedHomeUI() {
+  var $wrap = $('[data-selected-home="wrap"]');
+  var $radio = $("input[data-total-contribute='true'][data-class='unit']:checked");
+ 
+  // Nothing chosen yet — hide the block, clear the cart label.
+  if (!$radio.length) {
+    $wrap.css('display', 'none');
+    $('#cart-unit-type-label').text('');
+    return;
+  }
+ 
+  var $tile = $radio.closest('label');
+ 
+  // Display name, three sources, most robust first:
+  //  1. data-display-name on the radio — add it in the embed (see notes below)
+  //     and it wins automatically; nothing else needs to change.
+  //  2. the tile's own CMS-bound title, which is the same Display Name field.
+  //  3. derived from the unit name: "Polaris Heart 02" -> "Home 2".
+  var name = $radio.attr('data-display-name');
+  if (!name) name = ($tile.find('.selection-title').first().text() || '').trim();
+  if (!name) {
+    var m = ($radio.attr('data-unit-number') || '').match(/(\d+)\s*$/);
+    name = m ? 'Home ' + parseInt(m[1], 10) : ($radio.attr('data-unit-number') || '');
+  }
+ 
+  // Unit type: "Polaris Heart A" -> "Type A".
+  var letter = ((($radio.attr('data-unit-type-name') || '').match(/([A-Za-z])\s*$/)) || [])[1];
+  var typeLabel = letter ? 'Type ' + letter.toUpperCase() : '';
+ 
+  $('[data-selected-home="name"]').text(name);
+  $('[data-selected-home="type"]').text(typeLabel);
+  $('[data-selected-home="price"]').text(formatZAR($radio.attr('data-price')));
+ 
+  // Explicit flex, not .show() — jQuery's show() would restore display:block
+  // and flatten the row. The class ships as display:none.
+  $wrap.css('display', 'flex');
+ 
+  $('#cart-unit-type-label').text(typeLabel);
 }
 
 /*
@@ -894,7 +937,11 @@ function priceOrZero(n) {
 function numberWithSpaces(n) {
   return Math.floor(Number(n) || 0)
     .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ' '); // was ','  — U+00A0 no-break space
+}
+
+function formatZAR(n) {
+  return 'R ' + numberWithSpaces(n); // R + U+00A0
 }
 
 function setImg(id, src) {
