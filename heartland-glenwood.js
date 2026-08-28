@@ -1920,3 +1920,78 @@ const run = () => document.querySelectorAll('[data-bed-slug]').forEach(check);
 const scheduleBedCheck = () => { clearTimeout(bedTimer); bedTimer = setTimeout(run, 50); };
 new MutationObserver(scheduleBedCheck).observe(document.body, { childList: true, subtree: true });
 run();
+
+
+/* ============================================================
+     GLENWOOD HEART → LEASE APPLICATION HANDOFF
+     Paste into: Glenwood Heart page settings → Before </body>
+     (append AFTER existing scripts)
+
+     On Enquiry Form submit, builds the lease-application URL from
+     the form + checked configurator radios and sets it as the
+     form's redirect. Webflow submits natively first — submission
+     integrity and webhooks untouched — then redirects.
+     ============================================================ */
+(function () {
+  'use strict';
+
+  var LEASE_PATH = '/glenwood-lease-application';
+
+  // Lease-form field name -> how to read the value on this page.
+  // Adding a mapping later = one line here.
+  function collect(form) {
+    var q = {};
+
+    var first = fieldVal(form, 'First Name');
+    var last  = fieldVal(form, 'Last Name');
+    var full  = (first + ' ' + last).trim();
+    if (full) q['student-full-name'] = full;
+
+    setIf(q, 'student-email',          fieldVal(form, 'Email'));
+    setIf(q, 'student-contact-number', fieldVal(form, 'Contact Number'));
+    setIf(q, 'unit-number',            fieldVal(form, 'Unit Number'));
+
+    // These live outside the enquiry form, on the configurator / bed selector.
+    setIf(q, 'bed-number',     radioVal('beds'));
+    setIf(q, 'room-type',      radioVal('Bedtype Configurators'));
+    setIf(q, 'student-gender', radioVal('Gender Configuratora'));
+
+    return q;
+  }
+
+  function fieldVal(form, name) {
+    var el = form.querySelector('[name="' + name + '"]');
+    return el && el.value ? String(el.value).trim() : '';
+  }
+
+  function radioVal(name) {
+    var el = document.querySelector('input[name="' + CSS.escape(name) + '"]:checked');
+    return el && el.value ? String(el.value).trim() : '';
+  }
+
+  function setIf(obj, key, val) { if (val) obj[key] = val; }
+
+  function isHandoffForm(form) {
+    if (form.hasAttribute('data-lease-handoff')) return true;
+    return !!(form.querySelector('[name="First Name"]') &&
+              form.querySelector('[name="Unit Number"]'));
+  }
+
+  function buildUrl(q) {
+    var params = new URLSearchParams();
+    Object.keys(q).forEach(function (k) { params.set(k, q[k]); });
+    var s = params.toString();
+    return s ? LEASE_PATH + '?' + s : LEASE_PATH;
+  }
+
+  // Capture phase: run before Webflow's own submit handler so the
+  // redirect attribute is in place when Webflow reads it.
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form || form.tagName !== 'FORM' || !isHandoffForm(form)) return;
+
+    var url = buildUrl(collect(form));
+    form.setAttribute('data-redirect', url);
+    form.setAttribute('redirect', url);
+  }, true);
+})();
