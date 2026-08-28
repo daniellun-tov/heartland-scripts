@@ -277,6 +277,103 @@
     return form.querySelector('input[type="submit"], button[type="submit"], [data-res-submit="true"]');
   }
 
+  /* ============================================================ 5. RENDERING
+
+     The data-hl contract, in one place, because TWO pages now use it: the reserve
+     flow and the portal. It was written inside the flow and would have been copied
+     into the portal - and a copied renderer is two renderers, which drift, and the
+     drift shows up as a figure that is right on one page and wrong on the other.
+
+     Everything here takes its root and its data as arguments and holds no state. */
+
+  /* Integer cents in, grouped rands out. Hand-grouped rather than toLocaleString:
+     the legacy page used toLocaleString and it disagrees with toFixed on the half
+     cent - 999999.995 renders as 999,999.99 one way and 1,000,000.00 the other.
+     Same routine as build_otp_url, so a figure shown here and a figure on the OTP
+     cannot differ by a cent. THIS IS FORMATTING, NOT ARITHMETIC. */
+  function money(cents) {
+    var n = Math.round(Number(cents));
+    if (!isFinite(n)) { return ""; }
+    var neg = n < 0;
+    n = Math.abs(n);
+    var whole = String(Math.floor(n / 100));
+    var frac = String(n % 100);
+    if (frac.length < 2) { frac = "0" + frac; }
+    var out = "", c = 0;
+    for (var k = whole.length - 1; k >= 0; k--) {
+      out = whole.charAt(k) + out;
+      c++;
+      if (c % 3 === 0 && k > 0) { out = "," + out; }
+    }
+    return (neg ? "-R" : "R") + out + "." + frac;
+  }
+
+  /* A sentinel, so a legitimately null value is not mistaken for an absent path. */
+  var MISSING = {};
+
+  function path(obj, p) {
+    var parts = String(p).split(".");
+    var cur = obj;
+    for (var i = 0; i < parts.length; i++) {
+      if (cur === null || cur === undefined || typeof cur !== "object") { return MISSING; }
+      if (!(parts[i] in cur)) { return MISSING; }
+      cur = cur[parts[i]];
+    }
+    return cur;
+  }
+
+  function display(p, v) {
+    if (v === null || v === undefined || v === "") { return "\u2014"; }
+    if (/_cents$/.test(p)) { return money(v); }
+    return String(v);
+  }
+
+  function renderDisplays(root, data, onMissing) {
+    var els = root.querySelectorAll("[data-hl]");
+    for (var i = 0; i < els.length; i++) {
+      var p = els[i].getAttribute("data-hl");
+      var v = path(data, p);
+      if (v === MISSING) {
+        if (onMissing) { onMissing(p); }
+        continue;                       // leave the Designer's own copy in place
+      }
+      els[i].textContent = display(p, v);
+    }
+
+    var attrs = root.querySelectorAll("[data-hl-attr]");
+    for (var j = 0; j < attrs.length; j++) {
+      var spec = String(attrs[j].getAttribute("data-hl-attr") || "");
+      var colon = spec.indexOf(":");
+      if (colon < 1) { continue; }
+      var name = spec.slice(0, colon).trim();
+      var vp = spec.slice(colon + 1).trim();
+      var av = path(data, vp);
+      if (av === MISSING || av === null || av === "") { continue; }
+      attrs[j].setAttribute(name, String(av));
+    }
+
+    toggle(root, data, "[data-hl-show]", "data-hl-show", true);
+    toggle(root, data, "[data-hl-hide]", "data-hl-hide", false);
+  }
+
+  function toggle(root, data, sel, attr, showWhenTruthy) {
+    var els = root.querySelectorAll(sel);
+    for (var i = 0; i < els.length; i++) {
+      var v = path(data, els[i].getAttribute(attr));
+      var truthy = !(v === MISSING || v === null || v === undefined || v === "" || v === false);
+      els[i].style.display = (truthy === showWhenTruthy) ? "" : "none";
+    }
+  }
+
+  w.HLRender = {
+    money: money,
+    path: path,
+    display: display,
+    displays: renderDisplays,
+    toggle: toggle,
+    MISSING: MISSING
+  };
+
   w.HLBuyer = {
     setBusy: setBusy,
     submitButton: submitButton,
@@ -660,10 +757,24 @@
   var PAY_KEY = "hl_v2_paying";
   var PAY_WINDOW_MS = 30 * 60 * 1000;
 
-  /* Exact match on the canonical slug, never a substring test - trap 8. Polaris is
-     live and selling through the legacy path; this must be unable to write against
-     it, not merely absent from the pages its buyers use. */
+  /* THE FALLBACK, not the list. The list now comes from /public/config, which serves
+     res_properties.uses_new_flow - a switch on the Properties CMS row. That is what
+     makes adding a development data rather than a deploy.
+
+     This constant survives as the answer to "what if the config call fails", and the
+     answer has to be a SHORT list rather than an empty one or a permissive one:
+
+       - empty would strand a Sanford buyer mid-flow on a Xano blip;
+       - permissive would let an outage put POLARIS through a flow it has never been
+         tested on, which is the one thing this rebuild must not do.
+
+     So a failed read falls back to exactly what was true when this was written, and
+     the flow refuses everything else. It fails closed. */
   var ALLOWED_PROPERTIES = ["sanford"];
+
+  /* Filled from /public/config. Null means the read has not happened or failed, which
+     is what sends propertyEnabled back to the constant above. */
+  var PROPERTIES = null;
 
   /* THE ONLY FIELDS THIS PAGE MAY WRITE. A data-hl-field naming anything else is
      refused and logged rather than sent. Without this a typo in the Designer would
@@ -703,54 +814,107 @@
   function propertyEnabled(slug) {
     if (!slug) { return false; }
     var s = String(slug).toLowerCase().trim();
+
+    if (PROPERTIES) {
+      for (var p = 0; p < PROPERTIES.length; p++) {
+        if (String(PROPERTIES[p].slug || "").toLowerCase().trim() === s) {
+          /* Only a real boolean counts, on both sides of the wire. */
+          return PROPERTIES[p].uses_new_flow === true;
+        }
+      }
+      /* Known list, property not on it. That is a decision, not a gap. */
+      return false;
+    }
+
     for (var i = 0; i < ALLOWED_PROPERTIES.length; i++) {
       if (String(ALLOWED_PROPERTIES[i]).toLowerCase().trim() === s) { return true; }
     }
     return false;
   }
 
-  /* --------------------------------------------------------------- formatting */
-
-  /* Integer cents in, grouped rands out. Hand-grouped rather than toLocaleString:
-     the legacy page used toLocaleString and it disagrees with toFixed on the half
-     cent - 999999.995 renders as 999,999.99 one way and 1,000,000.00 the other.
-     Same routine as build_otp_url, so a figure shown here and a figure on the OTP
-     cannot differ by a cent. THIS IS FORMATTING, NOT ARITHMETIC. */
-  function money(cents) {
-    var n = Math.round(Number(cents));
-    if (!isFinite(n)) { return ""; }
-    var neg = n < 0;
-    n = Math.abs(n);
-    var whole = String(Math.floor(n / 100));
-    var frac = String(n % 100);
-    if (frac.length < 2) { frac = "0" + frac; }
-    var out = "", c = 0;
-    for (var k = whole.length - 1; k >= 0; k--) {
-      out = whole.charAt(k) + out;
-      c++;
-      if (c % 3 === 0 && k > 0) { out = "," + out; }
+  function propertyConfig(slug) {
+    if (!PROPERTIES || !slug) { return null; }
+    var s = String(slug).toLowerCase().trim();
+    for (var i = 0; i < PROPERTIES.length; i++) {
+      if (String(PROPERTIES[i].slug || "").toLowerCase().trim() === s) { return PROPERTIES[i]; }
     }
-    return (neg ? "-R" : "R") + out + "." + frac;
+    return null;
   }
 
-  var MISSING = {};   // a sentinel, so a legitimately null value is not mistaken for absence
+  /* THE THEME COMES FROM THE DATA. It used to be a hand-written CSS block per property
+     in this page's head code, which meant a new development needed a Designer edit
+     before it looked like itself. The tokens are now on the Properties CMS row, cached
+     in res_properties.theme, and set here.
 
-  function path(obj, p) {
-    var parts = String(p).split(".");
-    var cur = obj;
-    for (var i = 0; i < parts.length; i++) {
-      if (cur === null || cur === undefined || typeof cur !== "object") { return MISSING; }
-      if (!(parts[i] in cur)) { return MISSING; }
-      cur = cur[parts[i]];
+     Every one of these has a literal fallback in the stylesheet, so a property with no
+     theme - or a config call that failed - renders in the neutral Heartland palette
+     rather than in nothing at all. */
+  var THEME_KEYS = [
+    ["primary", "--hl-primary"],
+    ["primary_hover", "--hl-primary-hover"],
+    ["secondary", "--hl-secondary"],
+    ["ink", "--hl-ink"],
+    ["line", "--hl-line"],
+    ["radius", "--hl-radius"],
+    ["font_display", "--hl-font-display"],
+    ["tracking", "--hl-tracking"]
+  ];
+
+  function applyTheme(slug) {
+    var cfg = propertyConfig(slug);
+    var theme = cfg && cfg.theme;
+    if (!theme) { return false; }
+
+    /* WHERE THE TOKENS GO, and it is not an idle choice. /reserve-flow still carries a
+       hand-written per-property block in its head code that sets these same tokens on
+       .hl-flow. A rule on .hl-flow beats a value inherited from <html>, so setting
+       them on the document root would leave that stale block winning and a designer
+       editing the colours in the CMS would see nothing change.
+
+       An INLINE style on the wrapper beats any stylesheet rule, so the data wins. The
+       page names its own wrapper with data-hl-theme rather than this file knowing a
+       class name - the same contract as every other hook here. Falls back to <html>
+       for a page that names nothing. */
+    var root = d.querySelector("[data-hl-theme]") || d.documentElement;
+    var set = 0;
+    for (var i = 0; i < THEME_KEYS.length; i++) {
+      var v = theme[THEME_KEYS[i][0]];
+      if (v === null || v === undefined || v === "") { continue; }
+      root.style.setProperty(THEME_KEYS[i][1], String(v));
+      set++;
     }
-    return cur;
+    log("theme applied for", slug, set, "tokens");
+    return set > 0;
   }
 
-  function display(p, v) {
-    if (v === null || v === undefined || v === "") { return "—"; }
-    if (/_cents$/.test(p)) { return money(v); }
-    return String(v);
+  /* One read, shared. Fired at boot alongside the reservation rather than before it,
+     so the config costs no round trip of its own. A failure resolves to null - never
+     rejects - because everything downstream already has a safe answer for "no config". */
+  var configPromise = null;
+  function loadConfig() {
+    if (!configPromise) {
+      configPromise = api.get("/public/config")
+        .then(function (c) {
+          if (c && c.properties && c.properties.length) { PROPERTIES = c.properties; }
+          return c;
+        })
+        .catch(function (e) {
+          warn("could not read /public/config - falling back to the built-in allowlist:", e && e.message);
+          return null;
+        });
+    }
+    return configPromise;
   }
+
+  /* --------------------------------------------------------------- formatting
+
+     These were written here and now live in window.HLRender, because the portal needs
+     exactly the same contract and a second copy would drift. Read through the window
+     each time rather than captured at load: the modules are separate IIFEs in one file
+     and this one must not care about their order. */
+  function money(c) { return w.HLRender.money(c); }
+  function path(o, p) { return w.HLRender.path(o, p); }
+  var MISSING = w.HLRender.MISSING;
 
   /* --------------------------------------------------------------- state */
 
@@ -800,41 +964,14 @@
 
   /* --------------------------------------------------------------- render */
 
+  /* The whole data-hl contract now lives in window.HLRender - see the note there for
+     why. This is the flow's one line of it: its root is the document and its data is
+     the reservation. An unknown path is LOGGED rather than silently blanked, because a
+     blank field nobody notices is this project's characteristic bug. */
   function renderDisplays() {
-    var els = d.querySelectorAll("[data-hl]");
-    for (var i = 0; i < els.length; i++) {
-      var p = els[i].getAttribute("data-hl");
-      var v = path(R, p);
-      if (v === MISSING) {
-        log("no such path in the reservation:", p, "- left as designed");
-        continue;                       // leave the Designer's own copy in place
-      }
-      els[i].textContent = display(p, v);
-    }
-
-    var attrs = d.querySelectorAll("[data-hl-attr]");
-    for (var j = 0; j < attrs.length; j++) {
-      var spec = String(attrs[j].getAttribute("data-hl-attr") || "");
-      var colon = spec.indexOf(":");
-      if (colon < 1) { warn("data-hl-attr should read name:path, got", spec); continue; }
-      var name = spec.slice(0, colon).trim();
-      var vp = spec.slice(colon + 1).trim();
-      var av = path(R, vp);
-      if (av === MISSING || av === null || av === "") { continue; }
-      attrs[j].setAttribute(name, String(av));
-    }
-
-    toggle("[data-hl-show]", "data-hl-show", true);
-    toggle("[data-hl-hide]", "data-hl-hide", false);
-  }
-
-  function toggle(sel, attr, showWhenTruthy) {
-    var els = d.querySelectorAll(sel);
-    for (var i = 0; i < els.length; i++) {
-      var v = path(R, els[i].getAttribute(attr));
-      var truthy = !(v === MISSING || v === null || v === undefined || v === "" || v === false);
-      els[i].style.display = (truthy === showWhenTruthy) ? "" : "none";
-    }
+    w.HLRender.displays(d, R, function (p) {
+      log("no such path in the reservation:", p, "- left as designed");
+    });
   }
 
   /* What we last put into each control. It is how an unsaved edit is told apart
@@ -1424,8 +1561,12 @@
   /* --------------------------------------------------------------- load */
 
   function load(uuid) {
-    return api.get("/public/reservations/" + encodeURIComponent(uuid))
-      .then(function (res) {
+    /* Both in flight together. The allowlist needs the config, so the reservation
+       cannot be acted on before it arrives - but it need not wait to be REQUESTED. */
+    var pending = [api.get("/public/reservations/" + encodeURIComponent(uuid)), loadConfig()];
+    return Promise.all(pending)
+      .then(function (both) {
+        var res = both[0];
         if (!propertyEnabled(res && res.property_slug)) {
           warn("refusing:", res && res.property_slug, "is not switched on");
           R = null;
@@ -1441,6 +1582,7 @@
            CSS can key off it without depending on where the wrapper sits. */
         d.documentElement.setAttribute(
           "data-hl-property", String(R.property_slug || "").toLowerCase().trim());
+        applyTheme(R.property_slug);
 
         render();
         return R;
@@ -1598,7 +1740,10 @@
       syncDob: syncDobFromId,
       missing: missingRequired,
       poll: pollStatus,
-      polls: function () { return polls; }
+      polls: function () { return polls; },
+      properties: function () { return PROPERTIES; },
+      enabled: propertyEnabled,
+      theme: applyTheme
     };
 
     var uuid = param("r") || stored(UUID_KEY);
@@ -1638,6 +1783,352 @@
     });
 
     log("ready");
+  }
+
+  if (d.readyState === "loading") { d.addEventListener("DOMContentLoaded", boot); } else { boot(); }
+})(window, document);
+
+/* ============================================================================
+   HEARTLAND - THE OWNERS PORTAL.
+
+   ONE SET OF PAGES FOR EVERY DEVELOPMENT. The clientzone pages it replaces are CMS
+   templates, one per property, gated by that property's Memberstack plan. That only
+   works because there is a page per property, and it stopped being tenable for two
+   reasons: a member with reservations on two developments cannot be represented in
+   Memberstack custom fields at all, and every new development meant three new pages.
+
+   SO THE PLAN GATE IS NOT THE ACCESS CONTROL ANY MORE, and it never really was: the
+   data lived in custom fields on the member, so anyone holding the session had it.
+   The guard is GET /member/reservations, which scopes by memberstack_id read from the
+   member's OWN row - never from anything the browser sends. Any Heartland member may
+   reach this page; what they see is decided in Xano.
+
+   THE PAGE MARKERS
+     [data-hl-portal]                  this module runs only where this exists
+     [data-hl-theme]                   where the property's colours are written
+     [data-hl-portal-loading]          while fetching
+     [data-hl-portal-empty]            member has no reservations
+     [data-hl-portal-body]             once one is selected
+     [data-hl-switcher]                shown only when there is more than one
+     [data-hl-switcher-list]           where the choices are drawn
+
+     data-hl="unit.name"               the same contract as the reserve flow
+     data-hl-stage="reserve"           tracker step, gets .is-active / .is-done
+     data-hl-substage="sign-otp"       finance sub-step, same classes
+     data-hl-route="bond"              shown only to that kind of buyer
+     data-hl-countdown                 whole days left, or 0
+     data-hl-countdown-state           set to ok | due-soon | overdue | none
+     data-hl-due                       the deadline, as a date
+
+   WHICH RESERVATION. ?r=<uuid> names one. Otherwise the most recent CONFIRMED, and
+   failing that the most recent of any kind - a buyer whose payment has not cleared
+   still has something to look at.
+   ========================================================================== */
+(function (w, d) {
+  "use strict";
+
+  var BASE = "https://x7aj-untn-pq4t.n7e.xano.io/api:i0YhKPAV";
+
+  var STAGES = ["reserve", "finance", "build", "move-in"];
+
+  /* The order a finance deal moves through, and it is NOT the same for both kinds of
+     buyer: a cash buyer never pre-qualifies and never waits on a bond. The dashboard
+     must not show them three steps they can never complete. */
+  var SUBSTAGES = {
+    bond: ["pre-qualify", "sign-otp", "pay-deposit", "bond-approval", "bond-approved", "transfer-attorneys"],
+    cash: ["sign-otp", "pay-deposit", "transfer-attorneys"]
+  };
+
+  var DEBUG = /[?&]hl_debug=1/.test(w.location.search);
+  function log() {
+    if (DEBUG && w.console) { console.log.apply(console, ["[hl-portal]"].concat([].slice.call(arguments))); }
+  }
+  function warn() {
+    if (w.console) { console.warn.apply(console, ["[hl-portal]"].concat([].slice.call(arguments))); }
+  }
+
+  function param(k) {
+    var m = new RegExp("[?&]" + k + "=([^&]*)").exec(w.location.search);
+    return m ? decodeURIComponent(m[1]) : "";
+  }
+
+  /* Memberstack keeps the member token in a cookie. Read it directly rather than
+     waiting on $memberstackDom: the package may not have finished loading, and this
+     page has nothing to show until the exchange has happened. */
+  function memberToken() {
+    var name = "_ms-mid=";
+    var parts = String(d.cookie || "").split(";");
+    for (var i = 0; i < parts.length; i++) {
+      var c = parts[i].trim();
+      if (c.indexOf(name) === 0) { return decodeURIComponent(c.slice(name.length)); }
+    }
+    return "";
+  }
+
+  function readJson(r) {
+    return r.text().then(function (t) {
+      var j = null;
+      try { j = JSON.parse(t); } catch (e) {}
+      if (!r.ok) { throw new Error((j && (j.message || j.error)) || ("HTTP " + r.status)); }
+      return j;
+    });
+  }
+
+  /* --------------------------------------------------------------- state */
+
+  var ALL = [];
+  var R = null;
+  var clockOffset = 0;   // server time minus this device's clock, in ms
+
+  function show(sel, on) {
+    var els = d.querySelectorAll(sel);
+    for (var i = 0; i < els.length; i++) { els[i].style.display = on ? "block" : "none"; }
+  }
+
+  /* --------------------------------------------------------------- theme */
+
+  var THEME_KEYS = [
+    ["primary", "--hl-primary"],
+    ["primary_hover", "--hl-primary-hover"],
+    ["secondary", "--hl-secondary"],
+    ["ink", "--hl-ink"],
+    ["line", "--hl-line"],
+    ["radius", "--hl-radius"],
+    ["font_display", "--hl-font-display"],
+    ["tracking", "--hl-tracking"]
+  ];
+
+  function applyTheme(theme) {
+    if (!theme) { return 0; }
+    var root = d.querySelector("[data-hl-theme]") || d.documentElement;
+    var set = 0;
+    for (var i = 0; i < THEME_KEYS.length; i++) {
+      var v = theme[THEME_KEYS[i][0]];
+      if (v === null || v === undefined || v === "") { continue; }
+      root.style.setProperty(THEME_KEYS[i][1], String(v));
+      set++;
+    }
+    return set;
+  }
+
+  /* --------------------------------------------------------------- stages */
+
+  function routeOf(res) {
+    var r = String((res && res.payer_route) || "").toLowerCase();
+    return (r === "cash") ? "cash" : "bond";
+  }
+
+  function markProgress(sel, attr, order, current) {
+    var at = order.indexOf(String(current || "").toLowerCase());
+    var els = d.querySelectorAll(sel);
+    for (var i = 0; i < els.length; i++) {
+      var mine = order.indexOf(String(els[i].getAttribute(attr) || "").toLowerCase());
+      /* A step this buyer's route never visits is removed, not greyed out. A cash
+         buyer being shown "bond approval" as a step they have not reached yet is a
+         promise the process will never keep. */
+      if (mine === -1) { els[i].style.display = "none"; continue; }
+      els[i].style.display = "";
+      els[i].classList.toggle("is-active", mine === at);
+      els[i].classList.toggle("is-done", at > -1 && mine < at);
+      els[i].classList.toggle("is-todo", at === -1 || mine > at);
+    }
+  }
+
+  function renderStages() {
+    markProgress("[data-hl-stage]", "data-hl-stage", STAGES, R && R.deal_stage);
+    markProgress("[data-hl-substage]", "data-hl-substage",
+                 SUBSTAGES[routeOf(R)], R && R.deal_sub_stage);
+
+    var route = routeOf(R);
+    var els = d.querySelectorAll("[data-hl-route]");
+    for (var i = 0; i < els.length; i++) {
+      var want = String(els[i].getAttribute("data-hl-route") || "").toLowerCase();
+      els[i].style.display = (want === route) ? "block" : "none";
+    }
+  }
+
+  /* --------------------------------------------------------------- countdown */
+
+  var DAY = 24 * 60 * 60 * 1000;
+
+  function nowServer() { return Date.now() + clockOffset; }
+
+  /* WHOLE DAYS, ROUNDED UP, and against the SERVER's clock.
+     Rounded up because a deadline 18 hours away is "1 day left", not "0" - telling a
+     buyer they have no days left while they still have the evening is how a portal
+     causes a phone call. Against the server because a deadline reasoned from the
+     device clock is wrong for exactly the buyer whose clock is wrong. */
+  function daysLeft(dueAt) {
+    var due = Number(dueAt);
+    if (!dueAt || !isFinite(due)) { return null; }
+    return Math.ceil((due - nowServer()) / DAY);
+  }
+
+  function fmtDate(ts) {
+    var n = Number(ts);
+    if (!ts || !isFinite(n)) { return ""; }
+    var dt = new Date(n);
+    var months = ["January","February","March","April","May","June",
+                  "July","August","September","October","November","December"];
+    return dt.getDate() + " " + months[dt.getMonth()] + " " + dt.getFullYear();
+  }
+
+  function renderCountdown() {
+    var left = R ? daysLeft(R.deal_stage_due_at) : null;
+    var state = (left === null) ? "none" : (left < 0 ? "overdue" : (left <= 3 ? "due-soon" : "ok"));
+
+    var els = d.querySelectorAll("[data-hl-countdown]");
+    for (var i = 0; i < els.length; i++) {
+      els[i].textContent = (left === null) ? "" : String(Math.max(0, left));
+      els[i].setAttribute("data-hl-countdown-state", state);
+      els[i].classList.toggle("is-overdue", state === "overdue");
+      els[i].classList.toggle("is-due-soon", state === "due-soon");
+    }
+
+    var dues = d.querySelectorAll("[data-hl-due]");
+    for (var j = 0; j < dues.length; j++) {
+      dues[j].textContent = R ? fmtDate(R.deal_stage_due_at) : "";
+    }
+
+    var wraps = d.querySelectorAll("[data-hl-countdown-wrap]");
+    for (var k = 0; k < wraps.length; k++) {
+      wraps[k].style.display = (left === null) ? "none" : "block";
+    }
+  }
+
+  /* --------------------------------------------------------------- switcher */
+
+  function renderSwitcher() {
+    var wrap = d.querySelector("[data-hl-switcher]");
+    var list = d.querySelector("[data-hl-switcher-list]");
+    if (!wrap || !list) { return; }
+    if (ALL.length < 2) { wrap.style.display = "none"; return; }
+
+    wrap.style.display = "block";
+    while (list.firstChild) { list.removeChild(list.firstChild); }
+
+    for (var i = 0; i < ALL.length; i++) {
+      var r = ALL[i];
+      var a = d.createElement("a");
+      a.setAttribute("href", "?r=" + encodeURIComponent(r.uuid));
+      a.setAttribute("data-hl-switcher-item", r.uuid);
+      a.className = "hl-switch-item" + (R && r.uuid === R.uuid ? " is-current" : "");
+      var unitName = (r.unit && (r.unit.display_name || r.unit.name)) || "Your home";
+      a.textContent = (r.property_name || r.property_slug || "") + " — " + unitName;
+      list.appendChild(a);
+    }
+  }
+
+  /* --------------------------------------------------------------- render */
+
+  function render() {
+    if (!R) { return; }
+    applyTheme(R.theme);
+    d.documentElement.setAttribute(
+      "data-hl-property", String(R.property_slug || "").toLowerCase().trim());
+
+    w.HLRender.displays(d, R, function (p) {
+      log("no such path on the reservation:", p, "- left as designed");
+    });
+
+    renderStages();
+    renderCountdown();
+    renderSwitcher();
+  }
+
+  /* --------------------------------------------------------------- select */
+
+  function pick(list) {
+    if (!list.length) { return null; }
+    var wanted = param("r");
+    var i;
+    if (wanted) {
+      for (i = 0; i < list.length; i++) { if (list[i].uuid === wanted) { return list[i]; } }
+      /* Named a reservation this member does not hold. Not an error to shout about -
+         Xano simply never returned it - but do not silently show them a different
+         deal as though it were the one they asked for. */
+      warn("no reservation", wanted, "on this member - falling back to the most recent");
+    }
+    for (i = 0; i < list.length; i++) { if (list[i].status === "confirmed") { return list[i]; } }
+    return list[0];
+  }
+
+  /* --------------------------------------------------------------- boot */
+
+  function fail(msg) {
+    show("[data-hl-portal-loading]", false);
+    show("[data-hl-portal-body]", false);
+    show("[data-hl-portal-empty]", true);
+    var els = d.querySelectorAll("[data-hl-portal-message]");
+    for (var i = 0; i < els.length; i++) { els[i].textContent = msg; }
+    warn(msg);
+  }
+
+  function boot() {
+    if (!d.querySelector("[data-hl-portal]")) { return; }
+
+    show("[data-hl-portal-loading]", true);
+    show("[data-hl-portal-body]", false);
+    show("[data-hl-portal-empty]", false);
+
+    w.HLPortal = {
+      all: function () { return ALL; },
+      get: function () { return R; },
+      select: function (uuid) {
+        for (var i = 0; i < ALL.length; i++) {
+          if (ALL[i].uuid === uuid) { R = ALL[i]; render(); return R; }
+        }
+        return null;
+      },
+      daysLeft: daysLeft,
+      offset: function () { return clockOffset; },
+      render: render
+    };
+
+    var ms = memberToken();
+    if (!ms) {
+      fail("Please log in to see your home.");
+      return;
+    }
+
+    fetch(BASE + "/auth/memberstack", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: ms })
+    })
+      .then(readJson)
+      .then(function (a) {
+        var tok = a && (a.authToken || a.token || a.auth_token);
+        if (!tok) { throw new Error("no token in the auth response"); }
+        return fetch(BASE + "/member/reservations", {
+          headers: { Authorization: "Bearer " + tok }
+        }).then(readJson);
+      })
+      .then(function (res) {
+        /* The device clock is not trusted for anything with a deadline on it. */
+        if (res && res.server_time) {
+          var st = Number(res.server_time);
+          if (isFinite(st)) { clockOffset = st - Date.now(); }
+        }
+
+        ALL = (res && res.reservations) || [];
+        log("member holds", ALL.length, "reservation(s); clock offset", clockOffset, "ms");
+
+        if (!ALL.length) {
+          show("[data-hl-portal-loading]", false);
+          show("[data-hl-portal-empty]", true);
+          return;
+        }
+
+        R = pick(ALL);
+        show("[data-hl-portal-loading]", false);
+        show("[data-hl-portal-body]", true);
+        render();
+      })
+      .catch(function (e) {
+        fail("We could not load your home just now. Please refresh, or log in again.");
+        warn(e && e.message);
+      });
   }
 
   if (d.readyState === "loading") { d.addEventListener("DOMContentLoaded", boot); } else { boot(); }
