@@ -328,8 +328,21 @@
     return String(v);
   }
 
+  /* querySelectorAll never matches the element you called it on. That is fine when
+     the root is the document, and wrong the moment a root is a single card being
+     rendered against one object - the card's own data-hl-attr="href:url" would be
+     silently skipped, which is this project's characteristic bug wearing a new hat.
+     So the root is considered too. */
+  function within(root, sel) {
+    var out = [];
+    if (root && typeof root.matches === "function" && root.matches(sel)) { out.push(root); }
+    var found = root.querySelectorAll(sel);
+    for (var i = 0; i < found.length; i++) { out.push(found[i]); }
+    return out;
+  }
+
   function renderDisplays(root, data, onMissing) {
-    var els = root.querySelectorAll("[data-hl]");
+    var els = within(root, "[data-hl]");
     for (var i = 0; i < els.length; i++) {
       var p = els[i].getAttribute("data-hl");
       var v = path(data, p);
@@ -340,7 +353,7 @@
       els[i].textContent = display(p, v);
     }
 
-    var attrs = root.querySelectorAll("[data-hl-attr]");
+    var attrs = within(root, "[data-hl-attr]");
     for (var j = 0; j < attrs.length; j++) {
       var spec = String(attrs[j].getAttribute("data-hl-attr") || "");
       var colon = spec.indexOf(":");
@@ -357,7 +370,7 @@
   }
 
   function toggle(root, data, sel, attr, showWhenTruthy) {
-    var els = root.querySelectorAll(sel);
+    var els = within(root, sel);
     for (var i = 0; i < els.length; i++) {
       var v = path(data, els[i].getAttribute(attr));
       var truthy = !(v === MISSING || v === null || v === undefined || v === "" || v === false);
@@ -370,6 +383,7 @@
     path: path,
     display: display,
     displays: renderDisplays,
+    within: within,
     toggle: toggle,
     MISSING: MISSING
   };
@@ -1820,6 +1834,24 @@
      data-hl-countdown-state           set to ok | due-soon | overdue | none
      data-hl-due                       the deadline, as a date
 
+   LISTS - one renderer, three lists. The Designer draws ONE row; the script clones
+   it per item and removes the original, so a list can be restyled and rearranged
+   without touching this file.
+     [data-hl-list="documents"]        the buyer's own documents
+     [data-hl-list="addons"]           add-ons, each with its price
+     [data-hl-list="extras"]           upgrades sales agreed after the reservation
+     [data-hl-list="spec"]             the choices made in the configurator
+     [data-hl-row]                     the template row inside a list
+     [data-hl-empty="documents"]       shown when that list has nothing in it
+   Inside a row the ordinary contract applies, against ONE item:
+     documents  data-hl="label"           data-hl-attr="href:url"
+     addons     data-hl="name"            data-hl="price_cents"
+     extras     data-hl="name"            data-hl="price_cents"
+     spec       data-hl="label"           data-hl="value"
+   Each rendered row is stamped data-hl-row-key with the item's own key - the
+   document type, the add-on slug, the configuration field - so one particular row
+   can be styled without this file knowing any of those vocabularies.
+
    WHICH RESERVATION. ?r=<uuid> names one. Otherwise the most recent CONFIRMED, and
    failing that the most recent of any kind - a buyer whose payment has not cleared
    still has something to look at.
@@ -1878,6 +1910,7 @@
 
   var ALL = [];
   var R = null;
+  var TOKEN = "";        // the Xano token, kept for refreshes
   var clockOffset = 0;   // server time minus this device's clock, in ms
 
   function show(sel, on) {
@@ -2033,6 +2066,7 @@
 
     renderStages();
     renderCountdown();
+    renderLists();
     renderSwitcher();
   }
 
@@ -2051,6 +2085,194 @@
     }
     for (i = 0; i < list.length; i++) { if (list[i].status === "confirmed") { return list[i]; } }
     return list[0];
+  }
+
+  /* --------------------------------------------------------------- lists */
+
+  /* THE SECOND HALF OF A GUARD XANO ALREADY MAKES, and it is not redundant.
+     add_reservation_document refuses anything that is not an https link, but this is
+     the line that actually writes a staff-supplied string into an href on a page
+     holding a live member session. A row written before that guard existed, or by any
+     future path that forgets it, still cannot become a javascript: link here. The
+     guard nearest the sink is the one that matters.
+
+     A document that fails is DROPPED, not rendered link-less: a card that looks like a
+     download and is not one is worse than an absence, and the console warns so the
+     bad row can be found and fixed. */
+  function safeUrl(u) {
+    var s = String((u === null || u === undefined) ? "" : u).trim();
+    if (s.toLowerCase().indexOf("https://") !== 0) { return ""; }
+    if (s.indexOf(" ") !== -1) { return ""; }
+    return s;
+  }
+
+  function documents() {
+    var list = (R && R.documents) || [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var doc = list[i] || {};
+      var url = safeUrl(doc.url);
+      if (!url) {
+        warn("document", doc.doc_type || "(no type)", "has a link this page will not render:", doc.url);
+        continue;
+      }
+      out.push({
+        key       : String(doc.doc_type || ""),
+        doc_type  : String(doc.doc_type || ""),
+        label     : String(doc.label || ""),
+        url       : url,
+        created_at: (doc.created_at === undefined) ? null : doc.created_at
+      });
+    }
+    return out;
+  }
+
+  function addons() {
+    var list = (R && R.addons) || [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var a = list[i] || {};
+      out.push({
+        key        : String(a.slug || ""),
+        slug       : String(a.slug || ""),
+        name       : String(a.name || a.display_name || a.slug || ""),
+        price_cents: (a.price_cents === undefined) ? null : a.price_cents
+      });
+    }
+    return out;
+  }
+
+  /* UPGRADES AGREED AFTER THE RESERVATION. These are not the reserve-time add-ons
+     above and must never be added to them: add-ons are inside total_cents, which is
+     the figure the Offer to Purchase was signed at, while these were agreed weeks
+     later in a conversation with sales. The page shows the signed price, these, and
+     the sum of the two as three separate figures - which is what an addendum has to
+     describe. Xano keeps them apart for the same reason; this is the browser holding
+     the same line. */
+  function extras() {
+    var list = (R && R.agreed_extras) || [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i] || {};
+      out.push({
+        key        : String(e.slug || ""),
+        slug       : String(e.slug || ""),
+        name       : String(e.name || e.slug || ""),
+        price_cents: (e.price_cents === undefined) ? null : e.price_cents,
+        agreed_at  : (e.agreed_at === undefined) ? null : e.agreed_at
+      });
+    }
+    return out;
+  }
+
+  /* The choices the buyer made in the configurator. THE LABELS ARE ALREADY IN THE
+     RESERVATION - configuration carries floor_label alongside floor_slugs - so this
+     page never reads the CMS. The legacy order summary rendered the entire catalogue
+     and then hid every item whose slug the buyer did not hold; this renders the
+     handful they did choose.
+
+     A choice of "None" is not a line. Printing "Energy: None" fills a summary with
+     things the buyer did not buy. */
+  var SPEC_CHOICES = [
+    ["floor_label", "Flooring"],
+    ["outdoor_label", "Outdoor"],
+    ["solar_label", "Energy"],
+    ["appliance_label", "Appliances"],
+    ["furniture_label", "Furniture"]
+  ];
+
+  /* Yes/No upgrades, shown ONLY when the answer is yes, for the same reason. */
+  var SPEC_FLAGS = [
+    ["garage_upgrade", "Garage upgrade"],
+    ["pool_upgrade", "Pool"],
+    ["fireplace_upgrade", "Fireplace"]
+  ];
+
+  function spec() {
+    var c = (R && R.configuration) || {};
+    var out = [];
+    var i, v;
+    for (i = 0; i < SPEC_CHOICES.length; i++) {
+      v = String(c[SPEC_CHOICES[i][0]] === undefined ? "" : c[SPEC_CHOICES[i][0]]).trim();
+      if (!v || v.toLowerCase() === "none") { continue; }
+      out.push({key: SPEC_CHOICES[i][0], label: SPEC_CHOICES[i][1], value: v});
+    }
+    for (i = 0; i < SPEC_FLAGS.length; i++) {
+      v = String(c[SPEC_FLAGS[i][0]] === undefined ? "" : c[SPEC_FLAGS[i][0]]).trim();
+      if (v.toLowerCase() !== "yes") { continue; }
+      out.push({key: SPEC_FLAGS[i][0], label: SPEC_FLAGS[i][1], value: "Included"});
+    }
+    return out;
+  }
+
+  /* The template is captured before the first render and kept by identity rather than
+     written onto the element, so nothing this script does shows up in the Designer. */
+  var rowTemplates = [];
+
+  function templateOf(list) {
+    for (var i = 0; i < rowTemplates.length; i++) {
+      if (rowTemplates[i][0] === list) { return rowTemplates[i][1]; }
+    }
+    var row = list.querySelector("[data-hl-row]");
+    if (!row) { return null; }
+    var tpl = row.cloneNode(true);
+    rowTemplates.push([list, tpl]);
+    return tpl;
+  }
+
+  function fillList(list, items) {
+    var tpl = templateOf(list);
+    if (!tpl) {
+      warn("a list has no [data-hl-row] to clone:", list.getAttribute("data-hl-list"));
+      return;
+    }
+
+    var old = list.querySelectorAll("[data-hl-row]");
+    for (var o = 0; o < old.length; o++) {
+      if (old[o].parentNode) { old[o].parentNode.removeChild(old[o]); }
+    }
+
+    for (var i = 0; i < items.length; i++) {
+      var row = tpl.cloneNode(true);
+      row.setAttribute("data-hl-row-key", String(items[i].key || ""));
+
+      /* The ordinary contract, scoped to one item rather than the reservation. */
+      w.HLRender.displays(row, items[i], function (p) {
+        log("no such path on a list item:", p, "- left as designed");
+      });
+
+      /* Every link out of the portal opens away from the session and cannot reach
+         back through window.opener. Applied to whatever anchors a row happens to
+         carry, so a restyled row cannot lose the hardening. */
+      var found = row.querySelectorAll("a");
+      var links = (row.tagName === "A") ? [row] : [];
+      for (var L = 0; L < found.length; L++) { links.push(found[L]); }
+      for (var a = 0; a < links.length; a++) {
+        links[a].setAttribute("target", "_blank");
+        links[a].setAttribute("rel", "noopener noreferrer");
+      }
+
+      row.style.display = "block";
+      list.appendChild(row);
+    }
+  }
+
+  function renderList(name, items) {
+    var lists = d.querySelectorAll("[data-hl-list=\"" + name + "\"]");
+    var empties = d.querySelectorAll("[data-hl-empty=\"" + name + "\"]");
+    if (!lists.length && !empties.length) { return; }
+
+    for (var i = 0; i < lists.length; i++) { fillList(lists[i], items); }
+    for (var e = 0; e < empties.length; e++) {
+      empties[e].style.display = items.length ? "none" : "block";
+    }
+  }
+
+  function renderLists() {
+    renderList("documents", documents());
+    renderList("addons", addons());
+    renderList("extras", extras());
+    renderList("spec", spec());
   }
 
   /* --------------------------------------------------------------- boot */
@@ -2100,6 +2322,29 @@
     warn(msg);
   }
 
+  /* Re-read without re-authenticating. Sales change a stage or attach a document
+     while the buyer has the page open; this is how the page catches up without
+     spending the Memberstack exchange again. */
+  function refresh() {
+    if (!TOKEN) { return Promise.resolve(null); }
+    return fetch(BASE + "/member/reservations", {
+      headers: { Authorization: "Bearer " + TOKEN }
+    })
+      .then(readJson)
+      .then(function (res) {
+        var list = (res && res.reservations) || [];
+        if (!list.length) { return null; }
+        ALL = list;
+        var keep = R && R.uuid;
+        R = null;
+        for (var i = 0; i < ALL.length; i++) { if (ALL[i].uuid === keep) { R = ALL[i]; } }
+        if (!R) { R = pick(ALL); }
+        render();
+        return R;
+      })
+      .catch(function (e) { warn("refresh failed:", e && e.message); return null; });
+  }
+
   function boot() {
     if (!d.querySelector("[data-hl-portal]")) { return; }
 
@@ -2119,6 +2364,11 @@
       daysLeft: daysLeft,
       offset: function () { return clockOffset; },
       loginPath: loginPath,
+      documents: documents,
+      addons: addons,
+      extras: extras,
+      spec: spec,
+      refresh: refresh,
       render: render
     };
 
@@ -2137,6 +2387,22 @@
       .then(function (a) {
         var tok = a && (a.authToken || a.token || a.auth_token);
         if (!tok) { throw new Error("no token in the auth response"); }
+        TOKEN = tok;
+
+        /* THE EXCHANGE NOW CARRIES THE RESERVATIONS. It used to hand back a token and
+           this page immediately spent it on a second call - two sequential round trips
+           from South Africa before a buyer saw anything, on every portal page, with no
+           decision taken in between.
+
+           The fallback is not defensive padding: the browser and Xano deploy
+           independently, so a bundle that assumed the new shape would break the portal
+           for as long as an older Xano was live. An array - even an empty one - means
+           the new shape; anything else means make the old call. */
+        if (Object.prototype.toString.call(a.reservations) === "[object Array]") {
+          log("reservations came with the token - one round trip");
+          return a;
+        }
+        log("older Xano: fetching reservations separately");
         return fetch(BASE + "/member/reservations", {
           headers: { Authorization: "Bearer " + tok }
         }).then(readJson);
