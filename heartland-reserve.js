@@ -2040,7 +2040,7 @@
 
   function pick(list) {
     if (!list.length) { return null; }
-    var wanted = param("r");
+    var wanted = param("r") || stashed(STASH_R);
     var i;
     if (wanted) {
       for (i = 0; i < list.length; i++) { if (list[i].uuid === wanted) { return list[i]; } }
@@ -2054,6 +2054,42 @@
   }
 
   /* --------------------------------------------------------------- boot */
+
+  /* Where an unauthenticated visitor is sent. Markup decides, so a second portal
+     (a different property, a staging copy) does not need a second bundle. */
+  function loginPath() {
+    var root = d.querySelector("[data-hl-portal]");
+    var p = root && root.getAttribute("data-hl-login");
+    p = (p === null || p === undefined) ? "" : String(p).trim();
+    return p || "/portal-login";
+  }
+
+  var BOUNCE = "hl_portal_bounce";
+  var STASH_R = "hl_portal_r";
+
+  function stashed(k) {
+    try { return w.sessionStorage.getItem(k) || ""; } catch (e) { return ""; }
+  }
+  function stash(k, v) {
+    try { if (v) { w.sessionStorage.setItem(k, v); } else { w.sessionStorage.removeItem(k); } } catch (e) {}
+  }
+
+  /* No Memberstack cookie: there is nothing on this page to show and nothing more
+     useful to say than the login form, so go there. ONE bounce only - if login
+     returns them here still without a cookie, something is wrong with the session
+     and a redirect loop would hide that from everyone, including us. */
+  function toLogin() {
+    if (stashed(BOUNCE)) {
+      stash(BOUNCE, "");
+      fail("Please log in to see your home.");
+      return;
+    }
+    stash(BOUNCE, "1");
+    /* The reservation they asked for survives the round trip; Memberstack sends
+       them back to a bare /portal with no query string of ours. */
+    stash(STASH_R, param("r"));
+    w.location.replace(loginPath());
+  }
 
   function fail(msg) {
     show("[data-hl-portal-loading]", false);
@@ -2082,12 +2118,13 @@
       },
       daysLeft: daysLeft,
       offset: function () { return clockOffset; },
+      loginPath: loginPath,
       render: render
     };
 
     var ms = memberToken();
     if (!ms) {
-      fail("Please log in to see your home.");
+      toLogin();
       return;
     }
 
@@ -2111,6 +2148,9 @@
           if (isFinite(st)) { clockOffset = st - Date.now(); }
         }
 
+        /* Authenticated. The bounce guard has done its job; clear it so a later
+           logout can bounce again. The stashed uuid is consumed by pick() below. */
+        stash(BOUNCE, "");
         ALL = (res && res.reservations) || [];
         log("member holds", ALL.length, "reservation(s); clock offset", clockOffset, "ms");
 
@@ -2121,6 +2161,7 @@
         }
 
         R = pick(ALL);
+        stash(STASH_R, "");
         show("[data-hl-portal-loading]", false);
         show("[data-hl-portal-body]", true);
         render();
