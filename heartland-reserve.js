@@ -1825,6 +1825,24 @@
      [data-hl-portal-body]             once one is selected
      [data-hl-switcher]                shown only when there is more than one
      [data-hl-switcher-list]           where the choices are drawn
+     [data-hl-current-home]            "Sanford Heart - Home 1", whichever is showing
+     [data-hl-portal-notice]           shown when ?r= named a home they do not hold
+
+   MORE THAN ONE HOME. A buyer can reserve several units, so the portal never assumes
+   there is one. When two or more are held and none has been chosen, /portal shows an
+   INDEX instead of a dashboard - one card per home, the one needing attention first.
+     [data-hl-portal-index]            the index block; alternative to -body
+     [data-hl-index]                   the card list
+     [data-hl-index-row]               the card, cloned per home
+     [data-hl-index-link]              optional, if the card is not itself an anchor
+   Inside a card: property_name, unit_name, unit_number, stage_label, substage_label,
+   status_label, due_label, due_date, days_left, grand_total_cents. The card is stamped
+   data-hl-index-state = ok | due-soon | overdue | none.
+
+   THE CHOICE TRAVELS. Every link to a /portal page has ?r= written onto it, so moving
+   from the dashboard to the order summary keeps the home you were looking at. The
+   choice is also remembered for the tab, as a fallback for links this never sees.
+   Add data-hl-portal-link to any other link that should carry it.
 
      data-hl="unit.name"               the same contract as the reserve flow
      data-hl-stage="reserve"           tracker step, gets .is-active / .is-done
@@ -1852,9 +1870,11 @@
    document type, the add-on slug, the configuration field - so one particular row
    can be styled without this file knowing any of those vocabularies.
 
-   WHICH RESERVATION. ?r=<uuid> names one. Otherwise the most recent CONFIRMED, and
-   failing that the most recent of any kind - a buyer whose payment has not cleared
-   still has something to look at.
+   WHICH RESERVATION. ?r=<uuid> names one, then the choice remembered for this tab.
+   With exactly one home that home is used. With several and no choice, the index is
+   shown rather than a guess - except on a page with no index block, where it falls
+   back to the most recent CONFIRMED, and failing that the most recent of any kind, so
+   a buyer whose payment has not cleared still has something to look at.
    ========================================================================== */
 (function (w, d) {
   "use strict";
@@ -1871,6 +1891,32 @@
     cash: ["sign-otp", "pay-deposit", "transfer-attorneys"]
   };
 
+  /* LABELS EXIST ONLY FOR THE HOME INDEX. Everywhere else the Designer writes the
+     words and this script only sets classes - which is the right division and stays
+     that way. But a card the script CLONES has no author to write "Sign OTP" into it,
+     so these are the words for exactly that case. Anything not listed falls back to
+     the raw value rather than to nothing: a stage added in Xano tomorrow shows as
+     "bond-approved" and is ugly, not invisible. */
+  var STAGE_LABEL = {
+    "reserve": "Reserved", "finance": "Finance", "build": "Build", "move-in": "Move in"
+  };
+  var SUBSTAGE_LABEL = {
+    "pre-qualify": "Pre-qualify", "sign-otp": "Sign the Offer to Purchase",
+    "pay-deposit": "Pay the deposit", "bond-approval": "Bond approval",
+    "bond-approved": "Bond approved", "transfer-attorneys": "With the transfer attorneys"
+  };
+  var STATUS_LABEL = {
+    "confirmed": "Confirmed", "awaiting_payment": "Awaiting payment",
+    "awaiting_clearance": "Payment clearing", "payment_failed": "Payment failed",
+    "held": "Held", "draft": "Not finished", "expired": "Expired",
+    "cancelled": "Cancelled", "refunded": "Refunded"
+  };
+  function labelOf(map, v) {
+    var k = String(v === null || v === undefined ? "" : v).toLowerCase().trim();
+    if (!k) { return ""; }
+    return map[k] || k;
+  }
+
   var DEBUG = /[?&]hl_debug=1/.test(w.location.search);
   function log() {
     if (DEBUG && w.console) { console.log.apply(console, ["[hl-portal]"].concat([].slice.call(arguments))); }
@@ -1884,17 +1930,54 @@
     return m ? decodeURIComponent(m[1]) : "";
   }
 
-  /* Memberstack keeps the member token in a cookie. Read it directly rather than
-     waiting on $memberstackDom: the package may not have finished loading, and this
-     page has nothing to show until the exchange has happened. */
-  function memberToken() {
-    var name = "_ms-mid=";
+  /* WHERE MEMBERSTACK ACTUALLY KEEPS THE TOKEN - and it is not where this used to
+     look. This comment used to read "Memberstack keeps the member token in a cookie".
+     On the Heartland site it does not: the v2 package stores _ms-mid in localStorage
+     and document.cookie has no trace of it. So the portal read the cookie, found
+     nothing, and bounced every logged-in member straight back to the login page. It
+     went unnoticed because the portal had never once been loaded with a real member
+     session - every test until 30 Aug supplied the cookie itself.
+
+     ALL THREE PLACES ARE READ. Memberstack's storage has moved before; a build that
+     knows only one place breaks the same way the next time it moves, and reading an
+     absent key costs nothing. Reading directly rather than waiting on $memberstackDom
+     is still deliberate: the package may not have finished loading, and this page has
+     nothing to show until the exchange has happened. */
+  var MS_KEY = "_ms-mid";
+
+  /* Some builds store the JWT as a JSON string, quotes and all. A token with a quote
+     on each end is not a token, and the failure it causes is a 401 from Xano rather
+     than anything that names the real problem. */
+  function unquote(v) {
+    var t = String(v === null || v === undefined ? "" : v).trim();
+    if (t.length > 1 && t.charAt(0) === '"' && t.charAt(t.length - 1) === '"') {
+      t = t.slice(1, -1);
+    }
+    return t;
+  }
+
+  /* Storage throws rather than returning null when a browser is set to block it, so
+     every read is defended. A blocked store is not an error worth reporting - it just
+     means the token is somewhere else, or the member is not logged in. */
+  function fromStore(which) {
+    try {
+      var store = w[which];
+      return store ? unquote(store.getItem(MS_KEY)) : "";
+    } catch (e) { return ""; }
+  }
+
+  function fromCookie() {
+    var name = MS_KEY + "=";
     var parts = String(d.cookie || "").split(";");
     for (var i = 0; i < parts.length; i++) {
       var c = parts[i].trim();
-      if (c.indexOf(name) === 0) { return decodeURIComponent(c.slice(name.length)); }
+      if (c.indexOf(name) === 0) { return unquote(decodeURIComponent(c.slice(name.length))); }
     }
     return "";
+  }
+
+  function memberToken() {
+    return fromStore("localStorage") || fromCookie() || fromStore("sessionStorage");
   }
 
   function readJson(r) {
@@ -2031,7 +2114,20 @@
 
   /* --------------------------------------------------------------- switcher */
 
+  function homeLabel(r) {
+    var unitName = (r.unit && (r.unit.display_name || r.unit.name)) || "Your home";
+    return (r.property_name || r.property_slug || "") + " — " + unitName;
+  }
+
   function renderSwitcher() {
+    /* Which home you are looking at, in words. On a one-home account this is just the
+       page saying where you are; on a three-home account it is the difference between
+       reading your own balance and reading somebody else's. */
+    var names = d.querySelectorAll("[data-hl-current-home]");
+    for (var n = 0; n < names.length; n++) {
+      names[n].textContent = R ? homeLabel(R) : "";
+    }
+
     var wrap = d.querySelector("[data-hl-switcher]");
     var list = d.querySelector("[data-hl-switcher-list]");
     if (!wrap || !list) { return; }
@@ -2046,8 +2142,7 @@
       a.setAttribute("href", "?r=" + encodeURIComponent(r.uuid));
       a.setAttribute("data-hl-switcher-item", r.uuid);
       a.className = "hl-switch-item" + (R && r.uuid === R.uuid ? " is-current" : "");
-      var unitName = (r.unit && (r.unit.display_name || r.unit.name)) || "Your home";
-      a.textContent = (r.property_name || r.property_slug || "") + " — " + unitName;
+      a.textContent = homeLabel(r);
       list.appendChild(a);
     }
   }
@@ -2068,23 +2163,175 @@
     renderCountdown();
     renderLists();
     renderSwitcher();
+    carrySelection();
   }
 
   /* --------------------------------------------------------------- select */
 
+  /* WHICH HOME, and the whole question exists because a buyer can hold more than one.
+     Order: the URL, then what they last chose, then - only when there is nothing to
+     choose between - the most recent confirmed.
+
+     RETURNING NULL IS A REAL ANSWER, not a failure: several homes and nothing chosen
+     means the buyer has not told us which one yet, and the honest response is to ask
+     rather than to pick one and hope. boot() shows the index for exactly that. A page
+     with no index block gets the old behaviour, so /portal-order reached cold still
+     shows something - the switcher in the nav names which. */
   function pick(list) {
     if (!list.length) { return null; }
-    var wanted = param("r") || stashed(STASH_R);
+    var wanted = param("r") || stashed(STASH_R) || stashed(SEL_KEY);
     var i;
     if (wanted) {
       for (i = 0; i < list.length; i++) { if (list[i].uuid === wanted) { return list[i]; } }
-      /* Named a reservation this member does not hold. Not an error to shout about -
-         Xano simply never returned it - but do not silently show them a different
-         deal as though it were the one they asked for. */
-      warn("no reservation", wanted, "on this member - falling back to the most recent");
+      /* Named a home this member does not hold. Xano simply never returned it, so it
+         is not an error to shout about - but with several homes on the account,
+         silently showing a DIFFERENT one's money is how a buyer reads the wrong
+         balance and believes it. Forget the stale choice and ask again. */
+      warn("no reservation", wanted, "on this member");
+      stash(SEL_KEY, "");
+      missedSelection = wanted;
+      if (list.length > 1) { return null; }
     }
+    if (list.length === 1) { return list[0]; }
+    if (d.querySelector("[data-hl-portal-index]")) { return null; }
     for (i = 0; i < list.length; i++) { if (list[i].status === "confirmed") { return list[i]; } }
     return list[0];
+  }
+
+  /* --------------------------------------------------------------- the index */
+
+  /* One card per home. The Designer draws ONE card; this clones it, exactly as the
+     document and add-on lists work - with one deliberate difference. fillList() forces
+     target="_blank" on every anchor it finds, which is right for a document hosted
+     somewhere else and wrong here: these links go to the buyer's own dashboard, and
+     opening that in a new tab every time is how you end up with nine of them. */
+  var indexTemplate = null;
+
+  function indexItem(r) {
+    var unit = r.unit || {};
+    var left = daysLeft(r.deal_stage_due_at);
+    var state = (left === null) ? "none" : (left < 0 ? "overdue" : (left <= 3 ? "due-soon" : "ok"));
+    var due = "";
+    if (left !== null) {
+      if (left < 0) {
+        due = "Overdue by " + Math.abs(left) + " day" + (Math.abs(left) === 1 ? "" : "s");
+      } else if (left === 0) {
+        due = "Due today";
+      } else {
+        due = "Due in " + left + " day" + (left === 1 ? "" : "s");
+      }
+    }
+    return {
+      key: r.uuid,
+      uuid: r.uuid,
+      href: "?r=" + encodeURIComponent(r.uuid),
+      property_name: r.property_name || r.property_slug || "",
+      property_slug: r.property_slug || "",
+      unit_name: unit.display_name || unit.name || "Your home",
+      unit_number: unit.unit_number || "",
+      stage_label: labelOf(STAGE_LABEL, r.deal_stage),
+      substage_label: labelOf(SUBSTAGE_LABEL, r.deal_sub_stage),
+      status_label: labelOf(STATUS_LABEL, r.status),
+      due_label: due,
+      due_date: fmtDate(r.deal_stage_due_at),
+      days_left: (left === null) ? "" : String(Math.max(0, left)),
+      state: state,
+      grand_total_cents: r.grand_total_cents,
+      total_cents: r.total_cents
+    };
+  }
+
+  /* Newest first is how Xano returns them, and it is the wrong order here: the home
+     that needs something today should be the one at the top. Overdue, then due soon,
+     then the rest, and within each the sooner deadline first. */
+  var STATE_RANK = {overdue: 0, "due-soon": 1, ok: 2, none: 3};
+
+  function indexItems() {
+    var out = [];
+    for (var i = 0; i < ALL.length; i++) { out.push(indexItem(ALL[i])); }
+    out.sort(function (a, b) {
+      var ar = STATE_RANK[a.state], br = STATE_RANK[b.state];
+      if (ar !== br) { return ar - br; }
+      var ad = (a.days_left === "") ? 1e9 : Number(a.days_left);
+      var bd = (b.days_left === "") ? 1e9 : Number(b.days_left);
+      return ad - bd;
+    });
+    return out;
+  }
+
+  function renderIndex() {
+    var list = d.querySelector("[data-hl-index]");
+    if (!list) { return 0; }
+
+    if (!indexTemplate) {
+      var proto = list.querySelector("[data-hl-index-row]");
+      if (!proto) { warn("[data-hl-index] has no [data-hl-index-row] to clone"); return 0; }
+      indexTemplate = proto.cloneNode(true);
+    }
+
+    var old = list.querySelectorAll("[data-hl-index-row]");
+    for (var o = 0; o < old.length; o++) {
+      if (old[o].parentNode) { old[o].parentNode.removeChild(old[o]); }
+    }
+
+    var items = indexItems();
+    for (var i = 0; i < items.length; i++) {
+      var card = indexTemplate.cloneNode(true);
+      card.setAttribute("data-hl-row-key", items[i].key);
+      card.setAttribute("data-hl-index-state", items[i].state);
+
+      w.HLRender.displays(card, items[i], function (path) {
+        log("no such path on an index card:", path, "- left as designed");
+      });
+
+      /* The card may BE the link, or contain one. Same tab, deliberately. */
+      var link = (card.tagName === "A") ? card
+               : (card.querySelector("[data-hl-index-link]") || card.querySelector("a"));
+      if (link) { link.setAttribute("href", items[i].href); }
+
+      card.style.display = "block";
+      list.appendChild(card);
+    }
+    return items.length;
+  }
+
+  /* --------------------------------------------------- carry the choice along */
+
+  /* THE BUG THIS EXISTS TO PREVENT. The switcher sets ?r= on the page you are on, and
+     the portal's own nav links are plain hrefs written in the Designer. So a buyer
+     with two homes switches to the second, clicks Documents, and lands on
+     /portal-documents with no ?r= at all - which resolves to the DEFAULT home. They
+     would be looking at the first home's documents under the second home's name.
+
+     Rewriting the links is better than relying on the remembered choice alone,
+     because it also survives a middle-click, a copied link and a bookmark: the URL
+     itself says which home. The remembered choice stays as the fallback for a link
+     this never sees. */
+  function carrySelection() {
+    if (!R) { return 0; }
+    var links = d.querySelectorAll("a[href]");
+    var n = 0;
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i];
+      /* The index and the switcher each name their own home. Rewriting those to the
+         CURRENT one would make every choice a link back to where you already are. */
+      if (a.closest && (a.closest("[data-hl-index]") || a.closest("[data-hl-switcher]"))) { continue; }
+      var raw = a.getAttribute("href") || "";
+      if (!raw || raw.charAt(0) === "#") { continue; }
+      var u;
+      try { u = new w.URL(a.href, w.location.href); } catch (e) { continue; }
+      if (u.origin !== w.location.origin) { continue; }
+      /* The portal's own pages, plus anything the Designer marks by hand. Log out and
+         log in are deliberately excluded - a home is not a thing you carry out of the
+         session with you. */
+      var portal = u.pathname === "/portal" || u.pathname.indexOf("/portal-") === 0;
+      if (u.pathname.indexOf("/portal-login") === 0) { portal = false; }
+      if (!portal && !a.hasAttribute("data-hl-portal-link")) { continue; }
+      u.searchParams.set("r", R.uuid);
+      a.setAttribute("href", u.pathname + u.search + u.hash);
+      n++;
+    }
+    return n;
   }
 
   /* --------------------------------------------------------------- lists */
@@ -2288,6 +2535,14 @@
 
   var BOUNCE = "hl_portal_bounce";
   var STASH_R = "hl_portal_r";
+  /* The chosen home, remembered for this browser tab only. sessionStorage rather than
+     localStorage on purpose: a shared machine must not hand the next person's tab a
+     home to open, and the URL is the durable record anyway. */
+  var SEL_KEY = "hl_portal_sel";
+
+  /* Set when the URL named a home this member does not hold, so the page can say so
+     instead of quietly showing a different one. */
+  var missedSelection = "";
 
   function stashed(k) {
     try { return w.sessionStorage.getItem(k) || ""; } catch (e) { return ""; }
@@ -2345,25 +2600,65 @@
       .catch(function (e) { warn("refresh failed:", e && e.message); return null; });
   }
 
+  /* The index and the dashboard are alternatives, never both. Shown with an explicit
+     value rather than by clearing one, so a block the Designer hid stays hidden until
+     this says otherwise. */
+  function showIndex(on) {
+    show("[data-hl-portal-index]", on);
+    if (on) { show("[data-hl-portal-body]", false); }
+  }
+
+  function noticeMissed() {
+    if (!missedSelection) { return; }
+    var els = d.querySelectorAll("[data-hl-portal-notice]");
+    for (var i = 0; i < els.length; i++) {
+      els[i].textContent = "That link is for a home that is not on your account. Choose one below.";
+      els[i].style.display = "block";
+    }
+  }
+
+  /* THE WAY OUT HAS TO AGREE WITH THE WAY IN. The empty state carries a Log in
+     button, and it was pointing at /log-in - the LEGACY clientzone login, which signs
+     a member in and drops them on the old dashboard. A member who lands here and
+     presses it is sent somewhere this portal will never bring them back from.
+     One source of truth: data-hl-login on the portal root, read by loginPath(). */
+  function fixLoginLinks() {
+    var els = d.querySelectorAll("[data-hl-login-link]");
+    for (var i = 0; i < els.length; i++) { els[i].setAttribute("href", loginPath()); }
+    return els.length;
+  }
+
   function boot() {
     if (!d.querySelector("[data-hl-portal]")) { return; }
 
+    fixLoginLinks();
     show("[data-hl-portal-loading]", true);
     show("[data-hl-portal-body]", false);
     show("[data-hl-portal-empty]", false);
+    show("[data-hl-portal-index]", false);
 
     w.HLPortal = {
       all: function () { return ALL; },
       get: function () { return R; },
       select: function (uuid) {
         for (var i = 0; i < ALL.length; i++) {
-          if (ALL[i].uuid === uuid) { R = ALL[i]; render(); return R; }
+          if (ALL[i].uuid === uuid) {
+            R = ALL[i];
+            stash(SEL_KEY, R.uuid);
+            showIndex(false);
+            render();
+            return R;
+          }
         }
         return null;
       },
+      indexItems: indexItems,
+      carrySelection: carrySelection,
+      missed: function () { return missedSelection; },
       daysLeft: daysLeft,
       offset: function () { return clockOffset; },
       loginPath: loginPath,
+      memberToken: memberToken,
       documents: documents,
       addons: addons,
       extras: extras,
@@ -2429,7 +2724,20 @@
         R = pick(ALL);
         stash(STASH_R, "");
         show("[data-hl-portal-loading]", false);
+
+        if (!R) {
+          /* Several homes and none chosen. Ask. */
+          log("no home chosen and", ALL.length, "to choose from - showing the index");
+          showIndex(true);
+          renderIndex();
+          noticeMissed();
+          return;
+        }
+
+        stash(SEL_KEY, R.uuid);
+        showIndex(false);
         show("[data-hl-portal-body]", true);
+        noticeMissed();
         render();
       })
       .catch(function (e) {
