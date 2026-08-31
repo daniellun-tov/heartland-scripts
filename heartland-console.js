@@ -620,16 +620,35 @@
         '<div id="docBox"><div class="spin">Loading documents\u2026</div></div>' +
       '</div>' +
 
-      /* WHAT THE BUYER SEES, read through the buyer's own reader. Not a rebuild of it -
-         /staff/reservations/{uuid}/portal-view calls member_reservations_view, so this
-         panel cannot drift from the portal. Loaded on demand rather than with the drawer:
-         every view is audited with the salesperson's name, and opening a deal to change a
-         deadline should not file a record of reading the buyer's dashboard. */
+      /* WHAT THE BUYER SEES - THE ACTUAL PAGE, in a new tab. This was a panel of counts
+         for about an hour, and a panel of counts is a second implementation of the
+         portal: the first time it disagreed with the real page, the console would have
+         been confidently wrong about what a buyer was looking at. The portal draws
+         itself, with this buyer's data, through /staff/reservations/{uuid}/portal-view -
+         one reader, no drift.
+
+         A NEW TAB rather than an iframe, because the portal is a full page with its own
+         navbar, tabs and theme, and because a salesperson wants to keep the deal open
+         beside it.
+
+         THE STAFF TOKEN GOES THROUGH localStorage, NEVER THE URL. A one-time note
+         addressed to this reservation, good for sixty seconds, which the portal consumes
+         and deletes. A token in a query string would live in history, in logs and in
+         every referrer that page emits.
+
+         Opening it is audited with your name - which is why it is a button and not
+         something the drawer does on its own. */
       '<div class="sect"><h2>What the buyer sees</h2>' +
         '<div class="muted" style="font-size:.8125rem;margin-bottom:10px">' +
-          'Their portal, read through the same code that draws it. Read-only, and recorded against your name.' +
+          'Opens their dashboard in a new tab, exactly as they see it. Read-only \u2014 the ' +
+          'signing and pre-qualification links are disabled \u2014 and recorded against your name.' +
         '</div>' +
-        '<div id="pvBox"><button id="pvGo">Show the buyer\u2019s view</button></div>' +
+        '<div id="pvBox">' +
+          (r.has_member
+            ? '<button id="pvGo">Open the buyer\u2019s dashboard</button>'
+            : '<div class="none">No member yet. A portal appears once the reservation fee is ' +
+              'paid and the member is provisioned.</div>') +
+        '</div>' +
       '</div>' +
 
       /* END THE DEAL. Last in the drawer because it is the only irreversible thing here. */
@@ -711,7 +730,7 @@
     }
 
     var pvGo = $("pvGo");
-    if (pvGo) { pvGo.addEventListener("click", function () { loadBuyerView(r); }); }
+    if (pvGo) { pvGo.addEventListener("click", function () { openBuyerView(r); }); }
 
     var cxGo = $("cxGo");
     if (cxGo) { cxGo.addEventListener("click", function () { cancelDeal(r); }); }
@@ -723,50 +742,52 @@
 
   /* ---------- the buyer's view ---------- */
 
-  function countLine(label, n) {
-    return '<div class="muted" style="font-size:.8125rem">' + esc(label) + ": " +
-           '<span class="mono">' + n + "</span></div>";
-  }
+  var PREVIEW_HANDOFF = "hl_preview_handoff";
 
-  function loadBuyerView(r) {
+  /* The handoff, and the whole security argument for it, is written up beside the
+     panel above. Written immediately before the tab is opened so its sixty-second
+     window starts as late as possible. */
+  function openBuyerView(r) {
     var box = $("pvBox");
-    if (!box) { return; }
-    box.innerHTML = '<div class="spin">Reading their portal\u2026</div>';
+    var tok = token();
+    if (!tok) {
+      if (box) { box.innerHTML = '<div class="err">Your session has expired. Sign in again.</div>'; }
+      return;
+    }
 
-    api("/staff/reservations/" + encodeURIComponent(r.uuid) + "/portal-view")
-      .then(function (d) {
-        if (S.open !== r.uuid) { return; }
-        var v = d.reservation || {};
-        var m = v.media || {};
-        box.innerHTML =
-          (v.is_blocked
-            ? '<div class="err" style="margin-bottom:10px"><strong>They cannot go forward.</strong><br>' +
-              esc(v.blocked_reason || "") + "</div>"
-            : '<div class="ok" style="margin-bottom:10px">Their deal is live' +
-              (v.days_left === null || v.days_left === undefined
-                ? "."
-                : " \u2014 " + v.days_left + " day" + (v.days_left === 1 ? "" : "s") + " left on this step.") +
-              "</div>") +
-          '<div style="margin-bottom:8px"><span class="mono">' + esc(v.reference || "\u2014") + "</span> \u00b7 " +
-            esc(label(v.deal_stage || "")) + " \u00b7 " + esc(label(v.deal_sub_stage || "")) + "</div>" +
-          /* WITHHELD, not hidden. If the signing link is absent here it is absent in their
-             browser too - the reader refuses to send it on a blocked deal. */
-          '<div class="muted" style="font-size:.8125rem;margin-bottom:8px">Offer to Purchase link: ' +
-            (v.otp_available ? "available to them" : "<strong>withheld</strong>") + "</div>" +
-          countLine("Their signed documents", (v.documents || []).length) +
-          countLine("Development documents", (v.property_documents || []).length) +
-          countLine("Renders in their gallery", (m.gallery || []).length) +
-          countLine("Floor plans they can download", (m.floorplans || []).length) +
-          countLine("People on their team card", (v.team || []).length) +
-          countLine("Upgrades agreed since reserving", (v.agreed_extras || []).length) +
-          '<div class="muted" style="font-size:.8125rem;margin-top:8px">Pre-qualify button: ' +
-            ((v.actions && v.actions.prequalify_url) ? "shown" : "not offered on this development") + "</div>" +
-          '<div class="muted" style="font-size:.75rem;margin-top:10px">Read as ' + esc(d.viewed_by || "") + "</div>";
-      })
-      .catch(function (e) {
-        if (S.open !== r.uuid) { return; }
-        box.innerHTML = '<div class="err">' + esc(e.message) + "</div>";
-      });
+    try {
+      localStorage.setItem(PREVIEW_HANDOFF, JSON.stringify({
+        t: tok, uuid: r.uuid, at: Date.now()
+      }));
+    } catch (e) {
+      /* Private browsing, or storage blocked. Say so rather than opening a tab that
+         will ask them to sign in with no explanation. */
+      if (box) {
+        box.innerHTML = '<div class="err">This browser will not let the console hand your ' +
+          'session to another tab, so the preview cannot open. Storage is blocked \u2014 ' +
+          'usually a private window or a strict privacy setting.</div>';
+      }
+      return;
+    }
+
+    /* NOT rel=noopener. The clone of sessionStorage into the new tab is the fallback
+       the preview uses on a refresh, and severing the opener relationship is what
+       stops some browsers making it. Both pages are ours and same-origin, so there is
+       nothing here for noopener to protect against. */
+    var win = window.open("/portal?preview=" + encodeURIComponent(r.uuid), "_blank");
+    if (!win) {
+      if (box) {
+        box.innerHTML = '<div class="err">Your browser blocked the new tab. Allow pop-ups ' +
+          'for this site and try again.</div>';
+      }
+      return;
+    }
+    if (box) {
+      box.innerHTML = '<div class="ok">Opened in a new tab.</div>' +
+        '<button id="pvGo">Open again</button>';
+      var again = $("pvGo");
+      if (again) { again.addEventListener("click", function () { openBuyerView(r); }); }
+    }
   }
 
   /* ---------- cancel ---------- */
