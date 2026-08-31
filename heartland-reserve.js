@@ -1879,7 +1879,8 @@
    LISTS - one renderer, three lists. The Designer draws ONE row; the script clones
    it per item and removes the original, so a list can be restyled and rearranged
    without touching this file.
-     [data-hl-list="documents"]        the buyer's own documents
+     [data-hl-list="documents"]        the buyer's own documents - what they signed
+     [data-hl-list="property-documents"] the development's - what they are buying into
      [data-hl-list="addons"]           add-ons, each with its price
      [data-hl-list="extras"]           upgrades sales agreed after the reservation
      [data-hl-list="spec"]             the choices made in the configurator
@@ -3068,6 +3069,38 @@
     return out;
   }
 
+  /* THE DEVELOPMENT'S OWN DOCUMENTS - the brochure, the schedule of finishes, the
+     conduct rules, the levy schedule. A SEPARATE LIST from documents() on purpose, not
+     a merge: one answers "what have I signed", the other "what am I buying into", and
+     a buyer scanning a single column for their countersigned OTP should not have to
+     read past the furniture sizing guide to find it.
+
+     The same https guard, for the same reason. These urls come from the CMS rather
+     than from sales, which is a different source and not a safer one - the guard
+     nearest the sink is the one that matters. Xano already sends them in
+     sort_order, so nothing here re-sorts: the order is the one the legacy clientzone
+     page used, and it is deliberate rather than alphabetical. */
+  function propertyDocuments() {
+    var list = (R && R.property_documents) || [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var doc = list[i] || {};
+      var url = safeUrl(doc.url);
+      if (!url) {
+        warn("property document", doc.doc_key || "(no key)",
+             "has a link this page will not render:", doc.url);
+        continue;
+      }
+      out.push({
+        key    : String(doc.doc_key || ""),
+        doc_key: String(doc.doc_key || ""),
+        label  : String(doc.label || ""),
+        url    : url
+      });
+    }
+    return out;
+  }
+
   function addons() {
     var list = (R && R.addons) || [];
     var out = [];
@@ -3211,6 +3244,7 @@
 
   function renderLists() {
     renderList("documents", documents());
+    renderList("property-documents", propertyDocuments());
     renderList("addons", addons());
     renderList("extras", extras());
     renderList("spec", spec());
@@ -3360,6 +3394,7 @@
       loginPath: loginPath,
       memberToken: memberToken,
       documents: documents,
+      propertyDocuments: propertyDocuments,
       addons: addons,
       extras: extras,
       spec: spec,
