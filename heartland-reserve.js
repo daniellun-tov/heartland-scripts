@@ -3856,6 +3856,19 @@
        it, which is a page that did something you did not expect. */
     if (tabRedirect()) { return; }
 
+    /* THE TABS ARE SETTLED BEFORE THE FETCH, not after it. Which tab is open is a
+       question the url answers on its own - it needs no reservation - and hiding the
+       inactive panels here rather than in render() means they are never stacked, even
+       for the moment before data arrives and even if some future path shows the body
+       without rendering. render() calls it again, which is free and re-marks the links
+       after carrySelection has rewritten their hrefs.
+
+       Found by looking at the live page rather than at the tests: signed out, the body
+       stays hidden so nobody could SEE the three panels stacked - but they were, and a
+       correctness that depends on something else being hidden is not one. */
+    wireTabs();
+    showTab(tabFromUrl(), false);
+
 
     var ms = memberToken();
     if (!ms) {
