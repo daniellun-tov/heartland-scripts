@@ -1848,9 +1848,31 @@
      data-hl-stage="reserve"           tracker step, gets .is-active / .is-done
      data-hl-substage="sign-otp"       finance sub-step, same classes
      data-hl-route="bond"              shown only to that kind of buyer
-     data-hl-countdown                 whole days left, or 0
+     data-hl-countdown                 whole days left, ROUNDED UP, or 0 - the headline
      data-hl-countdown-state           set to ok | due-soon | overdue | none
      data-hl-due                       the deadline, as a date
+
+   THE CLOCK, ticking once a second off the server-corrected time. Exact, so it floors
+   where data-hl-countdown rounds up; put one or the other in a block, never both.
+     [data-hl-cd]                      optional wrapper, gets the state and the classes
+     [data-hl-cd-d] -h -m -s           the four numbers; h/m/s zero-padded
+     [data-hl-cd-d-label] -h- -m- -s-  "Day"/"Days" etc, pluralised for you
+     [data-hl-countdown-exact]         all of it in one element: "6d 04:12:09"
+
+   THE STEP THE BUYER IS ON, in words rather than as a dot on a line.
+     [data-hl-next]                    the whole block; hidden when there is no next step
+     [data-hl-next-title]              "Sign the Offer to Purchase"
+     .is-next                          added to the [data-hl-substage] they are on
+
+   WHEN THE CLOCK HAS RUN OUT. The server has already withheld otp_url; this only makes
+   the page agree with it.
+     [data-hl-blocked]                 shown when the deadline passed or the deal ended
+     [data-hl-blocked-reason]          the sentence explaining which and what happens now
+     [data-hl-action]                  anything that moves the buyer forward; hidden when blocked
+     .is-blocked                       added to [data-hl-portal]
+
+   THE STEP PRESENTATION. One deck per sub-stage, cash and bond where they differ.
+     [data-hl-slides]                  where the deck goes; hidden when the step has none
 
    LISTS - one renderer, three lists. The Designer draws ONE row; the script clones
    it per item and removes the original, so a list can be restyled and rearranged
@@ -1916,6 +1938,101 @@
     if (!k) { return ""; }
     return map[k] || k;
   }
+
+  /* ======================================================================= THE STEP PRESENTATION
+
+     The slide decks the legacy clientzone dashboard showed under each sub-step, lifted
+     out of the Designer on 30 Aug. Nine sliders there, SEVEN distinct decks here,
+     because three sub-steps carried a bond and a cash variant and one pair was the
+     same deck twice.
+
+     THE DECKS ARE NAMED BY STATE, NOT BY TASK - "After Reserving", "OTP Signed",
+     "Deposit Paid". So the deck on a step describes WHAT YOU HAVE JUST COMPLETED, not
+     what is being asked of you next. It reads like an off-by-one until you notice the
+     naming; it is reproduced exactly as the old dashboard had it.
+
+     06_Bond_Application_Submitted IS THREE SLIDES, not four. The old dashboard padded
+     it with 04_Cash_Deposit_Paid_Slide4 - there is no Slide4 for that deck anywhere in
+     the asset library, checked across the whole of it. A slide titled "Cash Deposit
+     Paid" shown to a bond buyer waiting on their application is worse than a shorter
+     deck, so the stray is dropped. Adding a real fourth slide later is one line here.
+
+     THE SAME SLIDES SERVE EVERY DEVELOPMENT. They explain the process, not the
+     property, so they live in this file rather than in a CMS collection nobody would
+     remember to fill in when a development launches. */
+
+  var SLIDE_CDN = "https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/";
+
+  var SLIDE_DECKS = {
+    "Heartland_01_After_Reserving": [
+      "6a6af4f53026d2d50ece5b14_Heartland_01_After_Reserving_Slide1.avif",
+      "6a6af4f6c9fda31ba77d8305_Heartland_01_After_Reserving_Slide2.avif",
+      "6a6af4f71e4795b37491f985_Heartland_01_After_Reserving_Slide3.avif",
+      "6a6af4f6a76ffcd529d8bdd1_Heartland_01_After_Reserving_Slide4.avif",
+      "6a6af4f6016d3844228a3f46_80fcb30063ad33f633a19ff9b1f788b2_Heartland_01_After_Reserving_Slide5.avif"
+    ],
+    "Heartland_02_OTP_Bond": [
+      "6a6af5a8a76ffcd529d90631_Heartland_02_OTP_Bond_Slide1.avif",
+      "6a6af5a9b862ee71502f7e52_Heartland_02_OTP_Bond_Slide2.avif",
+      "6a6af5a9de94fe5c4812cb6b_Heartland_02_OTP_Bond_Slide3.avif",
+      "6a6af5a83db17a6091e51d20_e38b0094dae47401ece358ab0186a2be_Heartland_02_OTP_Bond_Slide4.avif"
+    ],
+    "02_OTP_Signed_Cash_Purchase": [
+      "6a3e9b0990e90bd3fdaa32e1_fa846ee575633ded5b5e879f91103f07_02_OTP_Signed_Cash_Purchase_Slide1.jpg",
+      "6a3e9b09299abbd41fe6a88d_60dd69f880204a13921a218635a96c70_02_OTP_Signed_Cash_Purchase_Slide2.jpg",
+      "6a3e9b0a17c31f9b85b150d2_0e81982dfaf3b368207ed9558e1a193d_02_OTP_Signed_Cash_Purchase_Slide3.jpg",
+      "6a3e9b09f9f4adc1afd684b8_24b37a5cf0e44f9960ac85782fe2bf62_02_OTP_Signed_Cash_Purchase_Slide4.jpg"
+    ],
+    "05_Bond_Deposit_Paid": [
+      "6a3e9b5dae1ed47ab9835d5c_1fbb5a6c74fff0c66deced6b1387a67b_05_Bond_Deposit_Paid_Slide1.jpg",
+      "6a3e9b5d25fd857a14bcd9f6_97068ed9f5f44f03996f01b144a0ebd9_05_Bond_Deposit_Paid_Slide2.jpg",
+      "6a3e9b5d13a7404c5e005254_c81c89c507f0f5edbc39cde2982874fa_05_Bond_Deposit_Paid_Slide3.jpg",
+      "6a3e9b5d0802460f641bcbab_bc1d322739caa29313042bbb1fb179e4_05_Bond_Deposit_Paid_Slide4.jpg"
+    ],
+    "04_Cash_Deposit_Paid": [
+      "6a3e9b13f517c7feb2292fa3_8651afec5b51d7f0e6cc11a4548a9fa0_04_Cash_Deposit_Paid_Slide1.jpg",
+      "6a3e9b14825a45c1edf7d12a_4f6c83a0706abc2dc573195740bbfdfe_04_Cash_Deposit_Paid_Slide2.jpg",
+      "6a3e9b1411f008c657a7e9b7_3f1d51aba1ad9d4208a86253be3bc777_04_Cash_Deposit_Paid_Slide3.jpg",
+      "6a3e9b14b18ac277ea082667_4814407ba60253ae93a4bde2d3b4e8a3_04_Cash_Deposit_Paid_Slide4.jpg"
+    ],
+    "06_Bond_Application_Submitted": [
+      "6a3e9b65523e37ac5c3f5f86_38195e38f910f9761ee2235fc6830202_06_Bond_Application_Submitted_Slide1.jpg",
+      "6a3e9b650802460f641bceb5_66f9198d71a154c7df50503b27e4d6c1_06_Bond_Application_Submitted_Slide2.jpg",
+      "6a3e9b636c1f0c1ade35d1ab_88501ddce2b04f843121ab7b44abae99_06_Bond_Application_Submitted_Slide3.jpg"
+    ],
+    "07_Bond_Approved_and_Accepted": [
+      "6a3e9b68552b91ae6d0a16ee_58198c2bea2f74485d4f1788c4a5ad81_07_Bond_Approved_and_Accepted_Slide1.jpg",
+      "6a3e9b68f517c7feb2295fa9_3bf56d743c55840b861b8ce69002d916_07_Bond_Approved_and_Accepted_Slide2.jpg",
+      "6a3e9b6834cfac80da83ba41_2a4456f3e9e2f2c5d03b8923109ba2b0_07_Bond_Approved_and_Accepted_Slide3.jpg",
+      "6a3e9b6821bf1dad5727bad8_6f2360c059d068d6e16ad6f77ab657e7_07_Bond_Approved_and_Accepted_Slide4.jpg"
+    ]
+  };
+
+  /* sub-stage -> deck, per route. "both" means the route makes no difference. */
+  var SLIDE_MAP = {
+    "pre-qualify": {"both": "Heartland_01_After_Reserving"},
+    "sign-otp": {"bond": "Heartland_01_After_Reserving", "cash": "Heartland_01_After_Reserving"},
+    "pay-deposit": {"bond": "Heartland_02_OTP_Bond", "cash": "02_OTP_Signed_Cash_Purchase"},
+    "transfer-attorneys": {"bond": "05_Bond_Deposit_Paid", "cash": "04_Cash_Deposit_Paid"},
+    "bond-approval": {"both": "06_Bond_Application_Submitted"},
+    "bond-approved": {"both": "07_Bond_Approved_and_Accepted"}
+  };
+
+  function slidesFor(res) {
+    if (!res) { return []; }
+    var sub = String((res.deal_sub_stage) || "").toLowerCase();
+    var entry = SLIDE_MAP[sub];
+    if (!entry) { return []; }
+    var key = entry[routeOf(res)] || entry.both;
+    var deck = key ? SLIDE_DECKS[key] : null;
+    if (!deck) { return []; }
+    var out = [];
+    for (var i = 0; i < deck.length; i++) {
+      out.push({ n: i + 1, of: deck.length, src: SLIDE_CDN + deck[i], deck: key });
+    }
+    return out;
+  }
+
 
   var DEBUG = /[?&]hl_debug=1/.test(w.location.search);
   function log() {
@@ -2089,9 +2206,91 @@
     return dt.getDate() + " " + months[dt.getMonth()] + " " + dt.getFullYear();
   }
 
+  /* WHAT THE CLOCK IS FOR. A buyer who has seven days to sign does not want to be told
+     "7" - they want to see the time going. So the deadline is shown twice, and the two
+     slots mean different things on purpose:
+
+       [data-hl-countdown]        WHOLE DAYS, ROUNDED UP. The headline. 18 hours left
+                                  reads as "1", because telling someone they have no
+                                  days left while they still have the evening is how a
+                                  portal causes a phone call. Use it on cards, badges
+                                  and the home index.
+       [data-hl-cd-d/-h/-m/-s]    THE EXACT CLOCK, ticking once a second. 18 hours left
+                                  reads 0 / 18 / 12 / 09. Use it on the step the buyer
+                                  is standing on.
+
+     They disagree by a rounding, which is fine while they sit in different places and
+     wrong the moment they sit side by side. Pick one per block.
+
+     WHICH CLOCK. The breakdown can only come from deal_stage_due_at - a day count has
+     no seconds in it - and it is read against the server's clock, not the device's, via
+     the offset taken at boot. days_left stays the authority for the STATE: whether the
+     buyer is ok, running out, or past the deadline is the server's call, made with the
+     same numbers move_deal_stage and the console use, so the portal can never claim a
+     buyer has time the back end has already taken away.
+
+     A SUB-STAGE WITH NO WINDOW HAS NO DEADLINE, so it gets no countdown at all rather
+     than a zero. Transfer and bond-approved are genuinely open-ended; a clock on them
+     would be inventing a deadline nobody set. */
+
+  var cdTimer = null;
+  var cdReloaded = false;
+
+  function pad2(n) {
+    n = Number(n) || 0;
+    return n < 10 ? "0" + n : String(n);
+  }
+
+  /* Days/hours/minutes/seconds from a span in milliseconds. Floors, because this is a
+     clock and not the headline - a clock that rounded up would tick 18h -> 1d. */
+  function breakUp(ms) {
+    if (!(ms > 0)) { ms = 0; }
+    var s = Math.floor(ms / 1000);
+    return {
+      d: Math.floor(s / 86400),
+      h: Math.floor((s % 86400) / 3600),
+      m: Math.floor((s % 3600) / 60),
+      s: s % 60
+    };
+  }
+
+  function fill(sel, text) {
+    var els = d.querySelectorAll(sel);
+    for (var i = 0; i < els.length; i++) { els[i].textContent = text; }
+  }
+
+  /* The unit labels are pluralised here rather than left as "Days" for the one case
+     that reads badly: "1 Days". */
+  function fillUnit(sel, n, one, many) {
+    fill(sel, Number(n) === 1 ? one : many);
+  }
+
   function renderCountdown() {
-    var left = R ? daysLeft(R.deal_stage_due_at) : null;
-    var state = (left === null) ? "none" : (left < 0 ? "overdue" : (left <= 3 ? "due-soon" : "ok"));
+    var left = null;          /* whole days, the headline */
+    var msLeft = null;        /* exact milliseconds, the clock */
+
+    if (R && R.deal_stage_due_at) {
+      var due = Number(R.deal_stage_due_at);
+      if (isFinite(due)) { msLeft = due - nowServer(); }
+
+      left = (R.days_left === null || R.days_left === undefined)
+        ? daysLeft(R.deal_stage_due_at)
+        : Number(R.days_left);
+    }
+
+    /* The server's verdict first; the local clock only where the server sent none. */
+    var state;
+    if (left === null && msLeft === null) {
+      state = "none";
+    } else if (R && R.is_overdue === true) {
+      state = "overdue";
+    } else if (left !== null && left < 0) {
+      state = "overdue";
+    } else if (msLeft !== null && msLeft <= 0) {
+      state = "overdue";
+    } else {
+      state = (left !== null && left <= 3) ? "due-soon" : "ok";
+    }
 
     var els = d.querySelectorAll("[data-hl-countdown]");
     for (var i = 0; i < els.length; i++) {
@@ -2101,6 +2300,34 @@
       els[i].classList.toggle("is-due-soon", state === "due-soon");
     }
 
+    var parts = breakUp(msLeft === null ? 0 : msLeft);
+    var blank = (msLeft === null);
+
+    fill("[data-hl-cd-d]", blank ? "" : String(parts.d));
+    fill("[data-hl-cd-h]", blank ? "" : pad2(parts.h));
+    fill("[data-hl-cd-m]", blank ? "" : pad2(parts.m));
+    fill("[data-hl-cd-s]", blank ? "" : pad2(parts.s));
+
+    if (!blank) {
+      fillUnit("[data-hl-cd-d-label]", parts.d, "Day", "Days");
+      fillUnit("[data-hl-cd-h-label]", parts.h, "Hour", "Hours");
+      fillUnit("[data-hl-cd-m-label]", parts.m, "Minute", "Minutes");
+      fillUnit("[data-hl-cd-s-label]", parts.s, "Second", "Seconds");
+    }
+
+    /* One element, the whole thing, for anywhere a four-box clock will not fit. Days
+       are dropped once there are none left so the last day reads "04:12:09". */
+    fill("[data-hl-countdown-exact]", blank ? "" :
+      (parts.d > 0 ? parts.d + "d " : "") +
+      pad2(parts.h) + ":" + pad2(parts.m) + ":" + pad2(parts.s));
+
+    var cds = d.querySelectorAll("[data-hl-cd]");
+    for (var c = 0; c < cds.length; c++) {
+      cds[c].setAttribute("data-hl-countdown-state", state);
+      cds[c].classList.toggle("is-overdue", state === "overdue");
+      cds[c].classList.toggle("is-due-soon", state === "due-soon");
+    }
+
     var dues = d.querySelectorAll("[data-hl-due]");
     for (var j = 0; j < dues.length; j++) {
       dues[j].textContent = R ? fmtDate(R.deal_stage_due_at) : "";
@@ -2108,8 +2335,263 @@
 
     var wraps = d.querySelectorAll("[data-hl-countdown-wrap]");
     for (var k = 0; k < wraps.length; k++) {
-      wraps[k].style.display = (left === null) ? "none" : "block";
+      wraps[k].style.display = blank && left === null ? "none" : "block";
     }
+
+    tickControl(msLeft, state);
+  }
+
+  /* THE CLOCK RUNS ONLY WHILE IT MEANS SOMETHING: there is a deadline, it has not
+     passed, and the reservation is not already blocked. Anything else and the interval
+     is cleared, so a portal left open overnight on a cancelled deal is not waking the
+     device once a second to redraw a zero. */
+  function tickControl(msLeft, state) {
+    var wanted = (msLeft !== null) && state !== "overdue" && !(R && R.is_blocked);
+
+    if (!wanted) {
+      if (cdTimer) { w.clearInterval(cdTimer); cdTimer = null; }
+      return;
+    }
+    if (cdTimer) { return; }
+
+    /* No d.hidden guard here on purpose. Browsers already throttle a background tab's
+       intervals to about once a minute, so skipping the redraw saves almost nothing -
+       and document.hidden is true in more places than "the tab is behind another one"
+       (prerender, some embeddings, jsdom), each of which would leave a buyer staring at
+       a frozen clock. The visibilitychange handler below catches the throttled tab up
+       the instant it comes back. */
+    cdTimer = w.setInterval(function () {
+      renderCountdown();
+      expiryCheck();
+    }, 1000);
+  }
+
+  /* WHEN IT REACHES ZERO the page has learned that a deadline passed - and nothing
+     else. Whether that cancels the reservation, withholds the OTP or gives the buyer a
+     grace period is move_deal_stage's decision, not this file's, so the honest response
+     is to go and ask rather than to invent a block locally. Once, and only for a buyer
+     who was actually sitting on the page as the clock ran out. */
+  function expiryCheck() {
+    if (cdReloaded || !R || R.is_blocked) { return; }
+    if (!R.deal_stage_due_at) { return; }
+    var due = Number(R.deal_stage_due_at);
+    if (!isFinite(due) || due - nowServer() > 0) { return; }
+    cdReloaded = true;
+    log("the deadline passed while this page was open - reloading for the server's view");
+    w.setTimeout(function () { w.location.reload(); }, 1200);
+  }
+
+  d.addEventListener("visibilitychange", function () {
+    if (!d.hidden && R) { renderCountdown(); }
+  });
+
+
+  /* --------------------------------------------------------------- presentation */
+
+  /* Script-drawn markup owns its CSS. The Designer never sees these elements, so
+     styling them from Webflow would mean a class nobody can find and a rule that
+     breaks the first time this file changes. Injected once, prefixed, and written
+     against the same --hl-* tokens the rest of the portal uses so it inherits the
+     property's theme rather than introducing a second palette. */
+  var slideCssDone = false;
+
+  function slideCss() {
+    if (slideCssDone) { return; }
+    slideCssDone = true;
+    var s = d.createElement("style");
+    s.setAttribute("data-hl-slides-css", "");
+    s.textContent =
+      ".hl-sl-strip{display:flex;gap:.75rem;overflow-x:auto;scroll-snap-type:x mandatory;" +
+      "-webkit-overflow-scrolling:touch;padding-bottom:.5rem;scrollbar-width:thin}" +
+      ".hl-sl-thumb{flex:0 0 auto;width:min(78vw,22rem);scroll-snap-align:start;border:0;padding:0;" +
+      "background:none;cursor:zoom-in;border-radius:var(--hl-radius,.25rem);overflow:hidden;" +
+      "box-shadow:0 1px 3px rgba(0,0,0,.12);transition:transform .15s ease}" +
+      ".hl-sl-thumb:hover{transform:translateY(-2px)}" +
+      ".hl-sl-thumb img{display:block;width:100%;height:auto}" +
+      ".hl-sl-count{font-size:.8125rem;opacity:.7;margin-top:.5rem}" +
+      /* the lightbox */
+      ".hl-sl-box{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.9);display:flex;" +
+      "align-items:center;justify-content:center;padding:1rem}" +
+      ".hl-sl-box img{max-width:100%;max-height:85vh;width:auto;height:auto;display:block}" +
+      ".hl-sl-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);" +
+      "color:#fff;border:0;width:3rem;height:3rem;border-radius:50%;font-size:1.5rem;cursor:pointer;" +
+      "line-height:1}" +
+      ".hl-sl-prev{left:1rem}.hl-sl-next{right:1rem}" +
+      ".hl-sl-close{position:absolute;top:1rem;right:1rem;transform:none}" +
+      ".hl-sl-pos{position:absolute;bottom:1.25rem;left:0;right:0;text-align:center;color:#fff;" +
+      "font-size:.875rem;opacity:.85}" +
+      "@media (max-width:30rem){.hl-sl-btn{width:2.5rem;height:2.5rem}}";
+    d.head.appendChild(s);
+  }
+
+  var lightbox = null;
+
+  /* One overlay, reused. Building it per open would leak a node on every click and
+     lose the listeners that close it. */
+  function openLightbox(slides, at) {
+    slideCss();
+    var i = at;
+
+    if (!lightbox) {
+      lightbox = d.createElement("div");
+      lightbox.className = "hl-sl-box";
+      lightbox.setAttribute("role", "dialog");
+      lightbox.setAttribute("aria-modal", "true");
+      lightbox.setAttribute("aria-label", "Step presentation");
+      lightbox.innerHTML =
+        '<img alt="">' +
+        '<button class="hl-sl-btn hl-sl-prev" aria-label="Previous slide">&#8249;</button>' +
+        '<button class="hl-sl-btn hl-sl-next" aria-label="Next slide">&#8250;</button>' +
+        '<button class="hl-sl-btn hl-sl-close" aria-label="Close">&times;</button>' +
+        '<div class="hl-sl-pos"></div>';
+      d.body.appendChild(lightbox);
+    }
+
+    var img = lightbox.querySelector("img");
+    var pos = lightbox.querySelector(".hl-sl-pos");
+    var opener = d.activeElement;
+
+    function show(n) {
+      if (n < 0) { n = slides.length - 1; }
+      if (n >= slides.length) { n = 0; }
+      i = n;
+      img.setAttribute("src", slides[i].src);
+      img.setAttribute("alt", "Slide " + slides[i].n + " of " + slides[i].of);
+      pos.textContent = slides[i].n + " / " + slides[i].of;
+    }
+
+    function close() {
+      lightbox.style.display = "none";
+      d.removeEventListener("keydown", onKey);
+      /* Give the page its scroll back, and the focus to whatever opened this. */
+      d.documentElement.style.overflow = "";
+      if (opener && typeof opener.focus === "function") { opener.focus(); }
+    }
+
+    function onKey(e) {
+      if (e.key === "Escape") { close(); }
+      else if (e.key === "ArrowLeft") { show(i - 1); }
+      else if (e.key === "ArrowRight") { show(i + 1); }
+    }
+
+    /* Rebound on every open, because the slide list changes with the sub-stage. */
+    lightbox.querySelector(".hl-sl-prev").onclick = function () { show(i - 1); };
+    lightbox.querySelector(".hl-sl-next").onclick = function () { show(i + 1); };
+    lightbox.querySelector(".hl-sl-close").onclick = close;
+    lightbox.onclick = function (e) { if (e.target === lightbox) { close(); } };
+    d.addEventListener("keydown", onKey);
+
+    d.documentElement.style.overflow = "hidden";
+    lightbox.style.display = "flex";
+    show(at);
+    lightbox.querySelector(".hl-sl-close").focus();
+  }
+
+  /* [data-hl-slides] is where the deck goes. A page without it simply has no
+     presentation - the module does not care, and neither does the Designer. */
+  function renderSlides() {
+    var hosts = d.querySelectorAll("[data-hl-slides]");
+    if (!hosts.length) { return 0; }
+
+    var slides = slidesFor(R);
+    slideCss();
+
+    for (var h = 0; h < hosts.length; h++) {
+      var host = hosts[h];
+      while (host.firstChild) { host.removeChild(host.firstChild); }
+
+      if (!slides.length) { host.style.display = "none"; continue; }
+      host.style.display = "block";
+
+      var strip = d.createElement("div");
+      strip.className = "hl-sl-strip";
+
+      for (var i = 0; i < slides.length; i++) {
+        var b = d.createElement("button");
+        b.type = "button";
+        b.className = "hl-sl-thumb";
+        b.setAttribute("data-hl-slide", String(slides[i].n));
+        b.setAttribute("aria-label", "Open slide " + slides[i].n + " of " + slides[i].of);
+        var im = d.createElement("img");
+        im.setAttribute("src", slides[i].src);
+        im.setAttribute("alt", "");
+        /* Off-screen slides cost nothing until they are scrolled to. */
+        im.setAttribute("loading", "lazy");
+        im.setAttribute("decoding", "async");
+        b.appendChild(im);
+        (function (list, at) {
+          b.addEventListener("click", function () { openLightbox(list, at); });
+        })(slides, i);
+        strip.appendChild(b);
+      }
+
+      var count = d.createElement("div");
+      count.className = "hl-sl-count";
+      count.textContent = slides.length + (slides.length === 1 ? " slide" : " slides") +
+                          " — tap to enlarge";
+
+      host.appendChild(strip);
+      host.appendChild(count);
+    }
+    return slides.length;
+  }
+
+  /* --------------------------------------------------------------- next step */
+
+  /* WHICH STEP IS THE BUYER'S NEXT ONE. The tracker already marks done / active /
+     todo; this names the active one in words, so the page answers "what do I do now"
+     without the buyer having to read a row of dots. */
+  function renderNextStep() {
+    var sub = R ? String(R.deal_sub_stage || "").toLowerCase() : "";
+    var label = labelOf(SUBSTAGE_LABEL, sub);
+
+    var titles = d.querySelectorAll("[data-hl-next-title]");
+    for (var i = 0; i < titles.length; i++) { titles[i].textContent = label; }
+
+    /* The eyebrow is shown only when there IS a next step. A finished deal that still
+       said "Your next step" over an empty line would be worse than saying nothing. */
+    var wraps = d.querySelectorAll("[data-hl-next]");
+    for (var w = 0; w < wraps.length; w++) {
+      wraps[w].style.display = label ? "block" : "none";
+    }
+
+    /* .is-next on the sub-step the buyer is on, so the Designer can style one card
+       differently from the rest without this file knowing how. */
+    var items = d.querySelectorAll("[data-hl-substage]");
+    for (var k = 0; k < items.length; k++) {
+      var mine = String(items[k].getAttribute("data-hl-substage") || "").toLowerCase();
+      items[k].classList.toggle("is-next", !!sub && mine === sub);
+    }
+    return label;
+  }
+
+  /* --------------------------------------------------------------- blocked */
+
+  /* A deadline that has passed, or a reservation that has been ended. The SERVER has
+     already withheld otp_url in that case - this only makes the page agree with it.
+     Hiding a button is presentation; the rule lives in Xano. */
+  function renderBlocked() {
+    var blocked = !!(R && R.is_blocked);
+    var reason = (R && R.blocked_reason) || "";
+
+    var boxes = d.querySelectorAll("[data-hl-blocked]");
+    for (var i = 0; i < boxes.length; i++) {
+      boxes[i].style.display = blocked ? "block" : "none";
+    }
+    var says = d.querySelectorAll("[data-hl-blocked-reason]");
+    for (var j = 0; j < says.length; j++) { says[j].textContent = reason; }
+
+    /* Anything marked as an action the buyer takes to move forward. With no otp_url
+       the link would render href-less anyway; this removes it from the page rather
+       than leaving a dead button to be clicked. */
+    var acts = d.querySelectorAll("[data-hl-action]");
+    for (var a = 0; a < acts.length; a++) {
+      acts[a].style.display = blocked ? "none" : "";
+    }
+
+    var root = d.querySelector("[data-hl-portal]");
+    if (root) { root.classList.toggle("is-blocked", blocked); }
+    return blocked;
   }
 
   /* --------------------------------------------------------------- switcher */
@@ -2160,7 +2642,10 @@
     });
 
     renderStages();
+    renderNextStep();
     renderCountdown();
+    renderBlocked();
+    renderSlides();
     renderLists();
     renderSwitcher();
     carrySelection();
@@ -2654,8 +3139,13 @@
       },
       indexItems: indexItems,
       carrySelection: carrySelection,
+      slides: function () { return slidesFor(R); },
+      nextStep: renderNextStep,
+      blocked: function () { return !!(R && R.is_blocked); },
       missed: function () { return missedSelection; },
       daysLeft: daysLeft,
+      breakUp: breakUp,
+      clockRunning: function () { return !!cdTimer; },
       offset: function () { return clockOffset; },
       loginPath: loginPath,
       memberToken: memberToken,
