@@ -2710,6 +2710,144 @@
     return (r.property_name || r.property_slug || "") + " — " + unitName;
   }
 
+  /* ------------------------------------------------- the navbar controls */
+
+  /* NAMES SHORT ENOUGH FOR A NAVBAR. "Sanford Heart — Home 1" is the right label on a
+     card and far too long in a control that has to sit between a logo and a menu on a
+     phone. SH — 01: the property's initials, then the unit number padded to two.
+
+     IT FALLS BACK TO THE LONG NAME rather than to something clever. A development
+     called "Polaris" gives P, which is not obviously wrong; a unit with no number
+     gives nothing at all, and half an abbreviation is worse than a name that wraps. */
+  function shortLabel(r) {
+    if (!r) { return ""; }
+    var prop = String(r.property_name || r.property_slug || "").trim();
+    var words = prop.split(/[\s-]+/);
+    var initials = "";
+    for (var i = 0; i < words.length && initials.length < 3; i++) {
+      if (words[i]) { initials += words[i].charAt(0).toUpperCase(); }
+    }
+
+    var unit = r.unit || {};
+    var num = String(unit.unit_number === null || unit.unit_number === undefined ? "" : unit.unit_number).trim();
+    if (!num) {
+      /* display_name is "Home 6"; the number is the only part worth abbreviating. */
+      var m = String(unit.display_name || unit.name || "").match(/(\d+)\s*$/);
+      if (m) { num = m[1]; }
+    }
+    if (!initials || !num) { return homeLabel(r); }
+    return initials + " — " + (num.length < 2 ? "0" + num : num);
+  }
+
+  /* ONE DISCLOSURE, TWO CONTROLS. The homes dropdown and the menu behave identically -
+     click to open, click away or Escape to close, arrows to move, Enter to choose - so
+     they are one implementation rather than two that drift. A native <select> was the
+     right first answer and is the wrong final one here: it cannot be themed, and this
+     bar is the one piece of the portal that is on screen the whole time. */
+  var openMenu = null;
+
+  function closeMenu() {
+    if (!openMenu) { return; }
+    openMenu.btn.setAttribute("aria-expanded", "false");
+    openMenu.list.hidden = true;
+    openMenu = null;
+  }
+
+  function toggleMenu(btn, list) {
+    var isOpen = openMenu && openMenu.list === list;
+    closeMenu();
+    if (isOpen) { return; }
+    btn.setAttribute("aria-expanded", "true");
+    list.hidden = false;
+    openMenu = {btn: btn, list: list};
+    var first = list.querySelector("[data-hl-menu-item]:not([hidden])");
+    if (first && first.focus) { first.focus(); }
+  }
+
+  /* Bound once, at module level, rather than per control: a listener added every time
+     the switcher re-renders is a listener that fires twice on the second render. */
+  var menuWired = false;
+  function wireMenus() {
+    if (menuWired) { return; }
+    menuWired = true;
+
+    d.addEventListener("click", function (ev) {
+      if (!openMenu) { return; }
+      /* A click inside any menu is that menu's business - an item's own handler
+         navigates, and the button's toggles. Everything else closes. */
+      var t = ev.target;
+      if (t && t.closest && t.closest("[data-hl-menu]")) { return; }
+      closeMenu();
+    });
+
+    d.addEventListener("keydown", function (ev) {
+      if (!openMenu) { return; }
+      var k = ev.key;
+      if (k === "Escape") {
+        var b = openMenu.btn;
+        closeMenu();
+        if (b && b.focus) { b.focus(); }
+        return;
+      }
+      if (k !== "ArrowDown" && k !== "ArrowUp") { return; }
+      var items = [];
+      var all = openMenu.list.querySelectorAll("[data-hl-menu-item]");
+      for (var i = 0; i < all.length; i++) { if (!all[i].hidden) { items.push(all[i]); } }
+      if (!items.length) { return; }
+      var at = items.indexOf(d.activeElement);
+      var next = (k === "ArrowDown") ? at + 1 : at - 1;
+      if (next < 0) { next = items.length - 1; }
+      if (next >= items.length) { next = 0; }
+      items[next].focus();
+      ev.preventDefault();
+    });
+  }
+
+  var menuCssDone = false;
+  function menuCss() {
+    if (menuCssDone) { return; }
+    menuCssDone = true;
+    var css =
+      "[data-hl-menu]{position:relative;}" +
+      ".hl-mbtn{display:inline-flex;align-items:center;gap:0.5rem;width:100%;" +
+      "font:inherit;font-size:0.8125rem;line-height:1.2;color:var(--hl-ink,#3a3d3c);" +
+      "background:transparent;border:1px solid var(--hl-line,#c3c1c2);" +
+      "border-radius:var(--hl-radius,0.25rem);padding:0.45rem 0.7rem;cursor:pointer;" +
+      "text-align:left;transition:border-color .18s ease;}" +
+      ".hl-mbtn:hover{border-color:var(--hl-primary,#8a9380);}" +
+      ".hl-mbtn:focus-visible{outline:2px solid var(--hl-primary,#8a9380);outline-offset:2px;}" +
+      ".hl-mbtn-label{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}" +
+      ".hl-mbtn-caret{flex:0 0 auto;width:0;height:0;border-left:4px solid transparent;" +
+      "border-right:4px solid transparent;border-top:5px solid currentColor;opacity:.55;}" +
+      ".hl-mlist{position:absolute;z-index:60;top:calc(100% + 0.35rem);left:0;min-width:100%;" +
+      "margin:0;padding:0.25rem;list-style:none;background:#fff;" +
+      "border:1px solid var(--hl-line,#c3c1c2);border-radius:var(--hl-radius,0.25rem);" +
+      "box-shadow:0 10px 28px rgba(0,0,0,.10);}" +
+      ".hl-mlist[hidden]{display:none;}" +
+      ".hl-mlist-right{left:auto;right:0;}" +
+      ".hl-mitem{display:block;width:100%;box-sizing:border-box;font:inherit;font-size:0.8125rem;" +
+      "text-align:left;white-space:nowrap;color:var(--hl-ink,#3a3d3c);text-decoration:none;" +
+      "background:transparent;border:0;border-radius:calc(var(--hl-radius,0.25rem) - 1px);" +
+      "padding:0.5rem 0.7rem;cursor:pointer;}" +
+      ".hl-mitem:hover{background:rgba(0,0,0,.05);}" +
+      ".hl-mitem:focus-visible{outline:2px solid var(--hl-primary,#8a9380);outline-offset:-2px;}" +
+      ".hl-mitem.is-current{color:var(--hl-primary,#8a9380);font-weight:600;}" +
+      ".hl-burger{display:inline-flex;align-items:center;justify-content:center;width:2.25rem;" +
+      "height:2.25rem;padding:0;background:transparent;border:1px solid transparent;" +
+      "border-radius:var(--hl-radius,0.25rem);cursor:pointer;color:var(--hl-ink,#3a3d3c);}" +
+      ".hl-burger:hover{border-color:var(--hl-line,#c3c1c2);}" +
+      ".hl-burger:focus-visible{outline:2px solid var(--hl-primary,#8a9380);outline-offset:2px;}" +
+      ".hl-burger-bars,.hl-burger-bars::before,.hl-burger-bars::after{display:block;width:16px;" +
+      "height:1.5px;background:currentColor;content:'';}" +
+      ".hl-burger-bars{position:relative;}" +
+      ".hl-burger-bars::before{position:absolute;top:-5px;}" +
+      ".hl-burger-bars::after{position:absolute;top:5px;}";
+    var tag = d.createElement("style");
+    tag.setAttribute("data-hl-menu-css", "");
+    tag.appendChild(d.createTextNode(css));
+    (d.head || d.documentElement).appendChild(tag);
+  }
+
   function renderSwitcher() {
     /* Which home you are looking at, in words. On a one-home account this is just the
        page saying where you are; on a three-home account it is the difference between
@@ -2727,31 +2865,125 @@
     wrap.style.display = "block";
     while (list.firstChild) { list.removeChild(list.firstChild); }
 
-    /* A DROPDOWN, not a row of pills. Three homes fit across a phone; six do not, and
-       a switcher that reflows into four rows pushes the thing the buyer came to read
-       below the fold. A native select is one line at any count, and on a phone it is
-       the OS picker - which needs no styling and no outside-click handling, and which
-       every assistive technology already understands. */
-    navCss();
-    var sel = d.createElement("select");
-    sel.className = "hl-sel hl-switch-select";
-    sel.setAttribute("data-hl-switcher-select", "");
-    sel.setAttribute("aria-label", "Your homes");
+    /* A DROPDOWN, not a row of pills, and a THEMED one rather than a native select.
+       Three homes fit across a phone; six do not, and a switcher that reflows into
+       four rows pushes the thing the buyer came to read below the fold. The native
+       select was the right first answer - it needs no styling and every assistive
+       technology knows it - and it is the wrong final one for this bar, which is the
+       single piece of the portal on screen the whole time and the one place the
+       browser's own chrome looks like somebody else's product.
+
+       The labels are ABBREVIATED here and nowhere else: SH - 01 in a navbar, the full
+       name everywhere there is room for it. */
+    menuCss();
+    wireMenus();
+
+    var box = d.createElement("div");
+    box.setAttribute("data-hl-menu", "");
+
+    var btn = d.createElement("button");
+    btn.type = "button";
+    btn.className = "hl-mbtn";
+    btn.setAttribute("data-hl-switcher-button", "");
+    btn.setAttribute("aria-haspopup", "listbox");
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-label", "Your homes");
+
+    var lab = d.createElement("span");
+    lab.className = "hl-mbtn-label";
+    lab.textContent = R ? shortLabel(R) : "Your homes";
+    btn.appendChild(lab);
+
+    var caret = d.createElement("span");
+    caret.className = "hl-mbtn-caret";
+    caret.setAttribute("aria-hidden", "true");
+    btn.appendChild(caret);
+
+    var menu = d.createElement("ul");
+    menu.className = "hl-mlist";
+    menu.setAttribute("role", "listbox");
+    menu.setAttribute("data-hl-switcher-menu", "");
+    menu.hidden = true;
 
     for (var i = 0; i < ALL.length; i++) {
       var r = ALL[i];
-      var o = d.createElement("option");
-      o.value = "?r=" + encodeURIComponent(r.uuid);
-      o.setAttribute("data-hl-switcher-item", r.uuid);
-      o.textContent = homeLabel(r);
-      if (R && r.uuid === R.uuid) { o.selected = true; }
-      sel.appendChild(o);
+      var li = d.createElement("li");
+      var a = d.createElement("a");
+      a.className = "hl-mitem" + (R && r.uuid === R.uuid ? " is-current" : "");
+      a.setAttribute("href", "?r=" + encodeURIComponent(r.uuid));
+      a.setAttribute("data-hl-switcher-item", r.uuid);
+      a.setAttribute("data-hl-menu-item", "");
+      a.setAttribute("role", "option");
+      a.setAttribute("aria-selected", (R && r.uuid === R.uuid) ? "true" : "false");
+      /* The short name leads because that is what the button shows; the full one is
+         the title, for anyone who needs to be sure which home SH - 01 is. */
+      a.textContent = shortLabel(r);
+      a.setAttribute("title", homeLabel(r));
+      li.appendChild(a);
+      menu.appendChild(li);
     }
 
-    sel.addEventListener("change", function () {
-      if (this.value) { w.location.href = this.value; }
+    btn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      toggleMenu(btn, menu);
     });
-    list.appendChild(sel);
+
+    box.appendChild(btn);
+    box.appendChild(menu);
+    list.appendChild(box);
+  }
+
+  /* THE REST OF THE NAVBAR, behind one button. Today it holds only Log out; the point
+     of building it now is that the second link does not need a layout decision. The
+     markup is the Designer's - [data-hl-topbar-menu] on a wrapper holding the links -
+     so adding one is a Webflow change rather than a push. */
+  function renderTopbarMenu() {
+    var wrap = d.querySelector("[data-hl-topbar-menu]");
+    if (!wrap || wrap.getAttribute("data-hl-menu-built") === "1") { return; }
+
+    var links = wrap.querySelectorAll("a");
+    if (!links.length) { return; }
+
+    menuCss();
+    wireMenus();
+    wrap.setAttribute("data-hl-menu-built", "1");
+    wrap.setAttribute("data-hl-menu", "");
+
+    var btn = d.createElement("button");
+    btn.type = "button";
+    btn.className = "hl-burger";
+    btn.setAttribute("data-hl-topbar-button", "");
+    btn.setAttribute("aria-haspopup", "menu");
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-label", "Menu");
+    var bars = d.createElement("span");
+    bars.className = "hl-burger-bars";
+    bars.setAttribute("aria-hidden", "true");
+    btn.appendChild(bars);
+
+    var menu = d.createElement("div");
+    menu.className = "hl-mlist hl-mlist-right";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("data-hl-topbar-list", "");
+    menu.hidden = true;
+
+    /* The Designer's own anchors are MOVED into the menu, not recreated from their
+       text. data-ms-action="logout" is Memberstack's hook and copying an element by
+       reading its label is how an attribute like that gets quietly dropped. */
+    for (var i = 0; i < links.length; i++) {
+      links[i].classList.add("hl-mitem");
+      links[i].setAttribute("data-hl-menu-item", "");
+      links[i].setAttribute("role", "menuitem");
+      menu.appendChild(links[i]);
+    }
+
+    btn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      toggleMenu(btn, menu);
+    });
+
+    wrap.appendChild(btn);
+    wrap.appendChild(menu);
   }
 
   /* ------------------------------------------------------- the three screens */
@@ -2889,6 +3121,7 @@
     renderSlides();
     renderLists();
     renderSwitcher();
+    renderTopbarMenu();
     carrySelection();
 
     /* LAST, and that ordering is the whole point: carrySelection has just rewritten
@@ -3396,6 +3629,10 @@
     if (!d.querySelector("[data-hl-portal]")) { return; }
 
     fixLoginLinks();
+    /* Built at boot rather than in render(), because the navbar is on screen before
+       any reservation is - and a member with no reservations at all still needs the
+       way out of the page. It is idempotent, so render() calling it again is free. */
+    renderTopbarMenu();
     show("[data-hl-portal-loading]", true);
     show("[data-hl-portal-body]", false);
     show("[data-hl-portal-empty]", false);
@@ -3426,6 +3663,7 @@
       breakUp: breakUp,
       clockRunning: function () { return !!cdTimer; },
       fitNav: fitNav,
+      shortLabel: shortLabel,
       offset: function () { return clockOffset; },
       loginPath: loginPath,
       memberToken: memberToken,
