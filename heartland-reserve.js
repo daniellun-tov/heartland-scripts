@@ -976,6 +976,7 @@
     if (msg) { (bad ? warn : log)(msg); }
   }
 
+
   /* --------------------------------------------------------------- render */
 
   /* The whole data-hl contract now lives in window.HLRender - see the note there for
@@ -1858,6 +1859,7 @@
      [data-hl-cd-d] -h -m -s           the four numbers; h/m/s zero-padded
      [data-hl-cd-d-label] -h- -m- -s-  "Day"/"Days" etc, pluralised for you
      [data-hl-countdown-exact]         all of it in one element: "6d 04:12:09"
+     [data-hl-countdown-label]         what the clock is counting, in words
 
    THE STEP THE BUYER IS ON, in words rather than as a dot on a line.
      [data-hl-next]                    the whole block; hidden when there is no next step
@@ -1927,6 +1929,32 @@
     "pay-deposit": "Pay the deposit", "bond-approval": "Bond approval",
     "bond-approved": "Bond approved", "transfer-attorneys": "With the transfer attorneys"
   };
+  /* WHAT THE CLOCK IS COUNTING, in words. Four numbers under DAYS / HOURS / MINUTES /
+     SECONDS tell a buyer how long something has left without ever saying what - and a
+     deadline nobody can name is a deadline nobody acts on. These are the windows
+     move_deal_stage actually enforces, said in the second person: seven days to sign,
+     seven to pay the deposit, thirty for bond approval.
+
+     The passed wording is a SEPARATE map rather than a prefix, because "Time left to
+     sign your Offer to Purchase" above four zeros is worse than no label at all. What
+     happens next is the blocked block's job, not this line's. */
+  var DEADLINE_LABEL = {
+    "pre-qualify": "Time left to complete your pre-qualification",
+    "sign-otp": "Time left to sign your Offer to Purchase",
+    "pay-deposit": "Time left to pay your deposit",
+    "bond-approval": "Time left to secure bond approval",
+    "bond-approved": "Time left on this step",
+    "transfer-attorneys": "Time left on this step"
+  };
+  var DEADLINE_PASSED = {
+    "pre-qualify": "Your deadline to pre-qualify has passed",
+    "sign-otp": "Your deadline to sign the Offer to Purchase has passed",
+    "pay-deposit": "Your deadline to pay the deposit has passed",
+    "bond-approval": "Your deadline for bond approval has passed",
+    "bond-approved": "This deadline has passed",
+    "transfer-attorneys": "This deadline has passed"
+  };
+
   var STATUS_LABEL = {
     "confirmed": "Confirmed", "awaiting_payment": "Awaiting payment",
     "awaiting_clearance": "Payment clearing", "payment_failed": "Payment failed",
@@ -2020,7 +2048,9 @@
 
   function slidesFor(res) {
     if (!res) { return []; }
-    var sub = String((res.deal_sub_stage) || "").toLowerCase();
+    /* Same floor as the tracker. A buyer whose deal has not been moved yet still gets
+       the deck for the step they are about to do, rather than a blank panel. */
+    var sub = subStageOf(res);
     var entry = SLIDE_MAP[sub];
     if (!entry) { return []; }
     var key = entry[routeOf(res)] || entry.both;
@@ -2167,10 +2197,46 @@
     }
   }
 
+  /* THE RESERVE STEP IS ALWAYS BEHIND THEM, and this is not cosmetic tidying. A buyer
+     reaches this page by finishing the reserve flow and paying the hold fee. Showing
+     "Reserve" as the step they are ON tells them to go and do a thing they have
+     already done - and the deal_stage on the row can honestly still say reserve for
+     the minutes between the payment and the ITN that moves it.
+
+     THE FIRST FINANCE SUB-STEP IS THE FLOOR for the same reason: an EMPTY
+     deal_sub_stage means the back end has not moved them yet, not that they are
+     nowhere. Falling back to the route's first step shows a buyer what is in front of
+     them instead of a tracker with nothing lit.
+
+     AN UNKNOWN SUB-STAGE IS NOT FLOORED, and the difference matters. Empty means "not
+     started". A value this bundle does not recognise means Xano has moved the deal
+     somewhere newer than this file - "snagging", say - and answering that with "time
+     left to pre-qualify" would send a buyer in the build phase back to step one. It is
+     passed through: the tracker hides it, the label falls back to the generic
+     sentence, and the deck comes back empty. Ugly beats wrong.
+
+     DISPLAY ONLY. Neither of these invents a deadline: the countdown, the blocking and
+     the withheld otp_url all still come from what the server actually stored. This
+     decides which dot is filled in, and nothing else. */
+  function stageOf(res) {
+    var s = String((res && res.deal_stage) || "").toLowerCase();
+    return (!s || s === "reserve") ? "finance" : s;
+  }
+
+  function subStageOf(res) {
+    var s = String((res && res.deal_sub_stage) || "").toLowerCase();
+    if (s) { return s; }
+    /* AND ONLY INSIDE FINANCE. A deal already in build has no finance sub-stage
+       because it is PAST them, not because it has not started one - flooring that to
+       "pre-qualify" would hand a buyer watching their house go up a deck about signing
+       the Offer to Purchase. Empty outside finance stays empty. */
+    return (stageOf(res) === "finance") ? SUBSTAGES[routeOf(res)][0] : "";
+  }
+
   function renderStages() {
-    markProgress("[data-hl-stage]", "data-hl-stage", STAGES, R && R.deal_stage);
+    markProgress("[data-hl-stage]", "data-hl-stage", STAGES, stageOf(R));
     markProgress("[data-hl-substage]", "data-hl-substage",
-                 SUBSTAGES[routeOf(R)], R && R.deal_sub_stage);
+                 SUBSTAGES[routeOf(R)], subStageOf(R));
 
     var route = routeOf(R);
     var els = d.querySelectorAll("[data-hl-route]");
@@ -2317,6 +2383,15 @@
 
     /* One element, the whole thing, for anywhere a four-box clock will not fit. Days
        are dropped once there are none left so the last day reads "04:12:09". */
+    /* The label names the deadline. Without it the clock is four numbers and a unit
+       row, which says how long is left and never what of. */
+    var sub = subStageOf(R);
+    var map = (state === "overdue") ? DEADLINE_PASSED : DEADLINE_LABEL;
+    fill("[data-hl-countdown-label]",
+         blank ? "" : (map[sub] || (state === "overdue"
+                                      ? "This deadline has passed"
+                                      : "Time left on this step")));
+
     fill("[data-hl-countdown-exact]", blank ? "" :
       (parts.d > 0 ? parts.d + "d " : "") +
       pad2(parts.h) + ":" + pad2(parts.m) + ":" + pad2(parts.s));
@@ -2542,7 +2617,7 @@
      todo; this names the active one in words, so the page answers "what do I do now"
      without the buyer having to read a row of dots. */
   function renderNextStep() {
-    var sub = R ? String(R.deal_sub_stage || "").toLowerCase() : "";
+    var sub = R ? subStageOf(R) : "";
     var label = labelOf(SUBSTAGE_LABEL, sub);
 
     var titles = d.querySelectorAll("[data-hl-next-title]");
@@ -2618,16 +2693,145 @@
     wrap.style.display = "block";
     while (list.firstChild) { list.removeChild(list.firstChild); }
 
+    /* A DROPDOWN, not a row of pills. Three homes fit across a phone; six do not, and
+       a switcher that reflows into four rows pushes the thing the buyer came to read
+       below the fold. A native select is one line at any count, and on a phone it is
+       the OS picker - which needs no styling and no outside-click handling, and which
+       every assistive technology already understands. */
+    navCss();
+    var sel = d.createElement("select");
+    sel.className = "hl-sel hl-switch-select";
+    sel.setAttribute("data-hl-switcher-select", "");
+    sel.setAttribute("aria-label", "Your homes");
+
     for (var i = 0; i < ALL.length; i++) {
       var r = ALL[i];
-      var a = d.createElement("a");
-      a.setAttribute("href", "?r=" + encodeURIComponent(r.uuid));
-      a.setAttribute("data-hl-switcher-item", r.uuid);
-      a.className = "hl-switch-item" + (R && r.uuid === R.uuid ? " is-current" : "");
-      a.textContent = homeLabel(r);
-      list.appendChild(a);
+      var o = d.createElement("option");
+      o.value = "?r=" + encodeURIComponent(r.uuid);
+      o.setAttribute("data-hl-switcher-item", r.uuid);
+      o.textContent = homeLabel(r);
+      if (R && r.uuid === R.uuid) { o.selected = true; }
+      sel.appendChild(o);
     }
+
+    sel.addEventListener("change", function () {
+      if (this.value) { w.location.href = this.value; }
+    });
+    list.appendChild(sel);
   }
+
+  /* ------------------------------------------------------- the three screens */
+
+  /* THE TABS, AND WHAT HAPPENS WHEN THEY DO NOT FIT.
+
+     The Designer writes them as plain anchors, which is what navigation should be: it
+     works before this file loads and it still works if this file breaks. But on a
+     narrow phone three uppercase, letter-spaced labels wrap onto a second line, and a
+     wrapped tab row does not read as "two lines of tabs" - it reads as broken.
+
+     So when they wrap the row becomes a native select. MEASURED, NOT GUESSED FROM A
+     BREAKPOINT: the labels are editable in Webflow, and a breakpoint that was right
+     for "Documents" is wrong the day somebody types "Your documents". Native because
+     on a phone it is the OS picker - no styling to fight, no outside-click handler, no
+     focus trap, and every assistive technology already knows what it is.
+
+     The anchors are HIDDEN, never removed, so a rotate back to landscape can simply
+     show them again. */
+
+  var navSelect = null;
+  var navCssDone = false;
+
+  function navCss() {
+    if (navCssDone) { return; }
+    navCssDone = true;
+    var css =
+      ".hl-sel{width:100%;-webkit-appearance:none;appearance:none;" +
+      "font:inherit;font-size:0.875rem;color:var(--hl-ink,#3a3d3c);" +
+      "background-color:transparent;border:1px solid var(--hl-line,#c3c1c2);" +
+      "border-radius:var(--hl-radius,0.25rem);padding:0.6rem 2rem 0.6rem 0.8rem;" +
+      "background-image:url(\"data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%233a3d3c' d='M1 1l5 5 5-5'/%3E%3C/svg%3E\");" +
+      "background-repeat:no-repeat;background-position:right 0.75rem center;background-size:12px 8px;}" +
+      ".hl-sel:focus{outline:2px solid var(--hl-primary,#8a9380);outline-offset:2px;}" +
+      ".hl-nav-select{display:none;}" +
+      ".hl-switch-select{display:block;max-width:22rem;}";
+    var tag = d.createElement("style");
+    tag.setAttribute("data-hl-nav-css", "");
+    tag.appendChild(d.createTextNode(css));
+    (d.head || d.documentElement).appendChild(tag);
+  }
+
+  function navRoot() {
+    return d.querySelector("[data-hl-nav]") || d.querySelector(".hlp-nav");
+  }
+
+  /* Wrapped means "not all on the same line", which offsetTop answers exactly and
+     scrollWidth does not - a flex row that has already wrapped is not overflowing. */
+  function navWraps(links) {
+    var top = links[0].offsetTop;
+    for (var i = 1; i < links.length; i++) {
+      if (Math.abs(links[i].offsetTop - top) > 2) { return true; }
+    }
+    return false;
+  }
+
+  function fitNav() {
+    var nav = navRoot();
+    if (!nav) { return; }
+    var links = nav.querySelectorAll("a");
+    if (links.length < 2) { return; }
+    var i;
+
+    /* MEASURE EXPANDED, ALWAYS. Measuring while collapsed reads the hidden anchors as
+       zero-width, concludes they fit, expands them - and the next resize collapses
+       them again. That is not a cosmetic bug, it is a loop. */
+    for (i = 0; i < links.length; i++) { links[i].style.display = ""; }
+    if (navSelect) { navSelect.style.display = "none"; }
+
+    var wrapped = navWraps(links);
+    nav.classList.toggle("is-collapsed", wrapped);
+    if (!wrapped) { return; }
+
+    navCss();
+    if (!navSelect) {
+      navSelect = d.createElement("select");
+      navSelect.className = "hl-sel hl-nav-select";
+      navSelect.setAttribute("data-hl-nav-select", "");
+      navSelect.setAttribute("aria-label", nav.getAttribute("aria-label") || "Your home");
+      navSelect.addEventListener("change", function () {
+        if (this.value) { w.location.href = this.value; }
+      });
+      nav.appendChild(navSelect);
+    }
+
+    /* Rebuilt from the anchors every time rather than cached, because carrySelection
+       has by then written ?r= onto their hrefs - and a select built once, before that,
+       would quietly drop the chosen home on every tab change. */
+    while (navSelect.firstChild) { navSelect.removeChild(navSelect.firstChild); }
+    for (i = 0; i < links.length; i++) {
+      var o = d.createElement("option");
+      o.value = links[i].getAttribute("href") || "";
+      o.textContent = (links[i].textContent || "").trim();
+      if (links[i].className.indexOf("is-here") > -1 ||
+          links[i].getAttribute("aria-current") === "page") {
+        o.selected = true;
+      }
+      navSelect.appendChild(o);
+    }
+
+    for (i = 0; i < links.length; i++) { links[i].style.display = "none"; }
+    navSelect.style.display = "block";
+  }
+
+  /* A rotate is a resize, and it is the case that matters: landscape fits three tabs
+     where portrait does not. Debounced because a drag on a desktop window fires this
+     continuously and each call forces a layout read. */
+  var navFitTimer = null;
+  function scheduleFitNav() {
+    if (navFitTimer) { w.clearTimeout(navFitTimer); }
+    navFitTimer = w.setTimeout(function () { navFitTimer = null; fitNav(); }, 120);
+  }
+  w.addEventListener("resize", scheduleFitNav);
+  w.addEventListener("orientationchange", scheduleFitNav);
 
   /* --------------------------------------------------------------- render */
 
@@ -2649,6 +2853,11 @@
     renderLists();
     renderSwitcher();
     carrySelection();
+
+    /* LAST, and that ordering is the whole point: carrySelection has just rewritten
+       every portal href with ?r=, and the select is built from those hrefs. Fit the
+       nav before it and the buyer loses their chosen home on the first tab change. */
+    fitNav();
   }
 
   /* --------------------------------------------------------------- select */
@@ -3146,6 +3355,7 @@
       daysLeft: daysLeft,
       breakUp: breakUp,
       clockRunning: function () { return !!cdTimer; },
+      fitNav: fitNav,
       offset: function () { return clockOffset; },
       loginPath: loginPath,
       memberToken: memberToken,
