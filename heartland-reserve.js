@@ -3457,6 +3457,10 @@
        comes after, so the first paint cannot race a click. */
     wireTabs();
     showTab(tabFromUrl(), false);
+
+    /* AFTER everything, because renderOtp and renderStepActions have just written
+       those hrefs back. A no-op outside a preview. */
+    previewNeutralise();
   }
 
   /* --------------------------------------------------------------- select */
@@ -3620,7 +3624,11 @@
       var portal = u.pathname === "/portal" || u.pathname.indexOf("/portal-") === 0;
       if (u.pathname.indexOf("/portal-login") === 0) { portal = false; }
       if (!portal && !a.hasAttribute("data-hl-portal-link")) { continue; }
-      u.searchParams.set("r", R.uuid);
+      /* In a staff preview the handle is the preview itself. Writing ?r= would send
+         the salesperson to a tab that tries to authenticate as a member and bounces
+         them to the login page. */
+      if (PREVIEW) { u.searchParams.delete("r"); u.searchParams.set("preview", R.uuid); }
+      else { u.searchParams.set("r", R.uuid); }
       a.setAttribute("href", u.pathname + u.search + u.hash);
       n++;
     }
@@ -4044,6 +4052,191 @@
     return els.length;
   }
 
+  /* ------------------------------------------------------------- preview
+
+     WHAT THE BUYER SEES, opened as a page rather than described in a panel. Sales
+     press a button in the console, this page opens in a new tab, and it draws the
+     buyer's dashboard with the buyer's data through the buyer's own code. A summary
+     of what the portal WOULD show is a second implementation of the portal, and the
+     first time the two disagreed the console would be confidently wrong.
+
+     IT IS NOT A LOGIN AND IT MINTS NOTHING. There is no buyer token anywhere in this
+     path. The page calls a STAFF endpoint with the STAFF token, and that endpoint
+     reads through member_reservations_view - so everything the server withholds from
+     the buyer is withheld here too, including the signing link on a blocked deal.
+
+     THE TOKEN IS NEVER IN THE URL. A token in a query string lives in history, in
+     server logs and in every referrer the page emits; a fragment avoids the server but
+     still sits in history. So the console hands it over through localStorage instead,
+     as a SINGLE-USE, SIXTY-SECOND note addressed to one reservation, which this page
+     consumes and deletes before it does anything else.
+
+     WHY NOT JUST READ THE CONSOLE'S sessionStorage. A tab opened from another tab on
+     the same origin usually inherits a COPY of it, and that would have been simpler -
+     but "usually" is doing real work in that sentence: whether the clone happens
+     depends on the browser and on how the tab was opened, and a preview that works in
+     Chrome and silently asks for a login in Safari is worse than one that never
+     relied on it. The clone is still used as the FALLBACK, which is what makes a
+     refresh of the preview tab work after the one-time note is gone.
+
+     READ-ONLY MEANS THE ACTIONS ARE DEAD, not that the page is. Everything renders -
+     the countdown, the stages, the gallery, the documents - because seeing it is the
+     point. What is neutralised is anything that would act AS the buyer: the Offer to
+     Purchase signing link, which would open a signing session in their name, and the
+     pre-qualification link, which carries the broker's attribution and would credit a
+     real application to a salesperson looking at a screen. */
+
+  var PREVIEW = false;
+  var PREVIEW_BY = "";
+
+  /* The console's own keys. Two constants, in two files - if either moves, both move. */
+  var STAFF_TOKEN_KEY = "hl_staff_token";
+  var PREVIEW_HANDOFF = "hl_preview_handoff";
+  var HANDOFF_TTL_MS = 60000;
+
+  function previewUuid() {
+    var v = param("preview");
+    return v ? String(v).trim() : "";
+  }
+
+  /* ALWAYS removed, whether or not it turns out to be usable. A note left lying in
+     localStorage is a staff token left lying in localStorage, and the one case where
+     it would definitely be left is the one where something went wrong. */
+  function claimHandoff(uuid) {
+    var raw = "";
+    try { raw = w.localStorage.getItem(PREVIEW_HANDOFF) || ""; } catch (e) { return ""; }
+    try { w.localStorage.removeItem(PREVIEW_HANDOFF); } catch (e) {}
+    if (!raw) { return ""; }
+
+    var note = null;
+    try { note = JSON.parse(raw); } catch (e) { return ""; }
+    if (!note || typeof note !== "object") { return ""; }
+
+    /* ADDRESSED TO ONE RESERVATION. Without this, a note written for one deal would
+       open any other deal the url named - which is not a privilege escalation, since
+       the token is the same either way, but it is a preview showing a deal nobody
+       asked for. */
+    if (String(note.uuid || "") !== String(uuid)) { return ""; }
+
+    var at = Number(note.at);
+    if (!isFinite(at) || (Date.now() - at) > HANDOFF_TTL_MS || (at - Date.now()) > HANDOFF_TTL_MS) {
+      return "";
+    }
+    return String(note.t || "");
+  }
+
+  function staffToken(uuid) {
+    var handed = claimHandoff(uuid);
+    if (handed) {
+      /* Kept for THIS tab only, so a refresh of the preview still works after the
+         one-time note is gone. */
+      try { w.sessionStorage.setItem(STAFF_TOKEN_KEY, handed); } catch (e) {}
+      return handed;
+    }
+    try { return w.sessionStorage.getItem(STAFF_TOKEN_KEY) || ""; } catch (e) { return ""; }
+  }
+
+  function previewCss() {
+    if (d.getElementById("hl-preview-css")) { return; }
+    var css = [
+      ".hl-preview-bar{position:sticky;top:0;left:0;right:0;z-index:99999;",
+      "background:#845e46;color:#fff;font:600 13px/1.45 system-ui,-apple-system,sans-serif;",
+      "letter-spacing:.02em;padding:10px 16px;text-align:center}",
+      ".hl-preview-bar b{font-weight:700}",
+      ".hl-preview-bar span{display:block;font-weight:400;opacity:.85;font-size:12px;margin-top:2px}",
+      ".hl-preview-dead{opacity:.45;pointer-events:none;cursor:not-allowed}"
+    ].join("");
+    var el = d.createElement("style");
+    el.id = "hl-preview-css";
+    el.textContent = css;
+    (d.head || d.documentElement).appendChild(el);
+  }
+
+  /* Unmissable and at the top of the document, not inside the portal wrapper - a
+     banner a salesperson can scroll past is a banner that will be screenshotted and
+     mistaken for the buyer's own screen. */
+  function previewBanner(who, r) {
+    previewCss();
+    var bar = d.getElementById("hl-preview-bar");
+    if (!bar) {
+      bar = d.createElement("div");
+      bar.id = "hl-preview-bar";
+      bar.className = "hl-preview-bar";
+      if (d.body) { d.body.insertBefore(bar, d.body.firstChild); }
+    }
+    var name = [(r && r.first_name) || "", (r && r.last_name) || ""].join(" ").trim();
+    var unit = (r && r.unit && (r.unit.display_name || r.unit.name)) || "";
+    bar.innerHTML = "";
+    var b = d.createElement("b");
+    b.textContent = "Staff preview - read only" +
+      (name ? " - you are looking at " + name + "'s dashboard" : "") +
+      (unit ? " (" + unit + ")" : "");
+    var sub = d.createElement("span");
+    sub.textContent = "Nothing here writes anything. The signing and pre-qualification " +
+      "links are disabled" + (who ? " - viewed by " + who : "") + ".";
+    bar.appendChild(b);
+    bar.appendChild(sub);
+  }
+
+  /* Every link the module writes an ACTION href into. Not the documents, not the
+     renders, not the floor plans - opening those is reading, and reading is the point.
+     Run after every render, because render rewrites these hrefs from scratch. */
+  function previewNeutralise() {
+    if (!PREVIEW) { return; }
+    var sel = "[data-hl-otp-link], [data-hl-step-link], [data-hl-action] a, a[data-hl-action]";
+    var links = d.querySelectorAll(sel);
+    for (var i = 0; i < links.length; i++) {
+      links[i].removeAttribute("href");
+      links[i].removeAttribute("target");
+      links[i].classList.add("hl-preview-dead");
+      links[i].setAttribute("aria-disabled", "true");
+      links[i].setAttribute("title", "Disabled in the staff preview.");
+    }
+    return links.length;
+  }
+
+  function previewBoot(uuid) {
+    var tok = staffToken(uuid);
+    if (!tok) {
+      fail("Open this preview from the sales console - it borrows your staff session, " +
+           "and this tab has not got one. A preview link on its own carries no access.");
+      return;
+    }
+
+    fetch(BASE + "/staff/reservations/" + encodeURIComponent(uuid) + "/portal-view", {
+      headers: { Authorization: "Bearer " + tok }
+    })
+      .then(readJson)
+      .then(function (res) {
+        var one = res && res.reservation;
+        if (!one) { throw new Error("that reservation returned no buyer view"); }
+
+        if (res.server_time) {
+          var st = Number(res.server_time);
+          if (isFinite(st)) { clockOffset = st - Date.now(); }
+        }
+
+        PREVIEW = true;
+        PREVIEW_BY = String(res.viewed_by || "");
+        ALL = [one];
+        R = one;
+
+        previewBanner(PREVIEW_BY, R);
+        show("[data-hl-portal-loading]", false);
+        show("[data-hl-portal-index]", false);
+        show("[data-hl-portal-body]", true);
+        /* render() calls renderCountdown(), which starts the interval through
+           tickControl. There is no separate clock to start - and calling one that does
+           not exist is a ReferenceError that would have left this whole branch dead. */
+        render();
+        log("staff preview of", R.reference || R.uuid, "- read only");
+      })
+      .catch(function (e) {
+        fail("Could not open that preview - " + (e && e.message ? e.message : "unknown error") +
+             ". If your console session has expired, sign in again and try from there.");
+      });
+  }
+
   function boot() {
     if (!d.querySelector("[data-hl-portal]")) { return; }
 
@@ -4091,6 +4284,12 @@
       offset: function () { return clockOffset; },
       loginPath: loginPath,
       memberToken: memberToken,
+      preview: function () { return PREVIEW; },
+      previewUuid: previewUuid,
+      claimHandoff: claimHandoff,
+      staffToken: staffToken,
+      previewBy: function () { return PREVIEW_BY; },
+      previewNeutralise: previewNeutralise,
       documents: documents,
       propertyDocuments: propertyDocuments,
       addons: addons,
@@ -4120,6 +4319,12 @@
     wireTabs();
     showTab(tabFromUrl(), false);
 
+
+    /* THE STAFF PREVIEW FORKS HERE, before memberToken(). A salesperson has no
+       Memberstack cookie, so the member path would bounce them to the buyer login -
+       and the whole point is that they never authenticate as the buyer at all. */
+    var pv = previewUuid();
+    if (pv) { previewBoot(pv); return; }
 
     var ms = memberToken();
     if (!ms) {
