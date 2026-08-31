@@ -2645,6 +2645,163 @@
     return slides.length;
   }
 
+  /* --------------------------------------------------- the Offer to Purchase */
+
+  /* THE OTP IS ITS OWN CARD, not a line in the step list, because it is the only
+     document in the process the buyer both RECEIVES and RETURNS - and the two halves
+     of that are months apart. Before signature it is a thing to go and do; afterwards
+     it is the record of the single most important thing they have done, and burying
+     that in a tracker row makes them hunt for it.
+
+     THE SIGNED COPY IS WHAT SALES ATTACHED, and the date is when they attached it -
+     NOT when the buyer signed. We do not know when they signed; Zoho does. Calling it
+     "signed on" would be inventing a fact, so the label says received. If that date
+     ever matters properly, it has to come from Zoho, not from here.
+
+     otp_url IS ALREADY WITHHELD by member_reservations_view when the deal is blocked,
+     so there is nothing to hide here - there is simply no link. That is the rule this
+     project keeps: hiding a button is presentation, withholding the value is the rule. */
+
+  function signedOtp() {
+    var list = (R && R.documents) || [];
+    var found = null;
+    for (var i = 0; i < list.length; i++) {
+      var doc = list[i] || {};
+      if (String(doc.doc_type || "").toLowerCase() !== "otp-signed") { continue; }
+      /* The LAST one wins. add_reservation_document replaces on the same type, so
+         there should only ever be one active - but if a future path leaves two, the
+         newer is the one that counts. */
+      found = doc;
+    }
+    if (!found || !safeUrl(found.url)) { return null; }
+    return found;
+  }
+
+  function renderOtp() {
+    var card = d.querySelectorAll("[data-hl-otp]");
+    if (!card.length) { return; }
+
+    var signed = signedOtp();
+    var link = R ? safeUrl(R.otp_url) : "";
+    var atStep = (subStageOf(R) === "sign-otp");
+    var blocked = !!(R && R.is_blocked);
+
+    /* Nothing to say only when the buyer has not reached the step, has no link and has
+       no signed copy. A card that appeared and vanished as the deal moved would be
+       worse than one that is simply not there yet. */
+    /* NOT named "show". A local of that name shadows the show() helper for the whole
+       function body, and every show("[data-hl-otp-...]") call below then tries to
+       invoke a boolean. It failed loudly here; the same mistake in a branch that runs
+       less often would not have. */
+    var visible = !!(signed || link || atStep);
+    var i;
+    for (i = 0; i < card.length; i++) {
+      card[i].style.display = visible ? "block" : "none";
+      card[i].classList.toggle("is-signed", !!signed);
+    }
+    if (!visible) { return; }
+
+    /* THREE STATES, ONE AT A TIME. Signed beats everything - once the executed copy is
+       back, "go and sign" is not an instruction, it is a confusion. */
+    var state = signed ? "signed" : (link ? "sign" : "waiting");
+
+    show("[data-hl-otp-signed]", state === "signed");
+    show("[data-hl-otp-sign]", state === "sign");
+    show("[data-hl-otp-waiting]", state === "waiting");
+
+    var links = d.querySelectorAll("[data-hl-otp-link]");
+    for (i = 0; i < links.length; i++) {
+      if (link) {
+        links[i].setAttribute("href", link);
+        links[i].setAttribute("target", "_blank");
+        links[i].setAttribute("rel", "noopener noreferrer");
+      } else {
+        links[i].removeAttribute("href");
+      }
+    }
+
+    var docs = d.querySelectorAll("[data-hl-otp-doc]");
+    for (i = 0; i < docs.length; i++) {
+      if (signed) {
+        docs[i].setAttribute("href", signed.url);
+        docs[i].setAttribute("target", "_blank");
+        docs[i].setAttribute("rel", "noopener noreferrer");
+      } else {
+        docs[i].removeAttribute("href");
+      }
+    }
+
+    var dates = d.querySelectorAll("[data-hl-otp-date]");
+    for (i = 0; i < dates.length; i++) {
+      dates[i].textContent = signed ? fmtDate(signed.created_at) : "";
+    }
+
+    /* The one case where the buyer needs a sentence rather than a button: the step is
+       theirs, the deal is blocked, and the link is therefore gone. */
+    show("[data-hl-otp-blocked]", !signed && blocked);
+  }
+
+  /* ------------------------------------------------------ actions on a step */
+
+  /* SOME STEPS ARE THINGS TO DO, and until now the tracker only ever said which one
+     you were on. Pre-qualifying means going to the bank's broker; signing means going
+     to Zoho. Both are links the buyer cannot guess, and a step that names a task
+     without offering the way to do it is a to-do list with the pens taken away.
+
+     THE PRE-QUALIFY LINK IS PER DEVELOPMENT and carries the broker's attribution
+     parameter, so it comes from res_config via the reservation rather than from a
+     constant here. A development with no link offers NO BUTTON - borrowing another
+     one's would credit the wrong development for every application it sent.
+
+     The same https guard as the documents, for the same reason: this is a CMS-supplied
+     string being written into an href on a page holding a live member session. */
+  function stepActions() {
+    if (!R) { return {}; }
+    var acts = R.actions || {};
+    return {
+      "pre-qualify": {
+        url: safeUrl(acts.prequalify_url),
+        logo: safeUrl(acts.prequalify_logo)
+      },
+      "sign-otp": {
+        url: safeUrl(R.otp_url),
+        logo: ""
+      }
+    };
+  }
+
+  function renderStepActions() {
+    var map = stepActions();
+    var blocks = d.querySelectorAll("[data-hl-step-action]");
+    for (var i = 0; i < blocks.length; i++) {
+      var name = blocks[i].getAttribute("data-hl-step-action");
+      var act = map[name] || {};
+      var on = !!act.url;
+      blocks[i].style.display = on ? "block" : "none";
+      if (!on) { continue; }
+
+      var links = blocks[i].querySelectorAll("[data-hl-step-link]");
+      for (var j = 0; j < links.length; j++) {
+        links[j].setAttribute("href", act.url);
+        links[j].setAttribute("target", "_blank");
+        links[j].setAttribute("rel", "noopener noreferrer");
+      }
+
+      /* The partner's logo is shown ONLY when there is one. An empty img is a broken
+         image icon next to a bank's name, which is worse than no logo at all. */
+      var logos = blocks[i].querySelectorAll("[data-hl-step-logo]");
+      for (var k = 0; k < logos.length; k++) {
+        if (act.logo) {
+          logos[k].setAttribute("src", act.logo);
+          logos[k].style.display = "block";
+        } else {
+          logos[k].removeAttribute("src");
+          logos[k].style.display = "none";
+        }
+      }
+    }
+  }
+
   /* --------------------------------------------------------------- next step */
 
   /* WHICH STEP IS THE BUYER'S NEXT ONE. The tracker already marks done / active /
@@ -3281,6 +3438,8 @@
 
     renderStages();
     renderNextStep();
+    renderOtp();
+    renderStepActions();
     renderCountdown();
     renderBlocked();
     renderSlides();
@@ -3828,6 +3987,8 @@
       carrySelection: carrySelection,
       slides: function () { return slidesFor(R); },
       nextStep: renderNextStep,
+      signedOtp: signedOtp,
+      stepActions: stepActions,
       blocked: function () { return !!(R && R.is_blocked); },
       missed: function () { return missedSelection; },
       daysLeft: daysLeft,
