@@ -3699,6 +3699,93 @@
     return out;
   }
 
+  /* THE PICTURES OF THE HOME, and THE SELECTION IS NOT MADE HERE. A unit type carries
+     up to fifteen images - the base model, two aerials, seven upgrade combinations and
+     three floor finishes - and a buyer is entitled to the ones matching the
+     specification they actually bought. member_reservations_view does that matching
+     and sends only those, for the same reason otp_url is withheld rather than hidden:
+     a list the browser has to filter is a list the browser has already received. This
+     renders what arrived and decides nothing.
+
+     The same https guard as the documents, and for a sharper reason: an image url ends
+     up in a src on a page holding a live member session, and a src is fetched without
+     anybody clicking anything. */
+  function gallery() {
+    var list = (R && R.media && R.media.gallery) || [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i] || {};
+      var url = safeUrl(m.url);
+      if (!url) {
+        warn("render", m.key || "(no key)", "has a link this page will not render:", m.url);
+        continue;
+      }
+      out.push({
+        key    : String(m.key || ""),
+        label  : String(m.label || ""),
+        url    : url,
+        variant: String(m.variant || ""),
+        alt    : String(m.label || "") + (R && R.unit && R.unit.display_name ? " - " + R.unit.display_name : "")
+      });
+    }
+    return out;
+  }
+
+  /* THE FLOORPLANS, AS DOWNLOADS. A separate list from the gallery even though both
+     arrive in media{}: a plan is a thing a buyer saves and takes to a contractor, and
+     a picture is a thing they look at. Rendering them in one strip would make the
+     ground-floor plan a slide somebody scrolls past. */
+  function floorplans() {
+    var list = (R && R.media && R.media.floorplans) || [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i] || {};
+      var url = safeUrl(m.url);
+      if (!url) {
+        warn("floorplan", m.key || "(no key)", "has a link this page will not render:", m.url);
+        continue;
+      }
+      out.push({
+        key  : String(m.key || ""),
+        label: String(m.label || ""),
+        url  : url,
+        alt  : String(m.label || "")
+      });
+    }
+    return out;
+  }
+
+  /* THE PEOPLE ON THIS DEVELOPMENT. Static, and deliberately so for now - these are
+     names, roles and faces, not a messaging system, and the legacy portal spent a
+     whole page per development on exactly this content.
+
+     AN EMPTY LIST IS THE RIGHT ANSWER when nobody is assigned. Xano sends [] rather
+     than the whole company, and the empty state says who to contact instead - being
+     pointed at somebody who does not know your deal is worse than being pointed at
+     nobody. has_photo lets the Designer hide the avatar rather than show a broken one;
+     a blank url would otherwise leave the placeholder image standing, which reads as a
+     person whose picture failed to load. */
+  function team() {
+    var list = (R && R.team) || [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var p = list[i] || {};
+      var name = String(p.name || "").trim();
+      if (!name) { continue; }
+      var photo = safeUrl(p.photo);
+      out.push({
+        key      : name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        name     : name,
+        position : String(p.position || "").trim(),
+        bio      : String(p.bio || "").trim(),
+        photo    : photo,
+        has_photo: !!photo,
+        has_bio  : !!String(p.bio || "").trim()
+      });
+    }
+    return out;
+  }
+
   function addons() {
     var list = (R && R.addons) || [];
     var out = [];
@@ -3843,6 +3930,9 @@
   function renderLists() {
     renderList("documents", documents());
     renderList("property-documents", propertyDocuments());
+    renderList("gallery", gallery());
+    renderList("floorplans", floorplans());
+    renderList("team", team());
     renderList("addons", addons());
     renderList("extras", extras());
     renderList("spec", spec());
