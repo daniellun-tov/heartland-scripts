@@ -2225,9 +2225,29 @@
          promise the process will never keep. */
       if (mine === -1) { els[i].style.display = "none"; continue; }
       els[i].style.display = "";
-      els[i].classList.toggle("is-active", mine === at);
-      els[i].classList.toggle("is-done", at > -1 && mine < at);
-      els[i].classList.toggle("is-todo", at === -1 || mine > at);
+
+      var active = (mine === at);
+      var done = (at > -1 && mine < at);
+      var todo = (at === -1 || mine > at);
+
+      els[i].classList.toggle("is-active", active);
+      els[i].classList.toggle("is-done", done);
+      els[i].classList.toggle("is-todo", todo);
+
+      /* THE SAME THREE CLASSES ON THE DOT ITSELF. The step already carried them, but
+         the tick has to be drawn on the little circle, and the Webflow style parser
+         will not take a descendant selector - so ".hl-substep-mark.is-done" as a combo
+         class is the only way to reach it. Marked by ATTRIBUTE rather than by that
+         class name, so this file never learns what the Designer calls the element.
+
+         Until 31 Aug a completed step and an unreached one drew the identical empty
+         circle: the state was on the page and simply had nothing to say. */
+      var mark = els[i].querySelector("[data-hl-mark]");
+      if (mark) {
+        mark.classList.toggle("is-active", active);
+        mark.classList.toggle("is-done", done);
+        mark.classList.toggle("is-todo", todo);
+      }
     }
   }
 
@@ -3292,10 +3312,25 @@
     var name = String(el.getAttribute("data-hl-tab-redirect") || "").trim();
     if (!name) { return ""; }
     var to = "/portal";
-    var r = param("r") || stashed(SEL_KEY);
     var q = [];
     if (name !== DEFAULT_TAB) { q.push("tab=" + encodeURIComponent(name)); }
-    if (r) { q.push("r=" + encodeURIComponent(r)); }
+
+    /* A STAFF PREVIEW MUST SURVIVE THIS HOP, and until 31 Aug it did not. The hamburger
+       menu's links are deliberately NOT intercepted as tabs - they are real navigations
+       to /portal-order and /portal-documents, which are signposts that forward back
+       here. Forwarding without the preview handle landed a salesperson on a /portal
+       that tried to authenticate them as a member, found no Memberstack cookie, and
+       bounced them to the buyer login. The preview also REPLACES ?r= rather than
+       joining it: the remembered selection belongs to whoever last used this browser as
+       a buyer, and carrying it into a preview would ask for the wrong home. */
+    var pv = param("preview");
+    if (pv) {
+      q.push("preview=" + encodeURIComponent(pv));
+    } else {
+      var r = param("r") || stashed(SEL_KEY);
+      if (r) { q.push("r=" + encodeURIComponent(r)); }
+    }
+
     if (q.length) { to += "?" + q.join("&"); }
     return to;
   }
