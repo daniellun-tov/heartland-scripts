@@ -184,7 +184,7 @@
     "    <div class=\"filters\">",
     "      <div class=\"f grow\">",
     "        <label for=\"q\">Search</label>",
-    "        <input id=\"q\" type=\"text\" placeholder=\"Name, email, phone, unit, payment reference\">",
+    "        <input id=\"q\" type=\"text\" placeholder=\"Reservation number, name, email, phone, unit\">",
     "      </div>",
     "      <div class=\"f\"><label for=\"fstatus\">Payment status</label><select id=\"fstatus\"></select></div>",
     "      <div class=\"f\"><label for=\"fstage\">Deal stage</label><select id=\"fstage\"></select></div>",
@@ -193,7 +193,7 @@
     "    <div class=\"card tablewrap\">",
     "      <table>",
     "        <thead><tr>",
-    "          <th>Buyer</th><th>Property / unit</th><th>Payment</th><th>Deal stage</th>",
+    "          <th>Ref</th><th>Buyer</th><th>Property / unit</th><th>Payment</th><th>Deal stage</th>",
     "          <th>Deadline</th><th class=\"num\">Hold fee</th><th class=\"num\">Purchase price</th>",
     "        </tr></thead>",
     "        <tbody id=\"rows\"></tbody>",
@@ -428,6 +428,11 @@
     em.classList.add("hide");
     tb.innerHTML = items.map(function (r) {
       return '<tr data-uuid="' + esc(r.uuid) + '">' +
+        /* THE RESERVATION NUMBER LEADS THE ROW. It is the handle a buyer quotes on the
+           phone and the one the OTP carries, so scanning for it must not mean reading a
+           name first. A deal created before generate_reference existed has none - shown
+           as a dash rather than blank, so the column reads as empty rather than broken. */
+        '<td><span class="mono">' + esc(r.reference || "\u2014") + "</span></td>" +
         "<td><div>" + esc(name(r)) + "</div><div class=\"muted\">" + esc(r.email || "") + "</div></td>" +
         "<td>" + esc(r.property_name) + '<div class="muted">' + esc(r.unit_name) + "</div></td>" +
         '<td><span class="pill s-' + esc(r.status) + '"><span class="dot"></span>' + esc(label(r.status)) + "</span></td>" +
@@ -615,6 +620,45 @@
         '<div id="docBox"><div class="spin">Loading documents\u2026</div></div>' +
       '</div>' +
 
+      /* WHAT THE BUYER SEES, read through the buyer's own reader. Not a rebuild of it -
+         /staff/reservations/{uuid}/portal-view calls member_reservations_view, so this
+         panel cannot drift from the portal. Loaded on demand rather than with the drawer:
+         every view is audited with the salesperson's name, and opening a deal to change a
+         deadline should not file a record of reading the buyer's dashboard. */
+      '<div class="sect"><h2>What the buyer sees</h2>' +
+        '<div class="muted" style="font-size:.8125rem;margin-bottom:10px">' +
+          'Their portal, read through the same code that draws it. Read-only, and recorded against your name.' +
+        '</div>' +
+        '<div id="pvBox"><button id="pvGo">Show the buyer\u2019s view</button></div>' +
+      '</div>' +
+
+      /* END THE DEAL. Last in the drawer because it is the only irreversible thing here. */
+      (canStage && r.status !== "cancelled"
+        ? '<div class="sect"><h2>End this deal</h2>' +
+            '<div class="muted" style="font-size:.8125rem;margin-bottom:10px">' +
+              'Releases the home in Xano and tells the buyer, in their portal, that the reservation is no longer active. ' +
+              'Nothing is deleted \u2014 the record, the money and the documents stay. ' +
+              'The Reserved toggle in the Webflow Units collection is <strong>not</strong> cleared; do that by hand.' +
+            '</div>' +
+            '<div style="margin-bottom:10px"><label for="cxWhy">Reason</label>' +
+            '<input id="cxWhy" type="text" placeholder="The buyer reads this \u2014 write it for them"></div>' +
+            (r.status === "confirmed"
+              ? '<div style="margin-bottom:12px"><label style="display:flex;gap:8px;align-items:flex-start;font-size:.8125rem">' +
+                  '<input id="cxPaid" type="checkbox" style="width:auto;margin-top:3px"> ' +
+                  'This buyer has paid the hold fee. I am ending the deal anyway.</label></div>'
+              : '') +
+            '<button id="cxGo">Cancel this reservation</button>' +
+            '<div class="err" id="cxErr" style="margin-top:10px"></div><div class="ok" id="cxOk"></div>' +
+          '</div>'
+        : (r.status === "cancelled"
+            /* The reason is NOT read from the list row - list_reservations does not send
+               cancel_reason, and printing a fallback here would put "no reason was
+               recorded" on a deal that has one. The buyer's own view carries it. */
+            ? '<div class="sect"><h2>Cancelled</h2><div class="muted" style="font-size:.8125rem">' +
+              'This reservation has been ended and the home released. The reason the buyer reads is in ' +
+              '\u201cWhat the buyer sees\u201d above.</div></div>'
+            : '')) +
+
       '<div class="sect"><h2>Not editable here yet</h2>' +
         '<div class="muted" style="font-size:.8125rem">Recording a purchase-deposit payment. The columns exist; nothing writes them yet.</div></div>';
 
@@ -666,9 +710,96 @@
       });
     }
 
+    var pvGo = $("pvGo");
+    if (pvGo) { pvGo.addEventListener("click", function () { loadBuyerView(r); }); }
+
+    var cxGo = $("cxGo");
+    if (cxGo) { cxGo.addEventListener("click", function () { cancelDeal(r); }); }
+
     loadCatalogue(r);
     loadUpgrades(r);
     loadDocuments(r);
+  }
+
+  /* ---------- the buyer's view ---------- */
+
+  function countLine(label, n) {
+    return '<div class="muted" style="font-size:.8125rem">' + esc(label) + ": " +
+           '<span class="mono">' + n + "</span></div>";
+  }
+
+  function loadBuyerView(r) {
+    var box = $("pvBox");
+    if (!box) { return; }
+    box.innerHTML = '<div class="spin">Reading their portal\u2026</div>';
+
+    api("/staff/reservations/" + encodeURIComponent(r.uuid) + "/portal-view")
+      .then(function (d) {
+        if (S.open !== r.uuid) { return; }
+        var v = d.reservation || {};
+        var m = v.media || {};
+        box.innerHTML =
+          (v.is_blocked
+            ? '<div class="err" style="margin-bottom:10px"><strong>They cannot go forward.</strong><br>' +
+              esc(v.blocked_reason || "") + "</div>"
+            : '<div class="ok" style="margin-bottom:10px">Their deal is live' +
+              (v.days_left === null || v.days_left === undefined
+                ? "."
+                : " \u2014 " + v.days_left + " day" + (v.days_left === 1 ? "" : "s") + " left on this step.") +
+              "</div>") +
+          '<div style="margin-bottom:8px"><span class="mono">' + esc(v.reference || "\u2014") + "</span> \u00b7 " +
+            esc(label(v.deal_stage || "")) + " \u00b7 " + esc(label(v.deal_sub_stage || "")) + "</div>" +
+          /* WITHHELD, not hidden. If the signing link is absent here it is absent in their
+             browser too - the reader refuses to send it on a blocked deal. */
+          '<div class="muted" style="font-size:.8125rem;margin-bottom:8px">Offer to Purchase link: ' +
+            (v.otp_available ? "available to them" : "<strong>withheld</strong>") + "</div>" +
+          countLine("Their signed documents", (v.documents || []).length) +
+          countLine("Development documents", (v.property_documents || []).length) +
+          countLine("Renders in their gallery", (m.gallery || []).length) +
+          countLine("Floor plans they can download", (m.floorplans || []).length) +
+          countLine("People on their team card", (v.team || []).length) +
+          countLine("Upgrades agreed since reserving", (v.agreed_extras || []).length) +
+          '<div class="muted" style="font-size:.8125rem;margin-top:8px">Pre-qualify button: ' +
+            ((v.actions && v.actions.prequalify_url) ? "shown" : "not offered on this development") + "</div>" +
+          '<div class="muted" style="font-size:.75rem;margin-top:10px">Read as ' + esc(d.viewed_by || "") + "</div>";
+      })
+      .catch(function (e) {
+        if (S.open !== r.uuid) { return; }
+        box.innerHTML = '<div class="err">' + esc(e.message) + "</div>";
+      });
+  }
+
+  /* ---------- cancel ---------- */
+  function cancelDeal(r) {
+    var why = ($("cxWhy").value || "").trim();
+    var paid = $("cxPaid");
+    var go = $("cxGo");
+
+    if (why.length < 3) {
+      $("cxErr").textContent = "Give a reason \u2014 the buyer reads it in their portal.";
+      return;
+    }
+    if (!window.confirm("End " + (r.reference || "this reservation") + " for " + name(r) +
+                        "?\n\nThe home is released and their portal will say the reservation is no longer active.")) {
+      return;
+    }
+
+    go.disabled = true;
+    $("cxErr").textContent = "";
+    $("cxOk").textContent = "Cancelling\u2026";
+
+    var body = { reason: why };
+    if (paid && paid.checked) { body.confirm_paid = true; }
+
+    api("/staff/reservations/" + encodeURIComponent(r.uuid) + "/cancel",
+        { method: "POST", body: JSON.stringify(body) })
+      .then(function (res) {
+        $("cxOk").textContent = "Cancelled. " + (res.next_step || "");
+        return load();
+      })
+      .then(function () { if (S.open) { openDrawer(S.open); } })
+      .catch(function (e) { $("cxOk").textContent = ""; $("cxErr").textContent = e.message; })
+      .then(function () { go.disabled = false; });
   }
 
   /* ---------- add-on editor ----------
