@@ -2986,6 +2986,171 @@
     wrap.appendChild(menu);
   }
 
+  /* ------------------------------------------------------------- the tabs */
+
+  /* THREE SCREENS, ONE PAGE, AND THE REASON IS SPECIFIC TO THIS BUILD rather than a
+     general preference for single-page apps.
+
+     member_reservations_view already returns everything all three screens need in the
+     SINGLE auth exchange - the order lines, both document sets, the deal state. Three
+     separate pages therefore paid for the same Memberstack exchange and the same Xano
+     round trip, from South Africa, three times over, to show data the first load
+     already had. That was the sluggishness: not the HTML, the re-auth and the re-fetch.
+
+     Consolidated, a tab change is a class toggle. No network at all.
+
+     WHAT KEEPS IT HONEST:
+       - The tabs are still REAL ANCHORS with real hrefs. They work before this file
+         runs and they still work if it breaks; the click is only intercepted once a
+         matching panel is known to exist on the page.
+       - The tab is in the URL (?tab=order) via pushState, so back, forward, refresh,
+         a copied link and a bookmark all land where the buyer was.
+       - ?r= travels with it. carrySelection already writes the chosen home onto every
+         portal link, and the rewrite here preserves whatever is already on the URL.
+       - /portal-order and /portal-documents redirect into the right tab, so every link
+         and bookmark that existed before this change still arrives somewhere correct.
+
+     NOT A FAKE TABLIST. These are links to real URLs, so they keep aria-current rather
+     than being dressed up as role="tab" - which would promise keyboard semantics that
+     browser history, not this file, is actually providing. */
+
+  var TAB_PATHS = {"/portal": "home", "/portal-order": "order", "/portal-documents": "documents"};
+  var DEFAULT_TAB = "home";
+  var currentTab = "";
+
+  function tabOfLink(a) {
+    var declared = a.getAttribute("data-hl-tab");
+    if (declared) { return declared; }
+    /* Inferred as a fallback so a nav that has not been updated still works. */
+    var u;
+    try { u = new w.URL(a.href, w.location.href); } catch (e) { return ""; }
+    return TAB_PATHS[u.pathname] || "";
+  }
+
+  function panelFor(name) {
+    if (!name) { return null; }
+    return d.querySelector('[data-hl-tab-panel="' + name + '"]');
+  }
+
+  function tabFromUrl() {
+    var t = param("tab");
+    return (t && panelFor(t)) ? t : DEFAULT_TAB;
+  }
+
+  /* The url the buyer should see for a tab, keeping every other parameter - ?r= above
+     all, because losing it silently shows them a different home's order summary. */
+  function tabUrl(name) {
+    var u;
+    try { u = new w.URL(w.location.href); } catch (e) { return null; }
+    if (name === DEFAULT_TAB) { u.searchParams.delete("tab"); }
+    else { u.searchParams.set("tab", name); }
+    return u.pathname + u.search + u.hash;
+  }
+
+  function showTab(name, push) {
+    var panels = d.querySelectorAll("[data-hl-tab-panel]");
+    if (!panels.length) { return false; }
+    if (!panelFor(name)) { name = DEFAULT_TAB; }
+    if (!panelFor(name)) { return false; }
+
+    var i;
+    for (i = 0; i < panels.length; i++) {
+      var mine = panels[i].getAttribute("data-hl-tab-panel") === name;
+      /* Shown with a value, never by clearing one - the rule this project learned the
+         hard way when Webflow turned an inline style into a generated class. */
+      panels[i].style.display = mine ? "block" : "none";
+      panels[i].classList.toggle("is-active", mine);
+    }
+
+    var links = d.querySelectorAll("[data-hl-nav] a, .hlp-nav a");
+    for (i = 0; i < links.length; i++) {
+      var t = tabOfLink(links[i]);
+      var on = (t === name);
+      links[i].classList.toggle("is-here", on);
+      if (on) { links[i].setAttribute("aria-current", "page"); }
+      else { links[i].removeAttribute("aria-current"); }
+    }
+
+    if (push && currentTab && currentTab !== name) {
+      var href = tabUrl(name);
+      try { if (href) { w.history.pushState({hlTab: name}, "", href); } } catch (e) {}
+    }
+    currentTab = name;
+
+    /* The tab row scrolls into view only when it has been scrolled PAST. Jumping to
+       the top of the page on every tab change would fight a buyer who is halfway down
+       the order summary and just wants to check a document. */
+    var nav = navRoot();
+    if (push && nav && nav.getBoundingClientRect && nav.getBoundingClientRect().top < 0) {
+      try { nav.scrollIntoView({block: "start", behavior: "smooth"}); }
+      catch (e2) { nav.scrollIntoView(); }
+    }
+
+    /* Announced, not just repainted: without this a screen reader stays where it was
+       and the buyer is told nothing changed. */
+    var panel = panelFor(name);
+    if (push && panel) {
+      panel.setAttribute("tabindex", "-1");
+      if (panel.focus) { try { panel.focus({preventScroll: true}); } catch (e3) { panel.focus(); } }
+    }
+
+    /* The collapsed nav is rebuilt from the anchors, whose is-here has just moved. */
+    if (navSelect) { fitNav(); }
+    return true;
+  }
+
+  var tabsWired = false;
+
+  function wireTabs() {
+    if (tabsWired) { return; }
+    if (!d.querySelector("[data-hl-tab-panel]")) { return; }
+    tabsWired = true;
+
+    d.addEventListener("click", function (ev) {
+      /* Modified clicks belong to the browser. A middle click, or cmd-click, means
+         "open this somewhere else", and a tab that swallowed it would be a link that
+         lies about being a link. */
+      if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey ||
+          ev.shiftKey || ev.altKey) { return; }
+      var a = ev.target && ev.target.closest ? ev.target.closest("a[href]") : null;
+      if (!a) { return; }
+      if (a.hasAttribute("data-hl-menu-item")) { return; }
+      var name = tabOfLink(a);
+      if (!name || !panelFor(name)) { return; }
+      if (showTab(name, true)) { ev.preventDefault(); }
+    });
+
+    w.addEventListener("popstate", function () { showTab(tabFromUrl(), false); });
+  }
+
+  /* A PAGE THAT IS ONLY A SIGNPOST. /portal-order and /portal-documents were real
+     screens until the three were consolidated; they stay as redirects so every link,
+     bookmark and email that pointed at them still arrives in the right tab rather than
+     at a 404. The marker is in the Designer, so retiring one later is a Webflow
+     change. ?r= is carried across, because a redirect that dropped the chosen home
+     would land a two-home buyer on the wrong order summary. */
+  function tabRedirectTarget() {
+    var el = d.querySelector("[data-hl-tab-redirect]");
+    if (!el || d.querySelector("[data-hl-tab-panel]")) { return ""; }
+    var name = String(el.getAttribute("data-hl-tab-redirect") || "").trim();
+    if (!name) { return ""; }
+    var to = "/portal";
+    var r = param("r") || stashed(SEL_KEY);
+    var q = [];
+    if (name !== DEFAULT_TAB) { q.push("tab=" + encodeURIComponent(name)); }
+    if (r) { q.push("r=" + encodeURIComponent(r)); }
+    if (q.length) { to += "?" + q.join("&"); }
+    return to;
+  }
+
+  function tabRedirect() {
+    var to = tabRedirectTarget();
+    if (!to) { return false; }
+    log("this page is now a tab on /portal - going to", to);
+    w.location.replace(to);
+    return true;
+  }
+
   /* ------------------------------------------------------- the three screens */
 
   /* THE TABS, AND WHAT HAPPENS WHEN THEY DO NOT FIT.
@@ -3128,6 +3293,11 @@
        every portal href with ?r=, and the select is built from those hrefs. Fit the
        nav before it and the buyer loses their chosen home on the first tab change. */
     fitNav();
+
+    /* The tab the url asked for, without a push - this IS the url already. Wiring
+       comes after, so the first paint cannot race a click. */
+    wireTabs();
+    showTab(tabFromUrl(), false);
   }
 
   /* --------------------------------------------------------------- select */
@@ -3640,6 +3810,7 @@
 
     w.HLPortal = {
       all: function () { return ALL; },
+      tabRedirectTarget: tabRedirectTarget,
       get: function () { return R; },
       select: function (uuid) {
         for (var i = 0; i < ALL.length; i++) {
@@ -3664,6 +3835,8 @@
       clockRunning: function () { return !!cdTimer; },
       fitNav: fitNav,
       shortLabel: shortLabel,
+      showTab: showTab,
+      tab: function () { return currentTab; },
       offset: function () { return clockOffset; },
       loginPath: loginPath,
       memberToken: memberToken,
@@ -3675,6 +3848,14 @@
       refresh: refresh,
       render: render
     };
+
+    /* AFTER the debug surface, BEFORE the network. A page that is only a signpost has
+       no reason to authenticate or spend a round trip before forwarding - but it still
+       gets HLPortal, for the same reason the flow module exposes its handle before the
+       uuid check: the debug handle must exist in exactly the situation you reach for
+       it, which is a page that did something you did not expect. */
+    if (tabRedirect()) { return; }
+
 
     var ms = memberToken();
     if (!ms) {
