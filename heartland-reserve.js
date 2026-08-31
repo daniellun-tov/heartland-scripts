@@ -534,6 +534,38 @@
     return out;
   }
 
+  /* FIRST-TOUCH CONTEXT, and one field in it is load-bearing.
+
+     origin_host is the host the buyer was actually on. Xano turns it into the
+     reservation number's prefix: a deal made on the Webflow staging site becomes
+     RES-TEST-SAN-001 rather than RES-SAN-001, so a salesperson can tell a rehearsal
+     from a sale at a glance. It is read from location, not configured, because a
+     constant would be right until somebody duplicated the page.
+
+     ABSENT MEANS LIVE on the server side, which is the safer default of the two: a
+     missing signal marking a real sale as a test would be the more damaging mistake.
+     So this is the only thing that makes the TEST prefix appear at all.
+
+     The utm_* keys are ordinary campaign parameters. res_reservations.utm has existed
+     since the first schema and nothing has ever written to it; picking them up here
+     costs nothing and answers "where did this buyer come from" later. */
+  var UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+                  "gclid", "fbclid"];
+
+  function firstTouch() {
+    var out = {};
+    try { out.origin_host = String(w.location.hostname || "").toLowerCase(); }
+    catch (e) { out.origin_host = ""; }
+    try {
+      var q = new w.URLSearchParams(w.location.search);
+      for (var i = 0; i < UTM_KEYS.length; i++) {
+        var v = q.get(UTM_KEYS[i]);
+        if (v) { out[UTM_KEYS[i]] = String(v).slice(0, 200); }
+      }
+    } catch (e2) {}
+    return out;
+  }
+
   function createFrom(pairs, dryRun) {
     return fetch(BASE + "/public/reservations/from-form", {
       method: "POST",
@@ -542,6 +574,7 @@
         property_slug: PROPERTY,
         pairs: pairs,
         dry_run: dryRun === true,
+        utm: firstTouch(),
         referrer: d.referrer || ""
       })
     })
@@ -2754,7 +2787,10 @@
       "background-repeat:no-repeat;background-position:right 0.75rem center;background-size:12px 8px;}" +
       ".hl-sel:focus{outline:2px solid var(--hl-primary,#8a9380);outline-offset:2px;}" +
       ".hl-nav-select{display:none;}" +
-      ".hl-switch-select{display:block;max-width:22rem;}";
+      /* Tighter than the tab select, because this one lives in the navbar and the
+         navbar's height is set by whatever is tallest in it. */
+      ".hl-switch-select{display:block;max-width:22rem;font-size:0.8125rem;" +
+      "padding:0.4rem 1.9rem 0.4rem 0.7rem;background-position:right 0.6rem center;}";
     var tag = d.createElement("style");
     tag.setAttribute("data-hl-nav-css", "");
     tag.appendChild(d.createTextNode(css));
