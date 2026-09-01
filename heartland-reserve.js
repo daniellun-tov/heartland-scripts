@@ -3163,6 +3163,259 @@
     wrap.appendChild(menu);
   }
 
+
+  /* --------------------------------------------------------- the lightbox */
+
+  /* A GALLERY OF ONE HOME IS A SEQUENCE, NOT SEVEN SEPARATE LINKS. Opening a render in
+     a new tab and coming back to open the next one is not looking at your home, it is
+     filing. So a list marked [data-hl-lightbox] opens in place and pages through.
+
+     BUILT ONCE, ON FIRST OPEN, and never for a page that has no gallery - the overlay
+     is a fixed-position element covering the viewport and it has no business existing
+     on the documents tab. The items are re-read from the DOM every open rather than
+     cached, because the rows are cloned by fillList and a cached list goes stale the
+     moment a different home is selected.
+
+     THE ANCHORS KEEP THEIR HREFS. The click is intercepted, not removed, so a
+     cmd-click still opens the full image in a new tab and the gallery still works if
+     this file never runs - the same rule the tabs follow. */
+
+  var lb = null;          /* {root, img, cap, count, prev, next} once built */
+  var lbItems = [];
+  var lbAt = -1;
+  var lbReturn = null;    /* who had focus before, so Escape gives it back */
+  var lbCssDone = false;
+
+  function lbCss() {
+    if (lbCssDone) { return; }
+    lbCssDone = true;
+    var css =
+      ".hl-lb{position:fixed;top:0;right:0;bottom:0;left:0;z-index:9990;display:none;" +
+      "align-items:center;justify-content:center;background:rgba(24,25,26,0.93);" +
+      "padding:3.5rem 1rem;}" +
+      ".hl-lb.is-open{display:flex;}" +
+      ".hl-lb-fig{margin:0;display:flex;flex-direction:column;align-items:center;" +
+      "gap:0.85rem;max-width:100%;max-height:100%;}" +
+      ".hl-lb-img{display:block;max-width:100%;max-height:76vh;object-fit:contain;" +
+      "border-radius:var(--hl-radius,0.25rem);}" +
+      ".hl-lb-cap{color:#fff;opacity:0.85;font-size:0.8125rem;letter-spacing:0.08em;" +
+      "text-transform:uppercase;text-align:center;}" +
+      ".hl-lb-count{color:#fff;opacity:0.5;font-size:0.75rem;letter-spacing:0.1em;" +
+      "font-variant-numeric:tabular-nums;}" +
+      ".hl-lb-btn{position:absolute;width:2.75rem;height:2.75rem;border-radius:999px;" +
+      "border:1px solid rgba(255,255,255,0.3);background:rgba(0,0,0,0.35);color:#fff;" +
+      "font:inherit;font-size:1.25rem;line-height:1;cursor:pointer;padding:0;" +
+      "display:flex;align-items:center;justify-content:center;}" +
+      ".hl-lb-btn:hover{background:rgba(0,0,0,0.6);}" +
+      ".hl-lb-btn:focus-visible{outline:2px solid #fff;outline-offset:2px;}" +
+      ".hl-lb-prev{left:1rem;top:50%;margin-top:-1.375rem;}" +
+      ".hl-lb-next{right:1rem;top:50%;margin-top:-1.375rem;}" +
+      ".hl-lb-x{top:1rem;right:1rem;}" +
+      /* One picture is not a sequence. Hidden rather than disabled: a control that
+         cannot do anything is clutter, not feedback. */
+      ".hl-lb.is-single .hl-lb-prev,.hl-lb.is-single .hl-lb-next{display:none;}" +
+      ".hl-lb.is-single .hl-lb-count{display:none;}" +
+      "@media (max-width:600px){.hl-lb{padding:3.25rem 0.5rem;}" +
+      ".hl-lb-btn{width:2.4rem;height:2.4rem;font-size:1.1rem;}" +
+      ".hl-lb-prev{left:0.4rem;margin-top:-1.2rem;}" +
+      ".hl-lb-next{right:0.4rem;margin-top:-1.2rem;}}";
+    var tag = d.createElement("style");
+    tag.setAttribute("data-hl-lb-css", "");
+    tag.appendChild(d.createTextNode(css));
+    (d.head || d.documentElement).appendChild(tag);
+  }
+
+  function lbButton(cls, label, text) {
+    var b = d.createElement("button");
+    b.type = "button";
+    b.className = "hl-lb-btn " + cls;
+    b.setAttribute("aria-label", label);
+    b.textContent = text;
+    return b;
+  }
+
+  function lbBuild() {
+    if (lb) { return lb; }
+    lbCss();
+
+    var root = d.createElement("div");
+    root.className = "hl-lb";
+    root.setAttribute("data-hl-lightbox-view", "");
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-modal", "true");
+    root.setAttribute("aria-label", "Gallery");
+    root.setAttribute("tabindex", "-1");
+
+    var fig = d.createElement("figure");
+    fig.className = "hl-lb-fig";
+
+    var img = d.createElement("img");
+    img.className = "hl-lb-img";
+    img.setAttribute("alt", "");
+    fig.appendChild(img);
+
+    var cap = d.createElement("figcaption");
+    cap.className = "hl-lb-cap";
+    cap.setAttribute("data-hl-lb-cap", "");
+    fig.appendChild(cap);
+
+    var count = d.createElement("div");
+    count.className = "hl-lb-count";
+    count.setAttribute("data-hl-lb-count", "");
+    fig.appendChild(count);
+
+    var prev = lbButton("hl-lb-prev", "Previous image", "‹");
+    var next = lbButton("hl-lb-next", "Next image", "›");
+    var x = lbButton("hl-lb-x", "Close gallery", "×");
+
+    root.appendChild(fig);
+    root.appendChild(prev);
+    root.appendChild(next);
+    root.appendChild(x);
+
+    prev.addEventListener("click", function (ev) { ev.stopPropagation(); lbStep(-1); });
+    next.addEventListener("click", function (ev) { ev.stopPropagation(); lbStep(1); });
+    x.addEventListener("click", function (ev) { ev.stopPropagation(); lbClose(); });
+
+    /* The backdrop closes; the picture does not. A click that lands on the image is
+       somebody looking at it, and closing on that is the most irritating thing a
+       lightbox can do. */
+    root.addEventListener("click", function (ev) {
+      if (ev.target === root) { lbClose(); }
+    });
+
+    /* Swipe, because on a phone the arrows are the least likely thing a thumb finds.
+       40px so a tap with a little drift is still a tap. */
+    var x0 = null;
+    root.addEventListener("touchstart", function (ev) {
+      x0 = (ev.touches && ev.touches[0]) ? ev.touches[0].clientX : null;
+    }, true);
+    root.addEventListener("touchend", function (ev) {
+      if (x0 === null) { return; }
+      var x1 = (ev.changedTouches && ev.changedTouches[0]) ? ev.changedTouches[0].clientX : null;
+      var dx = (x1 === null) ? 0 : (x1 - x0);
+      x0 = null;
+      if (dx > 40) { lbStep(-1); }
+      else if (dx < -40) { lbStep(1); }
+    }, true);
+
+    (d.body || d.documentElement).appendChild(root);
+    lb = {root: root, img: img, cap: cap, count: count};
+    return lb;
+  }
+
+  /* Read from the DOM at open time, not cached: fillList clones these rows, and a
+     cached list is wrong the moment a two-home buyer switches home. */
+  function lbCollect(list) {
+    var rows = list.querySelectorAll("[data-hl-row]");
+    var out = [];
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var url = row.getAttribute("href") || "";
+      if (!url) {
+        var im = row.querySelector("img");
+        url = (im && im.getAttribute("src")) || "";
+      }
+      if (!url) { continue; }
+      var capEl = row.querySelector("[data-hl=\"label\"]");
+      out.push({
+        url  : url,
+        label: capEl ? String(capEl.textContent || "").trim() : ""
+      });
+    }
+    return out;
+  }
+
+  function lbStep(by) {
+    if (!lbItems.length) { return; }
+    /* Wraps. A gallery is a loop, and a next button that stops working at the end
+       reads as broken rather than as finished. */
+    var n = lbItems.length;
+    lbAt = ((lbAt + by) % n + n) % n;
+    lbPaint();
+  }
+
+  function lbPaint() {
+    var it = lbItems[lbAt];
+    if (!lb || !it) { return; }
+    lb.img.setAttribute("src", it.url);
+    lb.img.setAttribute("alt", it.label || "");
+    lb.cap.textContent = it.label;
+    lb.cap.style.display = it.label ? "block" : "none";
+    lb.count.textContent = (lbAt + 1) + " / " + lbItems.length;
+    lb.root.classList.toggle("is-single", lbItems.length < 2);
+
+    /* The neighbours are fetched now so the next tap paints instead of loading. Only
+       the two either side - preloading a whole gallery on open would spend a phone's
+       data on pictures nobody asked to see. */
+    var n = lbItems.length;
+    if (n > 1) {
+      var ahead = [lbItems[(lbAt + 1) % n], lbItems[(lbAt - 1 + n) % n]];
+      for (var i = 0; i < ahead.length; i++) {
+        if (!ahead[i]) { continue; }
+        var pre = new w.Image();
+        pre.src = ahead[i].url;
+      }
+    }
+  }
+
+  function lbOpen(list, index) {
+    var items = lbCollect(list);
+    if (!items.length) { return false; }
+    lbBuild();
+    lbItems = items;
+    lbAt = (index >= 0 && index < items.length) ? index : 0;
+    lbPaint();
+
+    lbReturn = d.activeElement;
+    lb.root.classList.add("is-open");
+    /* The page behind must not scroll under the overlay - on a phone that is how you
+       close a lightbox and find yourself somewhere else on the page. */
+    try { d.documentElement.style.overflow = "hidden"; } catch (e) {}
+    try { lb.root.focus(); } catch (e2) {}
+    return true;
+  }
+
+  function lbClose() {
+    if (!lb) { return; }
+    lb.root.classList.remove("is-open");
+    /* The src is dropped so a closed lightbox is not holding a full-size render in
+       memory on a phone that has moved on. */
+    lb.img.removeAttribute("src");
+    try { d.documentElement.style.overflow = ""; } catch (e) {}
+    if (lbReturn && lbReturn.focus) { try { lbReturn.focus(); } catch (e2) {} }
+    lbReturn = null;
+  }
+
+  var lbWired = false;
+
+  function wireLightbox() {
+    if (lbWired) { return; }
+    lbWired = true;
+
+    d.addEventListener("click", function (ev) {
+      /* Modified clicks belong to the browser, same rule as the tabs: a cmd-click on
+         a render should still open the full image in its own tab. */
+      if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey ||
+          ev.shiftKey || ev.altKey) { return; }
+      var row = ev.target && ev.target.closest ? ev.target.closest("[data-hl-row]") : null;
+      if (!row) { return; }
+      var list = row.closest("[data-hl-lightbox]");
+      if (!list) { return; }
+      var rows = list.querySelectorAll("[data-hl-row]");
+      var at = -1;
+      for (var i = 0; i < rows.length; i++) { if (rows[i] === row) { at = i; break; } }
+      if (lbOpen(list, at)) { ev.preventDefault(); }
+    });
+
+    d.addEventListener("keydown", function (ev) {
+      if (!lb || lb.root.className.indexOf("is-open") === -1) { return; }
+      if (ev.key === "Escape") { ev.preventDefault(); lbClose(); }
+      else if (ev.key === "ArrowRight") { ev.preventDefault(); lbStep(1); }
+      else if (ev.key === "ArrowLeft") { ev.preventDefault(); lbStep(-1); }
+    });
+  }
+
   /* ------------------------------------------------------------- the tabs */
 
   /* THREE SCREENS, ONE PAGE, AND THE REASON IS SPECIFIC TO THIS BUILD rather than a
@@ -3423,7 +3676,20 @@
       navSelect.className = "hl-sel hl-nav-select";
       navSelect.setAttribute("data-hl-nav-select", "");
       navSelect.setAttribute("aria-label", nav.getAttribute("aria-label") || "Your home");
+      /* THE COLLAPSED NAV MUST SWITCH A TAB, NOT NAVIGATE. It used to set
+         location.href, which is a full page load: Memberstack again, the member
+         endpoint again, from South Africa, and the "Loading your home" state on
+         screen every time - to show data the page already had. That was invisible
+         while three tabs fit on a line and only phones ever collapsed; a fourth tab
+         made the row wrap on a laptop and put the reload in front of everybody.
+
+         The href stays on the option as the fallback, because a select that cannot
+         reach its destination is worse than a slow one: if the panel is missing -
+         an older page, a second portal - the browser still gets to do its job. */
       navSelect.addEventListener("change", function () {
+        var opt = this.options[this.selectedIndex];
+        var name = opt && opt.getAttribute("data-hl-tab");
+        if (name && panelFor(name) && showTab(name, true)) { return; }
         if (this.value) { w.location.href = this.value; }
       });
       nav.appendChild(navSelect);
@@ -3436,6 +3702,9 @@
     for (i = 0; i < links.length; i++) {
       var o = d.createElement("option");
       o.value = links[i].getAttribute("href") || "";
+      /* Resolved from the anchor, so the select inherits the same rule the click
+         handler uses - data-hl-tab first, the path only as a fallback. */
+      o.setAttribute("data-hl-tab", tabOfLink(links[i]) || "");
       o.textContent = (links[i].textContent || "").trim();
       if (links[i].className.indexOf("is-here") > -1 ||
           links[i].getAttribute("aria-current") === "page") {
@@ -4403,14 +4672,6 @@
     if (!d.querySelector("[data-hl-portal]")) { return; }
 
     fixLoginLinks();
-    /* Built at boot rather than in render(), because the navbar is on screen before
-       any reservation is - and a member with no reservations at all still needs the
-       way out of the page. It is idempotent, so render() calling it again is free. */
-    renderTopbarMenu();
-    show("[data-hl-portal-loading]", true);
-    show("[data-hl-portal-body]", false);
-    show("[data-hl-portal-empty]", false);
-    show("[data-hl-portal-index]", false);
 
     w.HLPortal = {
       all: function () { return ALL; },
@@ -4445,6 +4706,12 @@
       fitNav: fitNav,
       shortLabel: shortLabel,
       showTab: showTab,
+      lightbox: function () {
+        return {open: !!(lb && lb.root.className.indexOf("is-open") > -1),
+                at: lbAt, count: lbItems.length};
+      },
+      lightboxStep: lbStep,
+      lightboxClose: lbClose,
       tab: function () { return currentTab; },
       offset: function () { return clockOffset; },
       loginPath: loginPath,
@@ -4471,6 +4738,21 @@
        it, which is a page that did something you did not expect. */
     if (tabRedirect()) { return; }
 
+    /* EVERYTHING BELOW IS FOR A PAGE THAT IS ACTUALLY THE PORTAL, and the order is the
+       fix for a bug a phone made obvious: /portal-order used to paint "Loading your
+       home" and build the navbar BEFORE forwarding, so a tab change on a narrow screen
+       flashed the loading state TWICE - once on the signpost, once on /portal - for a
+       page that was never going to fetch anything. A signpost's whole job is to leave. */
+
+    /* Built at boot rather than in render(), because the navbar is on screen before
+       any reservation is - and a member with no reservations at all still needs the
+       way out of the page. It is idempotent, so render() calling it again is free. */
+    renderTopbarMenu();
+    show("[data-hl-portal-loading]", true);
+    show("[data-hl-portal-body]", false);
+    show("[data-hl-portal-empty]", false);
+    show("[data-hl-portal-index]", false);
+
     /* THE TABS ARE SETTLED BEFORE THE FETCH, not after it. Which tab is open is a
        question the url answers on its own - it needs no reservation - and hiding the
        inactive panels here rather than in render() means they are never stacked, even
@@ -4482,6 +4764,9 @@
        stays hidden so nobody could SEE the three panels stacked - but they were, and a
        correctness that depends on something else being hidden is not one. */
     wireTabs();
+    /* Delegated, so it survives every re-render and costs nothing on a page with no
+       gallery: the overlay is not built until the first render is actually clicked. */
+    wireLightbox();
     showTab(tabFromUrl(), false);
 
 
