@@ -4132,7 +4132,20 @@
       var photo = safeUrl(p.photo);
       var company = String(p.company || "").trim();
       var site = safeUrl(p.website_url);
+      /* The same person's details as the contacts card carries, on their own card. A
+         buyer reading a bio and wanting to phone that person should not have to go and
+         find them again in a second list. Composed the same way, from the same fields,
+         so the two can never disagree about a number. */
+      var email = String(p.email || "").trim();
+      var phone = String(p.phone || "").trim();
+      var dial = String(p.phone_href || "").trim();
       out.push({
+        email     : email,
+        email_href: email ? ("mailto:" + email) : "",
+        phone     : phone,
+        phone_href: dial ? ("tel:" + dial) : "",
+        has_email : !!email,
+        has_phone : !!(phone && dial),
         key         : name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
         name        : name,
         position    : String(p.position || "").trim(),
