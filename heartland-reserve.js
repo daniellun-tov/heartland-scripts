@@ -3816,14 +3816,70 @@
       var name = String(p.name || "").trim();
       if (!name) { continue; }
       var photo = safeUrl(p.photo);
+      var company = String(p.company || "").trim();
+      var site = safeUrl(p.website_url);
       out.push({
-        key      : name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        name     : name,
-        position : String(p.position || "").trim(),
-        bio      : String(p.bio || "").trim(),
-        photo    : photo,
-        has_photo: !!photo,
-        has_bio  : !!String(p.bio || "").trim()
+        key         : name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        name        : name,
+        position    : String(p.position || "").trim(),
+        company     : company,
+        bio         : String(p.bio || "").trim(),
+        photo       : photo,
+        group       : String(p.group || "").trim() || "heartland",
+        group_label : String(p.group_label || "").trim(),
+        website_url : site,
+        /* A label with no destination is not a link. Xano already pairs them; this
+           re-pairs them after safeUrl has had its say, because safeUrl rejecting a
+           javascript: url must take the label with it rather than leave a caption
+           over nothing. */
+        website_label: site ? (String(p.website_label || "").trim() || "Visit website") : "",
+        has_photo   : !!photo,
+        has_company : !!company,
+        has_site    : !!site,
+        has_bio     : !!String(p.bio || "").trim()
+      });
+    }
+    return out;
+  }
+
+  /* WHO TO PHONE. A different list from team() and deliberately not a filter over it:
+     the team tab answers "who is working on my home", this card answers "who do I call
+     right now", and the second question wants fewer names in a fixed order with the
+     switchboard last. Xano composes it - the order and the switchboard fallback are
+     decisions, and deciding them a second time here is how two screens start disagreeing
+     about who to phone.
+
+     THIS CARD SURVIVES A BLOCKED DEAL. Everything else on a cancelled or overdue
+     reservation goes quiet; a buyer whose deal has stalled needs the phone number more
+     than anyone, so Xano does not withhold contacts and neither does this. */
+  function contacts() {
+    var list = (R && R.contacts) || [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i] || {};
+      var name = String(c.name || "").trim();
+      if (!name) { continue; }
+      var phone = String(c.phone || "").trim();
+      var href = String(c.phone_href || "").trim();
+      var email = String(c.email || "").trim();
+      /* Neither a number nor an address is not a contact. Xano already drops these,
+         but a card headed "get in touch" listing a name and nothing else is worse
+         than one name shorter. */
+      if (!phone && !email) { continue; }
+      out.push({
+        key       : String(c.key || name.toLowerCase().replace(/[^a-z0-9]+/g, "-")),
+        name      : name,
+        label     : String(c.label || "").trim(),
+        phone     : phone,
+        /* tel: wants digits, the card shows the spacing. Both, so no caller strips
+           spaces and gets it wrong. An empty href is not a broken link - has_phone
+           lets the Designer hide the whole row. */
+        phone_href: href ? ("tel:" + href) : "",
+        email     : email,
+        email_href: email ? ("mailto:" + email) : "",
+        has_phone : !!(phone && href),
+        has_email : !!email,
+        has_label : !!String(c.label || "").trim()
       });
     }
     return out;
@@ -3950,6 +4006,11 @@
       var links = (row.tagName === "A") ? [row] : [];
       for (var L = 0; L < found.length; L++) { links.push(found[L]); }
       for (var a = 0; a < links.length; a++) {
+        /* tel: and mailto: hand off to the OS, and target="_blank" on one of those
+           leaves a blank tab standing behind the dialler on several browsers. The
+           hardening is for links that navigate; these do not. */
+        var h = String(links[a].getAttribute("href") || "").trim().toLowerCase();
+        if (h.indexOf("tel:") === 0 || h.indexOf("mailto:") === 0) { continue; }
         links[a].setAttribute("target", "_blank");
         links[a].setAttribute("rel", "noopener noreferrer");
       }
@@ -3970,12 +4031,78 @@
     }
   }
 
+  /* The groups this development actually has somebody in, in the Designer's own order.
+     Xano sends team_groups[] built the same way; this recomputes from the people rather
+     than trusting it, because a group heading with nobody under it tells a buyer a
+     builder exists and then will not say who. Falls back to the people's own
+     group_order when team_groups is absent, so an older payload still sections. */
+  function teamGroupKeys() {
+    var groups = (R && R.team_groups) || [];
+    var people = team();
+    var present = {};
+    for (var i = 0; i < people.length; i++) { present[people[i].group] = true; }
+
+    var out = [];
+    var seen = {};
+    for (var g = 0; g < groups.length; g++) {
+      var k = String((groups[g] || {}).key || "");
+      if (!k || !present[k] || seen[k]) { continue; }
+      seen[k] = true;
+      out.push(k);
+    }
+    /* Anybody whose group is not in team_groups still gets a section rather than
+       disappearing off a page whose entire purpose is naming the people on the deal. */
+    for (var p = 0; p < people.length; p++) {
+      if (seen[people[p].group]) { continue; }
+      seen[people[p].group] = true;
+      out.push(people[p].group);
+    }
+    return out;
+  }
+
+  /* One list per group, plus the flat "team" list for any markup that still wants
+     everybody. A [data-hl-group="<key>"] wrapper is hidden when that group is empty -
+     hidden rather than emptied, because the wrapper carries the heading. */
+  function renderTeam() {
+    var people = team();
+    renderList("team", people);
+
+    var keys = teamGroupKeys();
+    var has = {};
+    for (var k = 0; k < keys.length; k++) { has[keys[k]] = true; }
+
+    var wraps = d.querySelectorAll("[data-hl-group]");
+    for (var w2 = 0; w2 < wraps.length; w2++) {
+      var key = String(wraps[w2].getAttribute("data-hl-group") || "");
+      var mine = [];
+      for (var i = 0; i < people.length; i++) {
+        if (people[i].group === key) { mine.push(people[i]); }
+      }
+      wraps[w2].style.display = mine.length ? "" : "none";
+      renderList("team:" + key, mine);
+    }
+
+    /* A group with markup nobody built still renders if the Designer put a bare list
+       on the page without a wrapper. */
+    for (var q = 0; q < keys.length; q++) {
+      if (d.querySelector("[data-hl-group=\"" + keys[q] + "\"]")) { continue; }
+      var only = [];
+      for (var j = 0; j < people.length; j++) {
+        if (people[j].group === keys[q]) { only.push(people[j]); }
+      }
+      renderList("team:" + keys[q], only);
+    }
+
+    show("[data-hl-team-empty]", !people.length);
+  }
+
   function renderLists() {
     renderList("documents", documents());
     renderList("property-documents", propertyDocuments());
     renderList("gallery", gallery());
     renderList("floorplans", floorplans());
-    renderList("team", team());
+    renderList("contacts", contacts());
+    renderTeam();
     renderList("addons", addons());
     renderList("extras", extras());
     renderList("spec", spec());
@@ -4302,6 +4429,9 @@
         return null;
       },
       indexItems: indexItems,
+      team: team,
+      contacts: contacts,
+      teamGroupKeys: teamGroupKeys,
       carrySelection: carrySelection,
       slides: function () { return slidesFor(R); },
       nextStep: renderNextStep,
