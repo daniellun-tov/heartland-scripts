@@ -2177,9 +2177,31 @@
   var TOKEN = "";        // the Xano token, kept for refreshes
   var clockOffset = 0;   // server time minus this device's clock, in ms
 
+  /* SHOWING SOMETHING MUST NOT DECIDE HOW IT LAYS OUT. This wrote display:block on
+     everything it revealed, and an inline style beats a class - so .hl-due, which is a
+     flex row in Webflow, was flattened to a block and its clock and its due date fell
+     onto separate lines. The same mistake had already flattened every document row via
+     fillList; this is the other half of it.
+
+     So revealing CLEARS the inline value and lets the element's own class decide, and
+     only falls back to block when that leaves it still hidden - a template class, a
+     Webflow display:none, something this does not know about. HIDING still writes a
+     value, because clearing one there would reveal rather than hide.
+
+     The measure is per call and only while the element is still hidden, so the common
+     case - already visible, nothing to do - costs nothing. */
+  function reveal(el) {
+    el.style.display = "";
+    if (w.getComputedStyle && w.getComputedStyle(el).display === "none") {
+      el.style.display = "block";
+    }
+  }
+
   function show(sel, on) {
     var els = d.querySelectorAll(sel);
-    for (var i = 0; i < els.length; i++) { els[i].style.display = on ? "block" : "none"; }
+    for (var i = 0; i < els.length; i++) {
+      if (on) { reveal(els[i]); } else { els[i].style.display = "none"; }
+    }
   }
 
   /* --------------------------------------------------------------- theme */
@@ -2462,9 +2484,12 @@
       dues[j].textContent = R ? fmtDate(R.deal_stage_due_at) : "";
     }
 
+    /* reveal(), not display:block. The deadline card is a FLEX ROW in Webflow, and
+       writing block over it put the clock and the due date on separate lines. */
     var wraps = d.querySelectorAll("[data-hl-countdown-wrap]");
     for (var k = 0; k < wraps.length; k++) {
-      wraps[k].style.display = blank && left === null ? "none" : "block";
+      if (blank && left === null) { wraps[k].style.display = "none"; }
+      else { reveal(wraps[k]); }
     }
 
     tickControl(msLeft, state);
@@ -2630,7 +2655,7 @@
       while (host.firstChild) { host.removeChild(host.firstChild); }
 
       if (!slides.length) { host.style.display = "none"; continue; }
-      host.style.display = "block";
+      reveal(host);
 
       var strip = d.createElement("div");
       strip.className = "hl-sl-strip";
@@ -2716,7 +2741,7 @@
     var visible = !!(signed || link || atStep);
     var i;
     for (i = 0; i < card.length; i++) {
-      card[i].style.display = visible ? "block" : "none";
+      if (visible) { reveal(card[i]); } else { card[i].style.display = "none"; }
       card[i].classList.toggle("is-signed", !!signed);
     }
     if (!visible) { return; }
@@ -2797,8 +2822,7 @@
       var name = blocks[i].getAttribute("data-hl-step-action");
       var act = map[name] || {};
       var on = !!act.url;
-      blocks[i].style.display = on ? "block" : "none";
-      if (!on) { continue; }
+      if (on) { reveal(blocks[i]); } else { blocks[i].style.display = "none"; continue; }
 
       var links = blocks[i].querySelectorAll("[data-hl-step-link]");
       for (var j = 0; j < links.length; j++) {
@@ -2838,7 +2862,7 @@
        said "Your next step" over an empty line would be worse than saying nothing. */
     var wraps = d.querySelectorAll("[data-hl-next]");
     for (var w = 0; w < wraps.length; w++) {
-      wraps[w].style.display = label ? "block" : "none";
+      if (label) { reveal(wraps[w]); } else { wraps[w].style.display = "none"; }
     }
 
     /* .is-next on the sub-step the buyer is on, so the Designer can style one card
@@ -2862,7 +2886,7 @@
 
     var boxes = d.querySelectorAll("[data-hl-blocked]");
     for (var i = 0; i < boxes.length; i++) {
-      boxes[i].style.display = blocked ? "block" : "none";
+      if (blocked) { reveal(boxes[i]); } else { boxes[i].style.display = "none"; }
     }
     var says = d.querySelectorAll("[data-hl-blocked-reason]");
     for (var j = 0; j < says.length; j++) { says[j].textContent = reason; }
@@ -3039,7 +3063,7 @@
     if (!wrap || !list) { return; }
     if (ALL.length < 2) { wrap.style.display = "none"; return; }
 
-    wrap.style.display = "block";
+    reveal(wrap);
     while (list.firstChild) { list.removeChild(list.firstChild); }
 
     /* A DROPDOWN, not a row of pills, and a THEMED one rather than a native select.
@@ -3911,7 +3935,7 @@
                : (card.querySelector("[data-hl-index-link]") || card.querySelector("a"));
       if (link) { link.setAttribute("href", items[i].href); }
 
-      card.style.display = "block";
+      reveal(card);
       list.appendChild(card);
     }
     return items.length;
