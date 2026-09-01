@@ -3536,19 +3536,40 @@
     if (!d.querySelector("[data-hl-tab-panel]")) { return; }
     tabsWired = true;
 
+    /* CAPTURE, NOT BUBBLE, AND THAT IS THE WHOLE POINT. The site's own footer code
+       binds a jQuery page-transition handler to every anchor: it calls preventDefault,
+       plays a fade, and then does window.location = href. Bound to the ANCHOR, so in
+       the bubble phase it runs before a handler on document - and this one, seeing
+       defaultPrevented, politely stood aside. The result was that every tab click on
+       DESKTOP was a full page load, Memberstack and the member endpoint and all, with
+       "Loading your home" in the middle of it. The collapsed select on a phone was a
+       different route to the same reload; fixing that one did not touch this.
+
+       Capture runs top-down, so document sees the click before anything bound to the
+       anchor does. stopPropagation then keeps the transition script from ever seeing
+       it. Scoped to links that resolve to a panel ON THIS PAGE, so every other anchor
+       - including the transition script's whole job - is left alone.
+
+       The site-wide footer code is not reachable through the Webflow API, and the
+       portal should not depend on somebody remembering to edit it. */
     d.addEventListener("click", function (ev) {
       /* Modified clicks belong to the browser. A middle click, or cmd-click, means
          "open this somewhere else", and a tab that swallowed it would be a link that
          lies about being a link. */
-      if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey ||
+      if (ev.button !== 0 || ev.metaKey || ev.ctrlKey ||
           ev.shiftKey || ev.altKey) { return; }
       var a = ev.target && ev.target.closest ? ev.target.closest("a[href]") : null;
       if (!a) { return; }
+      /* The home switcher names a DIFFERENT reservation at the same path, so its items
+         would resolve to the current tab and be swallowed. They are real navigations. */
       if (a.hasAttribute("data-hl-menu-item")) { return; }
       var name = tabOfLink(a);
       if (!name || !panelFor(name)) { return; }
-      if (showTab(name, true)) { ev.preventDefault(); }
-    });
+      if (showTab(name, true)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+    }, true);
 
     w.addEventListener("popstate", function () { showTab(tabFromUrl(), false); });
   }
@@ -4247,7 +4268,13 @@
     return tpl;
   }
 
+  /* The class the Designer uses to keep a row template out of the page. Webflow has no
+     way to mark an element "template", so a class is the convention - and the renderer
+     has to know it in order to take it off again. */
+  var TPL_HIDE = "hlp-tpl";
+
   function fillList(list, items) {
+    var forceBlock = false;
     var tpl = templateOf(list);
     if (!tpl) {
       warn("a list has no [data-hl-row] to clone:", list.getAttribute("data-hl-list"));
@@ -4284,8 +4311,24 @@
         links[a].setAttribute("rel", "noopener noreferrer");
       }
 
-      row.style.display = "block";
+      /* THE TEMPLATE IS UNHIDDEN, NOT OVERRIDDEN. This used to set display:block on
+         every clone, which is fine for a row that IS a block and quietly wrong for one
+         that is not: .hlp-doc is display:flex, and an inline style beats a class, so
+         every document and floorplan row rendered as a block with inline children -
+         no gap, no flex-grow - which is why "Floor plan - Ground" and "OPEN" ran
+         together with nothing between them.
+
+         So the clone drops the Designer's hiding class and its inline display, and the
+         row's OWN class decides how it lays out. display:block survives only as a
+         fallback, applied once per list after measuring the first clone, for a
+         template hidden by something this does not know about. */
+      row.classList.remove(TPL_HIDE);
+      row.style.display = "";
       list.appendChild(row);
+
+      if (i === 0 && w.getComputedStyle &&
+          w.getComputedStyle(row).display === "none") { forceBlock = true; }
+      if (forceBlock) { row.style.display = "block"; }
     }
   }
 
