@@ -49,6 +49,11 @@
     "    border:1px solid var(--ring); background:var(--surface); color:var(--ink); }",
     "  button.primary { background:var(--accent); border-color:transparent; color:#fff; }",
     "  button.danger { color:var(--critical); border-color:var(--critical); }",
+    /* Outlined and in the accent, for an action that shows rather than changes. The
+       solid button in this drawer is the one that ends a deal; nothing safe should
+       look like it. */
+    "  button.ghost { background:transparent; border-color:var(--accent); color:var(--accent); }",
+    "  button.ghost:hover { background:var(--surface); }",
     "  button[disabled] { opacity:.5; cursor:default; }",
     "  .row { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }",
     "  .err { color:var(--critical); font-size:.8125rem; min-height:1.2em; }",
@@ -294,13 +299,60 @@
   function label(s) { return String(s || "").replace(/-/g, " ").replace(/_/g, " "); }
   function name(r) { return [r.first_name, r.last_name].filter(Boolean).join(" ") || r.email || "—"; }
 
+  /* A DEADLINE INSIDE THREE DAYS IS AN HOURS-AND-MINUTES PROBLEM, NOT A DAYS ONE.
+     "0d left" told a salesperson nothing they could act on - it means anything from
+     twenty-three hours to two minutes. Under three days the tag shows the whole clock
+     and ticks; past that a date is what a person actually wants to read. */
+  function msLeftOf(v) {
+    if (!v) { return null; }
+    var t = (typeof v === "number") ? v : Number(v);
+    if (isNaN(t) || t <= 0) { t = Date.parse(String(v)); }
+    if (isNaN(t)) { return null; }
+    return t - Date.now();
+  }
+
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+  function clockText(ms) {
+    if (ms === null) { return ""; }
+    if (ms < 0) { ms = 0; }
+    var s = Math.floor(ms / 1000);
+    var dd = Math.floor(s / 86400); s -= dd * 86400;
+    var hh = Math.floor(s / 3600);  s -= hh * 3600;
+    var mm = Math.floor(s / 60);    s -= mm * 60;
+    return (dd ? dd + "d " : "") + pad2(hh) + ":" + pad2(mm) + ":" + pad2(s) + " left";
+  }
+
   function deadline(r) {
     if (!r.deal_stage_due_at) { return '<span class="muted">—</span>'; }
     if (r.overdue) { return '<span class="tag crit">Overdue · ' + esc(day(r.deal_stage_due_at)) + "</span>"; }
     if (r.days_left !== null && r.days_left <= 3) {
-      return '<span class="tag warn">' + r.days_left + "d left</span>";
+      var ms = msLeftOf(r.deal_stage_due_at);
+      /* The due timestamp rides on the element, so the ticker never needs the row it
+         came from - it redraws from the DOM alone and survives any re-render. */
+      return '<span class="tag warn" data-due="' + esc(String(r.deal_stage_due_at)) + '">' +
+             esc(clockText(ms)) + "</span>";
     }
     return '<span class="mono">' + esc(day(r.deal_stage_due_at)) + "</span>";
+  }
+
+  /* ONE INTERVAL FOR THE WHOLE TABLE, started once and never cleared: the console is a
+     staff tool that sits open on a desk all day, and a timer per row would be dozens of
+     them thrown away and rebuilt on every re-render. */
+  var tagTimer = null;
+  function startDeadlineClock() {
+    if (tagTimer) { return; }
+    tagTimer = setInterval(function () {
+      var tags = document.querySelectorAll("[data-due]");
+      for (var i = 0; i < tags.length; i++) {
+        var ms = msLeftOf(tags[i].getAttribute("data-due"));
+        if (ms === null) { continue; }
+        tags[i].textContent = clockText(ms);
+        /* Crossing zero while somebody is looking at the table should look like what it
+           is, without waiting for a refresh. */
+        if (ms <= 0) { tags[i].className = "tag crit"; }
+      }
+    }, 1000);
   }
 
   /* ---------- api ---------- */
@@ -426,6 +478,9 @@
       return;
     }
     em.classList.add("hide");
+    /* Started here rather than at boot, because before the first row is drawn there is
+       nothing carrying data-due for it to tick. Idempotent. */
+    startDeadlineClock();
     tb.innerHTML = items.map(function (r) {
       return '<tr data-uuid="' + esc(r.uuid) + '">' +
         /* THE RESERVATION NUMBER LEADS THE ROW. It is the handle a buyer quotes on the
@@ -508,6 +563,24 @@
         "<dt>Confirmed</dt><dd>" + esc(when(r.confirmed_at)) + "</dd>" +
         "<dt>Portal member</dt><dd>" + (r.has_member ? "yes" : '<span class="muted">not provisioned</span>') + "</dd>" +
       "</dl>" +
+
+      /* FIRST IN THE DRAWER, and that is a deliberate change from 1 Sep. Checking what
+         the buyer actually sees is the thing sales reach for most often and it was
+         buried under the money; a read-only preview is also the safest thing in here,
+         so nothing is risked by putting it where the eye lands. OUTLINED, because the
+         solid button in this drawer is the one that ends a deal. */
+      '<div class="sect"><h2>What the buyer sees</h2>' +
+        '<div class="muted" style="font-size:.8125rem;margin-bottom:10px">' +
+          'Opens their dashboard in a new tab, exactly as they see it. Read-only \u2014 the ' +
+          'signing and pre-qualification links are disabled \u2014 and recorded against your name.' +
+        '</div>' +
+        '<div id="pvBox">' +
+          (r.has_member
+            ? '<button id="pvGo" class="ghost">Preview Buyer\u2019s Dashboard</button>'
+            : '<div class="none">No member yet. A portal appears once the reservation fee is ' +
+              'paid and the member is provisioned.</div>') +
+        '</div>' +
+      '</div>' +
 
       /* The Offer to Purchase link. Built by Xano when the buyer confirms their
          details, then frozen - see the OTP LOCK block in update_reservation. Sales
@@ -638,19 +711,6 @@
 
          Opening it is audited with your name - which is why it is a button and not
          something the drawer does on its own. */
-      '<div class="sect"><h2>What the buyer sees</h2>' +
-        '<div class="muted" style="font-size:.8125rem;margin-bottom:10px">' +
-          'Opens their dashboard in a new tab, exactly as they see it. Read-only \u2014 the ' +
-          'signing and pre-qualification links are disabled \u2014 and recorded against your name.' +
-        '</div>' +
-        '<div id="pvBox">' +
-          (r.has_member
-            ? '<button id="pvGo">Open the buyer\u2019s dashboard</button>'
-            : '<div class="none">No member yet. A portal appears once the reservation fee is ' +
-              'paid and the member is provisioned.</div>') +
-        '</div>' +
-      '</div>' +
-
       /* END THE DEAL. Last in the drawer because it is the only irreversible thing here. */
       (canStage && r.status !== "cancelled"
         ? '<div class="sect"><h2>End this deal</h2>' +
@@ -784,7 +844,7 @@
     }
     if (box) {
       box.innerHTML = '<div class="ok">Opened in a new tab.</div>' +
-        '<button id="pvGo">Open again</button>';
+        '<button id="pvGo" class="ghost">Preview Buyer\u2019s Dashboard</button>';
       var again = $("pvGo");
       if (again) { again.addEventListener("click", function () { openBuyerView(r); }); }
     }
