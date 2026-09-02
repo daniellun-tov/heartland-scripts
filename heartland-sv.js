@@ -1,5 +1,5 @@
 /* ============================================================================
-   heartland-sv.js — Stellenbosch Village (Oakhills Estate)
+   heartland-sv.js — Stellenbosch Village
    Home page behaviour. Source of truth; the Webflow copy lives in
    Home > Page Settings > Footer Code.
 
@@ -9,6 +9,12 @@
    - Swiper is mounted on the unit types slider, which never had one
    - removed: the duplicate sub-nav scroll handler, the dead `activeImage`
      write, and a console.log of the buyer's contact details
+
+   2026-09-02: added the "View badges + context" module (map edge badges,
+   tooltip position line, detail-panel Position & views block). It reads
+   /units (position, aspect, view_tags, view_summary, position_detail) and
+   /views. The same code ships as a Webflow embed on Home until this file is
+   pushed - the module guards on window.__svViews so both can coexist.
    ============================================================================ */
 
 
@@ -619,6 +625,176 @@ window.Wized = window.Wized || [];
     canvas.addEventListener('mouseleave', hide);
     window.addEventListener('scroll', hide, { passive: true });
   });
+
+/* ============================================================
+   View badges + context — map edge badges, tooltip position line,
+   detail-panel "Position & views" block. Data: /units (position,
+   aspect, view_tags, view_summary, position_detail) and /views.
+   ============================================================ */
+(function () {
+  if (window.__svViews) return;
+  window.__svViews = true;
+
+  var API = 'https://x7aj-untn-pq4t.n7e.xano.io/api:p34ccxq4';
+  var SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">';
+  var ICONS = {
+    mountain: SVG + '<path d="M3 18 8.5 8l3.2 5.2 2.3-3.4L21 18z"/><path d="M8.5 8l1.8 2.7"/></svg>',
+    horizon: SVG + '<path d="M2 18h20M6 18l3.5-6h5L18 18M9.5 12h5"/></svg>',
+    vine: SVG + '<circle cx="9" cy="11" r="2.2"/><circle cx="14.5" cy="11" r="2.2"/><circle cx="11.75" cy="15.5" r="2.2"/><path d="M11.75 8.5V4.5c1.6 0 3 .8 4.2 2.2"/></svg>',
+    tree: SVG + '<path d="M12 21v-5M6 16h12l-3-4h2l-3-4h2L12 3 8 8h2l-3 4h2z"/></svg>',
+    reed: SVG + '<path d="M12 21V9M8 21v-6M16 21v-8M12 9c0-3 1-5 3-6M8 15c0-2 .5-4 2-5M16 13c0-2 1-4 3-5M3 21h18"/></svg>',
+    water: SVG + '<path d="M3 11c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 16c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg>',
+    clubhouse: SVG + '<path d="M4 21V10l8-6 8 6v11M9 21v-6h6v6M2 21h20"/></svg>'
+  };
+  var views = [], byKey = {}, units = [], byPlot = {};
+  var canvas, badgeHost, tip, activeKey = null, stickyKey = null;
+
+  function icon(name) { return ICONS[name] || ICONS.mountain; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function tags(u) { var t = u && u.view_tags; return Array.isArray(t) ? t : (typeof t === 'string' && t ? t.split(',').map(function (s) { return s.trim(); }) : []); }
+
+  /* ---------- data ---------- */
+  function setViews(list) {
+    if (!Array.isArray(list) || !list.length) return;
+    views = list.filter(function (v) { return v && v.key && v.is_active !== false; });
+    byKey = {}; views.forEach(function (v) { byKey[v.key] = v; });
+    renderBadges();
+  }
+  function setUnits(list) {
+    if (!Array.isArray(list)) return;
+    units = list; byPlot = {};
+    units.forEach(function (u) { if (u && u.plot_id) byPlot[u.plot_id] = u; });
+    if (activeKey) focus(activeKey);
+  }
+
+  /* ---------- badges ---------- */
+  function chip(key, pop) {
+    var v = byKey[key]; if (!v) return '';
+    return '<span class="ud-chip" tabindex="0">' + icon(v.icon) + '<span>' + esc(v.label) + '</span>' +
+      (pop && v.description ? '<span class="ud-chip_pop">' + esc(v.description) + '</span>' : '') + '</span>';
+  }
+  function renderBadges() {
+    badgeHost = badgeHost || document.querySelector('[data-view-badges]');
+    if (!badgeHost) return;
+    badgeHost.innerHTML = '';
+    views.forEach(function (v) {
+      if (!v.placement || v.placement === 'none') return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'site-plan_badge' + (v.icon === 'horizon' ? ' is-hollow' : '');
+      b.setAttribute('data-view', v.key);
+      b.setAttribute('data-placement', v.placement);
+      b.setAttribute('aria-label', v.label + (v.direction ? ' (' + v.direction + ')' : ''));
+      b.innerHTML = icon(v.icon);
+      b.addEventListener('mouseenter', function () { focus(v.key); showTip(b, v); });
+      b.addEventListener('focus', function () { focus(v.key); showTip(b, v); });
+      b.addEventListener('mouseleave', function () { if (stickyKey !== v.key) { clear(); hideTip(); } });
+      b.addEventListener('blur', function () { if (stickyKey !== v.key) { clear(); hideTip(); } });
+      b.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (stickyKey === v.key) { stickyKey = null; clear(); hideTip(); return; }
+        badgeHost.querySelectorAll('.site-plan_badge.is-active').forEach(function (x) { x.classList.remove('is-active'); });
+        stickyKey = v.key; b.classList.add('is-active'); focus(v.key); showTip(b, v);
+      });
+      badgeHost.appendChild(b);
+    });
+  }
+  function focus(key) {
+    activeKey = key;
+    canvas = canvas || document.querySelector('.site-plan_map-canvas');
+    if (!canvas) return;
+    canvas.classList.add('is-view-focus');
+    units.forEach(function (u) {
+      var p = u.plot_id && document.getElementById(u.plot_id);
+      if (p) p.classList.toggle('is-view-hit', tags(u).indexOf(key) !== -1);
+    });
+  }
+  function clear() {
+    activeKey = null;
+    if (canvas) canvas.classList.remove('is-view-focus');
+    document.querySelectorAll('.site-plan_plot.is-view-hit').forEach(function (p) { p.classList.remove('is-view-hit'); });
+    if (badgeHost) badgeHost.querySelectorAll('.site-plan_badge.is-active').forEach(function (x) { x.classList.remove('is-active'); });
+  }
+  function showTip(b, v) {
+    if (!tip) { tip = document.createElement('div'); tip.className = 'site-plan_badge-tip'; document.body.appendChild(tip); }
+    var n = units.filter(function (u) { return u.status !== 'unreleased' && tags(u).indexOf(v.key) !== -1; }).length;
+    tip.innerHTML = '<div class="site-plan_badge-tip_head">' + esc(v.label) + (v.direction ? '<span class="site-plan_badge-tip_dir">' + esc(v.direction) + '</span>' : '') + '</div>' +
+      '<div>' + esc(v.description) + '</div>' + (n ? '<span class="site-plan_badge-tip_count">' + n + ' home' + (n === 1 ? '' : 's') + ' with this view</span>' : '');
+    var r = b.getBoundingClientRect(), pad = 10;
+    tip.style.left = '0px'; tip.style.top = '0px'; tip.classList.add('is-visible');
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    var x = r.left + r.width / 2 > window.innerWidth / 2 ? r.left - w - pad : r.right + pad;
+    var y = Math.min(Math.max(pad, r.top + r.height / 2 - h / 2), window.innerHeight - h - pad);
+    tip.style.left = Math.max(pad, x) + 'px'; tip.style.top = y + 'px';
+  }
+  function hideTip() { if (tip) tip.classList.remove('is-visible'); }
+  document.addEventListener('click', function (e) {
+    if (stickyKey && !e.target.closest('.site-plan_badge')) { stickyKey = null; clear(); hideTip(); }
+  });
+  window.addEventListener('scroll', hideTip, { passive: true });
+
+  /* ---------- plot tooltip extras ---------- */
+  function bindTooltip() {
+    canvas = canvas || document.querySelector('.site-plan_map-canvas');
+    var root = document.querySelector('[data-tooltip="root"]');
+    if (!canvas || !root) return;
+    var pos = root.querySelector('[data-tooltip="position"]'), vw = root.querySelector('[data-tooltip="views"]');
+    if (!pos && !vw) return;
+    canvas.addEventListener('mouseover', function (e) {
+      var path = e.target.closest && e.target.closest('path[id]');
+      var u = path && byPlot[path.id];
+      if (pos) pos.textContent = u && u.position ? u.position : '';
+      if (vw) vw.innerHTML = u ? tags(u).slice(0, 3).map(function (k) { return chip(k, false); }).join('') : '';
+    });
+  }
+
+  /* ---------- detail panel ---------- */
+  function renderPanel(u) {
+    var box = document.querySelector('[data-unit-context]');
+    if (!box) return;
+    if (!u || !(u.position || tags(u).length)) { box.hidden = true; return; }
+    box.hidden = false;
+    var t = box.querySelector('[data-unit-position]'), d = box.querySelector('[data-unit-position-detail]'),
+        c = box.querySelector('[data-unit-views]'), s = box.querySelector('[data-unit-view-summary]');
+    if (t) t.textContent = (u.position || '') + (u.aspect ? ' · ' + u.aspect : '');
+    if (d) d.textContent = u.position_detail || '';
+    if (c) c.innerHTML = tags(u).map(function (k) { return chip(k, true); }).join('');
+    if (s) s.textContent = u.view_summary || '';
+  }
+  function watchSelection(Wized) {
+    var last = null;
+    function check() {
+      var u = null; try { u = Wized.data.v.selectedUnit; } catch (e) {}
+      if (u !== last) { last = u; renderPanel(u); }
+    }
+    try { Wized.reactivity.watch(function () { return Wized.data.v.selectedUnit; }, function (u) { last = u; renderPanel(u); }); } catch (e) {}
+    var wrap = document.querySelector('.site-plan_detail-wrap');
+    if (wrap && window.MutationObserver) new MutationObserver(function () { if (wrap.classList.contains('is-open')) setTimeout(check, 30); }).observe(wrap, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  /* ---------- boot ---------- */
+  var booted = false;
+  function boot(Wized) {
+    if (booted) return; booted = true;
+    bindTooltip();
+    watchSelection(Wized);
+    renderBadges();
+  }
+  window.Wized = window.Wized || [];
+  window.Wized.push(function (Wized) {
+    function pull(name, fn) { try { var r = Wized.data.r[name]; if (r && Array.isArray(r.data)) fn(r.data); } catch (e) {} }
+    pull('getViews', setViews); pull('getUnits', setUnits);
+    Wized.on('requestend', function (r) {
+      if (r.name === 'getViews') pull('getViews', setViews);
+      if (r.name === 'getUnits') pull('getUnits', setUnits);
+    });
+    setTimeout(function () {
+      if (!views.length) fetch(API + '/views').then(function (r) { return r.json(); }).then(setViews).catch(function () {});
+      if (!units.length) fetch(API + '/units').then(function (r) { return r.json(); }).then(setUnits).catch(function () {});
+    }, 4000);
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { boot(Wized); }); else boot(Wized);
+  });
+})();
 
 /* ============================================================
    Reservation flow - BOL / REDi
