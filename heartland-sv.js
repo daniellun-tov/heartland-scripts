@@ -15,6 +15,10 @@
    /units (position, aspect, view_tags, view_summary, position_detail) and
    /views. The same code ships as a Webflow embed on Home until this file is
    pushed - the module guards on window.__svViews so both can coexist.
+
+   2026-09-03: the View facet is now tag-based and shared with the badges via
+   window.svxFacets, so clicking a badge applies the matching View filter; the
+   badge hover card dodges the plots it highlights.
    ============================================================================ */
 
 
@@ -419,25 +423,42 @@ window.Wized = window.Wized || [];
 
 /* ============================================================
    Extra facets (View / Position / Garage Type) refining the controller's output
+
+   The View facet is TAG-based: its values are sv_views keys carried in
+   unit.view_tags, labelled from /views. That makes it 1:1 with the six map
+   badges, so a badge and its chip always agree on the same set of homes.
+   window.svxFacets exposes toggle/isActive/onChange so the badges module can
+   drive the same state instead of keeping a second one.
    ============================================================ */
 (function(){
+  if(window.__svxFacets)return;   /* an older copy may still ship from a page embed - first one wins */
+  window.__svxFacets=true;
   window.Wized=window.Wized||[];
   window.Wized.push(function(Wized){
     var FACETS=[
-      {key:'view',label:'View',fields:['view']},
+      {key:'view',label:'View',tag:'view_tags'},
       {key:'position',label:'Position',fields:['aspect','position']},
       {key:'garage',label:'Garage Type',fields:['garage_type','garageType']}
     ];
-    var state={},lastBase=null;
+    var state={},lastBase=null,listeners=[];
     FACETS.forEach(function(f){state[f.key]=new Set();});
     function units(){try{return (Wized.data.r.getUnits&&Wized.data.r.getUnits.data)||[];}catch(e){return [];}}
-    function val(u,f){for(var i=0;i<f.fields.length;i++){var v=u[f.fields[i]];if(v!=null&&v!=='')return String(v);}return null;}
+    function views(){try{return (Wized.data.r.getViews&&Wized.data.r.getViews.data)||window.__svViewList||[];}catch(e){return window.__svViewList||[];}}
+    /* every value a unit carries for this facet - one for a plain field, many for a tag list */
+    function vals(u,f){
+      if(f.tag){
+        var t=u[f.tag];
+        if(Array.isArray(t))return t;
+        return typeof t==='string'&&t?t.split(',').map(function(s){return s.trim();}):[];
+      }
+      for(var i=0;i<f.fields.length;i++){var v=u[f.fields[i]];if(v!=null&&v!=='')return [String(v)];}
+      return [];
+    }
     function anyActive(){return FACETS.some(function(f){return state[f.key].size>0;});}
     function matches(u){
       return FACETS.every(function(f){
         if(!state[f.key].size)return true;
-        var v=val(u,f);
-        return !!v&&state[f.key].has(v);
+        return vals(u,f).some(function(v){return state[f.key].has(v);});
       });
     }
     function setCount(n){
@@ -455,6 +476,7 @@ window.Wized = window.Wized || [];
         if(p)p.classList.toggle('is-dimmed',!keepIds[u.plot_id]);
       });
       setCount(keep.length);
+      listeners.forEach(function(fn){try{fn(state);}catch(e){}});
     }
     /* after any click on the main controller's own controls, re-capture its output as our base */
     document.addEventListener('click',function(e){
@@ -469,16 +491,30 @@ window.Wized = window.Wized || [];
         },30);
       }
     });
+    /* chip options: tag facets follow the /views order and labels, plain facets are alphabetical */
+    function options(f,list){
+      var counts={};
+      list.forEach(function(u){vals(u,f).forEach(function(v){if(v)counts[v]=(counts[v]||0)+1;});});
+      if(f.tag){
+        return views().filter(function(v){return v&&v.key&&v.is_active!==false&&counts[v.key];})
+          .sort(function(a,b){return (a.sort||0)-(b.sort||0);})
+          .map(function(v){return {value:v.key,label:v.label||v.key,count:counts[v.key]};});
+      }
+      return Object.keys(counts).sort().map(function(k){
+        return {value:k,label:k.charAt(0).toUpperCase()+k.slice(1),count:counts[k]};
+      });
+    }
     function build(){
       var host=document.querySelector('.unit-filter_more-list');
-      if(!host||host.querySelector('[data-svx]'))return;
-      var list=units();
+      if(!host)return;
+      /* count only what the list can actually show, so chips agree with the
+         results count and with the badge hover cards */
+      var list=units().filter(function(u){return u&&u.status!=='unreleased';});
       if(!list.length)return;
       FACETS.forEach(function(f){
-        var vals={};
-        list.forEach(function(u){var v=val(u,f);if(v)vals[v]=(vals[v]||0)+1;});
-        var keys=Object.keys(vals).sort();
-        if(!keys.length)return; /* no data for this facet yet - skip group */
+        if(host.querySelector('[data-svx="'+f.key+'"]'))return; /* this group is already built */
+        var opts=options(f,list);
+        if(!opts.length)return; /* no data for this facet yet - try again on the next pass */
         var title=document.createElement('p');
         title.className='unit-filter_group-title text-style-label';
         title.setAttribute('data-svx',f.key);
@@ -486,40 +522,55 @@ window.Wized = window.Wized || [];
         var chips=document.createElement('div');
         chips.className='unit-filter_chips';
         chips.setAttribute('data-svx',f.key);
-        keys.forEach(function(k){
+        opts.forEach(function(o){
           var chip=document.createElement('div');
           chip.className='unit-filter_chip';
           chip.setAttribute('data-svx-filter',f.key);
-          chip.setAttribute('data-svx-value',k);
+          chip.setAttribute('data-svx-value',o.value);
           var lbl=document.createElement('div');
-          lbl.textContent=k.charAt(0).toUpperCase()+k.slice(1);
+          lbl.textContent=o.label;
           chip.appendChild(lbl);
           var cnt=document.createElement('div');
           cnt.className='unit-filter_count';
-          cnt.textContent=vals[k];
+          cnt.textContent=o.count;
           chip.appendChild(cnt);
-          chip.addEventListener('click',function(){
-            var set=state[f.key];
-            if(set.has(k)){set.delete(k);}else{set.add(k);}
-            chip.classList.toggle('is-active',set.has(k));
-            refine();
-          });
+          chip.addEventListener('click',function(){toggle(f.key,o.value);});
           chips.appendChild(chip);
         });
         host.appendChild(title);
         host.appendChild(chips);
       });
     }
+    /* single entry point for a chip click OR a map badge click */
+    function toggle(key,value,on){
+      var set=state[key];
+      if(!set)return false;
+      var want=on===undefined?!set.has(value):!!on;
+      if(want)set.add(value);else set.delete(value);
+      document.querySelectorAll('[data-svx-filter="'+key+'"]').forEach(function(ch){
+        if(ch.getAttribute('data-svx-value')===String(value))ch.classList.toggle('is-active',want);
+      });
+      refine();
+      return want;
+    }
+    window.svxFacets={
+      toggle:toggle,
+      isActive:function(k,v){return !!(state[k]&&state[k].has(v));},
+      active:function(k){return state[k]?Array.from(state[k]):[];},   /* Sets are not array-like - slice() would always give [] */
+      onChange:function(fn){listeners.push(fn);fn(state);},
+      rebuild:build
+    };
     Wized.on('requestend',function(r){
-      if(r.name==='getUnits'){
+      if(r.name==='getUnits'||r.name==='getViews'){
         setTimeout(function(){
-          try{lastBase=Wized.data.v.visibleUnits||[];}catch(e){lastBase=[];}
+          if(r.name==='getUnits'){try{lastBase=Wized.data.v.visibleUnits||[];}catch(e){lastBase=[];}}
           build();
         },250);
       }
     });
-    /* fallback in case the request already finished before this ran */
+    /* fallbacks in case a request finished before this ran, or /views arrives late */
     setTimeout(function(){build();},4000);
+    setTimeout(function(){build();},6000);
   });
 })();
 
@@ -630,6 +681,10 @@ window.Wized = window.Wized || [];
    View badges + context — map edge badges, tooltip position line,
    detail-panel "Position & views" block. Data: /units (position,
    aspect, view_tags, view_summary, position_detail) and /views.
+
+   A badge click toggles the matching chip in the View filter facet
+   (window.svxFacets), so the map and the filter panel are one state.
+   Hover is a non-destructive preview of the same set.
    ============================================================ */
 (function () {
   if (window.__svViews) return;
@@ -647,18 +702,21 @@ window.Wized = window.Wized || [];
     clubhouse: SVG + '<path d="M4 21V10l8-6 8 6v11M9 21v-6h6v6M2 21h20"/></svg>'
   };
   var views = [], byKey = {}, units = [], byPlot = {};
-  var canvas, badgeHost, tip, activeKey = null, stickyKey = null;
+  var canvas, badgeHost, tip, activeKey = null, synced = false;
 
   function icon(name) { return ICONS[name] || ICONS.mountain; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function tags(u) { var t = u && u.view_tags; return Array.isArray(t) ? t : (typeof t === 'string' && t ? t.split(',').map(function (s) { return s.trim(); }) : []); }
+  function filtered() { try { return window.svxFacets ? window.svxFacets.active('view').length > 0 : false; } catch (e) { return false; } }
 
   /* ---------- data ---------- */
   function setViews(list) {
     if (!Array.isArray(list) || !list.length) return;
     views = list.filter(function (v) { return v && v.key && v.is_active !== false; });
     byKey = {}; views.forEach(function (v) { byKey[v.key] = v; });
+    window.__svViewList = views;          // the facets module labels its View chips from this
     renderBadges();
+    if (window.svxFacets && window.svxFacets.rebuild) window.svxFacets.rebuild();
   }
   function setUnits(list) {
     if (!Array.isArray(list)) return;
@@ -684,20 +742,37 @@ window.Wized = window.Wized || [];
       b.className = 'site-plan_badge' + (v.icon === 'horizon' ? ' is-hollow' : '');
       b.setAttribute('data-view', v.key);
       b.setAttribute('data-placement', v.placement);
-      b.setAttribute('aria-label', v.label + (v.direction ? ' (' + v.direction + ')' : ''));
+      b.setAttribute('aria-pressed', 'false');
+      b.setAttribute('aria-label', 'Show homes with a ' + v.label + ' view' + (v.direction ? ' (' + v.direction + ')' : ''));
       b.innerHTML = icon(v.icon);
-      b.addEventListener('mouseenter', function () { focus(v.key); showTip(b, v); });
-      b.addEventListener('focus', function () { focus(v.key); showTip(b, v); });
-      b.addEventListener('mouseleave', function () { if (stickyKey !== v.key) { clear(); hideTip(); } });
-      b.addEventListener('blur', function () { if (stickyKey !== v.key) { clear(); hideTip(); } });
+      b.addEventListener('mouseenter', function () { preview(v); });
+      b.addEventListener('focus', function () { preview(v); });
+      b.addEventListener('mouseleave', function () { clear(); hideTip(); });
+      b.addEventListener('blur', function () { clear(); hideTip(); });
       b.addEventListener('click', function (e) {
         e.preventDefault();
-        if (stickyKey === v.key) { stickyKey = null; clear(); hideTip(); return; }
-        badgeHost.querySelectorAll('.site-plan_badge.is-active').forEach(function (x) { x.classList.remove('is-active'); });
-        stickyKey = v.key; b.classList.add('is-active'); focus(v.key); showTip(b, v);
+        if (window.svxFacets) {
+          window.svxFacets.toggle('view', v.key);   // one shared state: chip + badge + map
+          clear();                                   // the filter's own dimming takes over
+          showTip(b, v);
+        }
       });
       badgeHost.appendChild(b);
     });
+    syncBadges();
+  }
+  /* badges mirror the View facet, however it was changed */
+  function syncBadges() {
+    if (!badgeHost) return;
+    badgeHost.querySelectorAll('.site-plan_badge').forEach(function (b) {
+      var on = !!(window.svxFacets && window.svxFacets.isActive('view', b.getAttribute('data-view')));
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+  function preview(v) {
+    if (!filtered()) focus(v.key);   // no double-dimming once a filter is on
+    showTipFor(v);
   }
   function focus(key) {
     activeKey = key;
@@ -713,24 +788,60 @@ window.Wized = window.Wized || [];
     activeKey = null;
     if (canvas) canvas.classList.remove('is-view-focus');
     document.querySelectorAll('.site-plan_plot.is-view-hit').forEach(function (p) { p.classList.remove('is-view-hit'); });
-    if (badgeHost) badgeHost.querySelectorAll('.site-plan_badge.is-active').forEach(function (x) { x.classList.remove('is-active'); });
+  }
+
+  /* ---------- hover card ---------- */
+  /* union of the plots this card is talking about, so the card can dodge them */
+  function litRect() {
+    var els = document.querySelectorAll('.site-plan_plot.is-view-hit');
+    if (!els.length) els = document.querySelectorAll('.site-plan_plot:not(.is-dimmed)');
+    var l = 1e9, t = 1e9, r = -1e9, b = -1e9, n = 0;
+    els.forEach(function (p) {
+      var q = p.getBoundingClientRect();
+      if (!q.width && !q.height) return;
+      n++; l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom);
+    });
+    return n ? { left: l, top: t, right: r, bottom: b } : null;
+  }
+  function overlap(a, b) {
+    if (!b) return 0;
+    var w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    var h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    return w > 0 && h > 0 ? w * h : 0;
+  }
+  /* try the four sides of the badge, keep the one that covers the least of the lit plots */
+  function place(b, w, h) {
+    var q = b.getBoundingClientRect(), pad = 12, vw = window.innerWidth, vh = window.innerHeight;
+    var cx = q.left + q.width / 2, cy = q.top + q.height / 2, lit = litRect(), best = null;
+    [[q.left - w - pad, cy - h / 2], [q.right + pad, cy - h / 2], [cx - w / 2, q.top - h - pad], [cx - w / 2, q.bottom + pad]]
+      .forEach(function (c) {
+        var x = Math.min(Math.max(pad, c[0]), Math.max(pad, vw - w - pad));
+        var y = Math.min(Math.max(pad, c[1]), Math.max(pad, vh - h - pad));
+        var rect = { left: x, top: y, right: x + w, bottom: y + h };
+        /* penalise being shoved back into the viewport as if it were overlap */
+        var score = overlap(rect, lit) + (Math.abs(x - c[0]) * h + Math.abs(y - c[1]) * w) * 0.5;
+        if (!best || score < best.score) best = { score: score, x: x, y: y };
+      });
+    return best;
+  }
+  function showTipFor(v) {
+    var b = badgeHost && badgeHost.querySelector('.site-plan_badge[data-view="' + v.key + '"]');
+    if (b) showTip(b, v);
   }
   function showTip(b, v) {
     if (!tip) { tip = document.createElement('div'); tip.className = 'site-plan_badge-tip'; document.body.appendChild(tip); }
     var n = units.filter(function (u) { return u.status !== 'unreleased' && tags(u).indexOf(v.key) !== -1; }).length;
+    var on = !!(window.svxFacets && window.svxFacets.isActive('view', v.key));
     tip.innerHTML = '<div class="site-plan_badge-tip_head">' + esc(v.label) + (v.direction ? '<span class="site-plan_badge-tip_dir">' + esc(v.direction) + '</span>' : '') + '</div>' +
-      '<div>' + esc(v.description) + '</div>' + (n ? '<span class="site-plan_badge-tip_count">' + n + ' home' + (n === 1 ? '' : 's') + ' with this view</span>' : '');
-    var r = b.getBoundingClientRect(), pad = 10;
-    tip.style.left = '0px'; tip.style.top = '0px'; tip.classList.add('is-visible');
-    var w = tip.offsetWidth, h = tip.offsetHeight;
-    var x = r.left + r.width / 2 > window.innerWidth / 2 ? r.left - w - pad : r.right + pad;
-    var y = Math.min(Math.max(pad, r.top + r.height / 2 - h / 2), window.innerHeight - h - pad);
-    tip.style.left = Math.max(pad, x) + 'px'; tip.style.top = y + 'px';
+      '<div>' + esc(v.description) + '</div>' +
+      (n ? '<span class="site-plan_badge-tip_count">' + n + ' home' + (n === 1 ? '' : 's') + ' with this view</span>' : '') +
+      '<span class="site-plan_badge-tip_hint">' + (on ? 'Click to clear this filter' : 'Click to filter to these homes') + '</span>';
+    tip.style.left = '0px'; tip.style.top = '0px';
+    tip.classList.add('is-visible');
+    var p = place(b, tip.offsetWidth, tip.offsetHeight);
+    tip.style.left = p.x + 'px'; tip.style.top = p.y + 'px';
   }
   function hideTip() { if (tip) tip.classList.remove('is-visible'); }
-  document.addEventListener('click', function (e) {
-    if (stickyKey && !e.target.closest('.site-plan_badge')) { stickyKey = null; clear(); hideTip(); }
-  });
   window.addEventListener('scroll', hideTip, { passive: true });
 
   /* ---------- plot tooltip extras ---------- */
@@ -774,11 +885,18 @@ window.Wized = window.Wized || [];
 
   /* ---------- boot ---------- */
   var booted = false;
+  function hookFacets() {
+    if (synced || !window.svxFacets) return;
+    synced = true;
+    window.svxFacets.onChange(syncBadges);
+  }
   function boot(Wized) {
     if (booted) return; booted = true;
     bindTooltip();
     watchSelection(Wized);
     renderBadges();
+    hookFacets();
+    var tries = 0, t = setInterval(function () { hookFacets(); if (synced || ++tries > 40) clearInterval(t); }, 250);
   }
   window.Wized = window.Wized || [];
   window.Wized.push(function (Wized) {
