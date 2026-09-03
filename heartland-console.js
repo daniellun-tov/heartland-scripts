@@ -88,8 +88,8 @@
     "    /* shape + type */",
     "    --radius:0.5rem;          /* --radius--medium on the site */",
     "    --radius-sm:0.25rem;      /* --radius--small */",
-    "    --font:\"Source Sans Pro\", system-ui, -apple-system, \"Segoe UI\", sans-serif;",
-    "    --font-display:\"Source Sans Pro\", system-ui, -apple-system, \"Segoe UI\", sans-serif;",
+    "    --font:\"Source Sans 3\", \"Source Sans Pro\", system-ui, -apple-system, \"Segoe UI\", sans-serif;",
+    "    --font-display:\"Source Sans 3\", \"Source Sans Pro\", system-ui, -apple-system, \"Segoe UI\", sans-serif;",
     "    --tracking:0.08em;",
     "  }",
     "",
@@ -171,16 +171,6 @@
     "  /* ── the brand mark ───────────────────────────────────────────────────────── */",
     "  /* White-label note: the wordmark reads its text from data-brand-label on the",
     "     host, so a rebrand changes no markup. */",
-    "  .brandmark {",
-    "    display:flex; align-items:center; gap:8px;",
-    "    font:600 .6875rem/1 var(--font-display);",
-    "    text-transform:uppercase; letter-spacing:var(--tracking);",
-    "    color:var(--ink-2); margin-bottom:6px;",
-    "  }",
-    "  .brandmark::before {",
-    "    content:\"\"; width:18px; height:3px; border-radius:2px;",
-    "    background:var(--brand); flex:0 0 auto;",
-    "  }",
     "",
     "  /* ── the scheme switch ────────────────────────────────────────────────────── */",
     "  .schemeswitch {",
@@ -199,9 +189,7 @@
     "  }",
     "",
     "  /* ── login ────────────────────────────────────────────────────────────────── */",
-    "  #login { max-width:400px; margin:10vh auto; padding:28px; }",
-    "  #login p { color:var(--ink-2); font-size:.875rem; margin:0 0 18px; }",
-    "  #login .schemeswitch { margin-top:18px; }",
+
     "",
     "  /* ── header ───────────────────────────────────────────────────────────────── */",
     "  header.top {",
@@ -473,8 +461,7 @@
     "    align-items:center; justify-content:center; flex:0 0 auto;",
     "  }",
     "  .iconbtn svg { width:17px; height:17px; display:block; }",
-    "  #login .iconbtn { position:absolute; top:18px; right:18px; }",
-    "  #login { position:relative; }",
+
     "",
     "  .modal { position:fixed; inset:0; z-index:50; display:none; }",
     "  .modal.open { display:block; }",
@@ -497,33 +484,133 @@
     "    .kpi .k-value { font-size:1.4rem; }",
     "    .hbar { grid-template-columns:minmax(72px,40%) 1fr auto; }",
     "  }",
+    "",
+    "  /* ── the mark ─────────────────────────────────────────────────────────────── */",
+    "  /* The logomark is four vertical bars inside an arch. The bars are what the boot",
+    "     animation borrows, so the loading state and the logo are visibly the same",
+    "     object rather than a spinner that happens to sit near a logo. */",
+    "  .mark { display:block; color:var(--brand); }",
+    "  .mark svg { display:block; width:100%; height:100%; }",
+    "",
+    "  .brandmark {",
+    "    display:flex; align-items:center; gap:9px;",
+    "    font:600 .6875rem/1 var(--font-display);",
+    "    text-transform:uppercase; letter-spacing:var(--tracking);",
+    "    color:var(--ink-2);",
+    "  }",
+    "  .brandmark .bm-icon { width:22px; height:17px; flex:0 0 auto; }",
+    "  .brandmark.is-big {",
+    "    flex-direction:column; gap:14px; font-size:.75rem; margin-bottom:6px;",
+    "  }",
+    "  .brandmark.is-big .bm-icon { width:56px; height:43px; }",
+    "",
+    "  /* ── boot ─────────────────────────────────────────────────────────────────── */",
+    "  /* Paints before anything else and covers the whole viewport, so the gap between",
+    "     \"script ran\" and \"data arrived\" is a considered moment rather than an empty",
+    "     shell. It is in the markup, not built in script, so it is on screen at first",
+    "     paint. */",
+    "  .boot {",
+    "    position:fixed; inset:0; z-index:60;",
+    "    display:flex; flex-direction:column; align-items:center; justify-content:center;",
+    "    gap:20px; background:var(--plane);",
+    "  }",
+    "  .boot.gone { display:none; }",
+    "  /* Widths and gaps are the mark's own ratio (24.4 : 11.1), and each bar keeps its",
+    "     own height from the mark - so the silhouette stays recognisable through the",
+    "     whole animation instead of collapsing into a generic equaliser. */",
+    "  .boot-bars { display:flex; align-items:flex-end; gap:12px; height:68px; }",
+    "  .boot-bars i {",
+    "    display:block; width:26px; background:var(--brand); border-radius:3px;",
+    "    transform-origin:bottom; animation:hl-boot 1.25s ease-in-out infinite;",
+    "  }",
+    "  .boot-bars i:nth-child(1) { height:39%; animation-delay:0s; }",
+    "  .boot-bars i:nth-child(2) { height:70%; animation-delay:.11s; }",
+    "  .boot-bars i:nth-child(3) { height:100%; animation-delay:.22s; }",
+    "  .boot-bars i:nth-child(4) { height:69%; animation-delay:.33s; }",
+    "  /* scaleY rather than height: it is composited, and it cannot reflow the row. */",
+    "  @keyframes hl-boot {",
+    "    0%, 100% { transform:scaleY(.72); opacity:.6; }",
+    "    50%      { transform:scaleY(1);   opacity:1; }",
+    "  }",
+    "  .boot-word {",
+    "    font:600 .6875rem/1 var(--font-display);",
+    "    text-transform:uppercase; letter-spacing:var(--tracking); color:var(--ink-2);",
+    "  }",
+    "  @media (prefers-reduced-motion: reduce) {",
+    "    /* Still says \"working\", without four things moving. */",
+    "    .boot-bars i { animation:hl-boot-fade 1.6s ease-in-out infinite; }",
+    "    @keyframes hl-boot-fade { 0%,100% { opacity:.4; } 50% { opacity:1; } }",
+    "  }",
+    "",
+    "  /* ── sign in ──────────────────────────────────────────────────────────────── */",
+    "  #loginWrap {",
+    "    min-height:100vh; display:flex; align-items:center; justify-content:center;",
+    "    padding:24px;",
+    "  }",
+    "  #login {",
+    "    position:relative; width:100%; max-width:380px; margin:0; padding:32px 28px 28px;",
+    "    text-align:center;",
+    "  }",
+    "  #login h1 { margin:0 0 6px; }",
+    "  #login p { color:var(--ink-2); font-size:.875rem; margin:0 0 22px; }",
+    "  /* Every control is the same width, so the card reads as one column rather than a",
+    "     form with a button hanging off the bottom-left of it. */",
+    "  #login .field { text-align:left; margin-bottom:14px; }",
+    "  #login label { margin-bottom:6px; }",
+    "  #login input { width:100%; }",
+    "  #login button.primary { width:100%; margin-top:4px; padding:11px 14px; }",
+    "  #login .err, #login .ok { margin-top:12px; }",
+    "  #login .iconbtn { position:absolute; top:14px; right:14px; }",
+    "",
+    "  /* Password reveal. A staff member typing a long password into a shared laptop",
+    "     needs to be able to check it; the button is inside the field so it cannot be",
+    "     mistaken for a second control. */",
+    "  .pwbox { position:relative; }",
+    "  .pwbox input { padding-right:70px; }",
+    "  .pwbox .pwtoggle {",
+    "    position:absolute; right:5px; top:50%; transform:translateY(-50%);",
+    "    padding:5px 9px; font-size:.75rem; font-weight:600; border:0; background:none;",
+    "    color:var(--ink-2); border-radius:var(--radius-sm);",
+    "  }",
+    "  .pwbox .pwtoggle:hover { background:var(--plane-hover); color:var(--ink); }",
     "</style>",
     "</head>",
     "<body>",
     "",
+    "<!-- ─────────── boot ─────────── -->",
+    "<div class=\"boot\" id=\"boot\" role=\"status\" aria-live=\"polite\" aria-label=\"Loading\">",
+    "  <div class=\"boot-bars\" aria-hidden=\"true\"><i></i><i></i><i></i><i></i></div>",
+    "  <div class=\"boot-word\" id=\"bootWord\">Heartland</div>",
+    "</div>",
+    "",
     "<!-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 login \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->",
-    "<div id=\"login\" class=\"card\">",
+    "<div id=\"loginWrap\">",
+    "  <div id=\"login\" class=\"card\">",
     "  <button type=\"button\" class=\"iconbtn\" data-settings-open aria-label=\"Settings\" title=\"Settings\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"3\"></circle><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z\"></path></svg></button>",
-    "  <div class=\"brandmark\">Heartland</div>",
-    "  <h1>Sales console</h1>",
-    "  <p>Sign in with your own account. Everything you change is recorded against your name.</p>",
-    "  <div style=\"margin-bottom:12px\">",
-    "    <label for=\"email\">Email</label>",
-    "    <input id=\"email\" type=\"email\" autocomplete=\"username\" spellcheck=\"false\">",
+    "    <div class=\"brandmark is-big\"><span class=\"bm-icon mark\"><svg viewBox=\"0 0 220 167\" fill=\"currentColor\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M150.8 54.1191V140.439L175.24 138.299V62.1391L150.8 54.1191Z\"/><path d=\"M202.76 29.74L117.33 1.25C114.83 0.43 112.25 0 109.66 0C107.07 0 104.49 0.42 101.99 1.25L16.56 29.74C6.66 33.05 0 42.3 0 52.73V135.59C0 148.15 9.59 158.63 22.12 159.72L68.52 163.77V92.04L44.07 100.42V149.49L23.17 147.66C16.86 147.11 12.11 141.92 12.11 135.59V52.73C12.11 47.51 15.43 42.88 20.38 41.23L105.83 12.74C107.07 12.33 108.35 12.11 109.66 12.11C110.97 12.11 112.25 12.33 113.49 12.74L198.93 41.23C203.88 42.88 207.22 47.51 207.22 52.73V135.59C207.22 141.91 202.46 147.11 196.15 147.66L187.58 148.41L139.67 152.6V50.4L115.24 42.27V166.89L197.21 159.73C209.74 158.64 219.34 148.16 219.34 135.6V52.73C219.34 42.3 212.66 33.04 202.77 29.74H202.76Z\"/><path d=\"M94.7803 45.4495L91.4503 46.5895L79.6503 50.6395L44.0703 62.8295V88.6595L79.6503 76.4695V164.75L104.09 166.89V42.2695L94.7803 45.4495Z\"/></svg></span><span class=\"bm-word\">Heartland</span></div>",
+    "    <h1>Sales console</h1>",
+    "    <p>Sign in with your own account. Everything you change is recorded against your name.</p>",
+    "    <div class=\"field\">",
+    "      <label for=\"email\">Email</label>",
+    "      <input id=\"email\" type=\"email\" autocomplete=\"username\" spellcheck=\"false\">",
+    "    </div>",
+    "    <div class=\"field\">",
+    "      <label for=\"pw\">Password</label>",
+    "      <div class=\"pwbox\">",
+    "        <input id=\"pw\" type=\"password\" autocomplete=\"current-password\">",
+    "        <button type=\"button\" class=\"pwtoggle\" id=\"pwToggle\" aria-pressed=\"false\" aria-controls=\"pw\" aria-label=\"Show password\">Show</button>",
+    "      </div>",
+    "    </div>",
+    "    <button class=\"primary\" id=\"signin\">Sign in</button>",
+    "    <div class=\"err\" id=\"loginErr\"></div>",
     "  </div>",
-    "  <div style=\"margin-bottom:16px\">",
-    "    <label for=\"pw\">Password</label>",
-    "    <input id=\"pw\" type=\"password\" autocomplete=\"current-password\">",
-    "  </div>",
-    "  <button class=\"primary\" id=\"signin\">Sign in</button>",
-    "  <div class=\"err\" id=\"loginErr\" style=\"margin-top:12px\"></div>",
     "</div>",
     "",
     "<!-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 app \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->",
     "<div class=\"wrap hide\" id=\"app\">",
     "  <header class=\"top\">",
     "    <div>",
-    "      <div class=\"brandmark\">Heartland</div>",
+    "      <div class=\"brandmark\"><span class=\"bm-icon mark\"><svg viewBox=\"0 0 220 167\" fill=\"currentColor\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M150.8 54.1191V140.439L175.24 138.299V62.1391L150.8 54.1191Z\"/><path d=\"M202.76 29.74L117.33 1.25C114.83 0.43 112.25 0 109.66 0C107.07 0 104.49 0.42 101.99 1.25L16.56 29.74C6.66 33.05 0 42.3 0 52.73V135.59C0 148.15 9.59 158.63 22.12 159.72L68.52 163.77V92.04L44.07 100.42V149.49L23.17 147.66C16.86 147.11 12.11 141.92 12.11 135.59V52.73C12.11 47.51 15.43 42.88 20.38 41.23L105.83 12.74C107.07 12.33 108.35 12.11 109.66 12.11C110.97 12.11 112.25 12.33 113.49 12.74L198.93 41.23C203.88 42.88 207.22 47.51 207.22 52.73V135.59C207.22 141.91 202.46 147.11 196.15 147.66L187.58 148.41L139.67 152.6V50.4L115.24 42.27V166.89L197.21 159.73C209.74 158.64 219.34 148.16 219.34 135.6V52.73C219.34 42.3 212.66 33.04 202.77 29.74H202.76Z\"/><path d=\"M94.7803 45.4495L91.4503 46.5895L79.6503 50.6395L44.0703 62.8295V88.6595L79.6503 76.4695V164.75L104.09 166.89V42.2695L94.7803 45.4495Z\"/></svg></span><span class=\"bm-word\">Heartland</span></div>",
     "      <h1>Sales console</h1>",
     "      <div class=\"who\" id=\"who\">\u2014</div>",
     "    </div>",
@@ -670,6 +757,16 @@
   var BRANDS = {
     heartland: {
       label: "Heartland",
+      /* THE CONSOLE BRINGS ITS OWN TYPEFACE. Source Sans Pro is a Google font on the
+         marketing site, so the brochure pages load it and this one does not -
+         /sales-console carries almost none of the site's chrome. "Source Sans 3" is
+         the family Google serves under that design today; the token stack names both,
+         so a page that already has the old one still gets the right face. */
+      fontHref: "https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap",
+      /* A brand may point at its own logo instead of the built-in mark. An image URL,
+         not markup - config that arrives from a page should never be injected as HTML,
+         even when that page is trusted. */
+      markUrl: null,
       /* The base theme IS Heartland. Nothing to override - this is the point. */
       light: {},
       dark: {}
@@ -777,10 +874,37 @@
     applyScheme(pref);
   });
 
-  /* The wordmark reads its text from the brand, so a rebrand touches no markup. */
+  /* A @font-face declared inside a shadow root is IGNORED - font faces are
+     document-scoped, always - so the stylesheet has to go into document.head. Once,
+     guarded by id, with display=swap so a slow font never delays a staff member
+     reading the pipeline. */
+  (function loadFont() {
+    var href = BRAND.fontHref;
+    if (!href || document.getElementById("hl-console-font")) { return; }
+    try {
+      var pre = document.createElement("link");
+      pre.rel = "preconnect"; pre.href = "https://fonts.gstatic.com"; pre.crossOrigin = "";
+      document.head.appendChild(pre);
+      var l = document.createElement("link");
+      l.id = "hl-console-font"; l.rel = "stylesheet"; l.href = href;
+      document.head.appendChild(l);
+    } catch (e) { /* the fallback stack is system-ui - never worth failing over */ }
+  }());
+
+  /* The wordmark reads its text - and optionally its logo - from the brand, so a
+     rebrand touches no markup. */
   (function () {
-    var marks = root.querySelectorAll(".brandmark");
-    for (var i = 0; i < marks.length; i++) { marks[i].textContent = BRAND.label; }
+    var words = root.querySelectorAll(".bm-word, #bootWord");
+    var i;
+    for (i = 0; i < words.length; i++) { words[i].textContent = BRAND.label; }
+    if (!BRAND.markUrl) { return; }
+    var icons = root.querySelectorAll(".bm-icon");
+    for (i = 0; i < icons.length; i++) {
+      var img = document.createElement("img");
+      img.src = String(BRAND.markUrl); img.alt = "";
+      img.style.width = "100%"; img.style.height = "100%"; img.style.objectFit = "contain";
+      icons[i].innerHTML = ""; icons[i].appendChild(img);
+    }
   }());
 
   var $ = function (id) { return root.getElementById(id); };
@@ -929,7 +1053,12 @@
         render();
       })
       .catch(function (e) { $("who").textContent = "Could not load — " + e.message; })
-      .then(function () { b.disabled = false; b.textContent = "Refresh"; });
+      .then(function () {
+        b.disabled = false; b.textContent = "Refresh";
+        /* Whether it loaded or failed. A boot screen that outlives the request it is
+           waiting for is worse than no boot screen. */
+        hideBoot();
+      });
   }
 
   /* ---------- render ---------- */
@@ -2414,8 +2543,13 @@
   }
 
   /* ---------- session ---------- */
+  /* The boot screen covers the FIRST load only. A Refresh or a filter change must
+     not black out a pipeline the salesperson is reading - those already have their
+     own affordance on the button. */
+  function hideBoot() { $("boot").classList.add("gone"); }
+
   function showApp() {
-    $("login").classList.add("hide");
+    $("loginWrap").classList.add("hide");
     $("app").classList.remove("hide");
     load();
   }
@@ -2423,8 +2557,9 @@
     clearSession();
     S.data = null;
     closeDrawer();
+    hideBoot();
     $("app").classList.add("hide");
-    $("login").classList.remove("hide");
+    $("loginWrap").classList.remove("hide");
     $("loginErr").textContent = msg || "";
   }
 
@@ -2442,6 +2577,19 @@
       .catch(function (err) { $("loginErr").textContent = err.message; });
   });
   $("pw").addEventListener("keydown", function (ev) { if (ev.key === "Enter") { $("signin").click(); } });
+
+  /* Reveal, for the long password typed on a laptop in a show house. Focus and the
+     caret are put back where they were, or the toggle costs more than it saves. */
+  $("pwToggle").addEventListener("click", function () {
+    var f = $("pw"), on = f.type === "password";
+    var at = f.selectionStart, to = f.selectionEnd;
+    f.type = on ? "text" : "password";
+    this.textContent = on ? "Hide" : "Show";
+    this.setAttribute("aria-pressed", on ? "true" : "false");
+    this.setAttribute("aria-label", on ? "Hide password" : "Show password");
+    f.focus();
+    try { f.setSelectionRange(at, to); } catch (e) { /* type just changed - fine */ }
+  });
 
   $("signout").addEventListener("click", function () { signOut(""); });
   $("refresh").addEventListener("click", load);
@@ -2512,5 +2660,5 @@
   $("q").addEventListener("input", function () { clearTimeout(t); t = setTimeout(load, 300); });
   ["fstatus", "fstage", "fprop"].forEach(function (id) { $(id).addEventListener("change", load); });
 
-  if (token()) { S.staff = savedStaff(); showApp(); }
+  if (token()) { S.staff = savedStaff(); showApp(); } else { hideBoot(); }
 })();
