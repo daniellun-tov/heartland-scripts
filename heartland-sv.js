@@ -903,6 +903,15 @@ window.Wized = window.Wized || [];
     hookFacets();
     var tries = 0, t = setInterval(function () { hookFacets(); if (synced || ++tries > 40) clearInterval(t); }, 250);
   }
+  /* The taxonomy used to arrive only once Wized had booted and run getViews -
+     about three seconds after the plots painted, so the badges appeared long
+     after the rest of the map. /views is eleven rows, so ask for it the moment
+     this script runs, in parallel with everything else. Wized's own getViews
+     still feeds setViews afterwards; whichever answers first wins and the
+     other is a no-op. */
+  fetch(API + '/views').then(function (r) { return r.json(); }).then(setViews).catch(function () {});
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderBadges);
+
   window.Wized = window.Wized || [];
   window.Wized.push(function (Wized) {
     function pull(name, fn) { try { var r = Wized.data.r[name]; if (r && Array.isArray(r.data)) fn(r.data); } catch (e) {} }
@@ -911,10 +920,13 @@ window.Wized = window.Wized || [];
       if (r.name === 'getViews') pull('getViews', setViews);
       if (r.name === 'getUnits') pull('getUnits', setUnits);
     });
+    /* last-resort copy of the unit list, only if Wized never delivers one -
+       8s rather than 4s, which used to fire a duplicate /units a moment before
+       Wized's own request came back */
     setTimeout(function () {
       if (!views.length) fetch(API + '/views').then(function (r) { return r.json(); }).then(setViews).catch(function () {});
       if (!units.length) fetch(API + '/units').then(function (r) { return r.json(); }).then(setUnits).catch(function () {});
-    }, 4000);
+    }, 8000);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { boot(Wized); }); else boot(Wized);
   });
 })();
