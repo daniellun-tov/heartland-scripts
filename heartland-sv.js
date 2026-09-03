@@ -19,6 +19,13 @@
    2026-09-03: the View facet is now tag-based and shared with the badges via
    window.svxFacets, so clicking a badge applies the matching View filter; the
    badge hover card dodges the plots it highlights.
+
+   2026-09-03b: added the "Site plan zoom" module (a +/-/reset group over the
+   map that drives --sv-zoom on the canvas, with drag-to-pan). The detail
+   panel's "Position & views" section is gone - that prose is appended to the
+   unit description instead ("Unit description context"), and the values
+   already live in the feature grid. "Mobile match count" mirrors the filter
+   drawer's match number into the mobile toolbar.
    ============================================================================ */
 
 
@@ -859,18 +866,13 @@ window.Wized = window.Wized || [];
     });
   }
 
-  /* ---------- detail panel ---------- */
-  function renderPanel(u) {
+  /* ---------- detail panel ----------
+     The position / view prose now lives in the "Unit description context"
+     module below, appended to the unit description. Nothing is rendered here;
+     a stale embed's standalone block is just hidden. */
+  function renderPanel() {
     var box = document.querySelector('[data-unit-context]');
-    if (!box) return;
-    if (!u || !(u.position || tags(u).length)) { box.hidden = true; return; }
-    box.hidden = false;
-    var t = box.querySelector('[data-unit-position]'), d = box.querySelector('[data-unit-position-detail]'),
-        c = box.querySelector('[data-unit-views]'), s = box.querySelector('[data-unit-view-summary]');
-    if (t) t.textContent = (u.position || '') + (u.aspect ? ' · ' + u.aspect : '');
-    if (d) d.textContent = u.position_detail || '';
-    if (c) c.innerHTML = tags(u).map(function (k) { return chip(k, true); }).join('');
-    if (s) s.textContent = u.view_summary || '';
+    if (box) box.hidden = true;
   }
   function watchSelection(Wized) {
     var last = null;
@@ -912,6 +914,277 @@ window.Wized = window.Wized || [];
     }, 4000);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { boot(Wized); }); else boot(Wized);
   });
+})();
+
+/* ============================================================
+   Unit description context — appends the selected unit's position and
+   view prose to the description under the unit name. The panel already
+   carries View, Aspect and Position rows in its feature grid, so the old
+   standalone "Position & views" section only repeated them.
+
+   The text lives in its own span, re-applied (never doubled) whenever
+   Wized re-renders the description.
+   ============================================================ */
+(function () {
+  if (window.__svDesc) return;
+  window.__svDesc = true;
+
+  var el = null, obs = null, extra = '';
+
+  function paint() {
+    el = el || document.querySelector('.unit-details_description');
+    if (!el) return;
+    var have = el.querySelector('[data-sv-context]');
+    if (!extra) { if (have) have.parentNode.removeChild(have); return; }
+    if (have) { if (have.textContent !== ' ' + extra) have.textContent = ' ' + extra; return; }
+    var span = document.createElement('span');
+    span.setAttribute('data-sv-context', '');
+    span.textContent = ' ' + extra;
+    el.appendChild(span);
+  }
+
+  function render(u) {
+    el = el || document.querySelector('.unit-details_description');
+    if (!el) return;
+    extra = [u && u.position_detail, u && u.view_summary].filter(Boolean).join(' ');
+    paint();
+    if (!obs && window.MutationObserver) {
+      obs = new MutationObserver(paint);
+      obs.observe(el, { childList: true, characterData: true, subtree: true });
+    }
+    var box = document.querySelector('[data-unit-context]');   /* legacy block */
+    if (box) box.hidden = true;
+  }
+
+  window.Wized = window.Wized || [];
+  window.Wized.push(function (Wized) {
+    var last = null;
+    function check() {
+      var u = null; try { u = Wized.data.v.selectedUnit; } catch (e) {}
+      if (u !== last) { last = u; render(u); }
+    }
+    try { Wized.reactivity.watch(function () { return Wized.data.v.selectedUnit; }, function (u) { last = u; render(u); }); } catch (e) {}
+    var wrap = document.querySelector('.site-plan_detail-wrap');
+    if (wrap && window.MutationObserver) {
+      new MutationObserver(function () { if (wrap.classList.contains('is-open')) setTimeout(check, 30); })
+        .observe(wrap, { attributes: true, attributeFilter: ['class'] });
+    }
+  });
+})();
+
+/* ============================================================
+   Mobile match count — mirrors the filters drawer's "N unit(s) match"
+   into the mobile toolbar, so the number is still readable once the
+   drawer is closed (map view shows no count otherwise).
+   ============================================================ */
+(function () {
+  if (window.__svCount) return;
+  window.__svCount = true;
+
+  function boot() {
+    var src = document.querySelector('.unit-filter_match');
+    /* the mobile toolbar sits under the fixed navbar, so the count goes in the
+       map meta strip - the first thing below the nav - and falls back to the
+       toolbar if that strip is not on the page */
+    var meta = document.querySelector('.unit-filter_mobile-map-meta');
+    var bar = meta || document.querySelector('.unit-filter_mobile-toolbar');
+    if (!bar || !src) return false;
+    if (document.querySelector('.unit-filter_mobile-match')) return true;
+
+    var el = document.createElement('div');
+    el.className = 'unit-filter_mobile-match';
+    el.setAttribute('aria-live', 'polite');
+    /* last in the meta strip: its top rows can sit under the fixed navbar,
+       the bottom of it never does */
+    if (meta) bar.appendChild(el);
+    else bar.insertBefore(el, bar.querySelector('.unit-filter_mobile-view-switch') || null);
+
+    function sync() {
+      var n = (src.textContent || '').trim();
+      el.textContent = n ? n + (n === '1' ? ' unit' : ' units') : '';
+    }
+    sync();
+    if (window.MutationObserver) new MutationObserver(sync).observe(src, { childList: true, characterData: true, subtree: true });
+    return true;
+  }
+
+  function ready() {
+    if (boot()) return;
+    var n = 0, iv = setInterval(function () { if (boot() || ++n > 40) clearInterval(iv); }, 250);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+  else ready();
+})();
+
+/* ============================================================
+   Site plan zoom — a +/-/reset button group over the map.
+   Zoom drives --sv-zoom on .site-plan_map-canvas, which scales the
+   canvas' LAYOUT width (see the CSS embed), so the map container
+   pans natively and the labels, badges and plot outlines keep their
+   real size instead of turning blurry. Drag-to-pan is enabled once
+   zoomed, with a movement threshold so plot clicks still work.
+   ============================================================ */
+(function () {
+  if (window.__svZoom) return;
+  window.__svZoom = true;
+
+  var STEP = 0.25, MAX = 3;
+  var SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">';
+  var ICON = {
+    out: SVG + '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.7-4.7M7.5 10.5h6"/></svg>',
+    "in": SVG + '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.7-4.7M7.5 10.5h6M10.5 7.5v6"/></svg>',
+    reset: SVG + '<path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4"/></svg>'
+  };
+
+  var canvas, box, wrap, ui, level, btnIn, btnOut, btnReset;
+  var zoom = 1, baseW = 0, booted = false;
+
+  function minZoom() {
+    if (!baseW || !box) return 1;
+    var fit = box.clientWidth / baseW;                 /* 1 when the map already fits */
+    if (fit >= 1) return 1;
+    return Math.max(0.5, Math.floor(fit / STEP) * STEP || 0.5);
+  }
+
+  function label() {
+    if (level) level.textContent = Math.round(zoom * 100) + '%';
+    if (btnIn) btnIn.disabled = zoom >= MAX - 0.001;
+    if (btnOut) btnOut.disabled = zoom <= minZoom() + 0.001;
+    if (btnReset) btnReset.disabled = Math.abs(zoom - 1) < 0.001;
+  }
+
+  /* width the canvas would have at zoom 1 — measured once, unzoomed */
+  function measure() {
+    var z = canvas.style.getPropertyValue('--sv-zoom');
+    canvas.style.setProperty('--sv-zoom', 1);
+    baseW = canvas.offsetWidth;
+    box.style.setProperty('--sv-map-box', Math.round(box.getBoundingClientRect().height) + 'px');
+    if (z) canvas.style.setProperty('--sv-zoom', z);
+  }
+
+  function set(next, quiet) {
+    next = Math.max(minZoom(), Math.min(MAX, Math.round(next * 100) / 100));
+    if (next === zoom) { label(); return; }
+    /* keep whatever is in the middle of the viewport in the middle */
+    var w = canvas.offsetWidth, h = canvas.offsetHeight;
+    var fx = w ? (box.scrollLeft + box.clientWidth / 2) / w : 0.5;
+    var fy = h ? (box.scrollTop + box.clientHeight / 2) / h : 0.5;
+    zoom = next;
+    canvas.style.setProperty('--sv-zoom', zoom);
+    box.classList.toggle('is-zoomed', zoom !== 1 || box.scrollWidth > box.clientWidth);
+    label();
+    requestAnimationFrame(function () {
+      box.scrollLeft = fx * canvas.offsetWidth - box.clientWidth / 2;
+      box.scrollTop = fy * canvas.offsetHeight - box.clientHeight / 2;
+      if (!quiet && ui) ui.setAttribute('data-zoom-value', zoom);
+    });
+  }
+
+  function build() {
+    ui = document.createElement('div');
+    ui.className = 'site-plan_zoom';
+    ui.setAttribute('role', 'group');
+    ui.setAttribute('aria-label', 'Map zoom');
+    ui.innerHTML =
+      '<button type="button" class="site-plan_zoom-btn" data-zoom="out" aria-label="Zoom out" title="Zoom out">' + ICON.out + '</button>' +
+      '<span class="site-plan_zoom-level" aria-live="polite">100%</span>' +
+      '<button type="button" class="site-plan_zoom-btn" data-zoom="in" aria-label="Zoom in" title="Zoom in">' + ICON['in'] + '</button>' +
+      '<button type="button" class="site-plan_zoom-btn" data-zoom="reset" aria-label="Reset zoom" title="Reset zoom">' + ICON.reset + '</button>';
+    wrap.appendChild(ui);
+    level = ui.querySelector('.site-plan_zoom-level');
+    btnOut = ui.querySelector('[data-zoom="out"]');
+    btnIn = ui.querySelector('[data-zoom="in"]');
+    btnReset = ui.querySelector('[data-zoom="reset"]');
+    ui.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-zoom]');
+      if (!b) return;
+      e.preventDefault(); e.stopPropagation();
+      var a = b.getAttribute('data-zoom');
+      set(a === 'in' ? zoom + STEP : a === 'out' ? zoom - STEP : 1);
+    });
+  }
+
+  /* drag to pan, once there is something to pan to */
+  function bindPan() {
+    var down = null, moved = false;
+    box.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || e.target.closest('.site-plan_zoom, .site-plan_badge')) return;
+      if (box.scrollWidth <= box.clientWidth && box.scrollHeight <= box.clientHeight) return;
+      down = { x: e.clientX, y: e.clientY, sl: box.scrollLeft, st: box.scrollTop };
+      moved = false;
+    });
+    box.addEventListener('pointermove', function (e) {
+      if (!down) return;
+      var dx = e.clientX - down.x, dy = e.clientY - down.y;
+      if (!moved && Math.abs(dx) + Math.abs(dy) < 6) return;
+      if (!moved) { moved = true; box.classList.add('is-panning'); }
+      box.scrollLeft = down.sl - dx;
+      box.scrollTop = down.st - dy;
+      e.preventDefault();
+    });
+    function end() { down = null; box.classList.remove('is-panning'); setTimeout(function () { moved = false; }, 0); }
+    box.addEventListener('pointerup', end);
+    box.addEventListener('pointercancel', end);
+    box.addEventListener('pointerleave', end);
+    /* a drag must not read as a click on a plot */
+    box.addEventListener('click', function (e) { if (moved) { e.stopPropagation(); e.preventDefault(); } }, true);
+  }
+
+  /* Below 992px the map is wider than the screen and pans, so view badges
+     pinned to the canvas edges sit off-screen until you scroll to them.
+     Dock the whole badge layer onto the (non-scrolling) map wrapper instead,
+     sized to the visible map box, so all six stay on the edges you can see.
+     Styles are inline so this needs no CSS change. */
+  function dock() {
+    var host = document.querySelector('[data-view-badges]');
+    if (!host || !box || !canvas || !wrap) return;
+    var mobile = window.matchMedia('(max-width: 991px)').matches;
+    if (mobile) {
+      if (host.parentNode !== wrap) wrap.appendChild(host);
+      var wr = wrap.getBoundingClientRect(), br = box.getBoundingClientRect();
+      host.style.cssText = 'position:absolute;left:0;right:0;bottom:auto;z-index:6;pointer-events:none;' +
+        'top:' + Math.round(br.top - wr.top) + 'px;height:' + Math.round(br.height) + 'px;';
+    } else if (host.parentNode !== canvas) {
+      canvas.appendChild(host);
+      host.style.cssText = '';
+    }
+  }
+
+  function boot() {
+    if (booted) return true;
+    canvas = document.querySelector('.site-plan_map-canvas');
+    box = document.querySelector('.unit-filter_map-container');
+    wrap = document.querySelector('.unit-filter_map');
+    if (!canvas || !box || !wrap) return false;
+    booted = true;
+    measure();
+    build();
+    bindPan();
+    label();
+    dock();
+    /* the badge host is filled in by the view badges module, which may land
+       after this one - keep re-docking while the page settles */
+    var n = 0, iv = setInterval(function () { dock(); if (++n > 20) clearInterval(iv); }, 400);
+    if (window.ResizeObserver) new ResizeObserver(dock).observe(box);
+    var t;
+    window.addEventListener('resize', function () {
+      clearTimeout(t);
+      t = setTimeout(function () {
+        var z = zoom; zoom = 1; canvas.style.setProperty('--sv-zoom', 1);
+        measure();
+        zoom = 1; set(Math.max(minZoom(), Math.min(MAX, z)), true); label();
+        dock();
+      }, 200);
+    });
+    return true;
+  }
+
+  function ready() {
+    if (boot()) return;
+    var n = 0, iv = setInterval(function () { if (boot() || ++n > 40) clearInterval(iv); }, 250);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+  else ready();
 })();
 
 /* ============================================================
