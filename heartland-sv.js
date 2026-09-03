@@ -468,9 +468,12 @@ window.Wized = window.Wized || [];
         return vals(u,f).some(function(v){return state[f.key].has(v);});
       });
     }
+    /* there are three [data-count="results"] nodes - the drawer's "N unit(s)
+       match" plus the desktop and mobile results headers. querySelector only
+       ever updated the first, so the headers stalled at the unfiltered total
+       whenever a facet or a view badge refined the list. */
     function setCount(n){
-      var c=document.querySelector('[data-count="results"]');
-      if(c)c.textContent=n;
+      document.querySelectorAll('[data-count="results"]').forEach(function(c){c.textContent=n;});
     }
     function refine(){
       if(lastBase===null){try{lastBase=Wized.data.v.visibleUnits||[];}catch(e){lastBase=[];}}
@@ -1002,6 +1005,11 @@ window.Wized = window.Wized || [];
     function sync() {
       var n = (src.textContent || '').trim();
       el.textContent = n ? n + (n === '1' ? ' unit' : ' units') : '';
+      /* mirror into the other results counters - harmless once setCount above
+         writes them all, and it keeps them right until that ships */
+      document.querySelectorAll('[data-count="results"]').forEach(function (c) {
+        if (c !== src && c.textContent.trim() !== n) c.textContent = n;
+      });
     }
     sync();
     if (window.MutationObserver) new MutationObserver(sync).observe(src, { childList: true, characterData: true, subtree: true });
