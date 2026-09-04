@@ -1174,7 +1174,7 @@
   function nrDefaults() {
     return {
       property_slug: "", wf_unit_id: "",
-      first_name: "", last_name: "", email: "", phone: "",
+      first_name: "", last_name: "", email: "", phone: "", address: "",
       payer_route: "undecided",
       fee_rands: "", fee_method: "eft", fee_reference: "", fee_received_at: "",
       generate_otp: "yes", note: ""
@@ -1237,8 +1237,8 @@
       .then(function () { NR.loadingUnits = false; nrRender(); });
   }
 
-  function nrField(id, labelText, type, hint, attrs) {
-    return '<div class="nr-field">' +
+  function nrField(id, labelText, type, hint, attrs, cls) {
+    return '<div class="nr-field' + (cls ? " " + cls : "") + '">' +
       '<label for="nr_' + id + '">' + esc(labelText) + "</label>" +
       '<input id="nr_' + id + '" data-nr="' + id + '" type="' + type + '"' +
         (attrs || "") + ' value="' + esc(String(NR.v[id] || "")) + '">' +
@@ -1298,6 +1298,9 @@
       nrField("email", "Email", "email",
         "Required — the portal login is keyed on it.", ' autocomplete="off" spellcheck="false"') +
       nrField("phone", "Phone", "tel") +
+      nrField("address", "Address", "text",
+        "Goes into the offer to purchase. Leave blank and that field arrives empty.",
+        ' autocomplete="off"', "full") +
       nrSelect("payer_route", "Paying by", [
         { v: "undecided", t: "Not decided yet" },
         { v: "bond", t: "Bond" },
@@ -1365,6 +1368,7 @@
 
     var rows = [
       ["Buyer", name + " · " + NR.v.email + (NR.v.phone ? " · " + NR.v.phone : "")],
+      ["Address", NR.v.address || "not given — the offer will have it blank"],
       ["Home", (prop ? prop.name + " · " : "") + (unit ? (unit.name || unit.unit_number) : "") +
         (unit && unit.price_display ? " · " + unit.price_display : "")],
       ["Paying by", label(NR.v.payer_route)],
@@ -1446,6 +1450,7 @@
       first_name     : NR.v.first_name,
       last_name      : NR.v.last_name,
       phone          : NR.v.phone,
+      address        : NR.v.address,
       payer_route    : NR.v.payer_route,
       fee_method     : NR.v.fee_method,
       fee_reference  : NR.v.fee_reference,
