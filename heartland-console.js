@@ -573,6 +573,54 @@
     "    color:var(--ink-2); border-radius:var(--radius-sm);",
     "  }",
     "  .pwbox .pwtoggle:hover { background:var(--plane-hover); color:var(--ink); }",
+    "",
+    "  /* ── new reservation ──────────────────────────────────────────────────────── */",
+    "  .modal-panel.is-wide { width:min(620px,calc(100% - 32px)); max-height:calc(100vh - 48px); overflow-y:auto; }",
+    "  .nr-step { font-size:.75rem; color:var(--ink-muted); }",
+    "  .nr-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }",
+    "  .nr-grid .full { grid-column:1 / -1; }",
+    "  @media (max-width: 520px) { .nr-grid { grid-template-columns:1fr; } }",
+    "  .nr-sect {",
+    "    border-top:1px solid var(--rule); margin-top:16px; padding-top:14px;",
+    "  }",
+    "  .nr-sect h3 {",
+    "    font-size:.6875rem; text-transform:uppercase; letter-spacing:var(--tracking);",
+    "    color:var(--ink-2); font-weight:600; margin:0 0 10px;",
+    "  }",
+    "  .nr-field label { margin-bottom:5px; }",
+    "  .nr-hint { font-size:.75rem; color:var(--ink-muted); margin-top:4px; }",
+    "  /* Radio pairs read better as a segmented control than as two loose circles when the",
+    "     choice changes what the buyer is sent. */",
+    "  .nr-choice { display:flex; gap:8px; flex-wrap:wrap; }",
+    "  .nr-choice label {",
+    "    flex:1 1 140px; margin:0; display:flex; gap:8px; align-items:flex-start;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm); padding:9px 11px;",
+    "    cursor:pointer; color:var(--ink); font-size:.8125rem;",
+    "  }",
+    "  .nr-choice label:hover { border-color:var(--accent); }",
+    "  .nr-choice input { width:auto; margin:2px 0 0; flex:0 0 auto; }",
+    "  .nr-choice .c-note { display:block; color:var(--ink-muted); font-size:.75rem; margin-top:2px; }",
+    "  .nr-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; flex-wrap:wrap; }",
+    "  .nr-actions .spacer { flex:1 1 auto; }",
+    "",
+    "  /* The confirm step. Everything that is about to happen, in the order it happens, so",
+    "     nobody finds out about the live member afterwards. */",
+    "  .nr-review { display:grid; grid-template-columns:auto 1fr; gap:7px 16px; font-size:.875rem; margin:4px 0 0; }",
+    "  .nr-review dt { color:var(--ink-2); }",
+    "  .nr-review dd { margin:0; }",
+    "  .nr-will { margin:16px 0 0; padding:0; list-style:none; font-size:.8125rem; }",
+    "  .nr-will li { padding:5px 0 5px 20px; position:relative; color:var(--ink-2); }",
+    "  .nr-will li::before {",
+    "    content:\"\"; position:absolute; left:6px; top:12px;",
+    "    width:5px; height:5px; border-radius:50%; background:var(--brand);",
+    "  }",
+    "  .nr-warn {",
+    "    margin-top:14px; padding:11px 13px; font-size:.8125rem; line-height:1.45;",
+    "    border:1px solid var(--serious); border-radius:var(--radius-sm);",
+    "    background:color-mix(in srgb, var(--serious) 8%, transparent); color:var(--ink);",
+    "  }",
+    "  .nr-warn strong { color:var(--serious); }",
+    "  .nr-unit-note { font-size:.75rem; color:var(--ink-muted); margin-top:4px; min-height:1em; }",
     "</style>",
     "</head>",
     "<body>",
@@ -616,6 +664,7 @@
     "    </div>",
     "    <div class=\"row\">",
     "      <button type=\"button\" class=\"iconbtn\" data-settings-open aria-label=\"Settings\" title=\"Settings\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"3\"></circle><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z\"></path></svg></button>",
+    "      <button class=\"primary\" id=\"newRes\" data-nr-open>New reservation</button>",
     "      <button id=\"refresh\">Refresh</button>",
     "      <button id=\"csv\">Download CSV</button>",
     "      <button id=\"signout\">Sign out</button>",
@@ -677,6 +726,16 @@
     "        <button type=\"button\" data-scheme-pref=\"dark\" aria-pressed=\"false\" title=\"Always dark\">Dark</button>",
     "      </div>",
     "    </div>",
+    "  </div>",
+    "</div>",
+    "<!-- ─────────── new reservation ─────────── -->",
+    "<div class=\"modal\" id=\"newres\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"nrTitle\" aria-hidden=\"true\">",
+    "  <div class=\"modal-scrim\" data-nr-close></div>",
+    "  <div class=\"modal-panel is-wide\">",
+    "    <header><div><h2 id=\"nrTitle\">New reservation</h2>",
+    "      <div class=\"nr-step\" id=\"nrStepLabel\">Taken off the system — in person or over the phone</div></div>",
+    "      <button type=\"button\" id=\"nrClose\" data-nr-close>Close</button></header>",
+    "    <div id=\"nrBody\"></div>",
     "  </div>",
     "</div>",
     "<div class=\"viztip\" id=\"viztip\" role=\"status\" aria-live=\"polite\"></div>",
@@ -1096,6 +1155,329 @@
     }), "All");
   }
 
+
+
+  /* ---------- new reservation ----------
+     A deal done in a show house or over the phone, typed in so it is managed here like
+     every other one and the buyer gets their portal.
+
+     TWO STEPS, AND THE SECOND ONE IS NOT CEREMONY. Creating this reservation takes a
+     home off the market, records money as received, and CREATES A REAL MEMBERSTACK
+     MEMBER against a live key. None of those are things to discover afterwards, so
+     the review step names each of them before the button that does them. */
+
+  var NR = {
+    open: false, step: 1, busy: false, err: "", units: [], loadingUnits: false,
+    v: {}
+  };
+
+  function nrDefaults() {
+    return {
+      property_slug: "", wf_unit_id: "",
+      first_name: "", last_name: "", email: "", phone: "",
+      payer_route: "undecided",
+      fee_rands: "", fee_method: "eft", fee_reference: "", fee_received_at: "",
+      generate_otp: "yes", note: ""
+    };
+  }
+
+  function nrProperty() {
+    var props = (S.data && S.data.properties) || [];
+    for (var i = 0; i < props.length; i++) {
+      if (props[i].slug === NR.v.property_slug) { return props[i]; }
+    }
+    return null;
+  }
+
+  function nrUnit() {
+    for (var i = 0; i < NR.units.length; i++) {
+      if (NR.units[i].wf_unit_id === NR.v.wf_unit_id) { return NR.units[i]; }
+    }
+    return null;
+  }
+
+  function nrOpen() {
+    NR.open = true; NR.step = 1; NR.err = ""; NR.busy = false;
+    NR.units = []; NR.v = nrDefaults();
+    var m = $("newres");
+    m.classList.add("open");
+    m.setAttribute("aria-hidden", "false");
+    nrRender();
+  }
+
+  function nrClose() {
+    if (!NR.open) { return false; }
+    NR.open = false;
+    var m = $("newres");
+    m.classList.remove("open");
+    m.setAttribute("aria-hidden", "true");
+    var back = $("newRes");
+    if (back && back.focus) { back.focus(); }
+    return true;
+  }
+
+  /* The picker is drawn from /staff/units, which reconciles the CMS's published flags
+     with the holds Xano is actually carrying - so a home taken a minute ago cannot be
+     offered here and then refused on submit. */
+  function nrLoadUnits() {
+    var slug = NR.v.property_slug;
+    NR.units = []; NR.v.wf_unit_id = "";
+    if (!slug) { nrRender(); return; }
+    NR.loadingUnits = true; NR.err = ""; nrRender();
+    api("/staff/units?property=" + encodeURIComponent(slug))
+      .then(function (d) {
+        NR.units = (d && d.units) || [];
+        NR.truncated = !!(d && d.truncated);
+        /* The property's own fee, in rands, so the common case is one less thing typed. */
+        if (d && d.fee_cents && !NR.v.fee_rands) {
+          NR.v.fee_rands = String(Math.round(d.fee_cents / 100));
+        }
+      })
+      .catch(function (e) { NR.err = "Could not load homes — " + e.message; })
+      .then(function () { NR.loadingUnits = false; nrRender(); });
+  }
+
+  function nrField(id, labelText, type, hint, attrs) {
+    return '<div class="nr-field">' +
+      '<label for="nr_' + id + '">' + esc(labelText) + "</label>" +
+      '<input id="nr_' + id + '" data-nr="' + id + '" type="' + type + '"' +
+        (attrs || "") + ' value="' + esc(String(NR.v[id] || "")) + '">' +
+      (hint ? '<div class="nr-hint">' + esc(hint) + "</div>" : "") +
+      "</div>";
+  }
+
+  function nrSelect(id, labelText, opts, hint) {
+    return '<div class="nr-field">' +
+      '<label for="nr_' + id + '">' + esc(labelText) + "</label>" +
+      '<select id="nr_' + id + '" data-nr="' + id + '">' +
+      opts.map(function (o) {
+        return '<option value="' + esc(o.v) + '"' +
+          (String(o.v) === String(NR.v[id]) ? " selected" : "") +
+          (o.disabled ? " disabled" : "") + ">" + esc(o.t) + "</option>";
+      }).join("") +
+      "</select>" + (hint ? '<div class="nr-hint">' + esc(hint) + "</div>" : "") +
+      "</div>";
+  }
+
+  function nrUnitOptions() {
+    var opts = [{ v: "", t: NR.loadingUnits ? "Loading homes…" : "Choose a home" }];
+    for (var i = 0; i < NR.units.length; i++) {
+      var u = NR.units[i];
+      opts.push({
+        v: u.wf_unit_id,
+        t: (u.name || u.unit_number || u.wf_unit_id) +
+           (u.price_display ? " · " + u.price_display : "")
+      });
+    }
+    return opts;
+  }
+
+  function nrStep1() {
+    var props = (S.data && S.data.properties) || [];
+    var prop = nrProperty();
+    var unit = nrUnit();
+
+    return '<div class="nr-grid">' +
+      nrSelect("property_slug", "Property",
+        [{ v: "", t: "Choose a property" }].concat(props.map(function (p) {
+          return { v: p.slug, t: p.name + (p.is_payfast_live ? "" : " — sandbox") };
+        }))) +
+      nrSelect("wf_unit_id", "Home", nrUnitOptions()) +
+      '<div class="full"><div class="nr-unit-note">' +
+        (NR.loadingUnits ? "Reading availability…"
+          : (!NR.v.property_slug ? "Homes load once a property is chosen."
+          : (NR.units.length === 0 ? "No homes are available on this development."
+          : (unit ? (unit.unit_size ? unit.unit_size.split("\n")[0] : "") +
+              (NR.units.length + " available")
+            : NR.units.length + " available")))) +
+      "</div></div>" +
+
+      '<div class="nr-sect full"><h3>Buyer</h3></div>' +
+      nrField("first_name", "First name", "text") +
+      nrField("last_name", "Last name", "text") +
+      nrField("email", "Email", "email",
+        "Required — the portal login is keyed on it.", ' autocomplete="off" spellcheck="false"') +
+      nrField("phone", "Phone", "tel") +
+      nrSelect("payer_route", "Paying by", [
+        { v: "undecided", t: "Not decided yet" },
+        { v: "bond", t: "Bond" },
+        { v: "cash", t: "Cash" }
+      ], "Decides the deal's first step and which offer template applies.") +
+
+      '<div class="nr-sect full"><h3>Reservation fee received</h3></div>' +
+      nrField("fee_rands", "Amount (R)", "text",
+        prop ? "" : "Defaults to the property's own fee.", ' inputmode="numeric"') +
+      nrSelect("fee_method", "How it arrived", [
+        { v: "eft", t: "EFT" }, { v: "card", t: "Card" },
+        { v: "cash", t: "Cash" }, { v: "other", t: "Other" }
+      ]) +
+      nrField("fee_reference", "Reference", "text", "So the figure traces back to a statement.") +
+      nrField("fee_received_at", "Date received", "date",
+        "Leave blank for today. The first deadline counts from this date.") +
+
+      '<div class="nr-sect full"><h3>Offer to purchase</h3>' +
+      '<div class="nr-choice">' +
+      '<label><input type="radio" name="nr_otp" data-nr="generate_otp" value="yes"' +
+        (NR.v.generate_otp === "yes" ? " checked" : "") + ">" +
+        "<span>Generate the signing link" +
+        '<span class="c-note">Appears in the buyer’s portal at the signing step.</span></span></label>' +
+      '<label><input type="radio" name="nr_otp" data-nr="generate_otp" value="no"' +
+        (NR.v.generate_otp === "no" ? " checked" : "") + ">" +
+        "<span>Signed on paper" +
+        '<span class="c-note">No link is generated or shown to them.</span></span></label>' +
+      "</div></div>" +
+
+      '<div class="nr-sect full"><h3>Note</h3>' +
+      '<div class="nr-field">' +
+      '<label for="nr_note">Why this was entered by hand</label>' +
+      '<textarea id="nr_note" data-nr="note" rows="2">' + esc(NR.v.note || "") + "</textarea>" +
+      '<div class="nr-hint">Required. This deal has no online trail, so the note is the trail.</div>' +
+      "</div></div>" +
+
+      '<div class="err full" id="nrErr">' + esc(NR.err) + "</div>" +
+      '<div class="nr-actions full">' +
+      '<button type="button" data-nr-close>Cancel</button>' +
+      '<button type="button" class="primary" id="nrNext">Review</button>' +
+      "</div></div>";
+  }
+
+  function nrProblems() {
+    var v = NR.v, out = [];
+    if (!v.property_slug) { out.push("Choose a property."); }
+    if (!v.wf_unit_id) { out.push("Choose a home."); }
+    if (!String(v.email || "").trim()) { out.push("An email address is required."); }
+    else if (String(v.email).indexOf("@") < 1) { out.push("That email address does not look right."); }
+    if (!String(v.note || "").trim()) { out.push("A note is required."); }
+    return out;
+  }
+
+  function nrFeeCents() {
+    var n = Number(String(NR.v.fee_rands || "").replace(/[^0-9.]/g, ""));
+    return (isNaN(n) || n <= 0) ? 0 : Math.round(n * 100);
+  }
+
+  function nrStep2() {
+    var prop = nrProperty(), unit = nrUnit();
+    var name = [NR.v.first_name, NR.v.last_name].filter(Boolean).join(" ") || NR.v.email;
+    var fee = nrFeeCents();
+    var otp = NR.v.generate_otp === "yes";
+    var when = NR.v.fee_received_at ? NR.v.fee_received_at : "today";
+
+    var rows = [
+      ["Buyer", name + " · " + NR.v.email + (NR.v.phone ? " · " + NR.v.phone : "")],
+      ["Home", (prop ? prop.name + " · " : "") + (unit ? (unit.name || unit.unit_number) : "") +
+        (unit && unit.price_display ? " · " + unit.price_display : "")],
+      ["Paying by", label(NR.v.payer_route)],
+      ["Fee received", (fee ? randsShort(fee) : "the property’s own fee") +
+        " · " + label(NR.v.fee_method) + (NR.v.fee_reference ? " · " + NR.v.fee_reference : "") +
+        " · " + when],
+      ["Offer", otp ? "signing link generated" : "signed on paper, no link"],
+      ["Note", NR.v.note]
+    ];
+
+    return '<dl class="nr-review">' + rows.map(function (r) {
+      return "<dt>" + esc(r[0]) + "</dt><dd>" + esc(r[1]) + "</dd>";
+    }).join("") + "</dl>" +
+
+      '<ul class="nr-will">' +
+      "<li>Takes this home off the market, here and on the website.</li>" +
+      "<li>Records the fee as already received — no payment is taken.</li>" +
+      "<li>Opens the deal and gives it a reservation number.</li>" +
+      "<li>Creates the buyer’s account so they can sign in to their portal.</li>" +
+      "</ul>" +
+
+      '<div class="nr-warn"><strong>The buyer’s account is real.</strong> ' +
+      "It is created in the live system the moment you confirm, and they can sign in " +
+      "straight away with a code sent to " + esc(NR.v.email) + ". There is no undo here — " +
+      "a mistake is cancelled from the deal, not deleted.</div>" +
+
+      '<div class="err" id="nrErr">' + esc(NR.err) + "</div>" +
+      '<div class="nr-actions">' +
+      '<button type="button" id="nrBack">Back</button>' +
+      '<span class="spacer"></span>' +
+      '<button type="button" data-nr-close>Cancel</button>' +
+      '<button type="button" class="primary" id="nrGo"' + (NR.busy ? " disabled" : "") + ">" +
+      (NR.busy ? "Creating…" : "Create reservation") + "</button>" +
+      "</div>";
+  }
+
+  function nrRender() {
+    if (!NR.open) { return; }
+    $("nrStepLabel").textContent = NR.step === 1
+      ? "Taken off the system — in person or over the phone"
+      : "Check this, then confirm";
+    $("nrBody").innerHTML = NR.step === 1 ? nrStep1() : nrStep2();
+
+    /* One delegated pair of listeners rather than one per control - the body is
+       re-rendered on every keystroke-free change, and rebinding twenty handlers each
+       time is how a form starts dropping input. */
+    [].forEach.call($("nrBody").querySelectorAll("[data-nr]"), function (el) {
+      var key = el.getAttribute("data-nr");
+      var ev = (el.tagName === "SELECT" || el.type === "radio" || el.type === "date")
+        ? "change" : "input";
+      el.addEventListener(ev, function () {
+        if (el.type === "radio") { if (!el.checked) { return; } NR.v[key] = el.value; return; }
+        NR.v[key] = el.value;
+        if (key === "property_slug") { nrLoadUnits(); }
+      });
+    });
+
+    if ($("nrNext")) {
+      $("nrNext").addEventListener("click", function () {
+        var problems = nrProblems();
+        if (problems.length) { NR.err = problems[0]; $("nrErr").textContent = NR.err; return; }
+        NR.err = ""; NR.step = 2; nrRender();
+      });
+    }
+    if ($("nrBack")) {
+      $("nrBack").addEventListener("click", function () { NR.err = ""; NR.step = 1; nrRender(); });
+    }
+    if ($("nrGo")) { $("nrGo").addEventListener("click", nrSubmit); }
+  }
+
+  function nrSubmit() {
+    if (NR.busy) { return; }
+    NR.busy = true; NR.err = ""; nrRender();
+    var fee = nrFeeCents();
+    var body = {
+      property_slug  : NR.v.property_slug,
+      wf_unit_id     : NR.v.wf_unit_id,
+      email          : String(NR.v.email || "").trim(),
+      first_name     : NR.v.first_name,
+      last_name      : NR.v.last_name,
+      phone          : NR.v.phone,
+      payer_route    : NR.v.payer_route,
+      fee_method     : NR.v.fee_method,
+      fee_reference  : NR.v.fee_reference,
+      fee_received_at: NR.v.fee_received_at,
+      generate_otp   : NR.v.generate_otp === "yes",
+      note           : NR.v.note
+    };
+    /* Only when it was actually typed. Sending 0 would override the property's fee with
+       nothing; omitting it lets the server fall back to the property. */
+    if (fee > 0) { body.fee_amount_cents = fee; }
+
+    api("/staff/reservations", { method: "POST", body: JSON.stringify(body) })
+      .then(function (d) {
+        NR.busy = false;
+        nrClose();
+        /* Reload so the new deal is in the table, then open it - a salesperson who has
+           just typed all that wants to see the thing they made, not go looking for it. */
+        return load().then(function () {
+          if (d && d.uuid) { openDrawer(d.uuid); }
+          if (d && d.cms_written === false && d.cms_owner === "xano") {
+            /* The hold is real either way; the website is the bit that did not update. */
+            $("who").textContent = "Reservation " + (d.reference || "") +
+              " created — but the website still shows that home as available. Flip it by hand.";
+          }
+        });
+      })
+      .catch(function (e) {
+        NR.busy = false;
+        NR.err = e.message || "Could not create the reservation.";
+        nrRender();
+      });
+  }
 
   /* ---------- Dashboard ----------
      Everything on this tab is computed in the browser from the reservations the
@@ -2625,13 +3007,20 @@
   root.addEventListener("click", function (e) {
     var t = e.target && e.target.closest ? e.target.closest("[data-settings-open]") : null;
     if (t) { openSettings(t); return; }
-    if (e.target && e.target.closest && e.target.closest("[data-settings-close]")) { closeSettings(); }
+    if (e.target && e.target.closest && e.target.closest("[data-settings-close]")) { closeSettings(); return; }
+    if (e.target && e.target.closest && e.target.closest("[data-nr-open]")) { nrOpen(); return; }
+    if (e.target && e.target.closest && e.target.closest("[data-nr-close]")) { nrClose(); }
   });
 
   /* Escape closes the settings modal first - it is the thing on top - and only
      falls through to the drawer when the modal is already shut. */
+  /* Escape closes whatever is on top, one layer per press: the new-reservation form
+     over the settings modal over the drawer. Closing the form on the first press
+     matters most - it is the one holding twenty minutes of typing, and a press meant
+     for a native date picker must not throw that away along with it. */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") { return; }
+    if (nrClose()) { return; }
     if (closeSettings()) { return; }
     closeDrawer();
   });
