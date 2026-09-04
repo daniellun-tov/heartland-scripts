@@ -198,6 +198,49 @@
     "  }",
     "  header.top .row { align-items:center; }",
     "  .who { font-size:.8125rem; color:var(--ink-2); margin-top:2px; }",
+    "",
+    "  /* The lockup: mark on the left, the tool's name beside it. The mark is the",
+    "     brand and the h1 is what this thing IS, so they sit on one line with room",
+    "     between them rather than stacking into a single grey block. */",
+    "  .lockup { display:flex; align-items:center; gap:16px; }",
+    "  .lockup-mark { width:44px; height:34px; flex:0 0 auto; color:var(--brand); }",
+    "  .lockup-brand {",
+    "    font:600 .6875rem/1 var(--font-display); text-transform:uppercase;",
+    "    letter-spacing:var(--tracking); color:var(--ink-muted); margin-bottom:5px;",
+    "  }",
+    "",
+    "  /* ── the account menu ─────────────────────────────────────────────────────── */",
+    "  .usermenu { position:relative; display:inline-flex; }",
+    "  .avatar {",
+    "    width:38px; height:38px; padding:0; border-radius:50%; flex:0 0 auto;",
+    "    display:inline-flex; align-items:center; justify-content:center;",
+    "    background:var(--brand); color:var(--brand-ink); border-color:var(--brand);",
+    "    font:600 .8125rem/1 var(--font); letter-spacing:.02em;",
+    "  }",
+    "  /* Gold is a FILL carrying --brand-ink, never text - it is 2.43:1 on white. */",
+    "  .avatar:hover:not(:disabled) { filter:brightness(1.06); }",
+    "  .avatar[aria-expanded=\"true\"] { box-shadow:0 0 0 3px var(--ring); }",
+    "  .um-panel {",
+    "    position:absolute; z-index:20; top:calc(100% + 6px); right:0; min-width:232px;",
+    "    background:var(--surface); border:1px solid var(--rule);",
+    "    border-radius:var(--radius); box-shadow:0 10px 30px var(--ring); padding:4px;",
+    "  }",
+    "  .um-head { padding:9px 11px 10px; border-bottom:1px solid var(--rule); margin-bottom:4px; }",
+    "  .um-name { font-weight:600; color:var(--ink); font-size:.875rem; margin-bottom:5px; }",
+    "  .um-item {",
+    "    display:flex; align-items:center; justify-content:space-between; gap:10px;",
+    "    width:100%; text-align:left; background:none; border:0; border-radius:var(--radius-sm);",
+    "    padding:9px 11px; color:var(--ink); font-size:.8125rem; cursor:pointer;",
+    "  }",
+    "  .um-item:hover { background:var(--surface-2); }",
+    "  .um-item.is-danger { color:var(--serious); }",
+    "  .um-caret { color:var(--ink-muted); font-size:.6875rem; transition:transform .12s ease; }",
+    "  .um-item[aria-expanded=\"true\"] .um-caret { transform:rotate(90deg); }",
+    "  /* Nested INLINE rather than as a flyout. A flyout has to pick a side, and on a",
+    "     narrow window every side is the wrong one; this also gives touch and keyboard",
+    "     the same target the mouse gets. */",
+    "  .um-sub { padding:2px 11px 8px; }",
+    "  .um-sep { height:1px; background:var(--rule); margin:4px 0; }",
     "  nav.tabs { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--rule); }",
     "  nav.tabs button {",
     "    border:0; background:none; border-radius:0; padding:9px 14px;",
@@ -638,6 +681,26 @@
     "  .nr-ac-item:hover, .nr-ac-item.is-active { background:var(--surface-2); }",
     "  .nr-ac-item b { font-weight:600; }",
     "  .nr-ac-item span { display:block; color:var(--ink-muted); font-size:.75rem; }",
+    "  /* ── team ─────────────────────────────────────────────────────────────────── */",
+    "  .pwform { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:12px; }",
+    "  @media (max-width: 620px) { .pwform { grid-template-columns:1fr; } }",
+    "  .team-grid { display:grid; grid-template-columns:1fr; gap:16px; }",
+    "  @media (min-width: 900px) { .team-grid { grid-template-columns:1.4fr 1fr; align-items:start; } }",
+    "  .team-row.is-off { opacity:.55; }",
+    "  .team-row.is-off .team-name::after {",
+    "    content:'no access'; margin-left:8px; font-size:.6875rem; font-weight:600;",
+    "    text-transform:uppercase; letter-spacing:var(--tracking); color:var(--serious);",
+    "  }",
+    "  .team-name { font-weight:600; color:var(--ink); }",
+    "  .team-mail { font-size:.75rem; color:var(--ink-muted); }",
+    "  .rolechip {",
+    "    display:inline-block; border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    padding:1px 7px; font-size:.6875rem; font-weight:600; text-transform:uppercase;",
+    "    letter-spacing:var(--tracking); color:var(--ink-2);",
+    "  }",
+    "  .rolechip.is-admin { background:var(--brand); color:var(--brand-ink); border-color:var(--brand); }",
+    "  .rolechip.is-manager { border-color:var(--accent); color:var(--accent); }",
+    "  .team-you { font-size:.6875rem; color:var(--ink-muted); }",
     "  .nr-ac-note {",
     "    padding:4px 11px 6px; font-size:.6875rem; color:var(--ink-muted);",
     "    text-align:right; border-top:1px solid var(--rule);",
@@ -710,13 +773,15 @@
     "<!-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 app \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->",
     "<div class=\"wrap hide\" id=\"app\">",
     "  <header class=\"top\">",
-    "    <div>",
-    "      <div class=\"brandmark\"><span class=\"bm-icon mark\"><svg viewBox=\"0 0 220 167\" fill=\"currentColor\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M150.8 54.1191V140.439L175.24 138.299V62.1391L150.8 54.1191Z\"/><path d=\"M202.76 29.74L117.33 1.25C114.83 0.43 112.25 0 109.66 0C107.07 0 104.49 0.42 101.99 1.25L16.56 29.74C6.66 33.05 0 42.3 0 52.73V135.59C0 148.15 9.59 158.63 22.12 159.72L68.52 163.77V92.04L44.07 100.42V149.49L23.17 147.66C16.86 147.11 12.11 141.92 12.11 135.59V52.73C12.11 47.51 15.43 42.88 20.38 41.23L105.83 12.74C107.07 12.33 108.35 12.11 109.66 12.11C110.97 12.11 112.25 12.33 113.49 12.74L198.93 41.23C203.88 42.88 207.22 47.51 207.22 52.73V135.59C207.22 141.91 202.46 147.11 196.15 147.66L187.58 148.41L139.67 152.6V50.4L115.24 42.27V166.89L197.21 159.73C209.74 158.64 219.34 148.16 219.34 135.6V52.73C219.34 42.3 212.66 33.04 202.77 29.74H202.76Z\"/><path d=\"M94.7803 45.4495L91.4503 46.5895L79.6503 50.6395L44.0703 62.8295V88.6595L79.6503 76.4695V164.75L104.09 166.89V42.2695L94.7803 45.4495Z\"/></svg></span><span class=\"bm-word\">Heartland</span></div>",
-    "      <h1>Sales console</h1>",
-    "      <div class=\"who\" id=\"who\">\u2014</div>",
+    "    <div class=\"lockup\">",
+    "      <span class=\"lockup-mark bm-icon mark\"><svg viewBox=\"0 0 220 167\" fill=\"currentColor\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M150.8 54.1191V140.439L175.24 138.299V62.1391L150.8 54.1191Z\"/><path d=\"M202.76 29.74L117.33 1.25C114.83 0.43 112.25 0 109.66 0C107.07 0 104.49 0.42 101.99 1.25L16.56 29.74C6.66 33.05 0 42.3 0 52.73V135.59C0 148.15 9.59 158.63 22.12 159.72L68.52 163.77V92.04L44.07 100.42V149.49L23.17 147.66C16.86 147.11 12.11 141.92 12.11 135.59V52.73C12.11 47.51 15.43 42.88 20.38 41.23L105.83 12.74C107.07 12.33 108.35 12.11 109.66 12.11C110.97 12.11 112.25 12.33 113.49 12.74L198.93 41.23C203.88 42.88 207.22 47.51 207.22 52.73V135.59C207.22 141.91 202.46 147.11 196.15 147.66L187.58 148.41L139.67 152.6V50.4L115.24 42.27V166.89L197.21 159.73C209.74 158.64 219.34 148.16 219.34 135.6V52.73C219.34 42.3 212.66 33.04 202.77 29.74H202.76Z\"/><path d=\"M94.7803 45.4495L91.4503 46.5895L79.6503 50.6395L44.0703 62.8295V88.6595L79.6503 76.4695V164.75L104.09 166.89V42.2695L94.7803 45.4495Z\"/></svg></span>",
+    "      <div>",
+    "        <div class=\"lockup-brand bm-word\">Heartland</div>",
+    "        <h1>Sales console</h1>",
+    "        <div class=\"who\" id=\"who\">\u2014</div>",
+    "      </div>",
     "    </div>",
     "    <div class=\"row\">",
-    "      <button type=\"button\" class=\"iconbtn\" data-settings-open aria-label=\"Settings\" title=\"Settings\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"3\"></circle><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z\"></path></svg></button>",
     "      <span class=\"splitbtn\">",
     "        <button class=\"primary\" id=\"newRes\" data-nr-open=\"production\">New reservation</button>",
     "        <button class=\"primary split-toggle\" id=\"newResMore\" aria-haspopup=\"true\"",
@@ -728,7 +793,29 @@
     "      </span>",
     "      <button id=\"refresh\">Refresh</button>",
     "      <button id=\"csv\">Download CSV</button>",
-    "      <button id=\"signout\">Sign out</button>",
+    "      <span class=\"usermenu\">",
+    "        <button type=\"button\" class=\"avatar\" id=\"avatarBtn\" aria-haspopup=\"true\"",
+    "          aria-expanded=\"false\"><span id=\"avatarInitials\" aria-hidden=\"true\">\u2014</span></button>",
+    "        <div class=\"um-panel\" id=\"avatarMenu\" hidden>",
+    "          <div class=\"um-head\">",
+    "            <div class=\"um-name\" id=\"umName\">\u2014</div>",
+    "            <span class=\"rolechip\" id=\"umRole\">\u2014</span>",
+    "          </div>",
+    "          <button type=\"button\" class=\"um-item\" id=\"umAppearance\"",
+    "            aria-expanded=\"false\" aria-controls=\"umScheme\">Appearance",
+    "            <span class=\"um-caret\" aria-hidden=\"true\">\u25b8</span></button>",
+    "          <div class=\"um-sub\" id=\"umScheme\" hidden>",
+    "            <div class=\"schemeswitch\" role=\"group\" aria-label=\"Colour scheme\">",
+    "              <button type=\"button\" data-scheme-pref=\"system\" aria-pressed=\"false\" title=\"Match the system setting\">Auto</button>",
+    "              <button type=\"button\" data-scheme-pref=\"light\" aria-pressed=\"false\" title=\"Always light\">Light</button>",
+    "              <button type=\"button\" data-scheme-pref=\"dark\" aria-pressed=\"false\" title=\"Always dark\">Dark</button>",
+    "            </div>",
+    "          </div>",
+    "          <button type=\"button\" class=\"um-item\" data-settings-open>Settings\u2026</button>",
+    "          <div class=\"um-sep\"></div>",
+    "          <button type=\"button\" class=\"um-item is-danger\" id=\"signout\">Sign out</button>",
+    "        </div>",
+    "      </span>",
     "    </div>",
     "  </header>",
     "",
@@ -736,6 +823,7 @@
     "    <button id=\"tabDash\" aria-selected=\"true\">Dashboard</button>",
     "    <button id=\"tabToday\" aria-selected=\"false\">Today<span class=\"count\" id=\"todayCount\">0</span></button>",
     "    <button id=\"tabPipe\" aria-selected=\"false\">Pipeline<span class=\"count\" id=\"pipeCount\">0</span></button>",
+    "    <button id=\"tabTeam\" aria-selected=\"false\" hidden>Team</button>",
     "  </nav>",
     "",
     "  <!-- Dashboard -->",
@@ -743,6 +831,10 @@
     "",
     "  <!-- Today -->",
     "  <section id=\"viewToday\" class=\"hide\"></section>",
+    "",
+    "  <!-- Team. Admin only - the button is hidden for everyone else and the endpoint",
+    "       refuses them, which is the check that matters. -->",
+    "  <section id=\"viewTeam\" class=\"hide\"></section>",
     "",
     "  <!-- Pipeline -->",
     "  <section id=\"viewPipe\" class=\"hide\">",
@@ -786,6 +878,21 @@
     "        <button type=\"button\" data-scheme-pref=\"light\" aria-pressed=\"false\" title=\"Always light\">Light</button>",
     "        <button type=\"button\" data-scheme-pref=\"dark\" aria-pressed=\"false\" title=\"Always dark\">Dark</button>",
     "      </div>",
+    "    </div>",
+    "    <div class=\"setrow\">",
+    "      <div class=\"s-label\">Your password</div>",
+    "      <div class=\"s-help\">Change the one you were given. It is not stored anywhere you can read it, so nobody can tell you what it is \u2014 only reset it.</div>",
+    "      <div class=\"pwform\">",
+    "        <div class=\"nr-field\"><label for=\"pwCurrent\">Current password</label>",
+    "          <input id=\"pwCurrent\" type=\"password\" autocomplete=\"current-password\"></div>",
+    "        <div class=\"nr-field\"><label for=\"pwNew\">New password</label>",
+    "          <input id=\"pwNew\" type=\"password\" autocomplete=\"new-password\">",
+    "          <div class=\"nr-hint\">At least 10 characters.</div></div>",
+    "        <div class=\"nr-field\"><label for=\"pwAgain\">New password again</label>",
+    "          <input id=\"pwAgain\" type=\"password\" autocomplete=\"new-password\"></div>",
+    "      </div>",
+    "      <button type=\"button\" id=\"pwGo\">Change password</button>",
+    "      <div class=\"err\" id=\"pwErr\"></div><div class=\"ok\" id=\"pwOk\"></div>",
     "    </div>",
     "  </div>",
     "</div>",
@@ -1185,8 +1292,10 @@
   function render() {
     var d = S.data;
     if (!d) { return; }
-    $("who").textContent = d.staff.name + " · " + d.staff.role + " · " +
-      d.matched + " of " + d.summary.total + " shown";
+    /* Identity moved to the avatar on 4 Sep, so this line is the count and the status
+       messages that share it - nothing about who is signed in. */
+    $("who").textContent = d.matched + " of " + d.summary.total + " shown";
+    paintIdentity(d.staff || S.staff);
     fillFilters(d);
     renderDash();
     renderToday(d);
@@ -3293,6 +3402,248 @@
       .then(function () { go.disabled = false; });
   }
 
+  /* ---------- your own password ----------
+
+     THE ONLY PLACE A PASSWORD IS TYPED TWICE. The server cannot tell a typo from a
+     deliberate change, and a mistyped new password locks the person out of a tool that
+     has no self-service reset behind it - the fix would be Daniel and the shared secret.
+     So the confirmation is checked here, before the request. */
+  function changePassword() {
+    var cur = $("pwCurrent").value;
+    var nw = $("pwNew").value;
+    var again = $("pwAgain").value;
+    var go = $("pwGo");
+    $("pwErr").textContent = "";
+    $("pwOk").textContent = "";
+
+    if (!cur) { $("pwErr").textContent = "Enter the password you are signing in with now."; return; }
+    if (nw.length < 10) { $("pwErr").textContent = "Your new password must be at least 10 characters."; return; }
+    if (nw !== again) { $("pwErr").textContent = "The two new passwords do not match."; return; }
+    if (nw === cur) { $("pwErr").textContent = "That is the password you are already using."; return; }
+
+    go.disabled = true;
+    $("pwOk").textContent = "Changing…";
+    api("/staff/password", {
+      method: "POST",
+      body: JSON.stringify({ current_password: cur, new_password: nw })
+    })
+      .then(function () {
+        $("pwOk").textContent = "Changed. Use the new one next time you sign in.";
+        /* Cleared on success so a shoulder-surfer gets nothing from a screen somebody
+           walked away from, and so a second click cannot resend the old pair. */
+        $("pwCurrent").value = ""; $("pwNew").value = ""; $("pwAgain").value = "";
+      })
+      .catch(function (e) { $("pwOk").textContent = ""; $("pwErr").textContent = e.message; })
+      .then(function () { go.disabled = false; });
+  }
+
+  /* ---------- team ----------
+
+     ADMIN ONLY, and the tab is hidden for everyone else - but GET and POST /staff/team
+     both check the role themselves, because a hidden button is a courtesy and not a
+     control.
+
+     NOBODY IS EVER DELETED. A staff row carries the name on every audit event that
+     person wrote; removing it would leave those events attributed to nothing. is_active
+     false is how access is revoked, and the row stays. */
+  var TEAM = { rows: [], me: null, loaded: false, loading: false, busy: false, err: "", ok: "", editing: "", v: null };
+
+  function teamDefaults() {
+    return { email: "", name: "", role: "manager", password: "", is_active: "yes" };
+  }
+
+  function loadTeam() {
+    if (TEAM.loading) { return; }
+    TEAM.loading = true; TEAM.err = "";
+    renderTeam();
+    api("/staff/team")
+      .then(function (d) {
+        TEAM.rows = (d && d.team) || [];
+        TEAM.me = (d && d.me) || null;
+        TEAM.loaded = true;
+      })
+      .catch(function (e) { TEAM.err = e.message; })
+      .then(function () { TEAM.loading = false; renderTeam(); });
+  }
+
+  function teamRowHtml(r) {
+    var isMe = !!(TEAM.me && TEAM.me.id === r.id);
+    var role = r.role || "sales";
+    return '<div class="item team-row' + (r.is_active ? "" : " is-off") + '" data-team="' +
+      esc(r.email) + '" role="button" tabindex="0">' +
+      '<div><div class="team-name">' + esc(r.name || r.email) +
+        (isMe ? ' <span class="team-you">you</span>' : "") + "</div>" +
+      '<div class="team-mail">' + esc(r.email) + "</div></div>" +
+      '<div style="text-align:right">' +
+      '<span class="rolechip' + (role === "admin" ? " is-admin" : (role === "manager" ? " is-manager" : "")) +
+        '">' + esc(role) + "</span>" +
+      '<div class="team-mail" style="margin-top:4px">' +
+        (r.last_login_at ? "last in " + day(r.last_login_at) : "never signed in") +
+      "</div></div></div>";
+  }
+
+  function renderTeam() {
+    var v = TEAM.v || teamDefaults();
+    var editing = TEAM.editing;
+
+    var list = TEAM.loading && !TEAM.loaded
+      ? '<div class="muted" style="font-size:.8125rem">Loading…</div>'
+      : (TEAM.rows.length
+          ? TEAM.rows.map(teamRowHtml).join("")
+          : '<div class="muted" style="font-size:.8125rem">Nobody yet.</div>');
+
+    $("viewTeam").innerHTML =
+      '<div class="team-grid">' +
+      '<div class="card"><div class="sect" style="border:0;margin:0;padding:0">' +
+        "<h2>Who has an account</h2>" +
+        '<div class="muted" style="font-size:.8125rem;margin-bottom:12px">' +
+          "Click a person to change their role, reset their password, or turn their access off. " +
+          "Accounts are never deleted — the name on every deal they touched depends on the row staying." +
+        "</div>" + list +
+      "</div></div>" +
+
+      '<div class="card">' +
+        "<h2>" + (editing ? "Editing " + esc(editing) : "Add someone") + "</h2>" +
+        '<div class="nr-grid" style="margin-top:12px">' +
+        '<div class="nr-field full"><label for="tmName">Name</label>' +
+          '<input id="tmName" type="text" value="' + esc(v.name) + '">' +
+          '<div class="nr-hint">This lands on every event they write. Use the name their colleagues would recognise.</div></div>' +
+        '<div class="nr-field full"><label for="tmEmail">Email</label>' +
+          '<input id="tmEmail" type="email" autocomplete="off" spellcheck="false" value="' + esc(v.email) + '"' +
+          (editing ? " disabled" : "") + ">" +
+          '<div class="nr-hint">' + (editing ? "The login identity cannot be changed — add a new account instead."
+            : "This is how they sign in.") + "</div></div>" +
+        '<div class="nr-field full"><label for="tmRole">Role</label>' +
+          '<select id="tmRole">' +
+          ["sales", "manager", "admin"].map(function (r) {
+            return '<option value="' + r + '"' + (v.role === r ? " selected" : "") + ">" + r + "</option>";
+          }).join("") + "</select>" +
+          '<div class="nr-hint">manager adds the ability to <strong>delete</strong> a reservation, which is ' +
+          "irreversible and takes the buyer’s portal account with it. admin can also manage this list.</div></div>" +
+        '<div class="nr-field full"><label for="tmPassword">' +
+          (editing ? "Reset their password" : "Temporary password") + "</label>" +
+          '<input id="tmPassword" type="text" autocomplete="off" spellcheck="false" value="' + esc(v.password) + '">' +
+          '<div class="nr-hint">At least 10 characters. ' +
+          (editing ? "Leave it blank to keep the one they have."
+                   : "Hand it over in person or by phone, not in the same email as the link.") +
+          " They can change it themselves under Settings.</div></div>" +
+        '<div class="nr-field full"><label style="display:flex;gap:8px;align-items:flex-start;font-size:.8125rem">' +
+          '<input id="tmActive" type="checkbox" style="width:auto;margin-top:3px"' +
+          (v.is_active === "yes" ? " checked" : "") + "> Can sign in</label></div>" +
+        "</div>" +
+        '<div class="err" id="tmErr">' + esc(TEAM.err) + '</div><div class="ok" id="tmOk">' + esc(TEAM.ok) + "</div>" +
+        '<div class="nr-actions" style="margin-top:12px">' +
+          (editing ? '<button type="button" id="tmCancel">Add someone instead</button>' : "") +
+          '<span class="spacer"></span>' +
+          '<button type="button" class="primary" id="tmGo"' + (TEAM.busy ? " disabled" : "") + ">" +
+          (TEAM.busy ? "Saving…" : (editing ? "Save changes" : "Create account")) + "</button>" +
+        "</div>" +
+      "</div></div>";
+
+    [].forEach.call($("viewTeam").querySelectorAll("[data-team]"), function (el) {
+      var pick = function () { teamEdit(el.getAttribute("data-team")); };
+      el.addEventListener("click", pick);
+      el.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); }
+      });
+    });
+    ["tmName", "tmEmail", "tmPassword"].forEach(function (id) {
+      var el = $(id);
+      if (el) { el.addEventListener("input", function () { teamRead(); }); }
+    });
+    ["tmRole", "tmActive"].forEach(function (id) {
+      var el = $(id);
+      if (el) { el.addEventListener("change", function () { teamRead(); }); }
+    });
+    if ($("tmGo")) { $("tmGo").addEventListener("click", teamSubmit); }
+    if ($("tmCancel")) {
+      $("tmCancel").addEventListener("click", function () {
+        TEAM.editing = ""; TEAM.v = teamDefaults(); TEAM.err = ""; TEAM.ok = ""; renderTeam();
+      });
+    }
+  }
+
+  /* Read the form back into state on every change rather than only on submit, so a
+     re-render - which the list triggers - never silently discards what was typed. */
+  function teamRead() {
+    TEAM.v = {
+      name: $("tmName") ? $("tmName").value : "",
+      email: $("tmEmail") ? $("tmEmail").value : (TEAM.v ? TEAM.v.email : ""),
+      role: $("tmRole") ? $("tmRole").value : "manager",
+      password: $("tmPassword") ? $("tmPassword").value : "",
+      is_active: ($("tmActive") && $("tmActive").checked) ? "yes" : "no"
+    };
+  }
+
+  function teamEdit(email) {
+    var row = null;
+    for (var i = 0; i < TEAM.rows.length; i++) {
+      if (TEAM.rows[i].email === email) { row = TEAM.rows[i]; break; }
+    }
+    if (!row) { return; }
+    TEAM.editing = row.email;
+    TEAM.err = ""; TEAM.ok = "";
+    TEAM.v = {
+      name: row.name || "", email: row.email, role: row.role || "sales",
+      password: "", is_active: row.is_active ? "yes" : "no"
+    };
+    renderTeam();
+  }
+
+  function teamSubmit() {
+    if (TEAM.busy) { return; }
+    teamRead();
+    var v = TEAM.v;
+    var creating = !TEAM.editing;
+
+    TEAM.err = ""; TEAM.ok = "";
+    if (!String(v.name || "").trim()) { TEAM.err = "A name is required — it is what the audit trail records."; renderTeam(); return; }
+    if (String(v.email || "").indexOf("@") < 1) { TEAM.err = "That email address does not look right."; renderTeam(); return; }
+    if (creating && v.password.length < 10) { TEAM.err = "A password of at least 10 characters is required to create an account."; renderTeam(); return; }
+    if (!creating && v.password && v.password.length < 10) { TEAM.err = "A password must be at least 10 characters. Leave it blank to keep theirs."; renderTeam(); return; }
+
+    var isMe = !!(TEAM.me && TEAM.editing && (function () {
+      for (var i = 0; i < TEAM.rows.length; i++) {
+        if (TEAM.rows[i].email === TEAM.editing) { return TEAM.rows[i].id === TEAM.me.id; }
+      }
+      return false;
+    }()));
+    /* The server refuses both of these too. Catching them here turns a red error into a
+       sentence that explains itself before anything is sent. */
+    if (isMe && v.role !== "admin") { TEAM.err = "You cannot remove your own admin role — there would be nobody left who can manage this list."; renderTeam(); return; }
+    if (isMe && v.is_active !== "yes") { TEAM.err = "You cannot switch off your own access."; renderTeam(); return; }
+
+    if (!creating && v.is_active !== "yes" &&
+        !window.confirm("Turn off access for " + (v.name || v.email) + "?\n\n" +
+                        "They will not be able to sign in. Nothing they have done is removed.")) {
+      return;
+    }
+
+    TEAM.busy = true; renderTeam();
+    var body = {
+      email: String(v.email).trim().toLowerCase(),
+      name: String(v.name).trim(),
+      role: v.role,
+      is_active: v.is_active === "yes"
+    };
+    if (v.password) { body.password = v.password; }
+
+    api("/staff/team", { method: "POST", body: JSON.stringify(body) })
+      .then(function (res) {
+        TEAM.busy = false;
+        TEAM.editing = "";
+        TEAM.v = teamDefaults();
+        TEAM.ok = (res && res.created ? "Created " : "Saved ") + (res && res.name ? res.name : "") +
+          (res && res.created && v.password ? " — hand them that password out of band." : "");
+        return loadTeam();
+      })
+      .catch(function (e) {
+        TEAM.busy = false;
+        TEAM.err = e.message;
+        renderTeam();
+      });
+  }
+
   /* ---------- csv ---------- */
   function csv() {
     if (!S.data || !S.data.items.length) { return; }
@@ -3322,9 +3673,38 @@
      own affordance on the button. */
   function hideBoot() { $("boot").classList.add("gone"); }
 
+  /* Two letters from the name the audit trail uses, so the avatar and every event row
+     agree about who this is. One word gives one letter rather than two from the same
+     word - "DA" for Daniel says less than "D" and is wrong the moment a Danielle joins. */
+  function initials(name) {
+    var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) { return "?"; }
+    if (parts.length === 1) { return parts[0].charAt(0).toUpperCase(); }
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  }
+
+  /* The name is the TITLE, not the label. A circle with initials in it is only legible
+     to somebody who already knows whose initials they are; hovering has to answer the
+     question, and a screen reader has to be told outright rather than shown two letters. */
+  function paintIdentity(staff) {
+    if (!staff) { return; }
+    var name = staff.name || "";
+    var role = String(staff.role || "").toLowerCase();
+    $("avatarInitials").textContent = initials(name);
+    $("avatarBtn").setAttribute("title", name + (role ? " \u00b7 " + role : ""));
+    $("avatarBtn").setAttribute("aria-label", "Account menu \u2014 " + name);
+    $("umName").textContent = name;
+    var chip = $("umRole");
+    chip.textContent = role || "\u2014";
+    chip.className = "rolechip" + (role === "admin" ? " is-admin" : (role === "manager" ? " is-manager" : ""));
+    /* Admin-only. The button being hidden is a courtesy; /staff/team refuses anyone else. */
+    $("tabTeam").hidden = (role !== "admin");
+  }
+
   function showApp() {
     $("loginWrap").classList.add("hide");
     $("app").classList.remove("hide");
+    paintIdentity(S.staff);
     load();
   }
   function signOut(msg) {
@@ -3365,7 +3745,47 @@
     try { f.setSelectionRange(at, to); } catch (e) { /* type just changed - fine */ }
   });
 
-  $("signout").addEventListener("click", function () { signOut(""); });
+  /* The account menu. Same shape as the split button's: one delegated handler decides,
+     and anything that is not inside it closes it. */
+  function userMenu(open) {
+    var panel = $("avatarMenu"), btn = $("avatarBtn");
+    if (!panel || !btn) { return; }
+    panel.hidden = !open;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    /* The nested section collapses with its parent, so reopening the menu is not a
+       surprise - it always starts on the top level. */
+    if (!open) { schemeSub(false); }
+  }
+
+  function schemeSub(open) {
+    var sub = $("umScheme"), btn = $("umAppearance");
+    if (!sub || !btn) { return; }
+    sub.hidden = !open;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  $("avatarBtn").addEventListener("click", function () {
+    var panel = $("avatarMenu");
+    splitMenu(false);
+    userMenu(panel ? panel.hidden : true);
+  });
+
+  $("umAppearance").addEventListener("click", function () {
+    var sub = $("umScheme");
+    schemeSub(sub ? sub.hidden : true);
+  });
+
+  /* Picking a scheme leaves the menu OPEN - Auto/Light/Dark is a thing people try two
+     or three times to see which they prefer, and closing after each pick would make the
+     second try a three-click job. Nothing is needed to achieve that: the outside-click
+     rule below only closes on a click that is NOT inside .usermenu.
+
+     And nothing here may call stopPropagation. The scheme buttons are handled by their
+     own delegated listener on the root, so swallowing the event would leave three
+     buttons that highlight and change nothing. */
+
+  $("signout").addEventListener("click", function () { userMenu(false); signOut(""); });
+  $("pwGo").addEventListener("click", changePassword);
   $("refresh").addEventListener("click", load);
   $("csv").addEventListener("click", csv);
   $("scrim").addEventListener("click", closeDrawer);
@@ -3410,7 +3830,18 @@
 
   root.addEventListener("click", function (e) {
     var t = e.target && e.target.closest ? e.target.closest("[data-settings-open]") : null;
-    if (t) { openSettings(t); return; }
+    if (t) {
+      /* The opener now lives INSIDE the account menu, so the menu has to shut behind it -
+         otherwise it sits open under the modal and is still there on close. Which means
+         the element that opened the modal is hidden by the time the modal closes, and
+         .focus() on a hidden element does nothing at all: focus would land on <body> and
+         the next Tab would start from the top of the page. The avatar is what the menu
+         came out of, so that is where focus goes back to. */
+      var fromMenu = t.closest && t.closest(".usermenu");
+      userMenu(false);
+      openSettings(fromMenu ? $("avatarBtn") : t);
+      return;
+    }
     if (e.target && e.target.closest && e.target.closest("[data-settings-close]")) { closeSettings(); return; }
 
     if (e.target && e.target.closest && e.target.closest("#newResMore")) {
@@ -3427,6 +3858,7 @@
     }
 
     splitMenu(false);
+    if (!(e.target && e.target.closest && e.target.closest(".usermenu"))) { userMenu(false); }
     if (e.target && e.target.closest && e.target.closest("[data-nr-close]")) { nrClose(); }
   });
 
@@ -3440,6 +3872,15 @@
     if (e.key !== "Escape") { return; }
     var menu = $("newResMenu");
     if (menu && !menu.hidden) { splitMenu(false); return; }
+    var um = $("avatarMenu");
+    if (um && !um.hidden) {
+      /* One layer per press here too: the nested section first, then the menu. */
+      var sub = $("umScheme");
+      if (sub && !sub.hidden) { schemeSub(false); return; }
+      userMenu(false);
+      $("avatarBtn").focus();
+      return;
+    }
     if (nrClose()) { return; }
     if (closeSettings()) { return; }
     closeDrawer();
@@ -3451,10 +3892,14 @@
   var TABS = [
     { k: "dash",  btn: "tabDash",  view: "viewDash" },
     { k: "today", btn: "tabToday", view: "viewToday" },
-    { k: "pipe",  btn: "tabPipe",  view: "viewPipe" }
+    { k: "pipe",  btn: "tabPipe",  view: "viewPipe" },
+    { k: "team",  btn: "tabTeam",  view: "viewTeam" }
   ];
   function tab(which) {
     S.tab = which;
+    /* Fetched on first view rather than with the pipeline: most sessions never open it,
+       and it is a second request against a rate-limited API. */
+    if (which === "team" && !TEAM.loaded && !TEAM.loading) { loadTeam(); }
     TABS.forEach(function (t) {
       $(t.btn).setAttribute("aria-selected", which === t.k);
       $(t.view).classList.toggle("hide", which !== t.k);
