@@ -1107,6 +1107,11 @@ function setPriceFromBedSelection() {
     $(this).val(bedNum);
   });
 
+  // Bed price -> hidden input on the reserve forms (carried into the lease application)
+  $(".bedCostInput").each(function () {
+    $(this).val("R " + numberWithSpaces(bedPrice));
+  });
+
   updateTotalPrice();
 
   document.querySelector(".unit_selector_confirm-wrapper")?.classList.remove("hide");
