@@ -17,7 +17,7 @@
    pushed - the module guards on window.__svViews so both can coexist.
 
    2026-09-03: the View facet is now tag-based and shared with the badges via
-   window.svxFacets, so clicking a badge applies the matching View filter; the
+   window.svFilters, so clicking a badge applies the matching View filter; the
    badge hover card dodges the plots it highlights.
 
    2026-09-03b: added the "Site plan zoom" module (a +/-/reset group over the
@@ -35,11 +35,20 @@
    OPEN_M at the top of the module (window.__svRevealConfig overrides).
 
    2026-09-04b: the View / Position / Garage Type filter chips are native
-   Webflow elements now (data-svx-filter / data-svx-value on .unit-filter_chip).
-   The "Extra facets" module no longer builds markup - it fills counts, hides
-   chips and groups no released unit can back, and wires the clicks. Type and
-   View sit under Price in the drawer; Position and Garage Type stay under
-   "More filters".
+   Webflow elements now, and the separate "Extra facets" module that used to
+   build and refine them is GONE. They are ordinary entries in the site-plan
+   controller's FACETS registry, on the same data-filter / data-value contract
+   as Availability, Bedrooms, Price and Type - the registry grew list-valued
+   and multi-field facets so it could carry them. One state, one matcher, one
+   count pass. The map's view badges drive that state through window.svFilters.
+   Type and View sit under Price in the drawer; Position and Garage Type stay
+   under "More filters".
+
+   2026-09-04c: the WhatsApp share module now covers both the unit detail
+   panel and the unit types floor plan ([wized="shareFloorplan"], deep link
+   ?type=A&floorplan=1) from one link builder. It also stopped telling people
+   these homes are at "Oakhills Estate" - that string was inherited from the
+   Oakhills build.
    ============================================================================ */
 
 
@@ -48,11 +57,24 @@
    ============================================================ */
 window.Wized = window.Wized || [];
   window.Wized.push((Wized) => {
+    /* Facets are declarative. A new one needs an entry here plus chips in the
+       Designer carrying data-filter="<name>" data-value="<value>" - counts,
+       click handling, dimming and reset are all generic from there.
+         key    the unit field to read
+         keys   several candidate fields; the first non-empty one wins
+         multi  the field is a list (or a comma string): the unit matches if
+                ANY of its values is selected
+         cast   coerce both sides before comparing (numbers)
+       Plain strings are compared trimmed and case-insensitively, so
+       "East-facing" in Xano and "east-facing" on a chip are the same value. */
     const FACETS = {
       status: { key: 'status' },
       type: { key: 'type_code' },
       beds: { key: 'bedrooms', cast: Number },
       baths: { key: 'bathrooms', cast: Number },
+      view: { key: 'view_tags', multi: true },
+      position: { keys: ['aspect', 'position'] },
+      garage: { keys: ['garage_type', 'garageType'] },
     };
 
     const RANGES = {
@@ -96,6 +118,34 @@ window.Wized = window.Wized || [];
     const toggles = {};
     Object.keys(TOGGLES).forEach((t) => (toggles[t] = false));
 
+    /* Anything outside this controller that drives a facet goes through here,
+       so there is one state and not two: the map's view badges use it, and a
+       badge and its chip stay in step whichever one you click. */
+    const listeners = [];
+    window.svFilters = {
+      toggle(facet, value, on) {
+        const set = state[facet];
+        if (!set) return false;
+        const cfg = FACETS[facet];
+        const v = norm(cfg, value);
+        const want = on === undefined ? !set.has(v) : !!on;
+        if (want) set.add(v);
+        else set.delete(v);
+        document.querySelectorAll(`[data-filter="${facet}"][data-value]`).forEach((el) => {
+          if (norm(cfg, el.getAttribute('data-value')) === v) el.classList.toggle('is-active', want);
+        });
+        apply();
+        return want;
+      },
+      isActive: (facet, value) => !!(state[facet] && state[facet].has(norm(FACETS[facet], value))),
+      /* Sets are not array-like - slice() would always give [] */
+      active: (facet) => (state[facet] ? Array.from(state[facet]) : []),
+      onChange(fn) {
+        listeners.push(fn);
+        fn(state);
+      },
+    };
+
     const NBSP = ' ';
 
     function formatPrice(p) {
@@ -111,6 +161,45 @@ window.Wized = window.Wized || [];
     }
 
     const LIST_HIDE = new Set(['unreleased']);
+
+    /* Declared up here, not below matches(): boot() runs the moment this
+       callback is entered when getUnits has already resolved, and a `const`
+       further down the function body is still in its temporal dead zone at
+       that point - apply() threw ReferenceError and took the whole controller
+       (map, list, filters) with it. Only ever hit on that fast path, which is
+       why it looked like an intermittent empty section. */
+    const sortFn = {
+      price: (a, b) => a.price - b.price,
+      size: (a, b) => b.total_area - a.total_area,
+      newest: (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    };
+
+    /* one comparable value, from either side of the comparison */
+    function norm(cfg, v) {
+      if (cfg && cfg.cast) return cfg.cast(v);
+      return typeof v === 'string' ? v.trim().toLowerCase() : v;
+    }
+
+    /* every value a unit carries for a facet - one for a plain field, several
+       for a list field, none if the unit has nothing (it then never matches) */
+    function facetValues(u, cfg) {
+      let raw;
+      if (cfg.multi) {
+        raw = u[cfg.key];
+        if (typeof raw === 'string') raw = raw.split(',');
+        if (!Array.isArray(raw)) raw = raw == null ? [] : [raw];
+      } else if (cfg.keys) {
+        raw = [];
+        for (const k of cfg.keys) {
+          if (u[k] != null && u[k] !== '') { raw = [u[k]]; break; }
+        }
+      } else {
+        raw = [u[cfg.key]];
+      }
+      return raw
+        .map((v) => norm(cfg, v))
+        .filter((v) => v != null && v !== '' && !(typeof v === 'number' && isNaN(v)));
+    }
 
     function boot(rawList) {
       if (booted) return;
@@ -211,14 +300,18 @@ window.Wized = window.Wized || [];
       });
     }
 
-    function matches(u) {
+    /* One matcher for both jobs: apply() passes no skip; updateCounts passes
+       the facet it is counting, so that facet's own selection doesn't gate its
+       own numbers (this was a second near-identical matchesExcept). */
+    function matches(u, skip) {
       for (const [facet, cfg] of Object.entries(FACETS)) {
+        if (facet === skip) continue;
         const set = state[facet];
         if (!set.size) continue;
-        const val = cfg.cast ? cfg.cast(u[cfg.key]) : u[cfg.key];
-        if (!set.has(val)) return false;
+        if (!facetValues(u, cfg).some((v) => set.has(v))) return false;
       }
       for (const [facet, cfg] of Object.entries(RANGES)) {
+        if (facet === skip) continue;
         const set = state[facet];
         if (!set.size) continue;
         const val = Number(u[cfg.key]);
@@ -227,39 +320,6 @@ window.Wized = window.Wized || [];
           return band && val >= band[0] && val < band[1];
         });
         if (!hit) return false;
-      }
-      for (const [name, cfg] of Object.entries(TOGGLES)) {
-        if (toggles[name] && !cfg.test(u)) return false;
-      }
-      return true;
-    }
-
-    const sortFn = {
-      price: (a, b) => a.price - b.price,
-      size: (a, b) => b.total_area - a.total_area,
-      newest: (a, b) => new Date(b.created_at) - new Date(a.created_at),
-    };
-
-    function matchesExcept(u, skip) {
-      for (const [f, cfg] of Object.entries(FACETS)) {
-        if (f === skip) continue;
-        const set = state[f];
-        if (!set.size) continue;
-        const val = cfg.cast ? cfg.cast(u[cfg.key]) : u[cfg.key];
-        if (!set.has(val)) return false;
-      }
-      for (const [f, cfg] of Object.entries(RANGES)) {
-        if (f === skip) continue;
-        const set = state[f];
-        if (!set.size) continue;
-        const val = Number(u[cfg.key]);
-        if (
-          ![...set].some((k) => {
-            const b = cfg.bands[k];
-            return b && val >= b[0] && val < b[1];
-          })
-        )
-          return false;
       }
       for (const [name, cfg] of Object.entries(TOGGLES)) {
         if (name === skip) continue;
@@ -275,16 +335,22 @@ window.Wized = window.Wized || [];
     }
 
     function updateCounts() {
+      /* count only what the list can actually show, so every chip agrees with
+         the results count (and with the view badges' hover cards). Without
+         this, view/position chips counted unreleased units too and a chip
+         could promise homes the list would never show. */
+      const countable = units.filter((u) => !LIST_HIDE.has(u.status));
+
       document.querySelectorAll('[data-filter][data-value]').forEach((el) => {
         const facet = el.getAttribute('data-filter');
         const raw = el.getAttribute('data-value');
-        const pool = units.filter((u) => matchesExcept(u, facet));
+        const pool = countable.filter((u) => matches(u, facet));
 
         let n = 0;
         if (FACETS[facet]) {
           const cfg = FACETS[facet];
-          const key = cfg.cast ? cfg.cast(raw) : raw;
-          n = pool.filter((u) => (cfg.cast ? cfg.cast(u[cfg.key]) : u[cfg.key]) === key).length;
+          const want = norm(cfg, raw);
+          n = pool.filter((u) => facetValues(u, cfg).some((v) => v === want)).length;
         } else if (RANGES[facet]) {
           const band = RANGES[facet].bands[raw];
           const k = RANGES[facet].key;
@@ -297,14 +363,16 @@ window.Wized = window.Wized || [];
         const name = el.getAttribute('data-toggle');
         const cfg = TOGGLES[name];
         if (!cfg) return;
-        const n = units.filter((u) => matchesExcept(u, name) && cfg.test(u)).length;
+        const n = countable.filter((u) => matches(u, name) && cfg.test(u)).length;
         writeCount(el, n);
       });
     }
 
     function apply() {
       const sorter = sortFn[state.sort] || sortFn.price;
-      const visible = units.filter(matches).sort(sorter);
+      /* (u) => matches(u), not `matches` - filter passes the index as 2nd arg,
+         which the matcher reads as `skip` */
+      const visible = units.filter((u) => matches(u)).sort(sorter);
       const listed = visible.filter((u) => !LIST_HIDE.has(u.status));
       const ids = new Set(visible.map((u) => u.plot_id));
 
@@ -320,6 +388,9 @@ window.Wized = window.Wized || [];
       });
 
       updateCounts();
+      listeners.forEach((fn) => {
+        try { fn(state); } catch (e) {}
+      });
     }
 
     const detailWrap = () => document.querySelector('.site-plan_detail-wrap');
@@ -375,9 +446,7 @@ window.Wized = window.Wized || [];
           const set = state[facet];
           if (!set) return console.warn('Unknown filter facet:', facet);
 
-          const cfg = FACETS[facet];
-          const raw = el.getAttribute('data-value');
-          const key = cfg && cfg.cast ? cfg.cast(raw) : raw;
+          const key = norm(FACETS[facet], el.getAttribute('data-value'));
 
           set.has(key) ? set.delete(key) : set.add(key);
           el.classList.toggle('is-active', set.has(key));
@@ -441,160 +510,6 @@ window.Wized = window.Wized || [];
       );
     }
   });
-
-/* ============================================================
-   Extra facets (View / Position / Garage Type) refining the controller's output
-
-   The chips are NATIVE Webflow elements (2026-09-04) - nothing here builds
-   markup any more. Each chip is a .unit-filter_chip carrying
-   data-svx-filter="view|position|garage" and data-svx-value="<value>", with
-   a .unit-filter_count inside; each group's title and chip row carry
-   data-svx="<facet>". Add, remove, relabel or reorder chips in the Designer;
-   this module only fills the counts, hides chips (and whole groups) whose
-   value no released unit carries, and wires the clicks.
-
-   Values: View chips hold sv_views keys matched against unit.view_tags;
-   Position chips hold the unit's aspect text ("East-facing"); Garage Type
-   chips hold garage_type (double / tandem). Matching is case-insensitive
-   and trimmed, so "East-facing" and "east-facing" are the same chip.
-
-   window.svxFacets exposes toggle/isActive/active/onChange so the map's
-   view badges drive the same state instead of keeping a second one.
-   ============================================================ */
-(function(){
-  if(window.__svxFacets)return;   /* an older copy may still ship from a page embed - first one wins */
-  window.__svxFacets=true;
-  window.Wized=window.Wized||[];
-  window.Wized.push(function(Wized){
-    var FACETS=[
-      {key:'view',tag:'view_tags'},
-      {key:'position',fields:['aspect','position']},
-      {key:'garage',fields:['garage_type','garageType']}
-    ];
-    var state={},lastBase=null,listeners=[];
-    FACETS.forEach(function(f){state[f.key]=new Set();});
-    function norm(v){return String(v==null?'':v).trim().toLowerCase();}
-    function units(){try{return (Wized.data.r.getUnits&&Wized.data.r.getUnits.data)||[];}catch(e){return [];}}
-    /* every value a unit carries for this facet - one for a plain field, many for a tag list */
-    function vals(u,f){
-      var out=[];
-      if(f.tag){
-        var t=u[f.tag];
-        if(Array.isArray(t))out=t;
-        else if(typeof t==='string'&&t)out=t.split(',');
-      }else{
-        for(var i=0;i<f.fields.length;i++){var v=u[f.fields[i]];if(v!=null&&v!==''){out=[v];break;}}
-      }
-      return out.map(norm).filter(Boolean);
-    }
-    function anyActive(){return FACETS.some(function(f){return state[f.key].size>0;});}
-    function matches(u){
-      return FACETS.every(function(f){
-        if(!state[f.key].size)return true;
-        return vals(u,f).some(function(v){return state[f.key].has(v);});
-      });
-    }
-    /* there are three [data-count="results"] nodes - the drawer's "N unit(s)
-       match" plus the desktop and mobile results headers. querySelector only
-       ever updated the first, so the headers stalled at the unfiltered total
-       whenever a facet or a view badge refined the list. */
-    function setCount(n){
-      document.querySelectorAll('[data-count="results"]').forEach(function(c){c.textContent=n;});
-    }
-    function refine(){
-      if(lastBase===null){try{lastBase=Wized.data.v.visibleUnits||[];}catch(e){lastBase=[];}}
-      var keep=anyActive()?lastBase.filter(matches):lastBase;
-      try{Wized.data.v.visibleUnits=keep;}catch(e){}
-      var keepIds={};keep.forEach(function(u){if(u.plot_id)keepIds[u.plot_id]=1;});
-      lastBase.forEach(function(u){
-        if(!u.plot_id)return;
-        var p=document.getElementById(u.plot_id);
-        if(p)p.classList.toggle('is-dimmed',!keepIds[u.plot_id]);
-      });
-      setCount(keep.length);
-      listeners.forEach(function(fn){try{fn(state);}catch(e){}});
-    }
-    /* after any click on the main controller's own controls, re-capture its output as our base */
-    document.addEventListener('click',function(e){
-      if(e.target.closest('[data-filter],[data-toggle],[data-single-level],[data-sort],[data-reset]')&&!e.target.closest('[data-svx-filter]')){
-        setTimeout(function(){
-          try{lastBase=Wized.data.v.visibleUnits||[];}catch(err){lastBase=[];}
-          if(e.target.closest('[data-reset]')){
-            FACETS.forEach(function(f){state[f.key].clear();});
-            document.querySelectorAll('[data-svx-filter].is-active').forEach(function(ch){ch.classList.remove('is-active');});
-          }
-          refine();
-        },30);
-      }
-    });
-    function chips(key){return document.querySelectorAll('[data-svx-filter="'+key+'"]');}
-    /* wire every native chip once; chips added later (Designer edits need a
-       publish, so this only matters if something injects one at runtime) */
-    function bind(){
-      document.querySelectorAll('[data-svx-filter]').forEach(function(ch){
-        if(ch.__svxBound)return;
-        ch.__svxBound=true;
-        ch.addEventListener('click',function(){
-          toggle(ch.getAttribute('data-svx-filter'),ch.getAttribute('data-svx-value'));
-        });
-      });
-    }
-    /* fill counts from the released units and hide what the data can't back:
-       a chip whose value no unit carries, and a group with no visible chip.
-       Counts are per released unit so they agree with the results count and
-       with the badge hover cards. */
-    function sync(){
-      bind();
-      var list=units().filter(function(u){return u&&u.status!=='unreleased';});
-      if(!list.length)return;
-      FACETS.forEach(function(f){
-        var counts={};
-        list.forEach(function(u){vals(u,f).forEach(function(v){counts[v]=(counts[v]||0)+1;});});
-        var shown=0;
-        chips(f.key).forEach(function(ch){
-          var n=counts[norm(ch.getAttribute('data-svx-value'))]||0;
-          var c=ch.querySelector('.unit-filter_count');
-          if(c)c.textContent=n;
-          ch.style.display=n?'':'none';
-          if(n)shown++;
-        });
-        document.querySelectorAll('[data-svx="'+f.key+'"]').forEach(function(el){el.style.display=shown?'':'none';});
-      });
-    }
-    /* single entry point for a chip click OR a map badge click */
-    function toggle(key,value,on){
-      var set=state[key];
-      if(!set)return false;
-      var v=norm(value);
-      var want=on===undefined?!set.has(v):!!on;
-      if(want)set.add(v);else set.delete(v);
-      chips(key).forEach(function(ch){
-        if(norm(ch.getAttribute('data-svx-value'))===v)ch.classList.toggle('is-active',want);
-      });
-      refine();
-      return want;
-    }
-    window.svxFacets={
-      toggle:toggle,
-      isActive:function(k,v){return !!(state[k]&&state[k].has(norm(v)));},
-      active:function(k){return state[k]?Array.from(state[k]):[];},   /* Sets are not array-like - slice() would always give [] */
-      onChange:function(fn){listeners.push(fn);fn(state);},
-      rebuild:sync
-    };
-    bind();
-    Wized.on('requestend',function(r){
-      if(r.name==='getUnits'){
-        setTimeout(function(){
-          try{lastBase=Wized.data.v.visibleUnits||[];}catch(e){lastBase=[];}
-          sync();
-        },250);
-      }
-    });
-    /* fallbacks in case getUnits finished before this ran (or came via the controller's direct fetch) */
-    setTimeout(sync,4000);
-    setTimeout(sync,6000);
-  });
-})();
 
 /* ============================================================
    Plot tooltip controller
@@ -704,9 +619,9 @@ window.Wized = window.Wized || [];
    detail-panel "Position & views" block. Data: /units (position,
    aspect, view_tags, view_summary, position_detail) and /views.
 
-   A badge click toggles the matching chip in the View filter facet
-   (window.svxFacets), so the map and the filter panel are one state.
-   Hover is a non-destructive preview of the same set.
+   A badge click toggles the matching chip in the View filter facet through
+   window.svFilters (the site-plan controller's own state), so the map and the
+   filter panel are one control. Hover is a non-destructive preview.
    ============================================================ */
 (function () {
   if (window.__svViews) return;
@@ -729,16 +644,14 @@ window.Wized = window.Wized || [];
   function icon(name) { return ICONS[name] || ICONS.mountain; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function tags(u) { var t = u && u.view_tags; return Array.isArray(t) ? t : (typeof t === 'string' && t ? t.split(',').map(function (s) { return s.trim(); }) : []); }
-  function filtered() { try { return window.svxFacets ? window.svxFacets.active('view').length > 0 : false; } catch (e) { return false; } }
+  function filtered() { try { return window.svFilters ? window.svFilters.active('view').length > 0 : false; } catch (e) { return false; } }
 
   /* ---------- data ---------- */
   function setViews(list) {
     if (!Array.isArray(list) || !list.length) return;
     views = list.filter(function (v) { return v && v.key && v.is_active !== false; });
     byKey = {}; views.forEach(function (v) { byKey[v.key] = v; });
-    window.__svViewList = views;
     renderBadges();
-    if (window.svxFacets && window.svxFacets.rebuild) window.svxFacets.rebuild();   // re-sync badge latch state against the native View chips
   }
   function setUnits(list) {
     if (!Array.isArray(list)) return;
@@ -773,8 +686,8 @@ window.Wized = window.Wized || [];
       b.addEventListener('blur', function () { clear(); hideTip(); });
       b.addEventListener('click', function (e) {
         e.preventDefault();
-        if (window.svxFacets) {
-          window.svxFacets.toggle('view', v.key);   // one shared state: chip + badge + map
+        if (window.svFilters) {
+          window.svFilters.toggle('view', v.key);   // one shared state: chip + badge + map
           clear();                                   // the filter's own dimming takes over
           showTip(b, v);
         }
@@ -787,7 +700,7 @@ window.Wized = window.Wized || [];
   function syncBadges() {
     if (!badgeHost) return;
     badgeHost.querySelectorAll('.site-plan_badge').forEach(function (b) {
-      var on = !!(window.svxFacets && window.svxFacets.isActive('view', b.getAttribute('data-view')));
+      var on = !!(window.svFilters && window.svFilters.isActive('view', b.getAttribute('data-view')));
       b.classList.toggle('is-active', on);
       b.setAttribute('aria-pressed', String(on));
     });
@@ -853,7 +766,7 @@ window.Wized = window.Wized || [];
   function showTip(b, v) {
     if (!tip) { tip = document.createElement('div'); tip.className = 'site-plan_badge-tip'; document.body.appendChild(tip); }
     var n = units.filter(function (u) { return u.status !== 'unreleased' && tags(u).indexOf(v.key) !== -1; }).length;
-    var on = !!(window.svxFacets && window.svxFacets.isActive('view', v.key));
+    var on = !!(window.svFilters && window.svFilters.isActive('view', v.key));
     tip.innerHTML = '<div class="site-plan_badge-tip_head">' + esc(v.label) + (v.direction ? '<span class="site-plan_badge-tip_dir">' + esc(v.direction) + '</span>' : '') + '</div>' +
       '<div>' + esc(v.description) + '</div>' +
       (n ? '<span class="site-plan_badge-tip_count">' + n + ' home' + (n === 1 ? '' : 's') + ' with this view</span>' : '') +
@@ -903,9 +816,9 @@ window.Wized = window.Wized || [];
   /* ---------- boot ---------- */
   var booted = false;
   function hookFacets() {
-    if (synced || !window.svxFacets) return;
+    if (synced || !window.svFilters) return;
     synced = true;
-    window.svxFacets.onChange(syncBadges);
+    window.svFilters.onChange(syncBadges);
   }
   function boot(Wized) {
     if (booted) return; booted = true;
@@ -1590,22 +1503,48 @@ let audioContext;
 })();
 
 /* ============================================================
-   ?unit= URL param sync, deep-link restore, and WhatsApp share
+   Deep links + WhatsApp sharing
+
+   Two things are shareable and they work the same way: a URL param that
+   reopens what the sender was looking at, and a WhatsApp button that wraps
+   that link in a sentence. So they share one module, one link builder and
+   one click handler rather than a copy each.
+
+     [wized="shareWhatsapp"]  a unit          ?unit=<unit number>
+     [wized="shareFloorplan"] a type's plan   ?type=<type code>&floorplan=1
+
+   Only ?unit= is written to the address bar as you browse, and only while
+   the detail panel is open. ?type= is built at share time instead: a type is
+   always selected, so syncing it would stamp a param on the landing URL of
+   every visit - including the ad traffic that arrives on / - for no gain.
    ============================================================ */
 (function(){
-  var PARAM = 'unit';
+  var UNIT = 'unit', TYPE = 'type', FLOORPLAN = 'floorplan';
+  var ESTATE = 'Stellenbosch Village, Stellenbosch';
   window.Wized = window.Wized || [];
   window.Wized.push(function(Wized){
 
     function units(){ try { return (Wized.data.r.getUnits && Wized.data.r.getUnits.data) || []; } catch(e){ return []; } }
     function selected(){ try { return Wized.data.v.selectedUnit || null; } catch(e){ return null; } }
+    function selectedType(){ try { return Wized.data.v.selectedType || null; } catch(e){ return null; } }
     function unitKey(u){ return u ? String(u.unit_number != null ? u.unit_number : u.plot_id) : null; }
+    function param(name){ return new URL(window.location.href).searchParams.get(name); }
+
+    /* poll for something that only exists once Wized has rendered; the unit
+       list and the type tabs both arrive well after DOMContentLoaded */
+    function waitFor(test, done, tries){
+      var n = 0, max = tries || 60;
+      var t = setInterval(function(){
+        var got = test();
+        if (got || ++n > max) { clearInterval(t); if (got) done(got); }
+      }, 200);
+    }
 
     /* ---- 1. URL param sync: ?unit=<unit_number> follows the selection ---- */
     function setParam(u){
       var url = new URL(window.location.href);
       var key = unitKey(u);
-      if (key) { url.searchParams.set(PARAM, key); } else { url.searchParams.delete(PARAM); }
+      if (key) { url.searchParams.set(UNIT, key); } else { url.searchParams.delete(UNIT); }
       window.history.replaceState({}, '', url.toString());
     }
     var wrap = document.querySelector('.site-plan_detail-wrap');
@@ -1621,40 +1560,103 @@ let audioContext;
       }
     });
 
-    /* ---- 2. Deep link: ?unit=... on load re-opens that unit ---- */
-    var wanted = new URL(window.location.href).searchParams.get(PARAM);
-    if (wanted) {
-      var tries = 0;
-      var timer = setInterval(function(){
-        tries++;
+    /* ---- 2. Deep links ---- */
+    /* ?unit=... re-opens that unit's detail panel */
+    var wantUnit = param(UNIT);
+    if (wantUnit) {
+      waitFor(function(){
         var list = units();
-        if (list.length) {
-          var u = list.find(function(x){ return String(x.unit_number) === wanted || String(x.plot_id) === wanted; });
-          if (u) {
-            var path = document.getElementById(u.plot_id);
-            if (path) { path.dispatchEvent(new MouseEvent('click', { bubbles:true })); clearInterval(timer); return; }
-          } else { clearInterval(timer); return; }
-        }
-        if (tries > 60) clearInterval(timer); /* give up after ~12s */
-      }, 200);
+        if (!list.length) return null;
+        var u = list.find(function(x){ return String(x.unit_number) === wantUnit || String(x.plot_id) === wantUnit; });
+        return (u && document.getElementById(u.plot_id)) || null;
+      }, function(path){ path.dispatchEvent(new MouseEvent('click', { bubbles:true })); });
+    }
+
+    /* ?type=A selects that tab in the unit types section and scrolls to it;
+       &floorplan=1 then opens the floor plan modal through the section's own
+       "View Floor Plan" button, so the site's modal script stays the only
+       thing that knows how to open it. */
+    var wantType = param(TYPE);
+    if (wantType) {
+      var code = String(wantType).trim().toLowerCase();
+      waitFor(function(){
+        var tabs = document.querySelectorAll('[wized="unitTypeTabLink"]');
+        if (!tabs.length) return null;
+        return Array.prototype.filter.call(tabs, function(el){
+          var t = (el.textContent || '').trim().toLowerCase();
+          return t === code || t === 'type ' + code;
+        })[0] || null;
+      }, function(tab){
+        if (!tab.classList.contains('is-active')) tab.click();
+        var section = document.getElementById('unit-types');
+        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (param(FLOORPLAN) !== '1') return;
+        /* wait for the pane to rebind to the newly selected type */
+        setTimeout(function(){
+          var open = document.querySelector('.unit-types_actions [custom-modal="open"][custom-modal-element="unit-floorplan"]');
+          if (open) open.click();
+        }, 700);
+      });
     }
 
     /* ---- 3. Share on WhatsApp ---- */
+    /* each entry adds its own params to the outgoing URL and returns the
+       sentence that goes in front of it */
+    var SHARE = {
+      shareWhatsapp: function(url){
+        var u = selected();
+        var key = unitKey(u);
+        /* the sender may have arrived on a shared floor-plan link; don't pass
+           its params on, or the recipient gets a modal over the unit panel */
+        url.searchParams.delete(TYPE);
+        url.searchParams.delete(FLOORPLAN);
+        url.hash = '';
+        if (key) url.searchParams.set(UNIT, key);
+        var what = u
+          ? 'Unit ' + (u.unit_number != null ? u.unit_number : '') + (u.type_code ? ' (Type ' + u.type_code + ')' : '')
+          : 'this home';
+        return 'Take a look at ' + what + ' at ' + ESTATE + ': ';
+      },
+      shareFloorplan: function(url){
+        var t = selectedType();
+        var code = t && t.type_code ? String(t.type_code) : null;
+        url.searchParams.delete(UNIT);
+        if (code) { url.searchParams.set(TYPE, code); url.searchParams.set(FLOORPLAN, '1'); }
+        url.hash = 'unit-types';
+        var specs = [];
+        if (t && t.bedrooms) specs.push(t.bedrooms + ' bed');
+        if (t && t.bathrooms) specs.push(t.bathrooms + ' bath');
+        if (t && t.total_area) specs.push(t.total_area + ' m²');
+        return 'The floor plan for ' + (code ? 'Type ' + code : 'this home') +
+          (specs.length ? ' (' + specs.join(', ') + ')' : '') + ' at ' + ESTATE + ': ';
+      }
+    };
+    function hit(e){
+      if (!e.target.closest) return null;
+      for (var k in SHARE) {
+        if (e.target.closest('[wized="' + k + '"]')) return k;
+      }
+      return null;
+    }
     document.addEventListener('click', function(e){
-      var btn = e.target.closest('[wized="shareWhatsapp"]');
-      if (!btn) return;
+      var kind = hit(e);
+      if (!kind) return;
       e.preventDefault();
       e.stopPropagation();
-      var u = selected();
       var url = new URL(window.location.href);
-      var key = unitKey(u);
-      if (key) url.searchParams.set(PARAM, key);
-      var label = u
-        ? 'Unit ' + (u.unit_number != null ? u.unit_number : '') + (u.type_code ? ' (Type ' + u.type_code + ')' : '')
-        : 'this unit';
-      var msg = 'Take a look at ' + label + ' at Oakhills Estate, Stellenbosch: ' + url.toString();
-      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+      var msg = SHARE[kind](url);
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg + url.toString()), '_blank', 'noopener');
     }, true);
+    /* both share controls are divs with role="button" - a div doesn't fire a
+       click from the keyboard, so honour the role rather than leaving it a
+       promise the element can't keep */
+    document.addEventListener('keydown', function(e){
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      var kind = hit(e);
+      if (!kind) return;
+      e.preventDefault();
+      e.target.closest('[wized="' + kind + '"]').click();
+    });
   });
 })();
 
