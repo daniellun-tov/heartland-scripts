@@ -594,8 +594,7 @@
     "    position:relative; width:100%; max-width:380px; margin:0; padding:32px 28px 28px;",
     "    text-align:center;",
     "  }",
-    "  #login h1 { margin:0 0 6px; }",
-    "  #login p { color:var(--ink-2); font-size:.875rem; margin:0 0 22px; }",
+    "  #login h1 { margin:0 0 22px; }",
     "  /* Every control is the same width, so the card reads as one column rather than a",
     "     form with a button hanging off the bottom-left of it. */",
     "  #login .field { text-align:left; margin-bottom:14px; }",
@@ -685,7 +684,29 @@
     "  .pwform { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:12px; }",
     "  @media (max-width: 620px) { .pwform { grid-template-columns:1fr; } }",
     "  .team-grid { display:grid; grid-template-columns:1fr; gap:16px; }",
-    "  @media (min-width: 900px) { .team-grid { grid-template-columns:1.4fr 1fr; align-items:start; } }",
+    "  @media (min-width: 900px) { .team-grid { grid-template-columns:1.25fr 1fr; align-items:start; } }",
+    "  /* .card carries no padding of its own anywhere in this console - the drawer's",
+    "     .sect and the table's .tablewrap each supply their own. These two need it. */",
+    "  .team-grid > .card { padding:18px 20px; }",
+    "  .team-intro { font-size:.8125rem; color:var(--ink-2); margin:0 0 14px; }",
+    "  .team-list { border-top:1px solid var(--rule); }",
+    "  /* Full-bleed hover: the row's padding is pulled back out to the card's edge so",
+    "     the highlight reads as a row rather than a floating strip inside one. */",
+    "  .team-row { margin:0 -20px; padding:11px 20px; align-items:center; cursor:pointer; }",
+    "  .team-row:hover { background:var(--surface-2); }",
+    "  .team-row:focus-visible { background:var(--surface-2); }",
+    "  .team-right { text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:4px; }",
+    "  .team-form { display:grid; gap:14px; margin-top:16px; }",
+    "  .team-form .nr-field { margin:0; }",
+    "  .team-check { display:flex; gap:9px; align-items:center; font-size:.8125rem; color:var(--ink); }",
+    "  .team-check input { width:auto; margin:0; }",
+    "  /* .err and .ok reserve 1.2em each so a message appearing does not shift the",
+    "     layout - right in the drawer and the reservation form, where the message sits",
+    "     ABOVE the thing you are about to click. Here it sits between the form and the",
+    "     buttons, so the reservation is 2.4em of dead air and the shift is harmless. */",
+    "  #viewTeam .err:empty, #viewTeam .ok:empty { min-height:0; }",
+    "  .team-actions { display:flex; gap:8px; align-items:center; margin-top:18px; }",
+    "  .team-actions .spacer { flex:1 1 auto; }",
     "  .team-row.is-off { opacity:.55; }",
     "  .team-row.is-off .team-name::after {",
     "    content:'no access'; margin-left:8px; font-size:.6875rem; font-weight:600;",
@@ -753,7 +774,6 @@
     "  <button type=\"button\" class=\"iconbtn\" data-settings-open aria-label=\"Settings\" title=\"Settings\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"3\"></circle><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z\"></path></svg></button>",
     "    <div class=\"brandmark is-big\"><span class=\"bm-icon mark\"><svg viewBox=\"0 0 220 167\" fill=\"currentColor\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M150.8 54.1191V140.439L175.24 138.299V62.1391L150.8 54.1191Z\"/><path d=\"M202.76 29.74L117.33 1.25C114.83 0.43 112.25 0 109.66 0C107.07 0 104.49 0.42 101.99 1.25L16.56 29.74C6.66 33.05 0 42.3 0 52.73V135.59C0 148.15 9.59 158.63 22.12 159.72L68.52 163.77V92.04L44.07 100.42V149.49L23.17 147.66C16.86 147.11 12.11 141.92 12.11 135.59V52.73C12.11 47.51 15.43 42.88 20.38 41.23L105.83 12.74C107.07 12.33 108.35 12.11 109.66 12.11C110.97 12.11 112.25 12.33 113.49 12.74L198.93 41.23C203.88 42.88 207.22 47.51 207.22 52.73V135.59C207.22 141.91 202.46 147.11 196.15 147.66L187.58 148.41L139.67 152.6V50.4L115.24 42.27V166.89L197.21 159.73C209.74 158.64 219.34 148.16 219.34 135.6V52.73C219.34 42.3 212.66 33.04 202.77 29.74H202.76Z\"/><path d=\"M94.7803 45.4495L91.4503 46.5895L79.6503 50.6395L44.0703 62.8295V88.6595L79.6503 76.4695V164.75L104.09 166.89V42.2695L94.7803 45.4495Z\"/></svg></span><span class=\"bm-word\">Heartland</span></div>",
     "    <h1>Sales console</h1>",
-    "    <p>Sign in with your own account. Everything you change is recorded against your name.</p>",
     "    <div class=\"field\">",
     "      <label for=\"email\">Email</label>",
     "      <input id=\"email\" type=\"email\" autocomplete=\"username\" spellcheck=\"false\">",
@@ -3474,10 +3494,10 @@
       '<div><div class="team-name">' + esc(r.name || r.email) +
         (isMe ? ' <span class="team-you">you</span>' : "") + "</div>" +
       '<div class="team-mail">' + esc(r.email) + "</div></div>" +
-      '<div style="text-align:right">' +
+      '<div class="team-right">' +
       '<span class="rolechip' + (role === "admin" ? " is-admin" : (role === "manager" ? " is-manager" : "")) +
         '">' + esc(role) + "</span>" +
-      '<div class="team-mail" style="margin-top:4px">' +
+      '<div class="team-mail">' +
         (r.last_login_at ? "last in " + day(r.last_login_at) : "never signed in") +
       "</div></div></div>";
   }
@@ -3489,50 +3509,57 @@
     var list = TEAM.loading && !TEAM.loaded
       ? '<div class="muted" style="font-size:.8125rem">Loading…</div>'
       : (TEAM.rows.length
-          ? TEAM.rows.map(teamRowHtml).join("")
+          ? '<div class="team-list">' + TEAM.rows.map(teamRowHtml).join("") + "</div>"
           : '<div class="muted" style="font-size:.8125rem">Nobody yet.</div>');
+
+    /* The person being edited is named, not addressed - "Editing Ana Mokoena" is what
+       somebody scanning the screen is looking for, and an email is long enough to wrap
+       the heading. */
+    var editingRow = null;
+    for (var e = 0; e < TEAM.rows.length; e++) {
+      if (TEAM.rows[e].email === editing) { editingRow = TEAM.rows[e]; break; }
+    }
 
     $("viewTeam").innerHTML =
       '<div class="team-grid">' +
-      '<div class="card"><div class="sect" style="border:0;margin:0;padding:0">' +
+      '<div class="card">' +
         "<h2>Who has an account</h2>" +
-        '<div class="muted" style="font-size:.8125rem;margin-bottom:12px">' +
+        '<div class="team-intro">' +
           "Click a person to change their role, reset their password, or turn their access off. " +
           "Accounts are never deleted — the name on every deal they touched depends on the row staying." +
         "</div>" + list +
-      "</div></div>" +
+      "</div>" +
 
       '<div class="card">' +
-        "<h2>" + (editing ? "Editing " + esc(editing) : "Add someone") + "</h2>" +
-        '<div class="nr-grid" style="margin-top:12px">' +
-        '<div class="nr-field full"><label for="tmName">Name</label>' +
+        "<h2>" + (editing ? "Editing " + esc((editingRow && editingRow.name) || editing) : "Add someone") + "</h2>" +
+        '<div class="team-form">' +
+        '<div class="nr-field"><label for="tmName">Name</label>' +
           '<input id="tmName" type="text" value="' + esc(v.name) + '">' +
-          '<div class="nr-hint">This lands on every event they write. Use the name their colleagues would recognise.</div></div>' +
-        '<div class="nr-field full"><label for="tmEmail">Email</label>' +
+          '<div class="nr-hint">Lands on every event they write.</div></div>' +
+        '<div class="nr-field"><label for="tmEmail">Email</label>' +
           '<input id="tmEmail" type="email" autocomplete="off" spellcheck="false" value="' + esc(v.email) + '"' +
           (editing ? " disabled" : "") + ">" +
-          '<div class="nr-hint">' + (editing ? "The login identity cannot be changed — add a new account instead."
-            : "This is how they sign in.") + "</div></div>" +
-        '<div class="nr-field full"><label for="tmRole">Role</label>' +
+          '<div class="nr-hint">' + (editing ? "Cannot be changed — add a new account instead."
+            : "How they sign in.") + "</div></div>" +
+        '<div class="nr-field"><label for="tmRole">Role</label>' +
           '<select id="tmRole">' +
           ["sales", "manager", "admin"].map(function (r) {
             return '<option value="' + r + '"' + (v.role === r ? " selected" : "") + ">" + r + "</option>";
           }).join("") + "</select>" +
-          '<div class="nr-hint">manager adds the ability to <strong>delete</strong> a reservation, which is ' +
-          "irreversible and takes the buyer’s portal account with it. admin can also manage this list.</div></div>" +
-        '<div class="nr-field full"><label for="tmPassword">' +
+          '<div class="nr-hint">manager can also <strong>delete</strong> a reservation, which is ' +
+          "irreversible. admin can also manage this list.</div></div>" +
+        '<div class="nr-field"><label for="tmPassword">' +
           (editing ? "Reset their password" : "Temporary password") + "</label>" +
           '<input id="tmPassword" type="text" autocomplete="off" spellcheck="false" value="' + esc(v.password) + '">' +
           '<div class="nr-hint">At least 10 characters. ' +
-          (editing ? "Leave it blank to keep the one they have."
-                   : "Hand it over in person or by phone, not in the same email as the link.") +
-          " They can change it themselves under Settings.</div></div>" +
-        '<div class="nr-field full"><label style="display:flex;gap:8px;align-items:flex-start;font-size:.8125rem">' +
-          '<input id="tmActive" type="checkbox" style="width:auto;margin-top:3px"' +
-          (v.is_active === "yes" ? " checked" : "") + "> Can sign in</label></div>" +
+          (editing ? "Leave it blank to keep theirs."
+                   : "Hand it over in person or by phone.") +
+          " They can change it under Settings.</div></div>" +
+        '<label class="team-check"><input id="tmActive" type="checkbox"' +
+          (v.is_active === "yes" ? " checked" : "") + "> Can sign in</label>" +
         "</div>" +
         '<div class="err" id="tmErr">' + esc(TEAM.err) + '</div><div class="ok" id="tmOk">' + esc(TEAM.ok) + "</div>" +
-        '<div class="nr-actions" style="margin-top:12px">' +
+        '<div class="team-actions">' +
           (editing ? '<button type="button" id="tmCancel">Add someone instead</button>' : "") +
           '<span class="spacer"></span>' +
           '<button type="button" class="primary" id="tmGo"' + (TEAM.busy ? " disabled" : "") + ">" +
