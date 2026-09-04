@@ -150,14 +150,66 @@
          no service, no cost, no dependency, works offline. The live fields carry
          no autocomplete attributes at all today, which is why it never offers.
 
-     (b) Search-as-you-type needs a geocoder. Photon is OpenStreetMap-based, free,
-         and explicitly built for type-ahead. Nominatim is also free but its usage
-         policy discourages autocomplete; Google Places and Mapbox both bill.
+     (b) Search-as-you-type needs a geocoder. There are now two, in that order.
 
-     Photon is a third party on a page that takes money, so it is strictly
-     additive: debounced, abortable, and every failure path leaves the buyer
-     typing a plain address exactly as they do now. */
+     4 SEPT: GOOGLE PLACES IS FIRST, PHOTON IS THE FALLBACK.
+
+     Photon was chosen because it was free and it is genuinely built for type-ahead.
+     It was not good enough on real South African street addresses: it answers well on
+     suburbs and towns and poorly on "17 Alice Road", which is the only thing a buyer
+     ever types into this box. Daniel asked to try Places and Places is markedly better
+     at exactly that.
+
+     IT COSTS NOTHING AT THIS VOLUME AND THE REASON IS WORTH WRITING DOWN. Autocomplete
+     (New) has two SKUs. Predictions alone bill as "Autocomplete Requests"; a session
+     that ENDS in a Place Details call bills differently and adds a second SKU. The
+     buyer's address is one plain text field, and a prediction's text IS the whole
+     formatted address, so there is no Place Details call to make. One Essentials SKU,
+     10,000 free calls a month, and at four-character minimum with a 300ms debounce an
+     address costs two or three of them. Heartland would need something like two
+     thousand addresses a month before a cent is due.
+
+     THE KEY IS NOT IN THIS FILE. It sits in the Xano environment beside the Memberstack
+     and Webflow keys, and the browser talks to /public/address/suggest instead. A key
+     shipped in a public bundle is readable by anyone, and an HTTP-referrer restriction
+     is a header - curl forges one in a keystroke. See the address_suggest function.
+
+     PHOTON STAYS. Not as ceremony: the proxy answers ok:false when the key is unset,
+     when Google is down, and when the throttle bites, and on any of those the buyer
+     should still get suggestions rather than nothing. Photon needs no key and no
+     account, so the fallback has no failure mode of its own to go wrong.
+
+     Both are third parties on a page that takes money, so this stays strictly additive:
+     debounced, abortable, and every failure path leaves the buyer typing a plain
+     address exactly as they do now. */
   var PHOTON = "https://photon.komoot.io/api/";
+  var PLACES = "https://x7aj-untn-pq4t.n7e.xano.io/api:i0YhKPAV/public/address/suggest";
+
+  /* Set when the proxy says it cannot answer, so a page whose key is unset asks once
+     rather than on every keystroke. It clears itself after a minute: a throttle lifts,
+     a deploy sets the key, and a buyer still on the form should get the better engine
+     back without reloading. */
+  var placesDownUntil = 0;
+
+  /* One token per address being typed, retired when a suggestion is taken. Places bills
+     per request today because nothing terminates the session, so this changes no cost -
+     it is here so that adding Place Details later is a server change and not a rewrite
+     of the client. */
+  var placesSession = null;
+
+  function placesToken() {
+    if (placesSession) { return placesSession; }
+    var c = window.crypto;
+    if (c && typeof c.randomUUID === "function") {
+      placesSession = c.randomUUID();
+    } else {
+      placesSession = "hl-" + Date.now().toString(36) + "-" +
+                      Math.random().toString(36).slice(2, 10);
+    }
+    return placesSession;
+  }
+
+  function endAddressSession() { placesSession = null; }
 
   /* SOUTH AFRICA, UNLESS TOLD OTHERWISE.
      Photon ranks by a mix of prominence and distance, and with no hint it answered
@@ -177,6 +229,52 @@
     opts = opts || {};
     var q = String(term || "").trim();
     if (q.length < 4) { return Promise.resolve([]); }
+
+    if (opts.engine === "photon" || Date.now() < placesDownUntil) {
+      return photonSuggest(q, opts);
+    }
+
+    var url = PLACES + "?q=" + encodeURIComponent(q) +
+              "&session=" + encodeURIComponent(placesToken());
+    if (opts.country) { url += "&country=" + encodeURIComponent(opts.country); }
+
+    return fetch(url, { signal: opts.signal })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        /* ok:false is the proxy saying it could not ask - no key, throttled, or Google
+           refused. ok:true with nothing is an ANSWER, and Photon offering four guesses
+           where Google found none would be four wrong lines, so only the first falls
+           back. */
+        if (!j || j.ok !== true) {
+          placesDownUntil = Date.now() + 60000;
+          return photonSuggest(q, opts);
+        }
+        return ((j && j.suggestions) || []).map(formatPlace);
+      })
+      .catch(function (e) {
+        /* An aborted fetch is this module cancelling its own stale request, not a
+           failure of the engine. Treating it as one would retire Places for a minute
+           every time the buyer typed a second character. */
+        if (e && e.name === "AbortError") { return []; }
+        placesDownUntil = Date.now() + 60000;
+        return photonSuggest(q, opts);
+      });
+  }
+
+  function formatPlace(s) {
+    s = s || {};
+    return {
+      label: s.label || "",
+      main: s.main || s.label || "",
+      secondary: s.secondary || "",
+      place_id: s.place_id || "",
+      source: "google",
+      raw: s
+    };
+  }
+
+  function photonSuggest(q, opts) {
+    opts = opts || {};
     var url = PHOTON + "?q=" + encodeURIComponent(q) + "&limit=5&lang=en";
     var bbox = (opts.bbox === undefined) ? SA_BBOX : opts.bbox;
     if (bbox) { url += "&bbox=" + encodeURIComponent(bbox); }
@@ -202,7 +300,7 @@
       p.postcode,
       country
     ].filter(Boolean).join(", ");
-    return { label: line, raw: p };
+    return { label: line, main: line, secondary: "", source: "photon", raw: p };
   }
 
   /* ------------------------------------------------------------ 4. busy buttons
@@ -396,6 +494,7 @@
     luhnOk: luhnOk,
     missingRequired: missingRequired,
     addressSuggest: addressSuggest,
+    endAddressSession: endAddressSession,
     MIN_AGE: MIN_AGE
   };
 })(window);
@@ -1345,8 +1444,24 @@
             item.setAttribute("data-hl-suggest-item", "");
             item.setAttribute("role", "button");
             item.setAttribute("tabindex", "0");
+            /* The line the buyer reads and the line that lands in the field are the
+               same string, but only one of them is safe to read back off the DOM: an
+               attribution row or a stray text node inside the item would come along
+               with textContent. The value travels in an attribute instead. */
+            item.setAttribute("data-hl-suggest-value", list[i].label || "");
             item.textContent = list[i].label;
             box.appendChild(item);
+          }
+          /* Places predictions shown outside a Google map must carry the attribution.
+             It is a licence condition rather than a courtesy, and it is drawn only for
+             the engine that requires it - Photon's results say nothing. */
+          if (list[0] && list[0].source === "google") {
+            var note = d.createElement("div");
+            note.setAttribute("data-hl-suggest-note", "");
+            note.style.cssText =
+              "font-size:11px;line-height:1.6;opacity:.6;padding:2px 8px;text-align:right";
+            note.textContent = "Powered by Google";
+            box.appendChild(note);
           }
         })
         .catch(function () { clearSuggestions(); });
@@ -1356,8 +1471,12 @@
   function takeSuggestion(el) {
     var input = fieldEl("address");
     if (!input) { return; }
-    input.value = el.textContent || "";
+    var picked = el.getAttribute("data-hl-suggest-value");
+    input.value = (picked === null) ? (el.textContent || "") : picked;
     clearSuggestions();
+    /* The address is settled, so the next one the buyer types is a new lookup session
+       rather than a continuation of this one. */
+    if (w.HLBuyer && w.HLBuyer.endAddressSession) { w.HLBuyer.endAddressSession(); }
     queueSave();
   }
 

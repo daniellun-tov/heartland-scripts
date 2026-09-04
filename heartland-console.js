@@ -577,6 +577,37 @@
     "  /* ── new reservation ──────────────────────────────────────────────────────── */",
     "  .modal-panel.is-wide { width:min(620px,calc(100% - 32px)); max-height:calc(100vh - 48px); overflow-y:auto; }",
     "  .nr-step { font-size:.75rem; color:var(--ink-muted); }",
+    "  /* Split button. The default action is the whole left-hand button, so the common",
+    "     case - a real reservation - is one click and the rare one is deliberate. */",
+    "  .splitbtn { position:relative; display:inline-flex; }",
+    "  .splitbtn > .primary:first-child { border-top-right-radius:0; border-bottom-right-radius:0; }",
+    "  .splitbtn > .split-toggle {",
+    "    border-top-left-radius:0; border-bottom-left-radius:0; margin-left:1px;",
+    "    padding-left:9px; padding-right:9px; font-size:.625rem; line-height:1;",
+    "  }",
+    "  .split-menu {",
+    "    position:absolute; z-index:6; top:calc(100% + 4px); right:0; min-width:230px;",
+    "    background:var(--surface); border:1px solid var(--rule);",
+    "    border-radius:var(--radius-sm); box-shadow:0 8px 24px var(--ring); padding:4px;",
+    "  }",
+    "  .split-menu button {",
+    "    display:block; width:100%; text-align:left; background:none; border:0;",
+    "    padding:8px 10px; border-radius:var(--radius-sm); color:var(--ink);",
+    "    font-size:.8125rem; cursor:pointer;",
+    "  }",
+    "  .split-menu button:hover { background:var(--surface-2); }",
+    "  .split-menu button span { display:block; color:var(--ink-muted); font-size:.6875rem; margin-top:2px; }",
+    "  /* A test reservation says so wherever it appears. Gold fill, ink text - never gold",
+    "     text, which is 2.43:1 on white. */",
+    "  .testtag {",
+    "    display:inline-block; background:var(--brand); color:var(--brand-ink);",
+    "    border-radius:var(--radius-sm); padding:1px 7px; font-size:.6875rem;",
+    "    font-weight:600; letter-spacing:var(--tracking); text-transform:uppercase;",
+    "  }",
+    "  .danger-sect { border-top:1px solid var(--critical); }",
+    "  .danger-sect h2 { color:var(--critical); }",
+    "  #dxGo { background:var(--critical); border-color:var(--critical); color:#fff; }",
+    "  #dxGo:hover:not(:disabled) { filter:brightness(1.08); }",
     "  .nr-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }",
     "  .nr-grid .full { grid-column:1 / -1; }",
     "  @media (max-width: 520px) { .nr-grid { grid-template-columns:1fr; } }",
@@ -589,6 +620,28 @@
     "  }",
     "  .nr-field label { margin-bottom:5px; }",
     "  .nr-hint { font-size:.75rem; color:var(--ink-muted); margin-top:4px; }",
+    "  /* Address type-ahead. Anchored to the field rather than the panel, because the",
+    "     panel scrolls and a list positioned against it would slide off its own input. */",
+    "  .nr-ac { position:relative; }",
+    "  .nr-ac-list {",
+    "    position:absolute; z-index:5; left:0; right:0; top:100%; margin-top:2px;",
+    "    background:var(--surface); border:1px solid var(--rule);",
+    "    border-radius:var(--radius-sm); box-shadow:0 6px 20px var(--ring);",
+    "    overflow:hidden; display:none;",
+    "  }",
+    "  .nr-ac-list.is-open { display:block; }",
+    "  .nr-ac-item {",
+    "    padding:8px 11px; font-size:.8125rem; color:var(--ink); cursor:pointer;",
+    "    border-bottom:1px solid var(--rule);",
+    "  }",
+    "  .nr-ac-item:last-of-type { border-bottom:0; }",
+    "  .nr-ac-item:hover, .nr-ac-item.is-active { background:var(--surface-2); }",
+    "  .nr-ac-item b { font-weight:600; }",
+    "  .nr-ac-item span { display:block; color:var(--ink-muted); font-size:.75rem; }",
+    "  .nr-ac-note {",
+    "    padding:4px 11px 6px; font-size:.6875rem; color:var(--ink-muted);",
+    "    text-align:right; border-top:1px solid var(--rule);",
+    "  }",
     "  /* Radio pairs read better as a segmented control than as two loose circles when the",
     "     choice changes what the buyer is sent. */",
     "  .nr-choice { display:flex; gap:8px; flex-wrap:wrap; }",
@@ -664,7 +717,15 @@
     "    </div>",
     "    <div class=\"row\">",
     "      <button type=\"button\" class=\"iconbtn\" data-settings-open aria-label=\"Settings\" title=\"Settings\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"3\"></circle><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z\"></path></svg></button>",
-    "      <button class=\"primary\" id=\"newRes\" data-nr-open>New reservation</button>",
+    "      <span class=\"splitbtn\">",
+    "        <button class=\"primary\" id=\"newRes\" data-nr-open=\"production\">New reservation</button>",
+    "        <button class=\"primary split-toggle\" id=\"newResMore\" aria-haspopup=\"true\"",
+    "          aria-expanded=\"false\" aria-label=\"Other reservation types\">\u25be</button>",
+    "        <div class=\"split-menu\" id=\"newResMenu\" hidden>",
+    "          <button type=\"button\" data-nr-open=\"test\">Test reservation",
+    "            <span>RES-TEST number from its own sequence. The website is left alone.</span></button>",
+    "        </div>",
+    "      </span>",
     "      <button id=\"refresh\">Refresh</button>",
     "      <button id=\"csv\">Download CSV</button>",
     "      <button id=\"signout\">Sign out</button>",
@@ -1168,6 +1229,10 @@
 
   var NR = {
     open: false, step: 1, busy: false, err: "", units: [], loadingUnits: false,
+    /* PRODUCTION UNLESS THE MENU SAID OTHERWISE, and it is reset on every open rather
+       than remembered. A flag that persists is a flag that files a real sale as a
+       rehearsal on the morning after a test run. */
+    isTest: false,
     v: {}
   };
 
@@ -1179,6 +1244,22 @@
       fee_rands: "", fee_method: "eft", fee_reference: "", fee_received_at: "",
       generate_otp: "yes", note: ""
     };
+  }
+
+  /* A test reservation is identified by its NUMBER, not by a column, because the number
+     is the thing generate_reference actually decides and a second copy of that decision
+     would eventually disagree with the first. RES-TEST- only ever appears at the front of
+     a reference. */
+  function isTestRef(ref) {
+    return String(ref || "").toUpperCase().indexOf("RES-TEST-") === 0;
+  }
+
+  /* Role gating starts here, at the only irreversible write in the console. The server
+     checks this too - see the delete endpoint; this is what stops a salesperson being
+     shown a button they cannot use. */
+  function canDelete() {
+    var role = String((S.staff && S.staff.role) || "sales").toLowerCase();
+    return role === "manager" || role === "admin";
   }
 
   function nrProperty() {
@@ -1196,9 +1277,13 @@
     return null;
   }
 
-  function nrOpen() {
+  function nrOpen(mode) {
     NR.open = true; NR.step = 1; NR.err = ""; NR.busy = false;
+    NR.isTest = (mode === "test");
     NR.units = []; NR.v = nrDefaults();
+    if (NR.isTest && !NR.v.note) {
+      NR.v.note = "Test reservation — not a sale.";
+    }
     var m = $("newres");
     m.classList.add("open");
     m.setAttribute("aria-hidden", "false");
@@ -1244,6 +1329,143 @@
         (attrs || "") + ' value="' + esc(String(NR.v[id] || "")) + '">' +
       (hint ? '<div class="nr-hint">' + esc(hint) + "</div>" : "") +
       "</div>";
+  }
+
+  /* ---------------------------------------------------------- address type-ahead
+
+     THE SAME ENGINE THE BUYER GETS, AND DELIBERATELY THE SAME ENDPOINT. A salesperson
+     taking a reservation over the phone is typing the same address the buyer would
+     have typed themselves, and an address captured two different ways is two different
+     spellings of one house on one offer to purchase.
+
+     /public/address/suggest needs no token, so this works before sign-in and asks for
+     no console-specific plumbing. The Google key lives in the Xano environment; see the
+     address_suggest function for why it is not in this file.
+
+     IT IS ADDITIVE, exactly as it is in the reserve flow. Every failure path here -
+     no key, throttled, Google down, offline - leaves a plain text box that a
+     salesperson types into, which is what it was yesterday. */
+  var AC = {
+    timer: null,
+    abort: null,
+    items: [],
+    active: -1,
+    provider: "",
+    session: null,
+    downUntil: 0
+  };
+
+  function acToken() {
+    if (AC.session) { return AC.session; }
+    var c = window.crypto;
+    AC.session = (c && typeof c.randomUUID === "function")
+      ? c.randomUUID()
+      : "hl-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+    return AC.session;
+  }
+
+  function nrAddressField() {
+    return '<div class="nr-field full nr-ac">' +
+      '<label for="nr_address">Address</label>' +
+      '<input id="nr_address" data-nr="address" type="text" autocomplete="off"' +
+        ' spellcheck="false" value="' + esc(String(NR.v.address || "")) + '">' +
+      '<div class="nr-ac-list" id="nrAcList"></div>' +
+      '<div class="nr-hint">Goes into the offer to purchase. Leave blank and that ' +
+      'field arrives empty.</div>' +
+      "</div>";
+  }
+
+  function acClose() {
+    var box = $("nrAcList");
+    if (!box) { return; }
+    box.innerHTML = "";
+    box.classList.remove("is-open");
+    AC.items = [];
+    AC.active = -1;
+  }
+
+  function acDraw(list, provider) {
+    var box = $("nrAcList");
+    if (!box) { return; }
+    AC.items = list || [];
+    AC.provider = provider || "";
+    AC.active = -1;
+    if (!AC.items.length) { acClose(); return; }
+
+    var html = "";
+    for (var i = 0; i < AC.items.length; i++) {
+      var s = AC.items[i];
+      html += '<div class="nr-ac-item" data-ac="' + i + '">' +
+        "<b>" + esc(s.main || s.label) + "</b>" +
+        (s.secondary ? "<span>" + esc(s.secondary) + "</span>" : "") +
+        "</div>";
+    }
+    /* Predictions shown outside a Google map must carry the attribution. It is a licence
+       condition, not a courtesy, and it hangs off the PROVIDER the proxy named rather
+       than off anything in an individual suggestion - the day this endpoint answers from
+       somewhere else, the wrong attribution is worse than none. */
+    if (AC.provider === "google") {
+      html += '<div class="nr-ac-note">Powered by Google</div>';
+    }
+    box.innerHTML = html;
+    box.classList.add("is-open");
+  }
+
+  function acTake(i) {
+    var s = AC.items[i];
+    var el = $("nr_address");
+    if (!s || !el) { return; }
+    el.value = s.label || "";
+    NR.v.address = el.value;
+    acClose();
+    AC.session = null;   // this address is settled; the next one is a new session
+  }
+
+  function acMove(step) {
+    if (!AC.items.length) { return; }
+    AC.active = (AC.active + step + AC.items.length) % AC.items.length;
+    var box = $("nrAcList");
+    if (!box) { return; }
+    [].forEach.call(box.querySelectorAll("[data-ac]"), function (el, i) {
+      if (i === AC.active) { el.classList.add("is-active"); }
+      else { el.classList.remove("is-active"); }
+    });
+  }
+
+  function acQuery(term) {
+    var q = String(term || "").trim();
+    if (AC.timer) { clearTimeout(AC.timer); AC.timer = null; }
+    if (q.length < 4) { acClose(); return; }
+    if (Date.now() < AC.downUntil) { acClose(); return; }
+
+    AC.timer = setTimeout(function () {
+      AC.timer = null;
+      if (AC.abort && AC.abort.abort) { try { AC.abort.abort(); } catch (e) {} }
+      var ctl = (typeof window.AbortController === "function")
+        ? new window.AbortController() : null;
+      AC.abort = ctl;
+
+      fetch(BASE + "/public/address/suggest?q=" + encodeURIComponent(q) +
+            "&session=" + encodeURIComponent(acToken()),
+            { signal: ctl && ctl.signal })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          /* ok:false is the proxy saying it could not ask - no key, throttled, or
+             Google refused. Stop asking for a minute rather than on every keystroke;
+             a minute is short enough that a deploy or a lifted throttle recovers
+             without anyone reloading the console. */
+          if (!j || j.ok !== true) { AC.downUntil = Date.now() + 60000; acClose(); return; }
+          acDraw(j.suggestions || [], j.provider);
+        })
+        .catch(function (e) {
+          /* An abort is this function cancelling its own stale request, not a failure
+             of the engine - retiring Places over one would kill the type-ahead on the
+             buyer's second keystroke. */
+          if (e && e.name === "AbortError") { return; }
+          AC.downUntil = Date.now() + 60000;
+          acClose();
+        });
+    }, 300);
   }
 
   function nrSelect(id, labelText, opts, hint) {
@@ -1298,9 +1520,7 @@
       nrField("email", "Email", "email",
         "Required — the portal login is keyed on it.", ' autocomplete="off" spellcheck="false"') +
       nrField("phone", "Phone", "tel") +
-      nrField("address", "Address", "text",
-        "Goes into the offer to purchase. Leave blank and that field arrives empty.",
-        ' autocomplete="off"', "full") +
+      nrAddressField() +
       nrSelect("payer_route", "Paying by", [
         { v: "undecided", t: "Not decided yet" },
         { v: "bond", t: "Bond" },
@@ -1384,16 +1604,26 @@
     }).join("") + "</dl>" +
 
       '<ul class="nr-will">' +
-      "<li>Takes this home off the market, here and on the website.</li>" +
+      (NR.isTest
+        ? "<li>Holds this home in Xano so nobody else can reserve it — " +
+          "<strong>the website is not changed</strong>.</li>"
+        : "<li>Takes this home off the market, here and on the website.</li>") +
       "<li>Records the fee as already received — no payment is taken.</li>" +
-      "<li>Opens the deal and gives it a reservation number.</li>" +
+      (NR.isTest
+        ? "<li>Numbers it from the <strong>test</strong> sequence — RES-TEST-… — so no " +
+          "production number is spent.</li>"
+        : "<li>Opens the deal and gives it the next production reservation number.</li>") +
       "<li>Creates the buyer’s account so they can sign in to their portal.</li>" +
       "</ul>" +
 
       '<div class="nr-warn"><strong>The buyer’s account is real.</strong> ' +
       "It is created in the live system the moment you confirm, and they can sign in " +
-      "straight away with a code sent to " + esc(NR.v.email) + ". There is no undo here — " +
-      "a mistake is cancelled from the deal, not deleted.</div>" +
+      "straight away with a code sent to " + esc(NR.v.email) + ". " +
+      (NR.isTest
+        ? "That is true of a test too — the Memberstack key is a live key, and this " +
+          "home stays held until the reservation is deleted."
+        : "There is no undo here — a mistake is cancelled from the deal, not deleted.") +
+      "</div>" +
 
       '<div class="err" id="nrErr">' + esc(NR.err) + "</div>" +
       '<div class="nr-actions">' +
@@ -1401,15 +1631,20 @@
       '<span class="spacer"></span>' +
       '<button type="button" data-nr-close>Cancel</button>' +
       '<button type="button" class="primary" id="nrGo"' + (NR.busy ? " disabled" : "") + ">" +
-      (NR.busy ? "Creating…" : "Create reservation") + "</button>" +
+      (NR.busy ? "Creating…" : (NR.isTest ? "Create test reservation" : "Create reservation")) +
+      "</button>" +
       "</div>";
   }
 
   function nrRender() {
     if (!NR.open) { return; }
-    $("nrStepLabel").textContent = NR.step === 1
-      ? "Taken off the system — in person or over the phone"
-      : "Check this, then confirm";
+    $("nrStepLabel").innerHTML =
+      (NR.isTest ? '<span class="testtag">Test</span> ' : "") +
+      esc(NR.step === 1
+        ? (NR.isTest
+            ? "A rehearsal — no production number, and the website is not touched"
+            : "Taken off the system — in person or over the phone")
+        : "Check this, then confirm");
     $("nrBody").innerHTML = NR.step === 1 ? nrStep1() : nrStep2();
 
     /* One delegated pair of listeners rather than one per control - the body is
@@ -1423,8 +1658,36 @@
         if (el.type === "radio") { if (!el.checked) { return; } NR.v[key] = el.value; return; }
         NR.v[key] = el.value;
         if (key === "property_slug") { nrLoadUnits(); }
+        if (key === "address") { acQuery(el.value); }
       });
     });
+
+    /* The suggestion list is bound here rather than through the panel's delegated
+       click handler, because that one closes the modal on anything carrying
+       data-nr-close and a mousedown inside the list would otherwise blur the input
+       before the click ever landed. */
+    if ($("nrAcList")) {
+      $("nrAcList").addEventListener("mousedown", function (e) {
+        var hit = e.target && e.target.closest && e.target.closest("[data-ac]");
+        if (!hit) { return; }
+        e.preventDefault();
+        acTake(Number(hit.getAttribute("data-ac")));
+      });
+    }
+    if ($("nr_address")) {
+      $("nr_address").addEventListener("keydown", function (e) {
+        if (!AC.items.length) { return; }
+        if (e.key === "ArrowDown") { e.preventDefault(); acMove(1); return; }
+        if (e.key === "ArrowUp") { e.preventDefault(); acMove(-1); return; }
+        if (e.key === "Enter" && AC.active >= 0) { e.preventDefault(); acTake(AC.active); return; }
+        if (e.key === "Escape") { e.stopPropagation(); acClose(); }
+      });
+      $("nr_address").addEventListener("blur", function () {
+        /* Long enough for a click on a suggestion to land first. mousedown already
+           takes the pick, so this is only the case where the salesperson tabs away. */
+        setTimeout(acClose, 150);
+      });
+    }
 
     if ($("nrNext")) {
       $("nrNext").addEventListener("click", function () {
@@ -1458,6 +1721,10 @@
       generate_otp   : NR.v.generate_otp === "yes",
       note           : NR.v.note
     };
+    /* Sent only when it is true. The endpoint defaults a missing flag to production,
+       and the mistake worth designing against is a real sale silently filed as a test -
+       that one is invisible for weeks; the reverse is obvious within seconds. */
+    if (NR.isTest) { body.is_test = true; }
     /* Only when it was actually typed. Sending 0 would override the property's fee with
        nothing; omitting it lets the server fall back to the property. */
     if (fee > 0) { body.fee_amount_cents = fee; }
@@ -2023,7 +2290,8 @@
            phone and the one the OTP carries, so scanning for it must not mean reading a
            name first. A deal created before generate_reference existed has none - shown
            as a dash rather than blank, so the column reads as empty rather than broken. */
-        '<td><span class="mono">' + esc(r.reference || "\u2014") + "</span></td>" +
+        '<td><span class="mono">' + esc(r.reference || "\u2014") + "</span>" +
+          (isTestRef(r.reference) ? ' <span class="testtag">Test</span>' : "") + "</td>" +
         "<td><div>" + esc(name(r)) + "</div><div class=\"muted\">" + esc(r.email || "") + "</div></td>" +
         "<td>" + esc(r.property_name) + '<div class="muted">' + esc(r.unit_name) + "</div></td>" +
         '<td><span class="pill s-' + esc(r.status) + '"><span class="dot"></span>' + esc(label(r.status)) + "</span></td>" +
@@ -2087,7 +2355,8 @@
     $("drawer").innerHTML =
       "<header><div><h1>" + esc(name(r)) + "</h1>" +
         '<div class="muted">' + esc(r.property_name) + " · " + esc(r.unit_name) +
-          (r.reference ? ' · <span class="mono">' + esc(r.reference) + "</span>" : "") + "</div></div>" +
+          (r.reference ? ' · <span class="mono">' + esc(r.reference) + "</span>" : "") +
+          (isTestRef(r.reference) ? ' <span class="testtag">Test</span>' : "") + "</div></div>" +
         '<button id="close">Close</button></header>' +
 
       '<dl class="dl">' +
@@ -2274,6 +2543,48 @@
               '\u201cWhat the buyer sees\u201d above.</div></div>'
             : '')) +
 
+      /* DELETE, and it is last because it is the only thing here that destroys a record
+         rather than changing one. Cancel is directly above it and is almost always the
+         right verb; this exists for a row that should never have existed - a rehearsal,
+         a duplicate, a mistyped entry.
+
+         Manager and admin only. The server checks the same thing, because a control
+         hidden in a browser is not a control. */
+      (canDelete()
+        ? '<div class="sect danger-sect"><h2>Delete this reservation</h2>' +
+            '<div class="muted" style="font-size:.8125rem;margin-bottom:10px">' +
+              'Removes the record and everything attached to it \u2014 the buyer\u2019s account, ' +
+              'their documents, their add-ons and the whole event history. It releases the home ' +
+              'and clears the Reserved toggle on the website. <strong>It cannot be undone, and ' +
+              'it is not the same as cancelling.</strong> If this deal happened and then fell ' +
+              'through, cancel it: the record and the money should stay.' +
+            '</div>' +
+            '<div style="margin-bottom:10px"><label for="dxWhy">Reason</label>' +
+            '<input id="dxWhy" type="text" placeholder="Why this row should not exist"></div>' +
+            '<div style="margin-bottom:10px"><label for="dxConfirm">Type ' +
+              '<span class="mono">' + esc(r.reference || "DELETE") + '</span> to confirm</label>' +
+            '<input id="dxConfirm" type="text" autocomplete="off" spellcheck="false"></div>' +
+            (r.reference
+              ? '<div style="margin-bottom:10px"><label style="display:flex;gap:8px;align-items:flex-start;font-size:.8125rem">' +
+                  '<input id="dxSeq" type="checkbox" style="width:auto;margin-top:3px"> ' +
+                  '<span>Close the gap this leaves in the numbering' +
+                  '<span class="c-note">Every later ' + esc(refPrefix(r.reference)) + ' number shifts down by one. ' +
+                  'A reservation number that has been quoted to a buyer or printed on a signed offer ' +
+                  'then means a different deal. Leave this off unless nobody outside this console has ' +
+                  'seen these numbers.</span></span></label></div>'
+              : "") +
+            ((r.pf_payment_id && String(r.payment_status || "") !== "MANUAL")
+              ? '<div style="margin-bottom:12px"><label style="display:flex;gap:8px;align-items:flex-start;font-size:.8125rem">' +
+                  '<input id="dxForce" type="checkbox" style="width:auto;margin-top:3px"> ' +
+                  '<span>This reservation\u2019s Payfast payment was itself a test' +
+                  '<span class="c-note">Payfast has a record of payment ' + esc(r.pf_payment_id) +
+                  ' that deleting this row cannot remove. Without this, the server refuses.</span></span></label></div>'
+              : "") +
+            '<button id="dxGo">Delete permanently</button>' +
+            '<div class="err" id="dxErr" style="margin-top:10px"></div><div class="ok" id="dxOk"></div>' +
+          '</div>'
+        : "") +
+
       '<div class="sect"><h2>Not editable here yet</h2>' +
         '<div class="muted" style="font-size:.8125rem">Recording a purchase-deposit payment. The columns exist; nothing writes them yet.</div></div>';
 
@@ -2330,6 +2641,8 @@
 
     var cxGo = $("cxGo");
     if (cxGo) { cxGo.addEventListener("click", function () { cancelDeal(r); }); }
+    var dxGo = $("dxGo");
+    if (dxGo) { dxGo.addEventListener("click", function () { deleteDeal(r); }); }
 
     loadCatalogue(r);
     loadUpgrades(r);
@@ -2417,6 +2730,80 @@
       .then(function () { if (S.open) { openDrawer(S.open); } })
       .catch(function (e) { $("cxOk").textContent = ""; $("cxErr").textContent = e.message; })
       .then(function () { go.disabled = false; });
+  }
+
+  /* ---------- delete ----------
+
+     THREE GATES BEFORE THE REQUEST, and none of them is ceremony. A reason, because the
+     audit event is the only thing that survives the row. The reference typed out, because
+     a confirm dialog is dismissed by reflex and this one cannot be taken back. And the
+     renumber left off unless it is deliberately ticked. */
+  function refPrefix(ref) {
+    var s = String(ref || "").toUpperCase();
+    var cut = s.lastIndexOf("-");
+    return cut === -1 ? s : s.slice(0, cut + 1);
+  }
+
+  function deleteDeal(r) {
+    var why = ($("dxWhy").value || "").trim();
+    var typed = ($("dxConfirm").value || "").trim();
+    var seq = $("dxSeq");
+    var force = $("dxForce");
+    var go = $("dxGo");
+    var want = r.reference || "DELETE";
+
+    if (why.length < 3) {
+      $("dxErr").textContent = "Give a reason \u2014 it is the only thing that outlives this record.";
+      return;
+    }
+    if (typed.toUpperCase() !== String(want).toUpperCase()) {
+      $("dxErr").textContent = "Type " + want + " exactly, to confirm.";
+      return;
+    }
+
+    var willRenumber = !!(seq && seq.checked);
+    if (willRenumber && !window.confirm(
+        "Renumber every " + refPrefix(r.reference) + " reservation after this one?\n\n" +
+        "Any of those numbers already quoted to a buyer or printed on a signed offer " +
+        "will point at a different deal afterwards. This cannot be undone either.")) {
+      return;
+    }
+
+    go.disabled = true;
+    $("dxErr").textContent = "";
+    $("dxOk").textContent = "Deleting\u2026";
+
+    var body = { reason: why };
+    if (willRenumber) { body.resequence = true; }
+    if (force && force.checked) { body.force = true; }
+
+    api("/staff/reservations/" + encodeURIComponent(r.uuid) + "/delete",
+        { method: "POST", body: JSON.stringify(body) })
+      .then(function (res) {
+        closeDrawer();
+        return load().then(function () {
+          var said = "Deleted " + (res.reference || "the reservation") + ".";
+          if (res.member_shared) {
+            said += " The buyer\u2019s account was kept \u2014 another reservation uses it.";
+          } else if (res.member_deleted === false && res.member_reason &&
+                     res.member_reason !== "no member on this reservation") {
+            said += " Their account could not be removed: " + res.member_reason + ".";
+          }
+          if (res.cms_released === false && res.cms_reason) {
+            said += " Website: " + res.cms_reason + ".";
+          }
+          if (res.resequence && res.resequence.ran) {
+            said += " " + res.resequence.change_count + " number" +
+                    (res.resequence.change_count === 1 ? "" : "s") + " shifted.";
+          }
+          $("who").textContent = said;
+        });
+      })
+      .catch(function (e) {
+        $("dxOk").textContent = "";
+        $("dxErr").textContent = e.message;
+        go.disabled = false;
+      });
   }
 
   /* ---------- add-on editor ----------
@@ -3009,11 +3396,37 @@
     setReturn = null;
     return true;
   }
+  /* The split button's menu. Closed on any click that is not inside it, which is why
+     this lives in the same delegated handler rather than on its own document listener -
+     one place decides, and the order below is the order the cases are checked. */
+  function splitMenu(open) {
+    var menu = $("newResMenu"), tog = $("newResMore");
+    if (!menu || !tog) { return false; }
+    var was = !menu.hidden;
+    menu.hidden = !open;
+    tog.setAttribute("aria-expanded", open ? "true" : "false");
+    return was;
+  }
+
   root.addEventListener("click", function (e) {
     var t = e.target && e.target.closest ? e.target.closest("[data-settings-open]") : null;
     if (t) { openSettings(t); return; }
     if (e.target && e.target.closest && e.target.closest("[data-settings-close]")) { closeSettings(); return; }
-    if (e.target && e.target.closest && e.target.closest("[data-nr-open]")) { nrOpen(); return; }
+
+    if (e.target && e.target.closest && e.target.closest("#newResMore")) {
+      var menu = $("newResMenu");
+      splitMenu(menu ? menu.hidden : true);
+      return;
+    }
+
+    var opener = e.target && e.target.closest ? e.target.closest("[data-nr-open]") : null;
+    if (opener) {
+      splitMenu(false);
+      nrOpen(opener.getAttribute("data-nr-open"));
+      return;
+    }
+
+    splitMenu(false);
     if (e.target && e.target.closest && e.target.closest("[data-nr-close]")) { nrClose(); }
   });
 
@@ -3025,6 +3438,8 @@
      for a native date picker must not throw that away along with it. */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") { return; }
+    var menu = $("newResMenu");
+    if (menu && !menu.hidden) { splitMenu(false); return; }
     if (nrClose()) { return; }
     if (closeSettings()) { return; }
     closeDrawer();
