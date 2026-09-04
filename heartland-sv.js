@@ -26,6 +26,13 @@
    unit description instead ("Unit description context"), and the values
    already live in the feature grid. "Mobile match count" mirrors the filter
    drawer's match number into the mobile toolbar.
+
+   2026-09-04: added the "Site plan reveal" module (satellite descent that
+   dissolves into the plan, then the panels slide in). Needs the head
+   snippet on Home (map-reveal-head.html) and the frames on
+   media.heartland.co.za/sv-media/map/v1/. Plays once per session; ?reveal=1
+   replays it, ?unit= and reduced-motion skip it. Pacing lives in T and
+   OPEN_M at the top of the module (window.__svRevealConfig overrides).
    ============================================================================ */
 
 
@@ -2150,4 +2157,320 @@ let audioContext;
     initPanel(Wized);
     initTypeSlider(Wized);
   });
+})();
+
+/* ============================================================
+   Site plan reveal — a satellite descent that dissolves into the plan.
+   The section opens as a full-bleed satellite view of the neighbourhood
+   (~2.6 km across; no pins, no labels), descends onto the erf over a few
+   seconds, holds, and then slowly cross-fades into the
+   SVG site plan exactly where the plan sits on the ground; the filters,
+   the results list and the map toolbar then slide in from their sides.
+
+   Frames: stills captured from Google's tiles (z14 / z16 / z19; only the
+   ones the opening width needs are fetched - z16 + z19 by default),
+   all centred on the site pin (-33.97027, 18.84209), hosted on the
+   media bucket. Registration (plan units -> z19 pixels) was fitted on
+   the built road loop and the north-row houses; see
+   claude/map-reveal-transition.md in the project.
+
+   Plays once per session, on scroll-into-view, and never for a
+   ?unit= deep link or a reduced-motion user. The head snippet on the
+   Home page stamps html.sv-reveal before first paint so the panels
+   are already off-stage when the section scrolls in; this module owns
+   the class from then on. Click, tap or Escape skips to the end.
+   ============================================================ */
+(function () {
+  if (window.__svReveal) return;
+  window.__svReveal = true;
+
+  var CFG = window.__svRevealConfig || {};
+  var BASE = CFG.base || 'https://media.heartland.co.za/sv-media/map/v1/';
+  var CLASS = 'sv-reveal';
+  var root = document.documentElement;
+
+  /* Frames, coarse to fine. f = z19 pixels per frame pixel on a 2048 basis;
+     every image is laid out at 2048 css px whatever its natural size. */
+  var FRAMES = [
+    { f: 32, d: 'sat-z14.webp', m: 'sat-z14-m.webp' },
+    { f: 8,  d: 'sat-z16.webp', m: 'sat-z16-m.webp' },
+    { f: 1,  d: 'sat-z19.webp', m: 'sat-z19-m.webp' }
+  ];
+  var FRAME_PX = 2048, FRAME_C = 1024;   /* frame centre = the site pin at every zoom */
+  var M_PER_Z19PX = 0.248;               /* at the site's latitude */
+  /* the opening view: metres across the section's longer side. 2600 m shows Kleine Zalze,
+     the R44, Techno Park and the vineyards — the neighbourhood, not the whole valley */
+  var OPEN_M = CFG.openM || 2600;
+
+  /* Plan units (the 664x474 SVG) -> z19 frame pixels: W = A*p + c */
+  var REG = CFG.reg || { a: 1.3824, b: 0.1352, c: 581.73, d: -0.0037, e: 1.8432, f: 534.36 };
+  var PLAN_W = 664, PLAN_H = 474;
+
+  /* timings (ms) */
+  /* zoom = zoomMin + zoomPerLevel per doubling; then a hold on the site before the dissolve,
+     which overlaps the tail of the zoom by dissolveLead */
+  var T = CFG.t || { zoomMin: 3000, zoomPerLevel: 320, hold: 350, dissolve: 1500, dissolveLead: 0, panels: 700, stagger: 120 };
+
+  var SEL = {
+    comp: '.unit-filter_component',
+    canvas: '.site-plan_map-canvas',
+    panels: ['.site-plan_map-toolbar', '.unit-filter_filters', '.unit-filter_list',
+             '.unit-filter_mobile-toolbar', '.unit-filter_mobile-map-meta'],
+    late: ['.site-plan_badges', '.site-plan_zoom', '.site-plan_context']
+  };
+
+  /* only the frames the opening view needs: a frame covers f * 2048 * 0.248 m */
+  var frames = (function () {
+    var first = 0;
+    FRAMES.forEach(function (fr, i) { if (i < FRAMES.length - 1 && fr.f * FRAME_PX * M_PER_Z19PX >= 1.12 * OPEN_M) first = i; });
+    return FRAMES.slice(first);           /* the finest frame that still covers the opening view, and everything finer */
+  })();
+  var state = { armed: false, played: false, images: null, loadStarted: false };
+
+  function deepLink() { return /(^|[?&])unit=/.test(location.search); }
+  function forced() { return /(^|[?&])reveal=1/.test(location.search); }   /* review aid: replays every load */
+  function reduced() { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+  function seen() { try { return !!sessionStorage.getItem('sv-reveal-done'); } catch (e) { return false; } }
+  function markSeen() { try { sessionStorage.setItem('sv-reveal-done', '1'); } catch (e) {} }
+  function mobile() { return innerWidth < 992; }
+
+  /* ---------- styles ---------- */
+  function css() {
+    if (document.getElementById('sv-reveal-css')) return;
+    var s = document.createElement('style');
+    s.id = 'sv-reveal-css';
+    s.textContent =
+      /* off-stage state; the head snippet repeats the first four rules so they hold before this file lands */
+      'html.' + CLASS + ' .unit-filter_filters{transform:translateX(-100%)}' +
+      'html.' + CLASS + ' .unit-filter_list{transform:translateX(100%)}' +
+      'html.' + CLASS + ' .site-plan_map-toolbar{transform:translateY(-100%)}' +
+      'html.' + CLASS + ' .unit-filter_mobile-toolbar,html.' + CLASS + ' .unit-filter_mobile-map-meta,' +
+      'html.' + CLASS + ' .site-plan_badges,html.' + CLASS + ' .site-plan_zoom,html.' + CLASS + ' .site-plan_context{opacity:0}' +
+      /* the head snippet blanks the map until this file lands; from here the stage covers it instead */
+      'html.' + CLASS + ' .unit-filter_map-container{opacity:1}' +
+      /* while a reveal is running the panels animate back to their resting place */
+      'html.sv-reveal-go .unit-filter_filters,html.sv-reveal-go .unit-filter_list,html.sv-reveal-go .site-plan_map-toolbar' +
+      '{transition:transform ' + T.panels + 'ms cubic-bezier(.22,.8,.24,1)}' +
+      'html.sv-reveal-go .unit-filter_mobile-toolbar,html.sv-reveal-go .unit-filter_mobile-map-meta,' +
+      'html.sv-reveal-go .site-plan_badges,html.sv-reveal-go .site-plan_zoom,html.sv-reveal-go .site-plan_context' +
+      '{transition:opacity ' + T.panels + 'ms ease}' +
+      'html.sv-reveal-go .site-plan_map-toolbar{transition-delay:0ms}' +
+      'html.sv-reveal-go .unit-filter_filters{transition-delay:' + T.stagger + 'ms}' +
+      'html.sv-reveal-go .unit-filter_list{transition-delay:' + (T.stagger * 2) + 'ms}' +
+      'html.sv-reveal-go .site-plan_context{transition-delay:' + (T.stagger * 2) + 'ms}' +
+      'html.sv-reveal-go .site-plan_badges,html.sv-reveal-go .site-plan_zoom{transition-delay:' + (T.stagger * 3) + 'ms}' +
+      /* the overlay */
+      '.sv-reveal_stage{position:absolute;inset:0;z-index:40;overflow:hidden;background:#f4eee4;cursor:pointer;-webkit-user-select:none;user-select:none}' +
+      '.sv-reveal_stage img{position:absolute;left:0;top:0;width:' + FRAME_PX + 'px;height:' + FRAME_PX + 'px;max-width:none;' +
+      'transform-origin:0 0;will-change:transform,opacity;pointer-events:none;-webkit-backface-visibility:hidden;backface-visibility:hidden}' +
+      '.sv-reveal_skip{position:absolute;right:1.25rem;bottom:1.25rem;z-index:2;font:500 .75rem/1 inherit;letter-spacing:.08em;text-transform:uppercase;' +
+      'color:#fff;background:rgba(20,18,14,.45);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:.6rem .9rem;opacity:0;transition:opacity .4s ease .8s}' +
+      '.sv-reveal_stage.is-live .sv-reveal_skip{opacity:1}' +
+      '.sv-reveal_credit{position:absolute;left:1rem;bottom:1.25rem;z-index:2;font-size:.6rem;letter-spacing:.06em;color:rgba(255,255,255,.75);text-shadow:0 1px 2px rgba(0,0,0,.5);pointer-events:none}';
+    document.head.appendChild(s);
+  }
+
+  /* ---------- images ---------- */
+  function preload() {
+    if (state.loadStarted) return state.images;
+    state.loadStarted = true;
+    var m = mobile();
+    state.images = frames.map(function (fr) {
+      var im = new Image();
+      im.decoding = 'async';
+      im.src = BASE + (m ? fr.m : fr.d);
+      return im;
+    });
+    return state.images;
+  }
+  function ready(cb, timeout) {
+    var imgs = preload(), left = imgs.length, done = false, ok = true;
+    function fin() { if (!done) { done = true; cb(ok); } }
+    imgs.forEach(function (im) {
+      function one(good) { if (!good) ok = false; if (--left === 0) fin(); }
+      if (im.complete && im.naturalWidth) one(true);
+      else { im.addEventListener('load', function () { one(true); }); im.addEventListener('error', function () { one(false); }); }
+    });
+    if (timeout) setTimeout(function () { ok = false; fin(); }, timeout);
+  }
+
+  /* ---------- maths ---------- */
+  function inv(r) {
+    var det = r.a * r.e - r.b * r.d;
+    return { det: 1 / det, a: r.e / det, b: -r.b / det, d: -r.d / det, e: r.a / det };
+  }
+  function lerpShape(t, S) {   /* identity -> S; the landscape only takes on the plan's distortion as it arrives */
+    return { a: 1 + (S.a - 1) * t, b: S.b * t, d: S.d * t, e: 1 + (S.e - 1) * t };
+  }
+  function easeInOut(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function smooth(a, b, x) { var t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+
+  /* Geometry for one run. Screen mapping is css = k * S * (W - Wc) + P, where
+     W is a z19 frame pixel, S the unit-area shape of the registration (it
+     carries the plan's slight shear), Wc the plan centre, and (k, P) the
+     animated camera. */
+  function geometry(comp, canvas) {
+    var cr = comp.getBoundingClientRect(), kr = canvas.getBoundingClientRect();
+    var g = inv(REG), s = Math.sqrt(Math.abs(g.det));
+    var S = { a: g.a / s, b: g.b / s, d: g.d / s, e: g.e / s };       /* rows: [a b; d e] */
+    var wc = { x: REG.a * PLAN_W / 2 + REG.b * PLAN_H / 2 + REG.c, y: REG.d * PLAN_W / 2 + REG.e * PLAN_H / 2 + REG.f };
+    var unit = kr.width / PLAN_W;                                         /* css px per plan unit right now */
+    var k1 = unit * s;
+    var p1 = { x: kr.left - cr.left + kr.width / 2, y: kr.top - cr.top + kr.height / 2 };
+    var p0 = { x: cr.width / 2, y: cr.height / 2 };
+    /* opening scale: the coarsest frame (unsheared at this point) must cover the section with a margin */
+    var longer = Math.max(cr.width, cr.height);
+    var k0 = Math.max(longer / (OPEN_M / M_PER_Z19PX), 1.12 * longer / (frames[0].f * FRAME_PX));
+    var levels = Math.log(k1 / k0) / Math.LN2;
+    return { S: S, wc: wc, k0: k0, k1: k1, p0: p0, p1: p1, levels: levels, w: cr.width, h: cr.height };
+  }
+  function place(img, fr, S, G, k, p) {
+    var kf = k * fr.f;
+    /* css = k*S*((q - C)*f + C - Wc) + P  for frame pixel q */
+    var ox = FRAME_C * (1 - fr.f) - G.wc.x, oy = FRAME_C * (1 - fr.f) - G.wc.y;
+    var tx = k * (S.a * ox + S.b * oy) + p.x, ty = k * (S.d * ox + S.e * oy) + p.y;
+    img.style.transform = 'matrix(' + (kf * S.a) + ',' + (kf * S.d) + ',' + (kf * S.b) + ',' + (kf * S.e) + ',' + tx + ',' + ty + ')';
+  }
+
+  /* ---------- the run ---------- */
+  function stageFor(comp) {
+    var stage = comp.querySelector('.sv-reveal_stage');
+    if (stage) return stage;
+    stage = document.createElement('div');
+    stage.className = 'sv-reveal_stage';
+    stage.setAttribute('aria-hidden', 'true');
+    comp.appendChild(stage);
+    return stage;
+  }
+
+  function play(comp, canvas, imgs) {
+    if (state.played) return;
+    state.played = true;
+    markSeen();
+    var G = geometry(comp, canvas);
+    var stage = stageFor(comp);
+    var primed = !!state.primed;
+    imgs.forEach(function (im) { if (im.parentNode !== stage) { im.alt = ''; im.style.opacity = 0; stage.appendChild(im); } });
+    var credit = document.createElement('span');
+    credit.className = 'sv-reveal_credit';
+    credit.textContent = 'Imagery © Google';
+    stage.appendChild(credit);
+    var skip = document.createElement('span');
+    skip.className = 'sv-reveal_skip';
+    skip.textContent = 'Skip';
+    stage.appendChild(skip);
+
+    var zoomDur = T.zoomMin + T.zoomPerLevel * Math.max(0, G.levels);
+    var dissolveAt = zoomDur - (T.dissolveLead || 0) + (T.hold || 0);
+    var total = dissolveAt + T.dissolve;
+    var start = null, raf = 0, finished = false, skipping = false;
+
+    function frame(now) {
+      if (!start) start = now;
+      var el = now - start;
+      if (skipping && el < total - 220) { start = now - (total - 220); el = total - 220; }   /* jump to the tail of the dissolve */
+      var t = Math.min(1, el / zoomDur), e = easeInOut(t);
+      var k = G.k0 * Math.pow(G.k1 / G.k0, e);
+      var p = { x: G.p0.x + (G.p1.x - G.p0.x) * e, y: G.p0.y + (G.p1.y - G.p0.y) * e };
+      var S = lerpShape(e, G.S);
+      for (var i = 0; i < imgs.length; i++) {
+        place(imgs[i], frames[i], S, G, k, p);
+        /* a finer frame fades in over the coarser one as it approaches native scale */
+        imgs[i].style.opacity = i === 0 ? (primed ? 1 : Math.min(1, el / 350)) : smooth(0.15, 0.4, k * frames[i].f);
+      }
+      if (el >= dissolveAt) {
+        stage.style.opacity = 1 - smooth(dissolveAt, total, el);
+        /* panels start home once the plan is mostly through the dissolve */
+        if (!finished && el >= dissolveAt + T.dissolve * 0.55) { finished = true; go(); }
+      }
+      if (el < total) raf = requestAnimationFrame(frame);
+      else cleanup();
+    }
+    function go() {
+      /* panels slide home; the head snippet's class is dropped with transitions armed */
+      root.classList.add('sv-reveal-go');
+      requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove(CLASS); }); });
+    }
+    function cleanup() {
+      cancelAnimationFrame(raf);
+      if (stage.parentNode) stage.parentNode.removeChild(stage);
+      setTimeout(function () { root.classList.remove('sv-reveal-go'); }, T.panels + T.stagger * 3 + 100);
+      document.removeEventListener('keydown', onKey);
+      document.dispatchEvent(new CustomEvent('sv-reveal:done'));
+    }
+    function onSkip() { if (!skipping) { skipping = true; } }
+    function onKey(e) { if (e.key === 'Escape') onSkip(); }
+    stage.addEventListener('click', onSkip);
+    document.addEventListener('keydown', onKey);
+    setTimeout(function () { stage.classList.add('is-live'); }, 50);
+    raf = requestAnimationFrame(frame);
+  }
+
+  /* the section is edging into view: if the frames are here, sit the opening view on the stage now */
+  function prime(comp, canvas) {
+    if (state.primed || state.played || !state.images) return;
+    var im = state.images[0];
+    if (!(im.complete && im.naturalWidth)) return;
+    state.primed = true;
+    var G = geometry(comp, canvas), stage = stageFor(comp);
+    state.images.forEach(function (x, i) { x.alt = ''; x.style.opacity = i === 0 ? 1 : 0; stage.appendChild(x); place(x, frames[i], lerpShape(0, G.S), G, G.k0, G.p0); });
+  }
+
+  /* no satellite run: bring the panels home (animated if the class was on) and clear the stage */
+  function abandon(animate) {
+    var comp = document.querySelector(SEL.comp);
+    var stage = comp && comp.querySelector('.sv-reveal_stage');
+    if (stage) stage.parentNode.removeChild(stage);
+    if (animate && root.classList.contains(CLASS)) {
+      root.classList.add('sv-reveal-go');
+      requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove(CLASS); }); });
+      setTimeout(function () { root.classList.remove('sv-reveal-go'); }, T.panels + T.stagger * 3 + 100);
+    } else {
+      root.classList.remove(CLASS);
+      root.classList.remove('sv-reveal-go');
+    }
+  }
+
+  function arm() {
+    var comp = document.querySelector(SEL.comp), canvas = document.querySelector(SEL.canvas);
+    if (!comp || !canvas) return false;
+    if (deepLink() || reduced() || CFG.disabled || (seen() && !forced())) { abandon(false); return true; }
+    root.classList.add(CLASS);                    /* idempotent with the head snippet */
+    css();
+    if (getComputedStyle(comp).position === 'static') comp.style.position = 'relative';
+    stageFor(comp);                               /* a cream cover until the frames are on it */
+    var base = canvas.querySelector('.site-plan_map-image');
+    if (base && base.loading === 'lazy') base.loading = 'eager';   /* the plan must be there when the stage lifts */
+    /* fetch the frames once the page has had a moment, or as soon as the section is near */
+    var idle = window.requestIdleCallback || function (f) { return setTimeout(f, 1200); };
+    idle(function () { preload(); });
+    var fired = false;
+    function trigger() {
+      if (fired) return; fired = true;
+      ready(function (ok) {
+        if (!ok) { markSeen(); abandon(true); return; }
+        play(comp, canvas, state.images);
+      }, 4000);
+    }
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (en.isIntersecting && en.intersectionRatio >= 0.3) { io.disconnect(); trigger(); }
+          else if (en.isIntersecting) { preload(); prime(comp, canvas); }
+        });
+      }, { threshold: [0.01, 0.3] });
+      io.observe(comp);
+    } else {
+      trigger();
+    }
+    window.svReveal = { play: trigger, abandon: abandon };
+    return true;
+  }
+
+  function boot() {
+    if (arm()) return;
+    var n = 0, iv = setInterval(function () { if (arm() || ++n > 40) { clearInterval(iv); if (n > 40) abandon(false); } }, 250);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })();
