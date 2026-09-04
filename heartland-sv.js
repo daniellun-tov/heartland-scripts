@@ -33,6 +33,13 @@
    media.heartland.co.za/sv-media/map/v1/. Plays once per session; ?reveal=1
    replays it, ?unit= and reduced-motion skip it. Pacing lives in T and
    OPEN_M at the top of the module (window.__svRevealConfig overrides).
+
+   2026-09-04b: the View / Position / Garage Type filter chips are native
+   Webflow elements now (data-svx-filter / data-svx-value on .unit-filter_chip).
+   The "Extra facets" module no longer builds markup - it fills counts, hides
+   chips and groups no released unit can back, and wires the clicks. Type and
+   View sit under Price in the drawer; Position and Garage Type stay under
+   "More filters".
    ============================================================================ */
 
 
@@ -438,11 +445,21 @@ window.Wized = window.Wized || [];
 /* ============================================================
    Extra facets (View / Position / Garage Type) refining the controller's output
 
-   The View facet is TAG-based: its values are sv_views keys carried in
-   unit.view_tags, labelled from /views. That makes it 1:1 with the six map
-   badges, so a badge and its chip always agree on the same set of homes.
-   window.svxFacets exposes toggle/isActive/onChange so the badges module can
-   drive the same state instead of keeping a second one.
+   The chips are NATIVE Webflow elements (2026-09-04) - nothing here builds
+   markup any more. Each chip is a .unit-filter_chip carrying
+   data-svx-filter="view|position|garage" and data-svx-value="<value>", with
+   a .unit-filter_count inside; each group's title and chip row carry
+   data-svx="<facet>". Add, remove, relabel or reorder chips in the Designer;
+   this module only fills the counts, hides chips (and whole groups) whose
+   value no released unit carries, and wires the clicks.
+
+   Values: View chips hold sv_views keys matched against unit.view_tags;
+   Position chips hold the unit's aspect text ("East-facing"); Garage Type
+   chips hold garage_type (double / tandem). Matching is case-insensitive
+   and trimmed, so "East-facing" and "east-facing" are the same chip.
+
+   window.svxFacets exposes toggle/isActive/active/onChange so the map's
+   view badges drive the same state instead of keeping a second one.
    ============================================================ */
 (function(){
   if(window.__svxFacets)return;   /* an older copy may still ship from a page embed - first one wins */
@@ -450,23 +467,25 @@ window.Wized = window.Wized || [];
   window.Wized=window.Wized||[];
   window.Wized.push(function(Wized){
     var FACETS=[
-      {key:'view',label:'View',tag:'view_tags'},
-      {key:'position',label:'Position',fields:['aspect','position']},
-      {key:'garage',label:'Garage Type',fields:['garage_type','garageType']}
+      {key:'view',tag:'view_tags'},
+      {key:'position',fields:['aspect','position']},
+      {key:'garage',fields:['garage_type','garageType']}
     ];
     var state={},lastBase=null,listeners=[];
     FACETS.forEach(function(f){state[f.key]=new Set();});
+    function norm(v){return String(v==null?'':v).trim().toLowerCase();}
     function units(){try{return (Wized.data.r.getUnits&&Wized.data.r.getUnits.data)||[];}catch(e){return [];}}
-    function views(){try{return (Wized.data.r.getViews&&Wized.data.r.getViews.data)||window.__svViewList||[];}catch(e){return window.__svViewList||[];}}
     /* every value a unit carries for this facet - one for a plain field, many for a tag list */
     function vals(u,f){
+      var out=[];
       if(f.tag){
         var t=u[f.tag];
-        if(Array.isArray(t))return t;
-        return typeof t==='string'&&t?t.split(',').map(function(s){return s.trim();}):[];
+        if(Array.isArray(t))out=t;
+        else if(typeof t==='string'&&t)out=t.split(',');
+      }else{
+        for(var i=0;i<f.fields.length;i++){var v=u[f.fields[i]];if(v!=null&&v!==''){out=[v];break;}}
       }
-      for(var i=0;i<f.fields.length;i++){var v=u[f.fields[i]];if(v!=null&&v!=='')return [String(v)];}
-      return [];
+      return out.map(norm).filter(Boolean);
     }
     function anyActive(){return FACETS.some(function(f){return state[f.key].size>0;});}
     function matches(u){
@@ -508,86 +527,72 @@ window.Wized = window.Wized || [];
         },30);
       }
     });
-    /* chip options: tag facets follow the /views order and labels, plain facets are alphabetical */
-    function options(f,list){
-      var counts={};
-      list.forEach(function(u){vals(u,f).forEach(function(v){if(v)counts[v]=(counts[v]||0)+1;});});
-      if(f.tag){
-        return views().filter(function(v){return v&&v.key&&v.is_active!==false&&counts[v.key];})
-          .sort(function(a,b){return (a.sort||0)-(b.sort||0);})
-          .map(function(v){return {value:v.key,label:v.label||v.key,count:counts[v.key]};});
-      }
-      return Object.keys(counts).sort().map(function(k){
-        return {value:k,label:k.charAt(0).toUpperCase()+k.slice(1),count:counts[k]};
+    function chips(key){return document.querySelectorAll('[data-svx-filter="'+key+'"]');}
+    /* wire every native chip once; chips added later (Designer edits need a
+       publish, so this only matters if something injects one at runtime) */
+    function bind(){
+      document.querySelectorAll('[data-svx-filter]').forEach(function(ch){
+        if(ch.__svxBound)return;
+        ch.__svxBound=true;
+        ch.addEventListener('click',function(){
+          toggle(ch.getAttribute('data-svx-filter'),ch.getAttribute('data-svx-value'));
+        });
       });
     }
-    function build(){
-      var host=document.querySelector('.unit-filter_more-list');
-      if(!host)return;
-      /* count only what the list can actually show, so chips agree with the
-         results count and with the badge hover cards */
+    /* fill counts from the released units and hide what the data can't back:
+       a chip whose value no unit carries, and a group with no visible chip.
+       Counts are per released unit so they agree with the results count and
+       with the badge hover cards. */
+    function sync(){
+      bind();
       var list=units().filter(function(u){return u&&u.status!=='unreleased';});
       if(!list.length)return;
       FACETS.forEach(function(f){
-        if(host.querySelector('[data-svx="'+f.key+'"]'))return; /* this group is already built */
-        var opts=options(f,list);
-        if(!opts.length)return; /* no data for this facet yet - try again on the next pass */
-        var title=document.createElement('p');
-        title.className='unit-filter_group-title text-style-label';
-        title.setAttribute('data-svx',f.key);
-        title.textContent=f.label;
-        var chips=document.createElement('div');
-        chips.className='unit-filter_chips';
-        chips.setAttribute('data-svx',f.key);
-        opts.forEach(function(o){
-          var chip=document.createElement('div');
-          chip.className='unit-filter_chip';
-          chip.setAttribute('data-svx-filter',f.key);
-          chip.setAttribute('data-svx-value',o.value);
-          var lbl=document.createElement('div');
-          lbl.textContent=o.label;
-          chip.appendChild(lbl);
-          var cnt=document.createElement('div');
-          cnt.className='unit-filter_count';
-          cnt.textContent=o.count;
-          chip.appendChild(cnt);
-          chip.addEventListener('click',function(){toggle(f.key,o.value);});
-          chips.appendChild(chip);
+        var counts={};
+        list.forEach(function(u){vals(u,f).forEach(function(v){counts[v]=(counts[v]||0)+1;});});
+        var shown=0;
+        chips(f.key).forEach(function(ch){
+          var n=counts[norm(ch.getAttribute('data-svx-value'))]||0;
+          var c=ch.querySelector('.unit-filter_count');
+          if(c)c.textContent=n;
+          ch.style.display=n?'':'none';
+          if(n)shown++;
         });
-        host.appendChild(title);
-        host.appendChild(chips);
+        document.querySelectorAll('[data-svx="'+f.key+'"]').forEach(function(el){el.style.display=shown?'':'none';});
       });
     }
     /* single entry point for a chip click OR a map badge click */
     function toggle(key,value,on){
       var set=state[key];
       if(!set)return false;
-      var want=on===undefined?!set.has(value):!!on;
-      if(want)set.add(value);else set.delete(value);
-      document.querySelectorAll('[data-svx-filter="'+key+'"]').forEach(function(ch){
-        if(ch.getAttribute('data-svx-value')===String(value))ch.classList.toggle('is-active',want);
+      var v=norm(value);
+      var want=on===undefined?!set.has(v):!!on;
+      if(want)set.add(v);else set.delete(v);
+      chips(key).forEach(function(ch){
+        if(norm(ch.getAttribute('data-svx-value'))===v)ch.classList.toggle('is-active',want);
       });
       refine();
       return want;
     }
     window.svxFacets={
       toggle:toggle,
-      isActive:function(k,v){return !!(state[k]&&state[k].has(v));},
+      isActive:function(k,v){return !!(state[k]&&state[k].has(norm(v)));},
       active:function(k){return state[k]?Array.from(state[k]):[];},   /* Sets are not array-like - slice() would always give [] */
       onChange:function(fn){listeners.push(fn);fn(state);},
-      rebuild:build
+      rebuild:sync
     };
+    bind();
     Wized.on('requestend',function(r){
-      if(r.name==='getUnits'||r.name==='getViews'){
+      if(r.name==='getUnits'){
         setTimeout(function(){
-          if(r.name==='getUnits'){try{lastBase=Wized.data.v.visibleUnits||[];}catch(e){lastBase=[];}}
-          build();
+          try{lastBase=Wized.data.v.visibleUnits||[];}catch(e){lastBase=[];}
+          sync();
         },250);
       }
     });
-    /* fallbacks in case a request finished before this ran, or /views arrives late */
-    setTimeout(function(){build();},4000);
-    setTimeout(function(){build();},6000);
+    /* fallbacks in case getUnits finished before this ran (or came via the controller's direct fetch) */
+    setTimeout(sync,4000);
+    setTimeout(sync,6000);
   });
 })();
 
@@ -731,9 +736,9 @@ window.Wized = window.Wized || [];
     if (!Array.isArray(list) || !list.length) return;
     views = list.filter(function (v) { return v && v.key && v.is_active !== false; });
     byKey = {}; views.forEach(function (v) { byKey[v.key] = v; });
-    window.__svViewList = views;          // the facets module labels its View chips from this
+    window.__svViewList = views;
     renderBadges();
-    if (window.svxFacets && window.svxFacets.rebuild) window.svxFacets.rebuild();
+    if (window.svxFacets && window.svxFacets.rebuild) window.svxFacets.rebuild();   // re-sync badge latch state against the native View chips
   }
   function setUnits(list) {
     if (!Array.isArray(list)) return;
