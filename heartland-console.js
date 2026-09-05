@@ -241,13 +241,44 @@
     "     the same target the mouse gets. */",
     "  .um-sub { padding:2px 11px 8px; }",
     "  .um-sep { height:1px; background:var(--rule); margin:4px 0; }",
-    "  nav.tabs { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--rule); }",
-    "  nav.tabs button {",
-    "    border:0; background:none; border-radius:0; padding:9px 14px;",
-    "    color:var(--ink-2); border-bottom:2px solid transparent; margin-bottom:-1px;",
+    "  /* ── sidebar ───────────────────────────────────────────────────────────────── */",
+    "  .shell { display:grid; grid-template-columns:196px minmax(0,1fr); gap:30px; align-items:start; }",
+    "  /* Sticky, so the sections stay reachable from the bottom of a long pipeline",
+    "     without scrolling back up. */",
+    "  nav.side { display:flex; flex-direction:column; position:sticky; top:20px; }",
+    "  .side-group { display:flex; flex-direction:column; gap:2px; }",
+    "  .side-group + .side-group { margin-top:20px; }",
+    "  .side-label {",
+    "    font-size:.6875rem; text-transform:uppercase; letter-spacing:var(--tracking);",
+    "    color:var(--ink-muted); font-weight:600; padding:0 12px 7px;",
     "  }",
-    "  nav.tabs button:hover { background:none; color:var(--ink); }",
-    "  nav.tabs button[aria-selected=\"true\"] { color:var(--ink); border-bottom-color:var(--brand); font-weight:600; }",
+    "  nav.side button {",
+    "    border:0; background:none; border-radius:var(--radius-sm); padding:8px 12px;",
+    "    color:var(--ink-2); text-align:left; width:100%;",
+    "    display:flex; align-items:center; justify-content:space-between; gap:8px;",
+    "  }",
+    "  nav.side button:hover { background:var(--surface-2); color:var(--ink); }",
+    "  /* The inset bar carries the selection, so it does not rest on the tint alone -",
+    "     brand-soft is deliberately faint and reads as barely-there on some screens. */",
+    "  nav.side button[aria-selected=\"true\"] {",
+    "    background:var(--brand-soft); color:var(--ink); font-weight:600;",
+    "    box-shadow:inset 2px 0 0 var(--brand);",
+    "  }",
+    "  /* Below this the column costs more than it gives, so it lies down into the row it",
+    "     used to be - scrollable, and with the admin group still fenced off by a rule. */",
+    "  @media (max-width: 900px) {",
+    "    .shell { grid-template-columns:1fr; gap:14px; }",
+    "    nav.side {",
+    "      position:static; flex-direction:row; gap:4px; overflow-x:auto;",
+    "      border-bottom:1px solid var(--rule); padding-bottom:2px;",
+    "    }",
+    "    .side-group { flex-direction:row; gap:4px; }",
+    "    .side-group + .side-group {",
+    "      margin:0 0 0 8px; padding-left:8px; border-left:1px solid var(--rule);",
+    "    }",
+    "    .side-label { display:none; }",
+    "    nav.side button { width:auto; white-space:nowrap; }",
+    "  }",
     "  .count {",
     "    display:inline-block; margin-left:6px; font-size:.75rem; padding:0 6px;",
     "    border-radius:20px; background:var(--rule); color:var(--ink-2);",
@@ -284,6 +315,10 @@
     "    background:var(--surface-2);",
     "  }",
     "  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }",
+    "  /* The reference is one token and must not be hyphenated down four lines. It only",
+    "     started wrapping when the sidebar took 196px off the table; .tablewrap already",
+    "     scrolls, so letting the column keep its width costs nothing. */",
+    "  #viewPipe th:first-child, #viewPipe td:first-child { white-space:nowrap; }",
     "  tbody tr { cursor:pointer; }",
     "  tbody tr:hover td { background:var(--brand-soft); }",
     "  tbody tr:last-child td { border-bottom:0; }",
@@ -789,6 +824,61 @@
     "  #viewInv tbody tr.is-plain:hover td { background:transparent; }",
     "  .inv-ph { color:var(--ink-muted); font-style:italic; }",
     "  .inv-empty { padding:24px 20px; font-size:.8125rem; color:var(--ink-muted); }",
+    "  /* ── developments ──────────────────────────────────── */",
+    "  .feat-strip { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }",
+    "  .feat-dev {",
+    "    font:inherit; text-align:left; cursor:pointer; padding:9px 15px;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:var(--surface); color:var(--ink); min-width:150px;",
+    "  }",
+    "  .feat-dev:hover { background:var(--surface-2); }",
+    "  .feat-dev.is-on { border-color:var(--accent); background:var(--brand-soft); }",
+    "  .feat-dev b { display:block; font-weight:600; font-size:.875rem; }",
+    "  .feat-dev span { display:block; font-size:.75rem; color:var(--ink-2); margin-top:2px; }",
+    "  .feat-head { margin-bottom:14px; }",
+    "  .feat-head h2 { margin:0 0 6px; font-size:1rem; }",
+    "  .feat-head em { font-style:normal; }",
+    "  #viewDev .card.pad { padding:16px 20px; margin:0 0 14px; }",
+    "  #viewDev .card.pad h2 {",
+    "    margin:0 0 4px; font-size:.6875rem; text-transform:uppercase;",
+    "    letter-spacing:var(--tracking); color:var(--ink-2); font-weight:600;",
+    "  }",
+    "  .feat-row {",
+    "    display:flex; gap:16px; align-items:center; justify-content:space-between;",
+    "    padding:13px 0; border-bottom:1px solid var(--rule);",
+    "  }",
+    "  .feat-group .feat-row:last-child { border-bottom:0; padding-bottom:0; }",
+    "  .feat-text { min-width:0; }",
+    "  .feat-name { font-size:.875rem; font-weight:600; color:var(--ink); }",
+    "  .feat-desc { font-size:.75rem; color:var(--ink-2); margin-top:3px; max-width:62ch; }",
+    "  /* Which of the three states this is, said on the row rather than in a legend",
+    "     nobody scrolls back up to read. */",
+    "  .feat-flag {",
+    "    font-size:.625rem; font-weight:600; text-transform:uppercase;",
+    "    letter-spacing:var(--tracking); color:var(--accent); margin-left:6px;",
+    "  }",
+    "  .feat-flag.is-default { color:var(--ink-muted); }",
+    "  .feat-controls { display:flex; gap:10px; align-items:center; flex:0 0 auto; }",
+    "  .feat-revert {",
+    "    font:inherit; font-size:.75rem; padding:3px 10px; cursor:pointer;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:transparent; color:var(--ink-2);",
+    "  }",
+    "  .feat-revert:hover { background:var(--surface-2); color:var(--ink); }",
+    "  /* A switch, because the thing it controls is binary and stays that way. */",
+    "  .feat-toggle {",
+    "    width:42px; height:24px; border-radius:20px; padding:0; cursor:pointer;",
+    "    border:1px solid var(--rule); background:var(--surface-2); position:relative;",
+    "    transition:background .15s ease, border-color .15s ease;",
+    "  }",
+    "  .feat-toggle .feat-knob {",
+    "    position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;",
+    "    background:var(--ink-muted); transition:transform .15s ease, background .15s ease;",
+    "  }",
+    "  .feat-toggle.is-on { background:var(--brand); border-color:var(--accent); }",
+    "  .feat-toggle.is-on .feat-knob { transform:translateX(18px); background:var(--brand-ink); }",
+    "  .feat-toggle:disabled { opacity:.5; cursor:default; }",
+    "  .feat-toggle:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }",
     "  #viewInv tbody tr.is-editing td { background:var(--brand-soft); }",
     "  .inv-edit-row td { background:var(--surface-2); padding:0; }",
     "  .inv-edit-row:hover td { background:var(--surface-2); }",
@@ -928,19 +1018,39 @@
     "    </div>",
     "  </header>",
     "",
-    "  <nav class=\"tabs\">",
-    "    <button id=\"tabDash\" aria-selected=\"true\">Dashboard</button>",
-    "    <button id=\"tabToday\" aria-selected=\"false\">Today<span class=\"count\" id=\"todayCount\">0</span></button>",
-    "    <button id=\"tabPipe\" aria-selected=\"false\">Pipeline<span class=\"count\" id=\"pipeCount\">0</span></button>",
-    "    <button id=\"tabInv\" aria-selected=\"false\">Inventory</button>",
-    "    <button id=\"tabTeam\" aria-selected=\"false\" hidden>Team</button>",
+    "  <div class=\"shell\">",
+    "",
+    "  <!-- A SIDEBAR, NOT A TAB ROW. Six sections is where a horizontal row stops being",
+    "       scannable, and this list only grows as modules land. A column also gives each",
+    "       item a full-width hit target and room for a count, and it groups: the two admin",
+    "       sections sit under their own heading rather than trailing the others with no",
+    "       explanation of why a salesperson cannot see them. nav.tabs kept its class name",
+    "       nowhere - the buttons kept their IDs, which is what everything else addresses. -->",
+    "  <nav class=\"side\" aria-label=\"Sections\">",
+    "    <div class=\"side-group\">",
+    "      <button id=\"tabDash\" aria-selected=\"true\">Dashboard</button>",
+    "      <button id=\"tabToday\" aria-selected=\"false\">Today<span class=\"count\" id=\"todayCount\">0</span></button>",
+    "      <button id=\"tabPipe\" aria-selected=\"false\">Pipeline<span class=\"count\" id=\"pipeCount\">0</span></button>",
+    "      <button id=\"tabInv\" aria-selected=\"false\">Inventory</button>",
+    "    </div>",
+    "    <div class=\"side-group\" id=\"sideAdmin\" hidden>",
+    "      <div class=\"side-label\">Admin</div>",
+    "      <button id=\"tabDev\" aria-selected=\"false\" hidden>Developments</button>",
+    "      <button id=\"tabTeam\" aria-selected=\"false\" hidden>Team</button>",
+    "    </div>",
     "  </nav>",
+    "",
+    "  <div class=\"main\">",
     "",
     "  <!-- Dashboard -->",
     "  <section id=\"viewDash\"></section>",
     "",
     "  <!-- Today -->",
     "  <section id=\"viewToday\" class=\"hide\"></section>",
+    "",
+    "  <!-- Developments. Admin only - the button is hidden for everyone else and the",
+    "       POST refuses them, which is the check that matters. -->",
+    "  <section id=\"viewDev\" class=\"hide\"></section>",
     "",
     "  <!-- Inventory. The stock list, filled on first view. -->",
     "  <section id=\"viewInv\" class=\"hide\"></section>",
@@ -971,6 +1081,8 @@
     "      <div class=\"none\" id=\"empty\" style=\"padding:36px 20px; text-align:center\"></div>",
     "    </div>",
     "  </section>",
+    "  </div>",
+    "  </div>",
     "</div>",
     "",
     "<!-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 drawer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->",
@@ -3580,6 +3692,198 @@
      values imported faithfully from a site that shows them as "Price TBC". Rendered in
      the same typeface as Polaris's real prices they would be quoted. */
 
+  /* ---------- per-development modules ----------
+     WHICH MODULES A DEVELOPMENT USES, fetched once for the whole console rather than per
+     tab. The Developments tab edits it; the Inventory tab reads it to decide whether to
+     offer the state editor. One fetch, one answer - two would eventually disagree.
+
+     HIDING A CONTROL IS NOT THE ENFORCEMENT, and nothing here should be mistaken for it.
+     Every endpoint behind a gated control does its own check, so a console that hid the
+     wrong thing would still be refused by the server. What this buys is a screen that does
+     not offer somebody a button that cannot work.
+
+     THREE STATES, NOT TWO. A module is on, off, or following the registry default. Only the
+     third survives a change to the default, so "revert" is offered wherever a decision has
+     been made rather than making somebody guess which way the default happened to point. */
+
+  var FEAT = { data: null, loaded: false, loading: false, err: "", slug: "", saving: "", saveErr: "" };
+
+  function loadFeatures() {
+    if (FEAT.loading) { return; }
+    FEAT.loading = true; FEAT.err = "";
+    return api("/staff/property-config")
+      .then(function (d) { FEAT.data = d; FEAT.loaded = true; })
+      .catch(function (e) { FEAT.err = e.message; })
+      .then(function () {
+        FEAT.loading = false;
+        if (S.tab === "dev") { renderFeat(); }
+        /* The Inventory tab may already be painted without knowing what is allowed. */
+        if (S.tab === "inv" && INV.data) { renderInv(); }
+      });
+  }
+
+  /* The one question every caller asks. Unknown development, or a map that has not loaded,
+     answers FALSE - a console that assumed yes would offer controls the server refuses. */
+  function featOn(slug, key) {
+    var d = FEAT.data;
+    if (!d || !d.developments) { return false; }
+    for (var i = 0; i < d.developments.length; i++) {
+      if (d.developments[i].property_slug === slug) {
+        return d.developments[i].features[key] === true;
+      }
+    }
+    return false;
+  }
+
+  function featFor(slug) {
+    var d = FEAT.data;
+    if (!d || !d.developments) { return null; }
+    for (var i = 0; i < d.developments.length; i++) {
+      if (d.developments[i].property_slug === slug) { return d.developments[i]; }
+    }
+    return null;
+  }
+
+  function featPickDefault() {
+    if (!FEAT.loaded && !FEAT.loading) { loadFeatures(); }
+    if (!FEAT.slug) {
+      var d = FEAT.data;
+      if (d && d.developments && d.developments.length) {
+        FEAT.slug = d.developments[0].property_slug;
+      }
+    }
+    renderFeat();
+  }
+
+  function featSet(key, enabled) {
+    if (FEAT.saving) { return; }
+    FEAT.saving = key; FEAT.saveErr = "";
+    renderFeat();
+    var body = { property_slug: FEAT.slug, feature_key: key };
+    /* Omitted means revert. Sending null would be sending a value. */
+    if (enabled !== null) { body.enabled = enabled; }
+    api("/staff/property-config", { method: "POST", body: JSON.stringify(body) })
+      .then(function () {
+        FEAT.saving = "";
+        /* Re-read rather than patch in memory: the resolved answer and whether it came from
+           a decision or a default are both the server's to compute. */
+        FEAT.loaded = false;
+        return loadFeatures();
+      })
+      .catch(function (e) {
+        FEAT.saving = ""; FEAT.saveErr = e.message; renderFeat();
+      });
+  }
+
+  function featRowHtml(m, dev) {
+    var on = dev.features[m.key] === true;
+    var isSet = dev.source[m.key] === "set";
+    var busy = FEAT.saving === m.key;
+    return '<div class="feat-row">' +
+      '<div class="feat-text"><div class="feat-name">' + esc(m.label) +
+        (isSet ? ' <span class="feat-flag">set</span>'
+               : ' <span class="feat-flag is-default">default</span>') + "</div>" +
+      '<div class="feat-desc">' + esc(m.description) + "</div></div>" +
+      '<div class="feat-controls">' +
+        (isSet ? '<button type="button" class="feat-revert" data-feat-revert="' + esc(m.key) +
+                 '" title="Follow the default again">Revert</button>' : "") +
+        '<button type="button" class="feat-toggle' + (on ? " is-on" : "") + '"' +
+          (busy ? " disabled" : "") + ' data-feat-key="' + esc(m.key) + '" data-feat-to="' +
+          (on ? "off" : "on") + '" role="switch" aria-checked="' + (on ? "true" : "false") +
+          '"><span class="feat-knob"></span></button>' +
+      "</div></div>";
+  }
+
+  function renderFeat() {
+    var d = FEAT.data;
+
+    if (FEAT.err) {
+      $("viewDev").innerHTML = '<div class="card pad"><div class="err">' + esc(FEAT.err) + "</div></div>";
+      return;
+    }
+    if (!d) {
+      $("viewDev").innerHTML = '<div class="card"><div class="inv-empty">' +
+        (FEAT.loading ? "Loading…" : "Nothing loaded.") + "</div></div>";
+      return;
+    }
+
+    var devs = d.developments || [];
+    var reg = d.registry || [];
+    var dev = featFor(FEAT.slug) || devs[0] || null;
+    if (dev) { FEAT.slug = dev.property_slug; }
+
+    /* Every development at a glance, and the way you switch between them. Comparing is the
+       actual job - "does Sanford have what Polaris has" - and a count answers it without
+       opening each one. */
+    var strip = '<div class="feat-strip">' + devs.map(function (x) {
+      return '<button type="button" class="feat-dev' +
+        (x.property_slug === FEAT.slug ? " is-on" : "") + '" data-feat-dev="' +
+        esc(x.property_slug) + '"><b>' + esc(x.property_name) + "</b><span>" +
+        x.on_count + " of " + x.of + " on" +
+        (x.is_selling ? " · selling" : "") + "</span></button>";
+    }).join("") + "</div>";
+
+    if (!dev) {
+      $("viewDev").innerHTML = strip + '<div class="card"><div class="inv-empty">' +
+        "No developments yet.</div></div>";
+      featWire();
+      return;
+    }
+
+    /* Grouped by category, in the order the registry gives them - the registry is authored
+       deliberately, so its order is a decision rather than an accident. */
+    var groups = [], seen = {};
+    reg.forEach(function (m) {
+      var c = m.category || "Other";
+      if (!seen[c]) { seen[c] = { name: c, modules: [] }; groups.push(seen[c]); }
+      seen[c].modules.push(m);
+    });
+
+    var body = groups.map(function (g) {
+      return '<div class="card pad feat-group"><h2>' + esc(g.name) + "</h2>" +
+        g.modules.map(function (m) { return featRowHtml(m, dev); }).join("") + "</div>";
+    }).join("");
+
+    var warn = (dev.unknown_keys && dev.unknown_keys.length)
+      ? '<div class="inv-warn"><div><strong>Settings for modules that no longer exist.</strong> ' +
+        esc(dev.unknown_keys.join(", ")) + " — these are ignored, not applied. They are " +
+        "left over from a module that was renamed or removed.</div></div>"
+      : "";
+
+    var err = FEAT.saveErr
+      ? '<div class="card pad"><div class="err">' + esc(FEAT.saveErr) + "</div></div>" : "";
+
+    $("viewDev").innerHTML = strip +
+      '<div class="feat-head">' +
+        "<h2>" + esc(dev.property_name) + "</h2>" +
+        '<div class="inv-owed">Turning a module off hides it in this console <em>and</em> ' +
+        "refuses it on the server — hiding alone would not be a rule. " +
+        "<strong>Default</strong> means nobody has decided; the module follows whatever the " +
+        "default becomes. <strong>Set</strong> means somebody chose, and it stays chosen.</div>" +
+      "</div>" + warn + err + body;
+    featWire();
+  }
+
+  function featWire() {
+    [].forEach.call($("viewDev").querySelectorAll("[data-feat-dev]"), function (el) {
+      el.addEventListener("click", function () {
+        FEAT.slug = el.getAttribute("data-feat-dev");
+        FEAT.saveErr = "";
+        renderFeat();
+      });
+    });
+    [].forEach.call($("viewDev").querySelectorAll("[data-feat-key]"), function (el) {
+      el.addEventListener("click", function () {
+        featSet(el.getAttribute("data-feat-key"), el.getAttribute("data-feat-to") === "on");
+      });
+    });
+    [].forEach.call($("viewDev").querySelectorAll("[data-feat-revert]"), function (el) {
+      el.addEventListener("click", function () {
+        featSet(el.getAttribute("data-feat-revert"), null);
+      });
+    });
+  }
+
   var INV = {
     slug: "", data: null, loading: false, err: "", q: "", state: "", type: "",
     /* The home whose state is being changed, by unit number. Only ever one at a time:
@@ -3755,11 +4059,16 @@
       u.parking ? u.parking + " garage" : null
     ].filter(Boolean).join(" · ");
     /* A home with a deal on it goes to the deal; a home without one is the only kind
-       whose state this screen may set, which is the same precedence the server enforces. */
+       whose state this screen may set, which is the same precedence the server enforces.
+       And only where the development has the module on - the endpoint refuses otherwise,
+       so offering the editor would be offering a button that cannot work. */
+    var canEdit = featOn(INV.slug, "inventory_edit");
     return '<tr' + (r && r.uuid
              ? ' data-inv-deal="' + esc(r.uuid) + '" data-inv-ref="' + esc(r.reference || "") + '"'
-             : ' data-inv-edit="' + esc(u.unit_number) + '"' +
-               (INV.editing === u.unit_number ? ' class="is-editing"' : "")) + ">" +
+             : (canEdit
+                 ? ' data-inv-edit="' + esc(u.unit_number) + '"' +
+                   (INV.editing === u.unit_number ? ' class="is-editing"' : "")
+                 : ' class="is-plain"')) + ">" +
       "<td><strong>" + esc(u.unit_number || u.name || "—") + "</strong>" +
         /* "Unit 12" under a heading of "12" is the same fact twice. */
         (u.name && u.name !== u.unit_number && u.name !== ("Unit " + u.unit_number)
@@ -4316,6 +4625,9 @@
     chip.className = "rolechip" + (role === "admin" ? " is-admin" : (role === "manager" ? " is-manager" : ""));
     /* Admin-only. The button being hidden is a courtesy; /staff/team refuses anyone else. */
     $("tabTeam").hidden = (role !== "admin");
+    $("tabDev").hidden = (role !== "admin");
+    /* The heading goes with them. An "Admin" label above nothing is worse than no label. */
+    $("sideAdmin").hidden = (role !== "admin");
   }
 
   function showApp() {
@@ -4323,10 +4635,12 @@
     $("app").classList.remove("hide");
     paintIdentity(S.staff);
     load();
+    loadFeatures();
   }
   function signOut(msg) {
     clearSession();
     S.data = null;
+    FEAT.data = null; FEAT.loaded = false;
     closeDrawer();
     hideBoot();
     $("app").classList.add("hide");
@@ -4511,6 +4825,7 @@
     { k: "today", btn: "tabToday", view: "viewToday" },
     { k: "pipe",  btn: "tabPipe",  view: "viewPipe" },
     { k: "inv",   btn: "tabInv",   view: "viewInv" },
+    { k: "dev",   btn: "tabDev",   view: "viewDev" },
     { k: "team",  btn: "tabTeam",  view: "viewTeam" }
   ];
   function tab(which) {
@@ -4519,6 +4834,11 @@
        and it is a second request against a rate-limited API. */
     if (which === "team" && !TEAM.loaded && !TEAM.loading) { loadTeam(); }
     if (which === "inv" && !INV.slug) { invPickDefault(); }
+    /* Repainted on every return, not only on first view: what a development is ALLOWED to
+       do can have changed on the Developments tab while this one sat behind it, and a stale
+       grid would keep offering an editor the server now refuses. */
+    else if (which === "inv" && INV.data) { renderInv(); }
+    if (which === "dev") { featPickDefault(); }
     TABS.forEach(function (t) {
       $(t.btn).setAttribute("aria-selected", which === t.k);
       $(t.view).classList.toggle("hide", which !== t.k);
