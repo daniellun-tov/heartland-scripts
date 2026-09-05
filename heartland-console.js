@@ -820,10 +820,88 @@
     "  .st-src { display:block; font-size:.6875rem; color:var(--ink-muted); margin-top:3px; }",
     "  .inv-who { font-size:.75rem; color:var(--ink-muted); }",
     "  .inv-buyer { color:var(--ink); }",
+    "  .inv-deal {",
+    "    font:inherit; font-size:.8125rem; font-weight:600; padding:0; border:0;",
+    "    background:none; color:var(--ink); cursor:pointer; text-align:left;",
+    "    border-bottom:1px solid var(--rule);",
+    "  }",
+    "  .inv-deal:hover { color:var(--accent); border-bottom-color:var(--accent); background:none; }",
     "  #viewInv tbody tr.is-plain { cursor:default; }",
     "  #viewInv tbody tr.is-plain:hover td { background:transparent; }",
     "  .inv-ph { color:var(--ink-muted); font-style:italic; }",
     "  .inv-empty { padding:24px 20px; font-size:.8125rem; color:var(--ink-muted); }",
+    "  /* ── the grid ──────────────────────────────────────── */",
+    "  #invGrid table { font-variant-numeric:tabular-nums; }",
+    "  #invGrid th, #invGrid td { padding:7px 10px; vertical-align:middle; }",
+    "  /* Compact is the whole of what a second \"classic\" mode would have bought, for a",
+    "     class and a saved preference rather than a parallel codebase. */",
+    "  #invGrid.is-dense th, #invGrid.is-dense td { padding:3px 8px; font-size:.8125rem; }",
+    "  #invGrid.is-dense .inv-who, #invGrid.is-dense .st-src { display:none; }",
+    "  th.gpick, td.gpick { width:34px; padding-right:0; }",
+    "  td.gpick input { width:auto; margin:0; cursor:pointer; }",
+    "  /* The unit number is the row\u2019s identity, so it stays put while the rest scrolls. */",
+    "  th.gnum, td.gnum { position:sticky; left:0; z-index:2; background:var(--surface); }",
+    "  th.gnum { z-index:3; background:var(--surface-2); }",
+    "  tr.is-picked td { background:var(--brand-soft); }",
+    "  tr.is-picked td.gnum { background:var(--brand-soft); }",
+    "  #invGrid tbody tr:hover td.gnum { background:var(--surface-2); }",
+    "  .gunit { color:var(--ink-muted); font-size:.75rem; }",
+    "  .gcell { position:relative; }",
+    "  .gcell.is-live { cursor:cell; }",
+    "  .gcell.is-live:hover { background:var(--surface-2); }",
+    "  /* The focus ring is drawn INSIDE the cell so it cannot shift the row by a pixel -",
+    "     a grid that nudges while you arrow through it is unusable. */",
+    "  .gcell.is-cur { box-shadow:inset 0 0 0 2px var(--accent); outline:none; }",
+    "  .gcell.is-dirty { background:color-mix(in srgb, var(--warning) 14%, transparent); font-weight:600; }",
+    "  .gcell.is-dirty::after {",
+    "    content:\"\"; position:absolute; top:3px; right:3px; width:5px; height:5px;",
+    "    border-radius:50%; background:var(--warning);",
+    "  }",
+    "  .gcell.is-editing { padding:0; }",
+    "  .gcell.is-editing input {",
+    "    width:100%; border:0; border-radius:0; padding:7px 10px; text-align:right;",
+    "    font:inherit; font-variant-numeric:tabular-nums;",
+    "    box-shadow:inset 0 0 0 2px var(--accent); background:var(--surface);",
+    "  }",
+    "  .gstate {",
+    "    font:inherit; font-size:.6875rem; padding:1px 7px; margin-left:6px; cursor:pointer;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:transparent; color:var(--ink-muted);",
+    "  }",
+    "  .gstate:hover { background:var(--surface-2); color:var(--ink); }",
+    "  /* ── the bulk bar ─────────────────────────────────── */",
+    "  .gbar {",
+    "    display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px;",
+    "    padding:10px 14px; border:1px solid var(--accent); border-radius:var(--radius-sm);",
+    "    background:var(--brand-soft);",
+    "  }",
+    "  .gbar .spacer { flex:1 1 auto; }",
+    "  .gbar-n { font-size:.8125rem; color:var(--ink-2); }",
+    "  .gbar-n.is-dirty { color:var(--ink); font-weight:600; }",
+    "  /* ── the preview ──────────────────────────────────── */",
+    "  .gpreview-counts { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 4px; }",
+    "  .gp {",
+    "    font-size:.75rem; border:1px solid var(--rule); border-radius:20px;",
+    "    padding:1px 9px; color:var(--ink-2);",
+    "  }",
+    "  .gp.ok { color:var(--good); border-color:var(--good); }",
+    "  .gp.bad { color:var(--critical); border-color:var(--critical); }",
+    "  .gpreview-list { max-height:320px; overflow:auto; margin-top:10px; }",
+    "  .gp-row {",
+    "    display:flex; gap:10px; align-items:baseline; padding:6px 0;",
+    "    border-bottom:1px solid var(--rule); font-size:.8125rem;",
+    "  }",
+    "  .gp-row:last-child { border-bottom:0; }",
+    "  .gp-row.is-bad .gp-why { color:var(--critical); }",
+    "  .gp-row.is-quiet { opacity:.6; }",
+    "  .gp-unit { font-weight:600; min-width:44px; flex:0 0 auto; }",
+    "  .gp-as { font-size:.6875rem; color:var(--ink-muted); flex:0 0 auto; }",
+    "  .gp-why { color:var(--ink-2); }",
+    "  .gp-why b { color:var(--ink); font-weight:600; }",
+    "  .gpreview code {",
+    "    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.75rem;",
+    "    background:var(--surface-2); padding:0 4px; border-radius:var(--radius-sm);",
+    "  }",
     "  /* ── developments ──────────────────────────────────── */",
     "  .feat-strip { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }",
     "  .feat-dev {",
@@ -3884,8 +3962,41 @@
     });
   }
 
+  /* The editable columns, in the order the grid shows them. kind drives both the input and
+     how a pasted value is read - and it must agree with the server's allowlist in
+     bulk_update_units, which is the thing that actually decides. */
+  var INV_COLS = [
+    { key: "price_cents",             label: "Price",      kind: "cents", w: 120 },
+    { key: "internal_area_sqm",       label: "Internal",   kind: "area",  w: 96, unit: "m²" },
+    { key: "erf_area_sqm",            label: "Erf",        kind: "area",  w: 96, unit: "m²" },
+    { key: "levy_monthly_cents",      label: "Levy",       kind: "cents", w: 108 },
+    { key: "rates_monthly_cents",     label: "Rates",      kind: "cents", w: 108 },
+    { key: "deposit_bond_pct",        label: "Bond dep %", kind: "pct",   w: 92 },
+    { key: "deposit_cash_pct",        label: "Cash dep %", kind: "pct",   w: 92 },
+    { key: "occupational_rental_pct", label: "Occ rent %", kind: "pct",   w: 92 }
+  ];
+
   var INV = {
     slug: "", data: null, loading: false, err: "", q: "", state: "", type: "",
+    /* ---- the grid ----
+       EDITS ARE HELD LOCALLY UNTIL SAVED, and that is the whole reason this feels like a
+       spreadsheet rather than a form. Typing in a cell, tabbing on, pasting a column and
+       filling down all touch `pending` only; nothing reaches the server until Save, and
+       Save shows what will happen before it happens.
+
+       KEYED BY unit_number, NOT BY ROW INDEX. The grid sorts and filters underneath the
+       person editing it, and an index would quietly reattach a pending edit to a different
+       home the moment a filter changed. */
+    pending: {},          // { unitNumber: { field: rawValue } }
+    sel: {},              // { unitNumber: true }
+    anchor: "",           // for shift-click ranges
+    cur: null,            // { row: unitNumber, col: fieldKey } - the focused cell
+    editing: null,        // the same shape, while a cell has an input in it
+    stateRow: "",         // the home whose AVAILABILITY editor is open - not a cell
+    dense: false,
+    bulk: null,           // the preview a Save produced, before it is committed
+    saving: false,
+    saveErr: "",
     /* The home whose state is being changed, by unit number. Only ever one at a time:
        this takes a home off the market, and a screen with four half-filled versions of
        that form open at once is a screen somebody clicks the wrong Save on. */
@@ -3909,6 +4020,10 @@
      on today", so opening Inventory lands on whatever is already selected there rather
      than on an arbitrary first row. */
   function invPickDefault() {
+    /* Per-viewer, per-browser and disposable - exactly what localStorage is for. Wrapped
+       because a private window throws on read. */
+    try { INV.dense = localStorage.getItem("hl_inv_dense") === "1"; } catch (e) {}
+
     var props = (S.data && S.data.properties) || [];
     if (!props.length) { return; }
     var pref = $("fprop") ? $("fprop").value : "";
@@ -3917,15 +4032,332 @@
     invLoad(has ? pref : props[0].slug);
   }
 
-  function invLoad(slug) {
+  function invLoad(slug, keep) {
     if (!slug) { return; }
+    var changed = INV.slug !== slug;
     INV.slug = slug;
-    INV.loading = true; INV.err = ""; INV.data = null;
+    INV.loading = true; INV.err = "";
+    /* A reload after saving keeps the selection, the focused cell and any edit the server
+       refused. Switching development throws all of it away - carrying a pending edit for
+       "unit 12" onto a different development's unit 12 is the kind of thing that ends up
+       on somebody's invoice. */
+    if (changed || !keep) {
+      INV.pending = {}; INV.sel = {}; INV.cur = null; INV.anchor = "";
+      INV.bulk = null; INV.saveErr = "";
+    }
+    INV.editing = null;
+    /* The old rows stay on screen through a keeping reload, so the grid does not blink. */
+    if (!keep) { INV.data = null; }
     renderInv();
-    api("/staff/inventory?property=" + encodeURIComponent(slug))
+    return api("/staff/inventory?property=" + encodeURIComponent(slug))
       .then(function (d) { INV.data = d; })
       .catch(function (e) { INV.err = e.message; })
       .then(function () { INV.loading = false; renderInv(); });
+  }
+
+  /* ---------- the grid ----------
+     ONE GRID, NOT TWO MODES. What people want from a spreadsheet is not the chrome, it is
+     the affordances: arrow keys, click-and-type, shift-click ranges, paste a column from
+     Excel, fill down. Those are one implementation. A second "classic" skin would double
+     every column, validation and permission and then drift in BEHAVIOUR rather than only in
+     looks, which is the failure that cannot be tested away. Density is the part of the
+     Excel feeling that is genuinely cheap, so that is a toggle.
+
+     THE SERVER IS STILL THE ONE THAT DECIDES. Everything below is convenience; the money
+     rules, the field allowlist and the CMS refusal all live in bulk_update_units, and Save
+     runs a dry_run through the same code path before committing. */
+
+  function invEditable() {
+    /* Two different reasons a grid is read-only, and they need different words. */
+    if (!featOn(INV.slug, "inventory_fields")) { return { on: false, why: "module" }; }
+    if (INV.data && INV.data.inventory_source !== "xano") { return { on: false, why: "cms" }; }
+    return { on: true, why: "" };
+  }
+
+  /* Cents are stored as integers and shown as rands. A person types 3 200 000, not
+     320000000, so the grid converts on the way in and on the way out - and the conversion
+     is the only place that knows, so nothing downstream has to guess which it is holding. */
+  function invToDisplay(col, v) {
+    if (v === null || v === undefined || v === "") { return ""; }
+    if (col.kind === "cents") { return String(Math.round(Number(v)) / 100); }
+    return String(v);
+  }
+
+  function invFromDisplay(col, raw) {
+    var s = String(raw === null || raw === undefined ? "" : raw).trim();
+    if (!s) { return null; }
+    /* Excel pastes carry thousands separators, currency marks and non-breaking spaces.
+       Stripping them here means a person can paste what their spreadsheet shows rather
+       than what the database wants. */
+    var cleaned = s.replace(/[R\s ,]/g, "");
+    if (col.kind === "cents") {
+      var n = Number(cleaned);
+      if (isNaN(n)) { return raw; }          // hand it to the server to refuse, with its words
+      return Math.round(n * 100);
+    }
+    var m = Number(cleaned);
+    return isNaN(m) ? raw : m;
+  }
+
+  /* The value a cell should show: the pending edit if there is one, else the stored value. */
+  function invCellValue(u, col) {
+    var p = INV.pending[u.unit_number];
+    if (p && Object.prototype.hasOwnProperty.call(p, col.key)) { return p[col.key]; }
+    return invToDisplay(col, u[col.key]);
+  }
+
+  function invIsDirty(unitNumber, field) {
+    var p = INV.pending[unitNumber];
+    return !!(p && Object.prototype.hasOwnProperty.call(p, field));
+  }
+
+  function invPendingCount() {
+    var n = 0, k;
+    for (k in INV.pending) {
+      if (Object.prototype.hasOwnProperty.call(INV.pending, k)) {
+        n += Object.keys(INV.pending[k]).length;
+      }
+    }
+    return n;
+  }
+
+  function invSetPending(unitNumber, field, display) {
+    var col = null, i;
+    for (i = 0; i < INV_COLS.length; i++) { if (INV_COLS[i].key === field) { col = INV_COLS[i]; } }
+    if (!col) { return; }
+
+    var row = null, us = (INV.data && INV.data.units) || [];
+    for (i = 0; i < us.length; i++) { if (us[i].unit_number === unitNumber) { row = us[i]; } }
+    if (!row) { return; }
+
+    /* Typing a value back to what it already was should CLEAR the pending edit, not record
+       a no-op. Otherwise the dirty count keeps climbing while nothing has actually changed,
+       and Save sends rows the server will only answer "unchanged" to. */
+    var stored = invToDisplay(col, row[field]);
+    var typed = String(display === null || display === undefined ? "" : display).trim();
+
+    if (!INV.pending[unitNumber]) { INV.pending[unitNumber] = {}; }
+    if (typed === stored) { delete INV.pending[unitNumber][field]; }
+    else { INV.pending[unitNumber][field] = typed; }
+
+    if (!Object.keys(INV.pending[unitNumber]).length) { delete INV.pending[unitNumber]; }
+  }
+
+  function invDiscard() {
+    INV.pending = {}; INV.bulk = null; INV.saveErr = ""; INV.editing = null;
+    renderInv();
+  }
+
+  /* ---- selection ---- */
+
+  function invVisible() { return invRows().map(function (u) { return u.unit_number; }); }
+
+  function invSelectRow(unitNumber, e) {
+    var vis = invVisible();
+    if (e && e.shiftKey && INV.anchor) {
+      var a = vis.indexOf(INV.anchor), b = vis.indexOf(unitNumber);
+      if (a !== -1 && b !== -1) {
+        var lo = Math.min(a, b), hi = Math.max(a, b);
+        INV.sel = {};
+        for (var i = lo; i <= hi; i++) { INV.sel[vis[i]] = true; }
+        renderInv();
+        return;
+      }
+    }
+    if (e && (e.metaKey || e.ctrlKey)) {
+      if (INV.sel[unitNumber]) { delete INV.sel[unitNumber]; } else { INV.sel[unitNumber] = true; }
+    } else {
+      var only = Object.keys(INV.sel).length === 1 && INV.sel[unitNumber];
+      INV.sel = {};
+      if (!only) { INV.sel[unitNumber] = true; }
+    }
+    INV.anchor = unitNumber;
+    renderInv();
+  }
+
+  function invSelectAll(on) {
+    INV.sel = {};
+    if (on) { invVisible().forEach(function (n) { INV.sel[n] = true; }); }
+    renderInv();
+  }
+
+  function invSelCount() { return Object.keys(INV.sel).length; }
+
+  /* ---- the focused cell ---- */
+
+  function invMove(dRow, dCol) {
+    var vis = invVisible();
+    if (!vis.length) { return; }
+    if (!INV.cur) { INV.cur = { row: vis[0], col: INV_COLS[0].key }; renderInv(); return; }
+
+    var r = vis.indexOf(INV.cur.row);
+    var c = 0, i;
+    for (i = 0; i < INV_COLS.length; i++) { if (INV_COLS[i].key === INV.cur.col) { c = i; } }
+    if (r === -1) { r = 0; }
+
+    r += dRow; c += dCol;
+    /* Tabbing off the end of a row wraps to the next one, the way a spreadsheet does. */
+    if (c >= INV_COLS.length) { c = 0; r += 1; }
+    if (c < 0) { c = INV_COLS.length - 1; r -= 1; }
+    if (r < 0) { r = 0; }
+    if (r >= vis.length) { r = vis.length - 1; }
+
+    INV.cur = { row: vis[r], col: INV_COLS[c].key };
+    INV.editing = null;
+    renderInv();
+    invFocusCur();
+  }
+
+  function invFocusCur() {
+    if (!INV.cur) { return; }
+    var sel = '[data-cell="' + INV.cur.row + "|" + INV.cur.col + '"]';
+    var el = $("viewInv").querySelector(sel);
+    if (el) { el.focus(); }
+  }
+
+  function invBeginEdit(unitNumber, field, seed) {
+    if (!invEditable().on) { return; }
+    INV.cur = { row: unitNumber, col: field };
+    INV.editing = { row: unitNumber, col: field, seed: seed };
+    renderInv();
+    var input = $("invCellInput");
+    if (input) {
+      input.focus();
+      if (seed === undefined) { input.select(); }
+      else { input.setSelectionRange(input.value.length, input.value.length); }
+    }
+  }
+
+  function invCommitEdit(move) {
+    if (!INV.editing) { return; }
+    var input = $("invCellInput");
+    if (input) { invSetPending(INV.editing.row, INV.editing.col, input.value); }
+    INV.editing = null;
+    if (move === "down") { invMove(1, 0); }
+    else if (move === "right") { invMove(0, 1); }
+    else { renderInv(); invFocusCur(); }
+  }
+
+  /* ---- fill down, and paste ---- */
+
+  function invFillDown() {
+    if (!invEditable().on || !INV.cur) { return; }
+    var vis = invVisible();
+    var start = vis.indexOf(INV.cur.row);
+    if (start === -1) { return; }
+
+    var us = (INV.data && INV.data.units) || [];
+    var byNum = {}; us.forEach(function (u) { byNum[u.unit_number] = u; });
+    var col = null;
+    INV_COLS.forEach(function (c) { if (c.key === INV.cur.col) { col = c; } });
+    if (!col) { return; }
+
+    var seed = invCellValue(byNum[INV.cur.row], col);
+    /* Into the selection where there is one, otherwise to the bottom of the visible rows -
+       the two things Ctrl+D means in a spreadsheet, depending on what is highlighted. */
+    var targets = invSelCount() ? vis.filter(function (n) { return INV.sel[n]; })
+                                : vis.slice(start);
+    targets.forEach(function (n) { if (byNum[n]) { invSetPending(n, col.key, seed); } });
+    renderInv();
+  }
+
+  /* Excel copies as tab-separated rows. Pasting into a cell fills right and down from it,
+     which is what every spreadsheet does and what makes "copy a column out, fix it, paste
+     it back" work at all. */
+  function invPaste(text) {
+    if (!invEditable().on || !INV.cur) { return; }
+    var lines = String(text).replace(/\r/g, "").split("\n");
+    while (lines.length && lines[lines.length - 1] === "") { lines.pop(); }
+    if (!lines.length) { return; }
+
+    var vis = invVisible();
+    var r0 = vis.indexOf(INV.cur.row);
+    var c0 = 0;
+    INV_COLS.forEach(function (c, i) { if (c.key === INV.cur.col) { c0 = i; } });
+    if (r0 === -1) { return; }
+
+    var filled = 0, skipped = 0;
+    lines.forEach(function (line, li) {
+      var cells = line.split("\t");
+      var rowNum = vis[r0 + li];
+      if (!rowNum) { skipped += cells.length; return; }
+      cells.forEach(function (cell, ci) {
+        var col = INV_COLS[c0 + ci];
+        if (!col) { skipped += 1; return; }
+        invSetPending(rowNum, col.key, cell);
+        filled += 1;
+      });
+    });
+
+    /* Said out loud rather than silently truncated: a paste that ran off the bottom of the
+       filter is the moment somebody thinks their data went in and it did not. */
+    INV.saveErr = skipped
+      ? (filled + " cell(s) filled. " + skipped + " had nowhere to go — the paste ran past " +
+         "the last visible row or the last column, and those values were not taken.")
+      : "";
+    renderInv();
+  }
+
+  /* ---- saving ---- */
+
+  function invChangeList() {
+    var out = [], num;
+    for (num in INV.pending) {
+      if (!Object.prototype.hasOwnProperty.call(INV.pending, num)) { continue; }
+      var fields = {}, f;
+      for (f in INV.pending[num]) {
+        if (!Object.prototype.hasOwnProperty.call(INV.pending[num], f)) { continue; }
+        var col = null;
+        INV_COLS.forEach(function (c) { if (c.key === f) { col = c; } });
+        fields[f] = invFromDisplay(col, INV.pending[num][f]);
+      }
+      out.push({ unit_number: num, fields: fields });
+    }
+    return out;
+  }
+
+  function invPreview() {
+    var changes = invChangeList();
+    if (!changes.length) { return; }
+    INV.saving = true; INV.saveErr = ""; INV.bulk = null;
+    renderInv();
+    api("/staff/units/bulk", {
+      method: "POST",
+      body: JSON.stringify({
+        property_slug: INV.slug, changes: changes,
+        reason: "preview", dry_run: true
+      })
+    })
+      .then(function (d) { INV.bulk = d; })
+      .catch(function (e) { INV.saveErr = e.message; })
+      .then(function () { INV.saving = false; renderInv(); });
+  }
+
+  function invCommit(reason) {
+    var changes = invChangeList();
+    if (!changes.length) { return; }
+    INV.saving = true; INV.saveErr = "";
+    renderInv();
+    api("/staff/units/bulk", {
+      method: "POST",
+      body: JSON.stringify({
+        property_slug: INV.slug, changes: changes, reason: reason
+      })
+    })
+      .then(function (d) {
+        /* Only what the server ACCEPTED is cleared. A refused row keeps its pending edit so
+           the person can fix it, rather than losing the typing along with the error. */
+        (d.rows || []).forEach(function (r) {
+          if (r.outcome === "applied" || r.outcome === "unchanged") {
+            delete INV.pending[r.unit_number];
+            if (r.asked_as) { delete INV.pending[r.asked_as]; }
+          }
+        });
+        INV.bulk = d;
+        INV.saving = false;
+        return invLoad(INV.slug, true);
+      })
+      .catch(function (e) { INV.saving = false; INV.saveErr = e.message; renderInv(); });
   }
 
   function invRows() {
@@ -3986,7 +4418,12 @@
   function invWhoCell(u) {
     var r = u.reservation;
     if (r) {
-      return '<div class="inv-buyer">' + esc(r.buyer_name || "—") + "</div>" +
+      /* THE DEAL LINK LIVES HERE, NOT ON THE ROW. In a grid a click on a row means "focus
+         this cell", so a row that also navigated away would fight the thing it is for.
+         The buyer's name is the honest place for it anyway - it is the deal you want. */
+      return '<button type="button" class="inv-deal" data-inv-deal="' + esc(r.uuid || "") +
+             '" data-inv-ref="' + esc(r.reference || "") + '">' +
+             esc(r.buyer_name || "—") + "</button>" +
              '<div class="inv-who">' +
              (r.reference ? '<span class="mono">' + esc(r.reference) + "</span>" : "") +
              (r.deal_stage ? " · " + esc(label(r.deal_stage)) : "") + "</div>";
@@ -4051,25 +4488,48 @@
       "</div></div></td></tr>";
   }
 
+  function invCellHtml(u, col, editable, placeholder) {
+    var val = invCellValue(u, col);
+    var dirty = invIsDirty(u.unit_number, col.key);
+    var focused = INV.cur && INV.cur.row === u.unit_number && INV.cur.col === col.key;
+    var isEditing = INV.editing && INV.editing.row === u.unit_number && INV.editing.col === col.key;
+
+    if (isEditing) {
+      var seeded = (INV.editing.seed === undefined) ? val : INV.editing.seed;
+      return '<td class="gcell is-editing"><input id="invCellInput" type="text" value="' +
+        esc(seeded) + '"></td>';
+    }
+
+    var shown = val === "" ? "" : val;
+    /* Money is shown grouped so a column of prices can be read down. The raw value is what
+       an edit starts from, so grouping never reaches the server. */
+    if (shown !== "" && col.kind === "cents" && !isNaN(Number(shown))) {
+      shown = Number(shown).toLocaleString("en-ZA", { maximumFractionDigits: 2 });
+    }
+    var ph = (col.key === "price_cents" && placeholder && shown !== "");
+
+    return '<td class="gcell num' + (dirty ? " is-dirty" : "") + (focused ? " is-cur" : "") +
+      (editable ? " is-live" : "") + (ph ? " inv-ph" : "") +
+      '" data-cell="' + esc(u.unit_number) + "|" + esc(col.key) + '"' +
+      (editable ? ' tabindex="-1"' : "") + ">" +
+      (shown === "" ? '<span class="muted">—</span>' : esc(shown)) +
+      (shown !== "" && col.unit ? ' <span class="gunit">' + col.unit + "</span>" : "") +
+      "</td>";
+  }
+
   function invRowHtml(u, placeholder) {
     var r = u.reservation;
-    var spec = [
-      u.bedrooms ? u.bedrooms + " bed" : null,
-      u.bathrooms ? u.bathrooms + " bath" : null,
-      u.parking ? u.parking + " garage" : null
-    ].filter(Boolean).join(" · ");
+    var editable = invEditable().on;
+    var picked = !!INV.sel[u.unit_number];
     /* A home with a deal on it goes to the deal; a home without one is the only kind
        whose state this screen may set, which is the same precedence the server enforces.
        And only where the development has the module on - the endpoint refuses otherwise,
        so offering the editor would be offering a button that cannot work. */
-    var canEdit = featOn(INV.slug, "inventory_edit");
-    return '<tr' + (r && r.uuid
-             ? ' data-inv-deal="' + esc(r.uuid) + '" data-inv-ref="' + esc(r.reference || "") + '"'
-             : (canEdit
-                 ? ' data-inv-edit="' + esc(u.unit_number) + '"' +
-                   (INV.editing === u.unit_number ? ' class="is-editing"' : "")
-                 : ' class="is-plain"')) + ">" +
-      "<td><strong>" + esc(u.unit_number || u.name || "—") + "</strong>" +
+    var canEditState = featOn(INV.slug, "inventory_edit");
+    return '<tr class="grow' + (picked ? " is-picked" : "") + '">' +
+      '<td class="gpick"><input type="checkbox" data-inv-pick="' + esc(u.unit_number) + '"' +
+        (picked ? " checked" : "") + ' aria-label="Select unit ' + esc(u.unit_number) + '"></td>' +
+      '<td class="gnum"><strong>' + esc(u.unit_number || u.name || "—") + "</strong>" +
         /* "Unit 12" under a heading of "12" is the same fact twice. */
         (u.name && u.name !== u.unit_number && u.name !== ("Unit " + u.unit_number)
           ? '<div class="inv-who">' + esc(u.name) + "</div>" : "") +
@@ -4077,11 +4537,15 @@
       "<td>" + esc(u.type_code || "—") +
         (u.variant_code && u.variant_code !== u.type_code
           ? '<div class="inv-who">' + esc(u.variant_code) + "</div>" : "") + "</td>" +
-      "<td>" + (spec ? esc(spec) : '<span class="muted">—</span>') + "</td>" +
-      '<td class="num">' + (u.internal_area_sqm
-          ? esc(u.internal_area_sqm) + " m²" : '<span class="muted">—</span>') + "</td>" +
-      '<td class="num">' + invPrice(u, placeholder) + "</td>" +
-      "<td>" + invStateCell(u) + "</td>" +
+      INV_COLS.map(function (c) { return invCellHtml(u, c, editable, placeholder); }).join("") +
+      "<td>" + invStateCell(u) +
+        /* The state editor moved onto the row it belongs to, because the grid now has a
+           column for every other fact about the home. */
+        (canEditState && !r
+          ? ' <button type="button" class="gstate" data-inv-edit="' + esc(u.unit_number) +
+            '" title="Record or clear this home\'s availability">edit</button>'
+          : "") +
+      "</td>" +
       "<td>" + invWhoCell(u) + "</td>" +
     "</tr>";
   }
@@ -4101,13 +4565,100 @@
     });
   }
 
+  var INV_FIELD_LABEL = {
+    price_cents: "Price", internal_area_sqm: "Internal area", erf_area_sqm: "Erf area",
+    levy_monthly_cents: "Levy", rates_monthly_cents: "Rates",
+    deposit_bond_pct: "Bond deposit %", deposit_cash_pct: "Cash deposit %",
+    occupational_rental_pct: "Occupational rental %", name: "Name", slug: "Slug"
+  };
+
+  function invWasNow(field, v) {
+    if (v === null || v === undefined || v === "") { return "—"; }
+    if (field.indexOf("_cents") !== -1) { return randsShort(v); }
+    return String(v);
+  }
+
+  /* THE PREVIEW IS THE SAFETY. Nobody's first sight of forty changes should be afterwards,
+     so Review runs the same server code with the writes withheld and this renders exactly
+     what it said - per row, including every refusal and its reason. Committing then needs a
+     typed reason, because a bulk edit with no reason is unauditable by the time anyone asks
+     what happened. */
+  function invBulkHtml(d) {
+    var c = d.counts || {};
+    var done = !d.dry_run;
+    var rows = (d.rows || []);
+
+    var refused = rows.filter(function (r) { return r.outcome === "refused"; });
+    var byNumber = (c.matched_by_number || 0);
+
+    return '<div class="card pad gpreview">' +
+      "<h2>" + (done ? "What was saved" : "What this will change") + "</h2>" +
+      '<div class="gpreview-counts">' +
+        '<span class="gp ok">' + (c.applied || 0) + (done ? " applied" : " to change") + "</span>" +
+        (c.unchanged ? '<span class="gp">' + c.unchanged + " already matched</span>" : "") +
+        (c.refused ? '<span class="gp bad">' + c.refused + " refused</span>" : "") +
+        (c.fields_changed ? '<span class="gp">' + c.fields_changed + " field" +
+          (c.fields_changed === 1 ? "" : "s") + "</span>" : "") +
+      "</div>" +
+
+      /* A tolerance that hides itself is indistinguishable from a bug. */
+      (byNumber
+        ? '<div class="inv-owed" style="margin-top:8px">' + byNumber + " row" +
+          (byNumber === 1 ? " was" : "s were") + " matched by number rather than exactly — " +
+          "these unit numbers are zero-padded (<code>01</code>) and a spreadsheet strips that. " +
+          "The homes below are the ones that will change.</div>"
+        : "") +
+
+      '<div class="gpreview-list">' +
+        rows.map(function (r) {
+          var head = '<span class="gp-unit">' + esc(r.unit_number) + "</span>" +
+            (r.asked_as && r.asked_as !== r.unit_number
+              ? '<span class="gp-as">typed ' + esc(r.asked_as) + "</span>" : "");
+          if (r.outcome === "refused") {
+            return '<div class="gp-row is-bad">' + head +
+              '<span class="gp-why">' + esc(r.why) + "</span></div>";
+          }
+          if (r.outcome === "unchanged") {
+            return '<div class="gp-row is-quiet">' + head +
+              '<span class="gp-why">' + esc(r.why) + "</span></div>";
+          }
+          return '<div class="gp-row">' + head +
+            '<span class="gp-why">' + (r.changed || []).map(function (ch) {
+              return "<b>" + esc(INV_FIELD_LABEL[ch.field] || ch.field) + "</b> " +
+                esc(invWasNow(ch.field, ch.was)) + " → " + esc(invWasNow(ch.field, ch.now));
+            }).join(" · ") + "</span></div>";
+        }).join("") +
+      "</div>" +
+
+      (done
+        ? '<div class="inv-owed" style="margin-top:12px">' +
+          (refused.length
+            ? "The refused rows above kept their edits so they can be fixed and saved again."
+            : "All saved.") + "</div>" +
+          '<div class="inv-edit-actions"><span class="spacer"></span>' +
+          '<button type="button" id="invBulkDone">Close</button></div>'
+        : '<div class="nr-field" style="margin-top:14px"><label for="invBulkReason">Why</label>' +
+          '<input id="invBulkReason" type="text" value="' + esc(INV.bulkReason || "") +
+          '" placeholder="Areas from the surveyor\'s schedule, 5 Sept"></div>' +
+          '<div class="err" id="invBulkErr">' + esc(INV.bulkErr || "") + "</div>" +
+          '<div class="inv-edit-actions">' +
+            '<button type="button" id="invBulkCancel">Back</button>' +
+            '<span class="spacer"></span>' +
+            '<button type="button" class="primary" id="invBulkGo"' +
+            (INV.saving || !(c.applied || 0) ? " disabled" : "") + ">" +
+            (INV.saving ? "Saving…" : "Save " + (c.applied || 0) + " home" +
+             ((c.applied || 0) === 1 ? "" : "s")) + "</button>" +
+          "</div>") +
+    "</div>";
+  }
+
   function renderInv() {
     var d = INV.data;
     var props = (S.data && S.data.properties) || [];
     var placeholder = !!(d && d.prices_are_placeholder);
     var c = (d && d.counts) || {};
 
-    var bar =
+    var topbar =
       '<div class="inv-bar">' +
       '<div class="f"><label for="invProp">Development</label><select id="invProp">' +
         props.map(function (p) {
@@ -4124,18 +4675,20 @@
             (t.code === INV.type ? " selected" : "") + ">" + esc(t.code) + "</option>";
         }).join("") + "</select></div>" +
       '<span class="spacer"></span>' +
+      '<button type="button" id="invDense" aria-pressed="' + (INV.dense ? "true" : "false") +
+        '" title="Fit more rows on screen">' + (INV.dense ? "Comfortable" : "Compact") + "</button>" +
       '<button type="button" id="invRefresh"' + (INV.loading ? " disabled" : "") + ">" +
         (INV.loading ? "Loading…" : "Refresh") + "</button>" +
       "</div>";
 
     if (INV.err) {
-      $("viewInv").innerHTML = bar + '<div class="card pad"><div class="err">' +
+      $("viewInv").innerHTML = topbar + '<div class="card pad"><div class="err">' +
         esc(INV.err) + "</div></div>";
       invWire();
       return;
     }
     if (!d) {
-      $("viewInv").innerHTML = bar + '<div class="card"><div class="inv-empty">' +
+      $("viewInv").innerHTML = topbar + '<div class="card"><div class="inv-empty">' +
         (INV.loading ? "Loading…" : "Choose a development.") + "</div></div>";
       invWire();
       return;
@@ -4205,20 +4758,64 @@
     }
 
     var rows = invRows();
+    var editable = invEditable();
+    var COLSPAN = 5 + INV_COLS.length;
+    var allPicked = rows.length > 0 && rows.every(function (u) { return INV.sel[u.unit_number]; });
+
     var table = rows.length
-      ? '<div class="card tablewrap"><table><thead><tr>' +
-        "<th>Unit</th><th>Type</th><th>Spec</th>" +
-        '<th class="num">Internal</th><th class="num">Price</th>' +
+      ? '<div class="card tablewrap' + (INV.dense ? " is-dense" : "") + '" id="invGrid">' +
+        "<table><thead><tr>" +
+        '<th class="gpick"><input type="checkbox" id="invPickAll"' + (allPicked ? " checked" : "") +
+          ' aria-label="Select every visible home"></th>' +
+        '<th class="gnum">Unit</th><th>Type</th>' +
+        INV_COLS.map(function (c) {
+          return '<th class="num" style="min-width:' + c.w + 'px">' + esc(c.label) + "</th>";
+        }).join("") +
         "<th>State</th><th>Who</th></tr></thead><tbody>" +
         rows.map(function (u) {
           return invRowHtml(u, placeholder) +
-            (INV.editing === u.unit_number ? invEditRowHtml(u, 7) : "");
+            (INV.stateRow === u.unit_number ? invEditRowHtml(u, COLSPAN) : "");
         }).join("") +
         "</tbody></table></div>"
       : '<div class="card"><div class="inv-empty">' +
         (d.units && d.units.length ? "No home matches those filters."
                                    : "No homes imported for this development yet.") +
         "</div></div>";
+
+    /* WHY THE GRID IS READ-ONLY, when it is - two different reasons needing different
+       words, and neither of them is "you cannot". */
+    var lock = "";
+    if (!editable.on && rows.length) {
+      lock = editable.why === "cms"
+        ? '<div class="inv-warn"><div><strong>These rows are a nightly copy of the Webflow ' +
+          "CMS.</strong> Editing them here would look like it worked and then be overwritten " +
+          "by the next import, so the grid is read-only. Change them in Webflow — or move " +
+          "this development's inventory into Xano, and this becomes the place.</div></div>"
+        : '<div class="inv-owed" style="margin-bottom:12px">Editing unit details is switched ' +
+          "off for this development. An admin can turn it on under Developments.</div>";
+    }
+
+    /* The bulk bar only exists when there is something for it to do. */
+    var pending = invPendingCount();
+    var picked = invSelCount();
+    var bar = (pending || picked)
+      ? '<div class="gbar">' +
+        (picked ? '<span class="gbar-n">' + picked + " selected</span>" : "") +
+        (pending ? '<span class="gbar-n is-dirty">' + pending + " unsaved change" +
+                   (pending === 1 ? "" : "s") + "</span>" : "") +
+        '<span class="spacer"></span>' +
+        (picked ? '<button type="button" id="invClearSel">Clear selection</button>' : "") +
+        (pending ? '<button type="button" id="invDiscard">Discard</button>' : "") +
+        (pending ? '<button type="button" class="primary" id="invReview"' +
+                   (INV.saving ? " disabled" : "") + ">" +
+                   (INV.saving ? "Checking…" : "Review " + pending + " change" +
+                    (pending === 1 ? "" : "s")) + "</button>" : "") +
+        "</div>"
+      : "";
+
+    var bulk = INV.bulk ? invBulkHtml(INV.bulk) : "";
+    var gerr = INV.saveErr
+      ? '<div class="card pad"><div class="err">' + esc(INV.saveErr) + "</div></div>" : "";
 
     var foot = '<div class="inv-owed" style="margin-top:10px">' +
       rows.length + " of " + ((d.counts && d.counts.units) || 0) + " shown · " +
@@ -4227,7 +4824,8 @@
 
     /* Order: what you must know before reading a number, then the stock itself, then
        the explanations. An agent opens this screen to see homes, not paragraphs. */
-    $("viewInv").innerHTML = bar + stats + warn + table + foot + noEngine + setup;
+    $("viewInv").innerHTML = topbar + stats + warn + lock + bar + bulk + gerr +
+      table + foot + noEngine + setup;
     invWire();
   }
 
@@ -4264,18 +4862,144 @@
     });
 
     [].forEach.call($("viewInv").querySelectorAll("[data-inv-deal]"), function (el) {
-      el.addEventListener("click", function () {
+      el.addEventListener("click", function (e) {
+        e.stopPropagation();
         invOpenDeal(el.getAttribute("data-inv-deal"), el.getAttribute("data-inv-ref"));
       });
     });
 
     [].forEach.call($("viewInv").querySelectorAll("[data-inv-edit]"), function (el) {
-      el.addEventListener("click", function () {
+      el.addEventListener("click", function (e) {
+        e.stopPropagation();
         var n = el.getAttribute("data-inv-edit");
-        if (INV.editing === n) { invEditClose(); return; }
+        if (INV.stateRow === n) { invEditClose(); return; }
         invEditOpen(n);
       });
     });
+
+    /* ---- the grid ---- */
+
+    var dense = $("invDense");
+    if (dense) {
+      dense.addEventListener("click", function () {
+        INV.dense = !INV.dense;
+        try { localStorage.setItem("hl_inv_dense", INV.dense ? "1" : "0"); } catch (e) {}
+        renderInv();
+      });
+    }
+
+    var all = $("invPickAll");
+    if (all) { all.addEventListener("change", function () { invSelectAll(all.checked); }); }
+
+    [].forEach.call($("viewInv").querySelectorAll("[data-inv-pick]"), function (el) {
+      el.addEventListener("click", function (e) {
+        e.stopPropagation();
+        invSelectRow(el.getAttribute("data-inv-pick"), e);
+      });
+    });
+
+    [].forEach.call($("viewInv").querySelectorAll("[data-cell]"), function (el) {
+      var parts = el.getAttribute("data-cell").split("|");
+      /* One click focuses, a second opens the editor - the spreadsheet contract. Both
+         decisions live in the CLICK handler and nowhere else: an earlier version set the
+         focused cell on mousedown, which made the very first click open the editor in a real
+         browser (mousedown had already made the cell current by the time click ran) while
+         doing nothing at all under a synthetic .click(). One handler, one rule. */
+      el.addEventListener("click", function () {
+        var isCur = INV.cur && INV.cur.row === parts[0] && INV.cur.col === parts[1];
+        if (isCur && !INV.editing) { invBeginEdit(parts[0], parts[1]); return; }
+        INV.cur = { row: parts[0], col: parts[1] };
+        INV.editing = null;
+        renderInv();
+        invFocusCur();
+      });
+      el.addEventListener("dblclick", function () { invBeginEdit(parts[0], parts[1]); });
+    });
+
+    var input = $("invCellInput");
+    if (input) {
+      input.addEventListener("keydown", function (e) {
+        /* stopPropagation, not just preventDefault. The input sits INSIDE #invGrid, so
+           without it Enter commits here and then bubbles to the grid handler - which, by
+           then, sees INV.editing already null and helpfully opens the editor again on the
+           row Enter just moved to. The edit landed correctly and the grid looked stuck. */
+        if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); invCommitEdit("down"); }
+        else if (e.key === "Tab") { e.preventDefault(); e.stopPropagation(); invCommitEdit("right"); }
+        else if (e.key === "Escape") {
+          e.preventDefault(); e.stopPropagation();
+          INV.editing = null; renderInv(); invFocusCur();
+        }
+        else { e.stopPropagation(); }
+      });
+      input.addEventListener("blur", function () { if (INV.editing) { invCommitEdit(null); } });
+    }
+
+    var grid = $("invGrid");
+    if (grid) {
+      grid.addEventListener("keydown", function (e) {
+        if (INV.editing) { return; }
+        var k = e.key;
+        if (k === "ArrowDown") { e.preventDefault(); invMove(1, 0); }
+        else if (k === "ArrowUp") { e.preventDefault(); invMove(-1, 0); }
+        else if (k === "ArrowRight") { e.preventDefault(); invMove(0, 1); }
+        else if (k === "ArrowLeft") { e.preventDefault(); invMove(0, -1); }
+        else if (k === "Tab") { e.preventDefault(); invMove(0, e.shiftKey ? -1 : 1); }
+        else if (k === "Enter" || k === "F2") {
+          if (INV.cur) { e.preventDefault(); invBeginEdit(INV.cur.row, INV.cur.col); }
+        }
+        else if ((k === "d" || k === "D") && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault(); invFillDown();
+        }
+        else if (k === "Delete" || k === "Backspace") {
+          if (INV.cur && invEditable().on) { e.preventDefault(); invSetPending(INV.cur.row, INV.cur.col, ""); renderInv(); invFocusCur(); }
+        }
+        /* A printable key starts an edit seeded with that character, so typing over a cell
+           replaces it the way it does in a spreadsheet rather than being swallowed. */
+        else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          if (INV.cur) { e.preventDefault(); invBeginEdit(INV.cur.row, INV.cur.col, k); }
+        }
+      });
+
+      grid.addEventListener("paste", function (e) {
+        if (INV.editing || !INV.cur) { return; }
+        var t = (e.clipboardData || window.clipboardData);
+        if (!t) { return; }
+        e.preventDefault();
+        invPaste(t.getData("text/plain") || "");
+      });
+    }
+
+    if ($("invClearSel")) {
+      $("invClearSel").addEventListener("click", function () { INV.sel = {}; renderInv(); });
+    }
+    if ($("invDiscard")) { $("invDiscard").addEventListener("click", invDiscard); }
+    if ($("invReview")) { $("invReview").addEventListener("click", invPreview); }
+    if ($("invBulkCancel")) {
+      $("invBulkCancel").addEventListener("click", function () {
+        INV.bulk = null; INV.bulkErr = ""; renderInv();
+      });
+    }
+    if ($("invBulkDone")) {
+      $("invBulkDone").addEventListener("click", function () {
+        INV.bulk = null; INV.bulkErr = ""; renderInv();
+      });
+    }
+    var br = $("invBulkReason");
+    if (br) { br.addEventListener("input", function () { INV.bulkReason = br.value; }); }
+    if ($("invBulkGo")) {
+      $("invBulkGo").addEventListener("click", function () {
+        var why = (INV.bulkReason || "").trim();
+        if (!why) {
+          INV.bulkErr = "Say why. A bulk edit with no reason is unauditable by the time " +
+            "anybody asks what happened.";
+          renderInv();
+          if ($("invBulkReason")) { $("invBulkReason").focus(); }
+          return;
+        }
+        INV.bulkErr = "";
+        invCommit(why);
+      });
+    }
 
     [].forEach.call($("viewInv").querySelectorAll("[data-inv-set]"), function (el) {
       el.addEventListener("click", function (e) {
@@ -4310,10 +5034,12 @@
     });
   }
 
+  /* INV.editing is the focused CELL; INV.stateRow is the home whose availability editor
+     is open. Two different things that were briefly one variable. */
   function invEditOpen(unitNumber) {
     var cur = null, i, us = (INV.data && INV.data.units) || [];
     for (i = 0; i < us.length; i++) { if (us[i].unit_number === unitNumber) { cur = us[i]; break; } }
-    INV.editing = unitNumber;
+    INV.stateRow = unitNumber;
     /* Pre-selecting the state it is ALREADY in would make Save a no-op that still writes
        an event. Start with nothing chosen, so Save means a decision. */
     INV.editState = "";
@@ -4324,7 +5050,7 @@
   }
 
   function invEditClose() {
-    INV.editing = ""; INV.editState = ""; INV.editReason = "";
+    INV.stateRow = ""; INV.editState = ""; INV.editReason = "";
     INV.editRef = ""; INV.editErr = ""; INV.saving = false;
     renderInv();
   }
@@ -4346,14 +5072,14 @@
       method: "POST",
       body: JSON.stringify({
         property_slug: INV.slug,
-        unit_number: INV.editing,
+        unit_number: INV.stateRow,
         state: INV.editState,
         reason: INV.editReason.trim(),
         external_ref: INV.editRef.trim()
       })
     })
       .then(function () {
-        INV.editing = ""; INV.editState = ""; INV.editReason = "";
+        INV.stateRow = ""; INV.editState = ""; INV.editReason = "";
         INV.editRef = ""; INV.saving = false;
         /* Reloaded rather than patched in memory: the counts, the states and the
            from_offer_state total are all the server's answer, and a local guess at any of
