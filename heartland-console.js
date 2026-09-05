@@ -969,6 +969,92 @@
     "  .feat-toggle.is-on .feat-knob { transform:translateX(18px); background:var(--brand-ink); }",
     "  .feat-toggle:disabled { opacity:.5; cursor:default; }",
     "  .feat-toggle:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }",
+    "  /* A SETTING is not a switch. Its decision is a value of a declared kind, so the",
+    "     control has to match the kind rather than the row: a choice between named options",
+    "     is a segmented picker, a width is a number. Both sit in the same row shape as a",
+    "     module because a person configuring a development is doing one job, not two. */",
+    "  .set-opts { display:flex; gap:0; border:1px solid var(--rule); border-radius:var(--radius-sm); overflow:hidden; }",
+    "  .set-opt {",
+    "    font:inherit; font-size:.75rem; padding:5px 12px; cursor:pointer; border:0;",
+    "    background:transparent; color:var(--ink-2); border-left:1px solid var(--rule);",
+    "  }",
+    "  .set-opt:first-child { border-left:0; }",
+    "  .set-opt:hover { background:var(--surface-2); color:var(--ink); }",
+    "  .set-opt.is-on { background:var(--brand); color:var(--brand-ink); }",
+    "  .set-opt:disabled { opacity:.5; cursor:default; }",
+    "  .set-num {",
+    "    font:inherit; font-size:.8125rem; width:64px; padding:4px 8px; text-align:right;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:var(--surface); color:var(--ink);",
+    "  }",
+    "  .set-num:focus { outline:2px solid var(--accent); outline-offset:-1px; }",
+    "  /* What the value will actually look like once saved. A width of 2 means nothing",
+    "     until you see 07 next to it. */",
+    "  .set-eg { font-size:.6875rem; color:var(--ink-muted); font-variant-numeric:tabular-nums; }",
+    "  .set-save {",
+    "    font:inherit; font-size:.75rem; padding:4px 11px; cursor:pointer;",
+    "    border:1px solid var(--accent); border-radius:var(--radius-sm);",
+    "    background:var(--brand); color:var(--brand-ink);",
+    "  }",
+    "  .set-save:disabled { opacity:.5; cursor:default; }",
+    "  /* THE PHASE COLUMN. A tag rather than plain text, because the eye needs to sort the",
+    "     grid into released and pending without reading every row. A home in no phase gets a",
+    "     dash, not a blank - blank in a grid reads as missing data, and no phase is a real",
+    "     answer that means on the market. */",
+    "  th.gphase, td.gphase { width:74px; }",
+    "  .gphase-tag {",
+    "    display:inline-block; font-size:.6875rem; font-weight:600; padding:2px 7px;",
+    "    border-radius:var(--radius-sm); border:1px solid var(--rule);",
+    "    color:var(--ink-2); background:var(--surface-2); white-space:nowrap;",
+    "  }",
+    "  .gphase-tag.is-out { color:var(--brand-ink); background:var(--brand); border-color:var(--accent); }",
+    "  .gphase-none { color:var(--ink-muted); }",
+    "  .ph-shut { padding:0 !important; }",
+    "  .ph-shut button {",
+    "    font:inherit; display:block; width:100%; text-align:left; cursor:pointer;",
+    "    padding:12px 20px; border:0; background:transparent; color:var(--ink);",
+    "  }",
+    "  .ph-shut button:hover { background:var(--surface-2); }",
+    "  .ph-shut span { color:var(--ink-2); font-size:.8125rem; margin-left:8px; }",
+    "  .ph-head { display:flex; align-items:baseline; justify-content:space-between; }",
+    "  .ph-head button {",
+    "    font:inherit; font-size:.75rem; padding:2px 9px; cursor:pointer;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:transparent; color:var(--ink-2);",
+    "  }",
+    "  .ph-row {",
+    "    display:flex; gap:16px; align-items:center; justify-content:space-between;",
+    "    padding:11px 0; border-bottom:1px solid var(--rule);",
+    "  }",
+    "  .ph-name { font-size:.875rem; font-weight:600; color:var(--ink); }",
+    "  .ph-code {",
+    "    font-size:.6875rem; font-weight:600; color:var(--ink-muted);",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm); padding:1px 5px;",
+    "  }",
+    "  .ph-btn {",
+    "    font:inherit; font-size:.75rem; padding:5px 13px; cursor:pointer;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:transparent; color:var(--ink-2);",
+    "  }",
+    "  .ph-btn.primary { background:var(--brand); color:var(--brand-ink); border-color:var(--accent); }",
+    "  .ph-btn:disabled { opacity:.5; cursor:default; }",
+    "  .ph-new { display:flex; gap:8px; align-items:center; margin-top:14px; }",
+    "  .ph-in {",
+    "    font:inherit; font-size:.8125rem; padding:6px 10px; flex:1 1 auto; min-width:0;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:var(--surface); color:var(--ink);",
+    "  }",
+    "  .ph-in.is-code { flex:0 0 84px; }",
+    "  .ph-new button {",
+    "    font:inherit; font-size:.8125rem; padding:6px 14px; cursor:pointer;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:var(--surface-2); color:var(--ink);",
+    "  }",
+    "  #invPhaseMove {",
+    "    font:inherit; font-size:.75rem; padding:4px 8px;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:var(--surface); color:var(--ink);",
+    "  }",
     "  #viewInv tbody tr.is-editing td { background:var(--brand-soft); }",
     "  .inv-edit-row td { background:var(--surface-2); padding:0; }",
     "  .inv-edit-row:hover td { background:var(--surface-2); }",
@@ -1682,6 +1768,16 @@
      checks this too - see the delete endpoint; this is what stops a salesperson being
      shown a button they cannot use. */
   function canDelete() {
+    var role = String((S.staff && S.staff.role) || "sales").toLowerCase();
+    return role === "manager" || role === "admin";
+  }
+
+  /* Same shape as canDelete, and for the same reason. Releasing a phase puts a whole block
+     of stock on the market at once and moving a home into a pending one takes it off, so
+     both are manager or admin - the server checks it too, and this only stops a salesperson
+     being shown a button that will be refused. Creating a phase sits behind the same gate
+     because a phase that exists is a phase somebody can release. */
+  function canPhase() {
     var role = String((S.staff && S.staff.role) || "sales").toLowerCase();
     return role === "manager" || role === "admin";
   }
@@ -3869,7 +3965,7 @@
     var on = dev.features[m.key] === true;
     var isSet = dev.source[m.key] === "set";
     var busy = FEAT.saving === m.key;
-    return '<div class="feat-row">' +
+    return '<div class="feat-row is-module">' +
       '<div class="feat-text"><div class="feat-name">' + esc(m.label) +
         (isSet ? ' <span class="feat-flag">set</span>'
                : ' <span class="feat-flag is-default">default</span>') + "</div>" +
@@ -3881,6 +3977,83 @@
           (busy ? " disabled" : "") + ' data-feat-key="' + esc(m.key) + '" data-feat-to="' +
           (on ? "off" : "on") + '" role="switch" aria-checked="' + (on ? "true" : "false") +
           '"><span class="feat-knob"></span></button>' +
+      "</div></div>";
+  }
+
+  /* A SETTING travels the same road as a module - one row per decision, validated against a
+     registry, three states - but its decision is a VALUE rather than a boolean. Omitting the
+     value is what reverts it, so a null here has to mean "send no value at all" rather than
+     "send null", which the server would read as a value. */
+  function featSetSetting(key, value) {
+    if (FEAT.saving) { return; }
+    FEAT.saving = "set:" + key; FEAT.saveErr = "";
+    renderFeat();
+    var body = { property_slug: FEAT.slug, setting_key: key };
+    if (value !== null) { body.value = String(value); }
+    api("/staff/property-config", { method: "POST", body: JSON.stringify(body) })
+      .then(function () {
+        FEAT.saving = "";
+        FEAT.loaded = false;
+        return loadFeatures();
+      })
+      .catch(function (e) {
+        FEAT.saving = ""; FEAT.saveErr = e.message; renderFeat();
+      });
+  }
+
+  /* Show what the number will DO, not just what it is. "2" is not a unit numbering
+     convention until you can see 07 written out beside it. */
+  function setPreview(key, val) {
+    if (key !== "unit_pad") { return ""; }
+    var n = Number(val) || 0;
+    var seven = n > 0 ? padNum(7, n) : "7";
+    return '<span class="set-eg">home ' + esc(seven) + "</span>";
+  }
+
+  function padNum(n, width) {
+    var t = String(n);
+    while (t.length < width) { t = "0" + t; }
+    return t;
+  }
+
+  /* The control follows the KIND, because that is what the value is allowed to be. An enum
+     gets its options and nothing else can be typed; an int gets a number field. Rendering a
+     free text box for an enum would let somebody save "typ" and watch it silently resolve to
+     the default while the screen said it had taken. */
+  function setRowHtml(sdef, dev) {
+    var val = (dev.settings || {})[sdef.key];
+    var isSet = (dev.settings_source || {})[sdef.key] === "set";
+    var busy = FEAT.saving === ("set:" + sdef.key);
+    var ctrl;
+
+    if (sdef.kind === "enum") {
+      ctrl = '<div class="set-opts">' + (sdef.options || []).map(function (o) {
+        return '<button type="button" class="set-opt' + (String(val) === o ? " is-on" : "") +
+          '"' + (busy ? " disabled" : "") + ' data-set-key="' + esc(sdef.key) +
+          '" data-set-val="' + esc(o) + '">' + esc(o) + "</button>";
+      }).join("") + "</div>";
+    } else if (sdef.kind === "bool") {
+      ctrl = '<button type="button" class="feat-toggle' + (val === true ? " is-on" : "") + '"' +
+        (busy ? " disabled" : "") + ' data-set-key="' + esc(sdef.key) + '" data-set-val="' +
+        (val === true ? "false" : "true") + '" role="switch" aria-checked="' +
+        (val === true ? "true" : "false") + '"><span class="feat-knob"></span></button>';
+    } else {
+      ctrl = setPreview(sdef.key, val) +
+        '<input class="set-num" type="number" step="1" value="' + esc(String(val)) +
+        '" data-set-num="' + esc(sdef.key) + '"' + (busy ? " disabled" : "") + ">" +
+        '<button type="button" class="set-save" data-set-save="' + esc(sdef.key) + '"' +
+        (busy ? " disabled" : "") + ">Save</button>";
+    }
+
+    return '<div class="feat-row is-setting">' +
+      '<div class="feat-text"><div class="feat-name">' + esc(sdef.label) +
+        (isSet ? ' <span class="feat-flag">set</span>'
+               : ' <span class="feat-flag is-default">default</span>') + "</div>" +
+      '<div class="feat-desc">' + esc(sdef.description) + "</div></div>" +
+      '<div class="feat-controls">' +
+        (isSet ? '<button type="button" class="feat-revert" data-set-revert="' + esc(sdef.key) +
+                 '" title="Follow the default again">Revert</button>' : "") +
+        ctrl +
       "</div></div>";
   }
 
@@ -3899,6 +4072,7 @@
 
     var devs = d.developments || [];
     var reg = d.registry || [];
+    var sreg = d.setting_registry || [];
     var dev = featFor(FEAT.slug) || devs[0] || null;
     if (dev) { FEAT.slug = dev.property_slug; }
 
@@ -3923,15 +4097,23 @@
     /* Grouped by category, in the order the registry gives them - the registry is authored
        deliberately, so its order is a decision rather than an accident. */
     var groups = [], seen = {};
-    reg.forEach(function (m) {
-      var c = m.category || "Other";
-      if (!seen[c]) { seen[c] = { name: c, modules: [] }; groups.push(seen[c]); }
-      seen[c].modules.push(m);
-    });
+    function group(c) {
+      c = c || "Other";
+      if (!seen[c]) { seen[c] = { name: c, modules: [], settings: [] }; groups.push(seen[c]); }
+      return seen[c];
+    }
+    reg.forEach(function (m) { group(m.category).modules.push(m); });
+    /* Settings join the category they belong to rather than getting a section of their own.
+       "Can this development record availability" and "where do its prices live" are the same
+       conversation, and splitting them by how they happen to be stored would be organising
+       the screen around the database. A category that has only settings - Phases - simply
+       appears after the ones the module registry named. */
+    sreg.forEach(function (x) { group(x.category).settings.push(x); });
 
     var body = groups.map(function (g) {
       return '<div class="card pad feat-group"><h2>' + esc(g.name) + "</h2>" +
-        g.modules.map(function (m) { return featRowHtml(m, dev); }).join("") + "</div>";
+        g.modules.map(function (m) { return featRowHtml(m, dev); }).join("") +
+        g.settings.map(function (x) { return setRowHtml(x, dev); }).join("") + "</div>";
     }).join("");
 
     var warn = (dev.unknown_keys && dev.unknown_keys.length)
@@ -3947,8 +4129,10 @@
       '<div class="feat-head">' +
         "<h2>" + esc(dev.property_name) + "</h2>" +
         '<div class="inv-owed">Turning a module off hides it in this console <em>and</em> ' +
-        "refuses it on the server — hiding alone would not be a rule. " +
-        "<strong>Default</strong> means nobody has decided; the module follows whatever the " +
+        "refuses it on the server — hiding alone would not be a rule. Settings are the " +
+        "same decision in a different shape: a module says whether this development has a " +
+        "capability, a setting says how it behaves. " +
+        "<strong>Default</strong> means nobody has decided; it follows whatever the " +
         "default becomes. <strong>Set</strong> means somebody chose, and it stays chosen.</div>" +
       "</div>" + warn + err + body;
     featWire();
@@ -3972,6 +4156,33 @@
         featSet(el.getAttribute("data-feat-revert"), null);
       });
     });
+    [].forEach.call($("viewDev").querySelectorAll("[data-set-key]"), function (el) {
+      el.addEventListener("click", function () {
+        featSetSetting(el.getAttribute("data-set-key"), el.getAttribute("data-set-val"));
+      });
+    });
+    [].forEach.call($("viewDev").querySelectorAll("[data-set-revert]"), function (el) {
+      el.addEventListener("click", function () {
+        featSetSetting(el.getAttribute("data-set-revert"), null);
+      });
+    });
+    /* A number is saved on Save or on Enter, never on every keystroke - each save is a write
+       and an event, and a person typing "12" would otherwise have set it to 1 on the way. */
+    [].forEach.call($("viewDev").querySelectorAll("[data-set-save]"), function (el) {
+      el.addEventListener("click", function () {
+        var k = el.getAttribute("data-set-save");
+        var f = $("viewDev").querySelector('[data-set-num="' + k + '"]');
+        if (f) { featSetSetting(k, f.value); }
+      });
+    });
+    [].forEach.call($("viewDev").querySelectorAll("[data-set-num]"), function (el) {
+      el.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          featSetSetting(el.getAttribute("data-set-num"), el.value);
+        }
+      });
+    });
   }
 
   /* The editable columns, in the order the grid shows them. kind drives both the input and
@@ -3990,6 +4201,9 @@
 
   var INV = {
     slug: "", data: null, loading: false, err: "", q: "", state: "", type: "",
+    /* The release panel is folded away by default - most days nobody is launching anything,
+       and an open panel above the grid costs every agent a scroll to reach their stock. */
+    phasesOpen: false, phaseSaving: "", phaseErr: "",
     /* ---- the grid ----
        EDITS ARE HELD LOCALLY UNTIL SAVED, and that is the whole reason this feels like a
        spreadsheet rather than a form. Typing in a cell, tabbing on, pasting a column and
@@ -4085,8 +4299,8 @@
   /* PADDING IS A DISPLAY CONVENTION, AND THIS IS THE ONLY PLACE IT IS APPLIED.
      res_units stores the plain integer - 1, not "01" - so a number pasted from a spreadsheet
      matches without any fuzzy comparison, and the bulk editor could delete the fallback that
-     used to guess at it. What a development WRITES its numbers like is
-     inventory.unit_pad.<slug>, served alongside its modules and rendered here. */
+     used to guess at it. What a development WRITES its numbers like is the unit_pad SETTING,
+     resolved server-side and served in display alongside the modules, and rendered here. */
   function invPad(n) {
     var dev = featFor(INV.slug);
     var pad = (dev && dev.display && dev.display.unit_pad) || 0;
@@ -4094,6 +4308,182 @@
     if (!pad || !/^[0-9]+$/.test(s)) { return s; }
     while (s.length < pad) { s = "0" + s; }
     return s;
+  }
+
+  /* PHASES ARE A DEVELOPMENT'S OWN ANSWER, and the server has already resolved whether the
+     module is on for this one - the console reads that answer rather than recomputing it, so
+     the two cannot drift. A development with the module on but no phases yet still gets the
+     column and the panel: that is where somebody creates the first one. */
+  function invPhasesOn() {
+    return !!(INV.data && INV.data.phases_on);
+  }
+
+  function invPhases() {
+    return (INV.data && INV.data.phases) || [];
+  }
+
+  function invPhaseById(id) {
+    var list = invPhases();
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].id) === String(id)) { return list[i]; }
+    }
+    return null;
+  }
+
+  /* The short form where there is one, because a Phase column wide enough for "Spring
+     Release" is a column that pushes the prices off the screen. The full name is the title,
+     so hovering still answers it. A home in no phase says so rather than showing blank -
+     blank in a grid reads as missing data, and "no phase" is a deliberate state that means
+     on the market. */
+  function invPhaseCell(u) {
+    var ph = u.phase || (u.phase_id ? invPhaseById(u.phase_id) : null);
+    if (!ph) { return '<span class="gphase-none" title="In no phase - on the market">—</span>'; }
+    var short = ph.code || ph.name;
+    return '<span class="gphase-tag' + (ph.is_released ? " is-out" : "") + '" title="' +
+      esc(ph.name + (ph.is_released ? " — released" : " — not released yet")) + '">' +
+      esc(short) + "</span>";
+  }
+
+  /* THE RELEASE PANEL. Every phase, what is in it, and the one button that puts it on the
+     market. It is folded away by default because most days nobody is launching anything, and
+     an open panel above the grid would cost every agent a scroll to see their stock. */
+  function invPhasePanelHtml() {
+    if (!invPhasesOn()) { return ""; }
+    var list = invPhases();
+    var d = INV.data || {};
+    var can = canPhase();
+
+    if (!INV.phasesOpen) {
+      var out = 0, pending = 0;
+      list.forEach(function (p2) { if (p2.is_released) { out++; } else { pending++; } });
+      return '<div class="card pad ph-shut"><button type="button" id="invPhaseOpen">' +
+        "<b>Phases</b> <span>" +
+        (list.length
+          ? out + " released, " + pending + " pending"
+          : "none yet \u2014 create the first") +
+        ((d.counts && d.counts.unphased)
+          ? " \u00b7 " + d.counts.unphased + " in no phase" : "") +
+        "</span></button></div>";
+    }
+
+    /* What the PUBLIC sees, said here rather than left to somebody to remember, because the
+       same phase behaves differently on the site depending on a setting two screens away. */
+    var vis = d.phase_visibility === "shown"
+      ? "A home in a phase that has not been released is shown on the site, marked unreleased."
+      : "A home in a phase that has not been released does not appear on the site at all.";
+
+    var rowsHtml = list.length
+      ? list.map(function (p2) {
+          return '<div class="ph-row' + (p2.is_released ? " is-out" : "") + '">' +
+            '<div class="ph-text"><div class="ph-name">' + esc(p2.name) +
+              (p2.code ? ' <span class="ph-code">' + esc(p2.code) + "</span>" : "") +
+              (p2.is_released
+                ? ' <span class="feat-flag">released</span>'
+                : ' <span class="feat-flag is-default">pending</span>') + "</div>" +
+            '<div class="feat-desc">' + p2.unit_count + " home" +
+              (p2.unit_count === 1 ? "" : "s") +
+              (p2.is_released ? ", " + p2.available + " still available" : "") +
+              (p2.released_at ? " \u00b7 released " + esc(when(p2.released_at)) : "") +
+              (p2.note ? " \u00b7 " + esc(p2.note) : "") + "</div></div>" +
+            '<div class="feat-controls">' +
+              (can
+                ? '<button type="button" class="ph-btn' + (p2.is_released ? "" : " primary") +
+                  '" data-ph-rel="' + esc(String(p2.id)) + '" data-ph-to="' +
+                  (p2.is_released ? "off" : "on") + '"' +
+                  (INV.phaseSaving === String(p2.id) ? " disabled" : "") + ">" +
+                  (INV.phaseSaving === String(p2.id)
+                    ? "\u2026" : (p2.is_released ? "Pull back" : "Release")) + "</button>"
+                : "") +
+            "</div></div>";
+        }).join("")
+      : '<div class="inv-empty">No phases yet. A development with no phases sells its whole ' +
+        "stock at once, which is a perfectly good way to launch \u2014 create one only when " +
+        "you want to hold part of it back.</div>";
+
+    var mk = can
+      ? '<div class="ph-new">' +
+        '<input id="invPhaseName" class="ph-in" type="text" placeholder="Phase 3" ' +
+          'aria-label="New phase name">' +
+        '<input id="invPhaseCode" class="ph-in is-code" type="text" placeholder="P3" ' +
+          'aria-label="Short code">' +
+        '<button type="button" id="invPhaseAdd"' + (INV.phaseSaving === "new" ? " disabled" : "") +
+          ">" + (INV.phaseSaving === "new" ? "Adding\u2026" : "Add phase") + "</button>" +
+        "</div>"
+      : "";
+
+    var err = INV.phaseErr
+      ? '<div class="err" style="margin-bottom:10px">' + esc(INV.phaseErr) + "</div>" : "";
+
+    return '<div class="card pad ph-panel">' +
+      '<div class="ph-head"><h2>Phases</h2>' +
+      '<button type="button" id="invPhaseShut">Hide</button></div>' +
+      '<div class="inv-owed" style="margin-bottom:12px">Releasing a phase writes nothing onto ' +
+      "a single home. Availability is worked out when somebody asks \u2014 a hold first, then " +
+      "anything recorded by hand, then the phase \u2014 so a home in this phase that is held " +
+      "or already sold keeps its state either way. " + esc(vis) + "</div>" +
+      err + rowsHtml + mk + "</div>";
+  }
+
+  function invPhaseRelease(id, on) {
+    if (INV.phaseSaving) { return; }
+    INV.phaseSaving = String(id); INV.phaseErr = "";
+    renderInv();
+    api("/staff/phases/release", {
+      method: "POST",
+      body: JSON.stringify({ phase_id: Number(id), released: !!on })
+    })
+      .then(function () {
+        INV.phaseSaving = "";
+        /* Re-read the whole grid rather than patching: a release changes the resolved state
+           of every home in the phase, and the server is the only thing that resolves it. */
+        return invLoad(INV.slug, true);
+      })
+      .catch(function (e) {
+        INV.phaseSaving = ""; INV.phaseErr = e.message; renderInv();
+      });
+  }
+
+  function invPhaseAdd() {
+    if (INV.phaseSaving) { return; }
+    var nameEl = $("invPhaseName"), codeEl = $("invPhaseCode");
+    var name = nameEl ? nameEl.value.trim() : "";
+    if (!name) { INV.phaseErr = "Give the phase a name first."; renderInv(); return; }
+    INV.phaseSaving = "new"; INV.phaseErr = "";
+    renderInv();
+    var body = { property_slug: INV.slug, name: name };
+    var code = codeEl ? codeEl.value.trim() : "";
+    if (code) { body.code = code; }
+    api("/staff/phases", { method: "POST", body: JSON.stringify(body) })
+      .then(function () {
+        INV.phaseSaving = "";
+        return invLoad(INV.slug, true);
+      })
+      .catch(function (e) {
+        INV.phaseSaving = ""; INV.phaseErr = e.message; renderInv();
+      });
+  }
+
+  /* MOVING HOMES BETWEEN PHASES IS A BULK ACTION, never a cell edit, because it is a bulk
+     decision: nobody assigns a release one home at a time, and a grid that let them would
+     make a half-assigned phase the easy outcome. The server refuses the whole run if any
+     number is unknown, for the same reason. */
+  function invPhaseMove(id) {
+    if (INV.phaseSaving) { return; }
+    var picked = Object.keys(INV.sel).filter(function (k) { return INV.sel[k]; });
+    if (!picked.length) { return; }
+    INV.phaseSaving = "move"; INV.phaseErr = "";
+    renderInv();
+    var body = { property_slug: INV.slug, unit_numbers: picked };
+    /* No phase_id at all means clear. Sending null would be sending a value. */
+    if (id) { body.phase_id = Number(id); }
+    api("/staff/units/phase", { method: "POST", body: JSON.stringify(body) })
+      .then(function () {
+        INV.phaseSaving = "";
+        return invLoad(INV.slug, true);
+      })
+      .catch(function (e) {
+        INV.phaseSaving = ""; INV.phaseErr = e.message; renderInv();
+      });
   }
 
   function invEditable() {
@@ -4559,6 +4949,13 @@
     }
     if (key === "type_code") { return u.type_code || ""; }
     if (key === "state") { return u.state || ""; }
+    /* Phases sort by RELEASE ORDER, not by name. "Phase 10" after "Phase 9" is what a person
+       means, and an alphabetical sort would put it after "Phase 1". A home in no phase sinks
+       like any other empty. */
+    if (key === "phase") {
+      var ph = u.phase || (u.phase_id ? invPhaseById(u.phase_id) : null);
+      return ph ? Number(ph.sort_order || 0) : null;
+    }
     var col = null;
     INV_COLS.forEach(function (c) { if (c.key === key) { col = c; } });
     if (!col) { return ""; }
@@ -4643,6 +5040,13 @@
       if (u.offer_state && u.offer_state.note) {
         tip = ' title="' + esc(u.offer_state.note) + '"';
       }
+    } else if (u.state_source === "phase") {
+      /* WORTH SAYING BECAUSE IT IS THE ONE STATE NOBODY DECIDED ABOUT THIS HOME. A home
+         recorded unreleased by hand and a home waiting on a release read identically in the
+         State column, and they are undone in completely different places - one by clearing
+         the row, the other by releasing the whole phase. Naming the phase says which. */
+      var ph = u.phase || (u.phase_id ? invPhaseById(u.phase_id) : null);
+      src = '<span class="st-src">' + esc(ph ? ph.name : "phase") + " not released</span>";
     }
     return '<span class="st is-' + esc(s) + '"' + tip + ">" + esc(label(s)) + "</span>" + src;
   }
@@ -4773,6 +5177,7 @@
       "<td>" + esc(u.type_code || "—") +
         (u.variant_code && u.variant_code !== u.type_code
           ? '<div class="inv-who">' + esc(u.variant_code) + "</div>" : "") + "</td>" +
+      (invPhasesOn() ? '<td class="gphase">' + invPhaseCell(u) + "</td>" : "") +
       INV_COLS.map(function (c) { return invCellHtml(u, c, editable, placeholder); }).join("") +
       "<td>" + invStateCell(u) +
         /* The state editor moved onto the row it belongs to, because the grid now has a
@@ -4984,7 +5389,7 @@
 
     var rows = invRows();
     var editable = invEditable();
-    var COLSPAN = 5 + INV_COLS.length;
+    var COLSPAN = 5 + INV_COLS.length + (invPhasesOn() ? 1 : 0);
     var allPicked = rows.length > 0 && rows.every(function (u) { return INV.sel[u.unit_number]; });
 
     var table = rows.length
@@ -4996,6 +5401,9 @@
           invSortMark("unit_number") + "</button></th>" +
         '<th><button type="button" class="gsortbtn" data-sort="type_code">Type' +
           invSortMark("type_code") + "</button></th>" +
+        (invPhasesOn()
+          ? '<th class="gphase"><button type="button" class="gsortbtn" data-sort="phase">' +
+            "Phase" + invSortMark("phase") + "</button></th>" : "") +
         INV_COLS.map(function (c) {
           return '<th class="num" style="min-width:' + c.w + 'px">' +
             '<button type="button" class="gsortbtn" data-sort="' + esc(c.key) + '">' +
@@ -5038,6 +5446,16 @@
         '<span class="spacer"></span>' +
         '<button type="button" id="invCopy">Copy' +
           (picked ? " " + picked + " row" + (picked === 1 ? "" : "s") : " all") + "</button>" +
+        (picked && invPhasesOn() && invPhases().length && canPhase()
+          ? '<select id="invPhaseMove" aria-label="Move the selected homes to a phase"' +
+            (INV.phaseSaving ? " disabled" : "") + '>' +
+            '<option value="">Move to phase\u2026</option>' +
+            invPhases().map(function (p2) {
+              return '<option value="' + esc(String(p2.id)) + '">' + esc(p2.name) +
+                (p2.is_released ? "" : " (pending)") + "</option>";
+            }).join("") +
+            '<option value="none">No phase</option></select>'
+          : "") +
         (picked ? '<button type="button" id="invClearSel">Clear selection</button>' : "") +
         (pending ? '<button type="button" id="invDiscard">Discard</button>' : "") +
         (pending ? '<button type="button" class="primary" id="invReview"' +
@@ -5058,14 +5476,40 @@
 
     /* Order: what you must know before reading a number, then the stock itself, then
        the explanations. An agent opens this screen to see homes, not paragraphs. */
-    $("viewInv").innerHTML = topbar + stats + warn + lock + bar + bulk + gerr +
-      table + foot + noEngine + setup;
+    $("viewInv").innerHTML = topbar + stats + warn + lock + invPhasePanelHtml() +
+      bar + bulk + gerr + table + foot + noEngine + setup;
     invWire();
   }
 
   function invWire() {
     var p = $("invProp");
     if (p) { p.addEventListener("change", function () { invLoad(p.value); }); }
+
+    var po = $("invPhaseOpen");
+    if (po) { po.addEventListener("click", function () { INV.phasesOpen = true; renderInv(); }); }
+    var ps = $("invPhaseShut");
+    if (ps) { ps.addEventListener("click", function () { INV.phasesOpen = false; renderInv(); }); }
+    var pa = $("invPhaseAdd");
+    if (pa) { pa.addEventListener("click", invPhaseAdd); }
+    var pn = $("invPhaseName");
+    if (pn) {
+      pn.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); invPhaseAdd(); }
+      });
+    }
+    [].forEach.call($("viewInv").querySelectorAll("[data-ph-rel]"), function (el) {
+      el.addEventListener("click", function () {
+        invPhaseRelease(el.getAttribute("data-ph-rel"), el.getAttribute("data-ph-to") === "on");
+      });
+    });
+    var pm = $("invPhaseMove");
+    if (pm) {
+      pm.addEventListener("change", function () {
+        var v = pm.value;
+        if (!v) { return; }
+        invPhaseMove(v === "none" ? null : v);
+      });
+    }
 
     var q = $("invQ");
     if (q) {
