@@ -1047,6 +1047,12 @@
     "  }",
     "  .ph-btn.primary { background:var(--brand); color:var(--brand-ink); border-color:var(--accent); }",
     "  .ph-btn:disabled { opacity:.5; cursor:default; }",
+    "  /* Quiet, because removing a phase is a tidy-up rather than a launch. The button that",
+    "     puts a whole release on the market is the solid one; this must not compete. */",
+    "  .ph-btn.is-quiet { border-color:transparent; color:var(--ink-muted); }",
+    "  .ph-btn.is-quiet:hover { border-color:var(--rule); color:var(--ink); background:var(--surface-2); }",
+    "  .ph-row.is-retired .ph-name { color:var(--ink-2); }",
+    "  .ph-row.is-retired { opacity:.78; }",
     "  .ph-new { display:flex; gap:8px; align-items:center; margin-top:14px; }",
     "  .ph-in {",
     "    font:inherit; font-size:.8125rem; padding:6px 10px; flex:1 1 auto; min-width:0;",
@@ -4383,8 +4389,15 @@
     return !!(INV.data && INV.data.phases_on);
   }
 
+  /* EVERY phase, retired ones included. The server sends retired phases on purpose - a home
+     still sitting in one has to be explainable - so anything that OFFERS a phase must filter,
+     and anything that EXPLAINS one must not. */
   function invPhases() {
     return (INV.data && INV.data.phases) || [];
+  }
+
+  function invPhasesLive() {
+    return invPhases().filter(function (p2) { return p2.is_active !== false; });
   }
 
   function invPhaseById(id) {
@@ -4404,9 +4417,19 @@
     var ph = u.phase || (u.phase_id ? invPhaseById(u.phase_id) : null);
     if (!ph) { return '<span class="gphase-none" title="In no phase - on the market">—</span>'; }
     var short = ph.code || ph.name;
+    /* A RETIRED phase still explains its home, and the tag says so rather than looking like
+       an ordinary one - the home is off the market and the phase is not in any picker, which
+       is a combination somebody will otherwise spend ten minutes on. */
+    /* is_active is read from the PHASE LIST rather than the copy embedded on the unit. Both
+       come from the same read and the server sets both, but the list is the register of
+       phases - and a caller that trimmed the embedded copy would silently stop marking a
+       retired phase, which is the one case this tag exists for. */
+    var reg = invPhaseById(ph.id);
+    var gone = (reg ? reg.is_active : ph.is_active) === false;
     return '<span class="gphase-tag' + (ph.is_released ? " is-out" : "") + '" title="' +
-      esc(ph.name + (ph.is_released ? " — released" : " — not released yet")) + '">' +
-      esc(short) + "</span>";
+      esc(ph.name + (ph.is_released ? " — released" : " — not released yet") +
+          (gone ? " — retired, so it is in no picker; its homes are still in it" : "")) + '">' +
+      esc(short) + (gone ? " \u00b7 retired" : "") + "</span>";
   }
 
   /* THE PANEL BAR. Phases and Fields each get one button carrying a one-line summary, and
@@ -4417,7 +4440,7 @@
     var d = INV.data || {};
     var btns = [];
     if (invPhasesOn()) {
-      var list = invPhases(), out = 0, pending = 0;
+      var list = invPhasesLive(), out = 0, pending = 0;
       list.forEach(function (p2) { if (p2.is_released) { out++; } else { pending++; } });
       btns.push('<button type="button" class="panel-btn" id="invPhaseOpen" aria-expanded="' +
         (PANEL.kind === "phases" ? "true" : "false") + '"><b>Phases</b><span>' +
@@ -4458,27 +4481,58 @@
 
     var rowsHtml = list.length
       ? list.map(function (p2) {
-          return '<div class="ph-row' + (p2.is_released ? " is-out" : "") + '">' +
+          var gone = p2.is_active === false;
+          var busy = INV.phaseSaving === String(p2.id);
+          /* A PHASE IS ONLY EVER REMOVED FOR GOOD ONCE IT HOLDS NOTHING AND HAS NEVER BEEN
+             RELEASED. The server refuses anything else, and release_homes - which clears
+             every home in the phase and puts the available ones on the market - is
+             deliberately not reachable from here. Move the homes out first, with the bulk
+             control on the grid, and the button appears. */
+          var canPurge = gone && p2.unit_count === 0 && !p2.released_at;
+          var ctrl = "";
+          if (can && gone) {
+            ctrl =
+              '<button type="button" class="ph-btn primary" data-ph-restore="' +
+                esc(String(p2.id)) + '"' + (busy ? " disabled" : "") + ">" +
+                (busy ? "\u2026" : "Bring back") + "</button>" +
+              (canPurge
+                ? '<button type="button" class="ph-btn is-quiet" data-ph-purge="' +
+                  esc(String(p2.id)) + '"' + (busy ? " disabled" : "") +
+                  ' title="Remove the row for good. It holds no homes and was never released, ' +
+                  'so there is nothing to lose.">Delete permanently</button>'
+                : "");
+          } else if (can) {
+            ctrl =
+              '<button type="button" class="ph-btn' + (p2.is_released ? "" : " primary") +
+                '" data-ph-rel="' + esc(String(p2.id)) + '" data-ph-to="' +
+                (p2.is_released ? "off" : "on") + '"' + (busy ? " disabled" : "") + ">" +
+                (busy ? "\u2026" : (p2.is_released ? "Pull back" : "Release")) + "</button>" +
+              '<button type="button" class="ph-btn is-quiet" data-ph-retire="' +
+                esc(String(p2.id)) + '"' + (busy ? " disabled" : "") +
+                ' title="Take it out of every picker. The row stays and so do its homes - ' +
+                'nothing about what they are changes, and you can bring it back.">Remove</button>';
+          }
+          return '<div class="ph-row' + (p2.is_released ? " is-out" : "") +
+            (gone ? " is-retired" : "") + '">' +
             '<div class="ph-text"><div class="ph-name">' + esc(p2.name) +
               (p2.code ? ' <span class="ph-code">' + esc(p2.code) + "</span>" : "") +
-              (p2.is_released
-                ? ' <span class="feat-flag">released</span>'
-                : ' <span class="feat-flag is-default">pending</span>') + "</div>" +
+              (gone
+                ? ' <span class="feat-flag is-default">retired</span>'
+                : (p2.is_released
+                    ? ' <span class="feat-flag">released</span>'
+                    : ' <span class="feat-flag is-default">pending</span>')) + "</div>" +
             '<div class="feat-desc">' + p2.unit_count + " home" +
               (p2.unit_count === 1 ? "" : "s") +
-              (p2.is_released ? ", " + p2.available + " still available" : "") +
+              (p2.is_released && !gone ? ", " + p2.available + " still available" : "") +
               (p2.released_at ? " \u00b7 released " + esc(when(p2.released_at)) : "") +
-              (p2.note ? " \u00b7 " + esc(p2.note) : "") + "</div></div>" +
-            '<div class="feat-controls">' +
-              (can
-                ? '<button type="button" class="ph-btn' + (p2.is_released ? "" : " primary") +
-                  '" data-ph-rel="' + esc(String(p2.id)) + '" data-ph-to="' +
-                  (p2.is_released ? "off" : "on") + '"' +
-                  (INV.phaseSaving === String(p2.id) ? " disabled" : "") + ">" +
-                  (INV.phaseSaving === String(p2.id)
-                    ? "\u2026" : (p2.is_released ? "Pull back" : "Release")) + "</button>"
+              (gone && p2.unit_count > 0
+                ? " \u00b7 still in this phase, and still off the market"
                 : "") +
-            "</div></div>";
+              (gone && p2.unit_count > 0 && can
+                ? " \u00b7 move them out to remove it for good"
+                : "") +
+              (p2.note ? " \u00b7 " + esc(p2.note) : "") + "</div></div>" +
+            '<div class="feat-controls">' + ctrl + "</div></div>";
         }).join("")
       : '<div class="inv-empty">No phases yet. A development with no phases sells its whole ' +
         "stock at once, which is a perfectly good way to launch \u2014 create one only when " +
@@ -4522,6 +4576,46 @@
       .catch(function (e) {
         INV.phaseSaving = ""; INV.phaseErr = e.message; renderInv();
       });
+  }
+
+  /* REMOVING A PHASE. Retire, restore and purge are one endpoint and one shape, so they
+     share a writer - the only thing that differs is what goes in the body, and each one
+     re-reads the whole grid afterwards because a phase moves the resolved state of every
+     home in it. release_homes is never sent from here: it clears every home in the phase and
+     puts the available ones on the market, which is not a thing a Remove button should be
+     able to do by accident. */
+  function invPhaseWrite(id, url, body) {
+    if (INV.phaseSaving) { return; }
+    INV.phaseSaving = String(id); INV.phaseErr = "";
+    renderInv();
+    api(url, { method: "POST", body: JSON.stringify(body) })
+      .then(function () { return invLoad(INV.slug, true); })
+      .catch(function (e) { INV.phaseErr = e.message; })
+      .then(function () { INV.phaseSaving = ""; renderInv(); });
+  }
+
+  function invPhaseRetire(id) {
+    invPhaseWrite(id, "/staff/phases/delete", {
+      phase_id: Number(id),
+      reason: "retired from the sales console"
+    });
+  }
+
+  function invPhaseRestore(id) {
+    invPhaseWrite(id, "/staff/phases", {
+      property_slug: INV.slug,
+      phase_id: Number(id),
+      is_active: true,
+      reason: "brought back from the sales console"
+    });
+  }
+
+  function invPhasePurge(id) {
+    invPhaseWrite(id, "/staff/phases/delete", {
+      phase_id: Number(id),
+      hard: true,
+      reason: "deleted from the sales console - it held no homes and was never released"
+    });
   }
 
   function invPhaseAdd() {
@@ -4782,6 +4876,15 @@
       el.addEventListener("click", function () {
         invPhaseRelease(el.getAttribute("data-ph-rel"), el.getAttribute("data-ph-to") === "on");
       });
+    });
+    [].forEach.call(root.querySelectorAll("[data-ph-retire]"), function (el) {
+      el.addEventListener("click", function () { invPhaseRetire(el.getAttribute("data-ph-retire")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-ph-restore]"), function (el) {
+      el.addEventListener("click", function () { invPhaseRestore(el.getAttribute("data-ph-restore")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-ph-purge]"), function (el) {
+      el.addEventListener("click", function () { invPhasePurge(el.getAttribute("data-ph-purge")); });
     });
     [].forEach.call(root.querySelectorAll("[data-fld-flag]"), function (el) {
       el.addEventListener("click", function () {
@@ -5856,11 +5959,11 @@
         '<span class="spacer"></span>' +
         '<button type="button" id="invCopy">Copy' +
           (picked ? " " + picked + " row" + (picked === 1 ? "" : "s") : " all") + "</button>" +
-        (picked && invPhasesOn() && invPhases().length && canPhase()
+        (picked && invPhasesOn() && invPhasesLive().length && canPhase()
           ? '<select id="invPhaseMove" aria-label="Move the selected homes to a phase"' +
             (INV.phaseSaving ? " disabled" : "") + '>' +
             '<option value="">Move to phase\u2026</option>' +
-            invPhases().map(function (p2) {
+            invPhasesLive().map(function (p2) {
               return '<option value="' + esc(String(p2.id)) + '">' + esc(p2.name) +
                 (p2.is_released ? "" : " (pending)") + "</option>";
             }).join("") +
