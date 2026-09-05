@@ -125,7 +125,11 @@
     "    font:15px/1.5 var(--font);",
     "    -webkit-font-smoothing:antialiased;",
     "  }",
-    "  .wrap { max-width:1280px; margin:0 auto; padding:20px 20px 72px; }",
+    "  /* Widened from 1280 when the grid landed. The sidebar takes 196px and the grid has",
+    "     thirteen columns; at the old width it scrolled horizontally on a laptop for content",
+    "     that had room to sit still. Still capped rather than full-bleed - a table running the",
+    "     whole of a 34-inch monitor is no easier to read down. */",
+    "  .wrap { max-width:1720px; margin:0 auto; padding:20px 24px 72px; }",
     "  .card {",
     "    background:var(--surface); border:1px solid var(--ring);",
     "    border-radius:var(--radius); box-shadow:var(--shadow);",
@@ -846,6 +850,14 @@
     "  tr.is-picked td.gnum { background:var(--brand-soft); }",
     "  #invGrid tbody tr:hover td.gnum { background:var(--surface-2); }",
     "  .gunit { color:var(--ink-muted); font-size:.75rem; }",
+    "  .gsortbtn {",
+    "    font:inherit; font-size:inherit; font-weight:inherit; letter-spacing:inherit;",
+    "    text-transform:inherit; color:inherit; background:none; border:0; padding:0;",
+    "    cursor:pointer; display:inline-flex; align-items:center; gap:4px;",
+    "  }",
+    "  #invGrid th.num .gsortbtn { justify-content:flex-end; width:100%; }",
+    "  .gsortbtn:hover { color:var(--ink); background:none; }",
+    "  .gsort { color:var(--accent); font-size:.75rem; }",
     "  .gcell { position:relative; }",
     "  .gcell.is-live { cursor:cell; }",
     "  .gcell.is-live:hover { background:var(--surface-2); }",
@@ -3994,6 +4006,9 @@
     editing: null,        // the same shape, while a cell has an input in it
     stateRow: "",         // the home whose AVAILABILITY editor is open - not a cell
     dense: false,
+    /* Empty means the natural order - by unit number. Sorting is safe because every piece
+       of grid state is keyed by unit number rather than by row index. */
+    sort: "", sortDir: 1,
     bulk: null,           // the preview a Save produced, before it is committed
     saving: false,
     saveErr: "",
@@ -4066,6 +4081,20 @@
      THE SERVER IS STILL THE ONE THAT DECIDES. Everything below is convenience; the money
      rules, the field allowlist and the CMS refusal all live in bulk_update_units, and Save
      runs a dry_run through the same code path before committing. */
+
+  /* PADDING IS A DISPLAY CONVENTION, AND THIS IS THE ONLY PLACE IT IS APPLIED.
+     res_units stores the plain integer - 1, not "01" - so a number pasted from a spreadsheet
+     matches without any fuzzy comparison, and the bulk editor could delete the fallback that
+     used to guess at it. What a development WRITES its numbers like is
+     inventory.unit_pad.<slug>, served alongside its modules and rendered here. */
+  function invPad(n) {
+    var dev = featFor(INV.slug);
+    var pad = (dev && dev.display && dev.display.unit_pad) || 0;
+    var s = String(n === null || n === undefined ? "" : n);
+    if (!pad || !/^[0-9]+$/.test(s)) { return s; }
+    while (s.length < pad) { s = "0" + s; }
+    return s;
+  }
 
   function invEditable() {
     /* Two different reasons a grid is read-only, and they need different words. */
@@ -4164,13 +4193,11 @@
         return;
       }
     }
-    if (e && (e.metaKey || e.ctrlKey)) {
-      if (INV.sel[unitNumber]) { delete INV.sel[unitNumber]; } else { INV.sel[unitNumber] = true; }
-    } else {
-      var only = Object.keys(INV.sel).length === 1 && INV.sel[unitNumber];
-      INV.sel = {};
-      if (!only) { INV.sel[unitNumber] = true; }
-    }
+    /* A CHECKBOX TOGGLES. It does not replace the selection, because that is not what a
+       checkbox means anywhere else - a person ticking four boxes expects four ticks, not the
+       last one. Shift still extends a range from the anchor, which is the only behaviour a
+       plain toggle cannot express. */
+    if (INV.sel[unitNumber]) { delete INV.sel[unitNumber]; } else { INV.sel[unitNumber] = true; }
     INV.anchor = unitNumber;
     renderInv();
   }
@@ -4238,6 +4265,73 @@
     else { renderInv(); invFocusCur(); }
   }
 
+  /* ---- copy out ----
+     THE OTHER HALF OF THE LOOP. Paste in already worked; without copy out, getting the data
+     into a spreadsheet meant Download CSV, which exports reservations rather than stock. Tab
+     separated with a header row is what Excel, Numbers and Sheets all read on paste without
+     an import dialog, and it is exactly what invPaste reads back.
+
+     THE UNIT NUMBER GOES OUT AS ITS LABEL, PADDED. That is what a person expects to see in
+     the column, and it costs nothing: the paste path finds the row by position, and the
+     server is only ever sent the stored number. */
+  function invTsv(rows) {
+    var head = ["Unit"].concat(INV_COLS.map(function (c) { return c.label; }));
+    var lines = [head.join("\t")];
+    rows.forEach(function (u) {
+      var cells = [invPad(u.unit_number)];
+      INV_COLS.forEach(function (c) { cells.push(invCellValue(u, c)); });
+      lines.push(cells.join("\t"));
+    });
+    return lines.join("\n");
+  }
+
+  function invCopy() {
+    var rows = invRows();
+    /* The selection when there is one, otherwise everything on screen - the same rule
+       Ctrl+D follows, so the two do not need learning separately. */
+    if (invSelCount()) { rows = rows.filter(function (u) { return INV.sel[u.unit_number]; }); }
+    if (!rows.length) { return; }
+
+    var text = invTsv(rows);
+    var done = function () {
+      INV.saveErr = rows.length + " row" + (rows.length === 1 ? "" : "s") +
+        " copied. Paste into a spreadsheet, edit, and paste the block back — the header row " +
+        "comes back safely, and only the columns you changed will register as changes.";
+      renderInv();
+    };
+
+    /* navigator.clipboard needs a secure context and a permission; the textarea fallback
+       needs neither and is what makes this work in a Designer preview. */
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { invCopyFallback(text, done); });
+        return;
+      }
+    } catch (e) {}
+    invCopyFallback(text, done);
+  }
+
+  function invCopyFallback(text, done) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "readonly");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      /* Into the shadow root, not the document - the console lives in one, and a node
+         appended to the page body cannot be selected from inside it. */
+      $("viewInv").appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.parentNode.removeChild(ta);
+      done();
+    } catch (e) {
+      INV.saveErr = "Could not reach the clipboard. Copying is blocked in this browser or " +
+        "this context; the grid is unchanged.";
+      renderInv();
+    }
+  }
+
   /* ---- fill down, and paste ---- */
 
   function invFillDown() {
@@ -4270,6 +4364,28 @@
     while (lines.length && lines[lines.length - 1] === "") { lines.pop(); }
     if (!lines.length) { return; }
 
+    /* TWO KINDS OF PASTE, AND THE DIFFERENCE MATTERS MORE THAN IT LOOKS.
+       A bare block - a column of numbers out of a spreadsheet - lands POSITIONALLY, from the
+       focused cell down and right. That is what every spreadsheet does and what people
+       expect.
+       A block that carries OUR header row is a round trip, and it is routed BY UNIT NUMBER
+       instead. Positional would be quietly wrong there: sort the grid or change a filter
+       between the copy and the paste, and forty edits land on the wrong forty homes with
+       nothing to show for it. A block that names its rows should be matched on the name. */
+    var headCells = lines[0].split("\t").map(function (c) { return c.trim().toLowerCase(); });
+    var byLabel = {};
+    INV_COLS.forEach(function (c) { byLabel[c.label.toLowerCase()] = c; });
+
+    var isRoundTrip = headCells[0] === "unit" && lines.length > 1;
+    if (isRoundTrip) {
+      return invPasteByUnit(lines, headCells, byLabel);
+    }
+
+    /* A header row on its own - somebody copied one column with its title - is dropped
+       rather than pasted into a cell. */
+    var skippedHeader = false;
+    if (byLabel[headCells[0]] && lines.length > 1) { lines.shift(); skippedHeader = true; }
+
     var vis = invVisible();
     var r0 = vis.indexOf(INV.cur.row);
     var c0 = 0;
@@ -4289,12 +4405,63 @@
       });
     });
 
+    var note = skippedHeader ? "Header row ignored. " : "";
     /* Said out loud rather than silently truncated: a paste that ran off the bottom of the
        filter is the moment somebody thinks their data went in and it did not. */
     INV.saveErr = skipped
-      ? (filled + " cell(s) filled. " + skipped + " had nowhere to go — the paste ran past " +
-         "the last visible row or the last column, and those values were not taken.")
-      : "";
+      ? (note + filled + " cell(s) filled. " + skipped + " had nowhere to go — the paste ran " +
+         "past the last visible row or the last column, and those values were not taken.")
+      : (skippedHeader ? note + filled + " cell(s) filled." : "");
+    renderInv();
+  }
+
+  /* The round trip. Rows are found by number, columns by header name, so neither the order
+     of the rows nor the order of the columns has to survive the trip through Excel. */
+  function invPasteByUnit(lines, headCells, byLabel) {
+    var cols = headCells.map(function (h, i) { return i === 0 ? null : (byLabel[h] || null); });
+    var unknown = [];
+    headCells.forEach(function (h, i) {
+      if (i > 0 && !byLabel[h] && h) { unknown.push(h); }
+    });
+
+    /* Matched against BOTH spellings: the label a person sees and the number that is stored.
+       Excel will have eaten the leading zero on the way out, and it does not matter. */
+    var known = {};
+    ((INV.data && INV.data.units) || []).forEach(function (u) {
+      known[String(u.unit_number)] = u.unit_number;
+      known[invPad(u.unit_number)] = u.unit_number;
+    });
+
+    var filled = 0, rows = 0, missing = [];
+    for (var i = 1; i < lines.length; i++) {
+      var cells = lines[i].split("\t");
+      var asked = String(cells[0] || "").trim();
+      if (!asked) { continue; }
+      var target = known[asked];
+      if (target === undefined && /^[0-9]+$/.test(asked)) { target = known[String(Number(asked))]; }
+      if (target === undefined) { missing.push(asked); continue; }
+
+      rows += 1;
+      for (var c = 1; c < cells.length; c++) {
+        var col = cols[c];
+        if (!col) { continue; }
+        invSetPending(target, col.key, cells[c]);
+        filled += 1;
+      }
+    }
+
+    var bits = [];
+    bits.push(rows + " row" + (rows === 1 ? "" : "s") + " matched by unit number");
+    if (missing.length) {
+      bits.push(missing.length + " not found on this development (" +
+        missing.slice(0, 6).join(", ") + (missing.length > 6 ? "…" : "") + ")");
+    }
+    if (unknown.length) {
+      bits.push(unknown.length + " column" + (unknown.length === 1 ? "" : "s") +
+        " ignored — not editable here (" + unknown.join(", ") + ")");
+    }
+    /* Only worth saying when something did NOT go in. A clean round trip should be quiet. */
+    INV.saveErr = (missing.length || unknown.length) ? bits.join(". ") + "." : "";
     renderInv();
   }
 
@@ -4311,6 +4478,7 @@
         INV_COLS.forEach(function (c) { if (c.key === f) { col = c; } });
         fields[f] = invFromDisplay(col, INV.pending[num][f]);
       }
+      /* The STORED number, never the padded label - the server matches exactly now. */
       out.push({ unit_number: num, fields: fields });
     }
     return out;
@@ -4364,7 +4532,7 @@
     var d = INV.data;
     if (!d || !d.units) { return []; }
     var q = INV.q.trim().toLowerCase();
-    return d.units.filter(function (u) {
+    var kept = d.units.filter(function (u) {
       if (INV.state && u.state !== INV.state) { return false; }
       if (INV.type && (u.type_code || "") !== INV.type) { return false; }
       if (!q) { return true; }
@@ -4373,6 +4541,70 @@
                  (u.reservation && u.reservation.reference)].join(" ").toLowerCase();
       return hay.indexOf(q) !== -1;
     });
+    return invSortRows(kept.slice());
+  }
+
+  /* SORTING IS A VIEW, AND NOTHING IS KEYED TO IT. Pending edits, the selection and the
+     focused cell all address a home by its number, so re-sorting under an unsaved edit moves
+     the row and keeps the edit on it. That was the reason for keying by number in the first
+     place, and this is where it pays.
+
+     A THIRD CLICK RETURNS TO UNIT ORDER rather than cycling back to ascending. There is a
+     natural order here and it should always be one click away - "put it back" is a thing
+     people want and usually cannot have. */
+  function invSortValue(u, key) {
+    if (key === "unit_number") {
+      var n = Number(u.unit_number);
+      return isNaN(n) ? u.unit_number : n;
+    }
+    if (key === "type_code") { return u.type_code || ""; }
+    if (key === "state") { return u.state || ""; }
+    var col = null;
+    INV_COLS.forEach(function (c) { if (c.key === key) { col = c; } });
+    if (!col) { return ""; }
+    /* The PENDING value, not the stored one - a column sorted while it is being edited
+       should sort by what is on screen. */
+    var raw = invCellValue(u, col);
+    if (raw === "" || raw === null || raw === undefined) { return null; }
+    var v = Number(raw);
+    return isNaN(v) ? String(raw) : v;
+  }
+
+  function invSortRows(rows) {
+    if (!INV.sort) {
+      return rows.sort(function (a, b) {
+        var an = Number(a.unit_number), bn = Number(b.unit_number);
+        var aNum = !isNaN(an) && String(a.unit_number).trim() !== "";
+        var bNum = !isNaN(bn) && String(b.unit_number).trim() !== "";
+        if (aNum && bNum) { return an - bn; }
+        if (aNum !== bNum) { return aNum ? -1 : 1; }
+        return String(a.unit_number || "").localeCompare(String(b.unit_number || ""));
+      });
+    }
+    var key = INV.sort, dir = INV.sortDir;
+    return rows.sort(function (a, b) {
+      var av = invSortValue(a, key), bv = invSortValue(b, key);
+      /* Empty always sinks, whichever way the column is pointing. A column of blanks at the
+         top when you sort descending tells you nothing about the numbers you asked to see. */
+      var ae = (av === null || av === "");
+      var be = (bv === null || bv === "");
+      if (ae !== be) { return ae ? 1 : -1; }
+      if (ae && be) { return 0; }
+      if (typeof av === "number" && typeof bv === "number") { return (av - bv) * dir; }
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  }
+
+  function invSortBy(key) {
+    if (INV.sort !== key) { INV.sort = key; INV.sortDir = 1; }
+    else if (INV.sortDir === 1) { INV.sortDir = -1; }
+    else { INV.sort = ""; INV.sortDir = 1; }
+    renderInv();
+  }
+
+  function invSortMark(key) {
+    if (INV.sort !== key) { return ""; }
+    return '<span class="gsort">' + (INV.sortDir === 1 ? "\u2191" : "\u2193") + "</span>";
   }
 
   function invTypes() {
@@ -4454,7 +4686,7 @@
     return '<tr class="inv-edit-row"><td colspan="' + cols + '">' +
       '<div class="inv-edit">' +
       '<div class="inv-edit-head">Change what unit <strong>' +
-        esc(u.unit_number) + "</strong> says</div>" +
+        esc(invPad(u.unit_number)) + "</strong> says</div>" +
 
       (isCms
         ? '<div class="inv-edit-warn">This development still reads its availability from the ' +
@@ -4528,10 +4760,14 @@
     var canEditState = featOn(INV.slug, "inventory_edit");
     return '<tr class="grow' + (picked ? " is-picked" : "") + '">' +
       '<td class="gpick"><input type="checkbox" data-inv-pick="' + esc(u.unit_number) + '"' +
-        (picked ? " checked" : "") + ' aria-label="Select unit ' + esc(u.unit_number) + '"></td>' +
-      '<td class="gnum"><strong>' + esc(u.unit_number || u.name || "—") + "</strong>" +
-        /* "Unit 12" under a heading of "12" is the same fact twice. */
-        (u.name && u.name !== u.unit_number && u.name !== ("Unit " + u.unit_number)
+        (picked ? " checked" : "") + ' aria-label="Select unit ' + esc(invPad(u.unit_number)) + '"></td>' +
+      '<td class="gnum"><strong>' + esc(invPad(u.unit_number) || u.name || "—") + "</strong>" +
+        /* "Unit 12" under a heading of "12" is the same fact twice - checked against BOTH
+           spellings, because a row imported before the padding was normalised can still carry
+           a name like "Unit 01" while its number is now 1. */
+        (u.name && u.name !== u.unit_number
+              && u.name !== ("Unit " + u.unit_number)
+              && u.name !== ("Unit " + invPad(u.unit_number))
           ? '<div class="inv-who">' + esc(u.name) + "</div>" : "") +
       "</td>" +
       "<td>" + esc(u.type_code || "—") +
@@ -4589,7 +4825,6 @@
     var rows = (d.rows || []);
 
     var refused = rows.filter(function (r) { return r.outcome === "refused"; });
-    var byNumber = (c.matched_by_number || 0);
 
     return '<div class="card pad gpreview">' +
       "<h2>" + (done ? "What was saved" : "What this will change") + "</h2>" +
@@ -4601,19 +4836,9 @@
           (c.fields_changed === 1 ? "" : "s") + "</span>" : "") +
       "</div>" +
 
-      /* A tolerance that hides itself is indistinguishable from a bug. */
-      (byNumber
-        ? '<div class="inv-owed" style="margin-top:8px">' + byNumber + " row" +
-          (byNumber === 1 ? " was" : "s were") + " matched by number rather than exactly — " +
-          "these unit numbers are zero-padded (<code>01</code>) and a spreadsheet strips that. " +
-          "The homes below are the ones that will change.</div>"
-        : "") +
-
       '<div class="gpreview-list">' +
         rows.map(function (r) {
-          var head = '<span class="gp-unit">' + esc(r.unit_number) + "</span>" +
-            (r.asked_as && r.asked_as !== r.unit_number
-              ? '<span class="gp-as">typed ' + esc(r.asked_as) + "</span>" : "");
+          var head = '<span class="gp-unit">' + esc(invPad(r.unit_number)) + "</span>";
           if (r.outcome === "refused") {
             return '<div class="gp-row is-bad">' + head +
               '<span class="gp-why">' + esc(r.why) + "</span></div>";
@@ -4767,11 +4992,18 @@
         "<table><thead><tr>" +
         '<th class="gpick"><input type="checkbox" id="invPickAll"' + (allPicked ? " checked" : "") +
           ' aria-label="Select every visible home"></th>' +
-        '<th class="gnum">Unit</th><th>Type</th>' +
+        '<th class="gnum"><button type="button" class="gsortbtn" data-sort="unit_number">Unit' +
+          invSortMark("unit_number") + "</button></th>" +
+        '<th><button type="button" class="gsortbtn" data-sort="type_code">Type' +
+          invSortMark("type_code") + "</button></th>" +
         INV_COLS.map(function (c) {
-          return '<th class="num" style="min-width:' + c.w + 'px">' + esc(c.label) + "</th>";
+          return '<th class="num" style="min-width:' + c.w + 'px">' +
+            '<button type="button" class="gsortbtn" data-sort="' + esc(c.key) + '">' +
+            esc(c.label) + invSortMark(c.key) + "</button></th>";
         }).join("") +
-        "<th>State</th><th>Who</th></tr></thead><tbody>" +
+        '<th><button type="button" class="gsortbtn" data-sort="state">State' +
+          invSortMark("state") + "</button></th>" +
+        "<th>Who</th></tr></thead><tbody>" +
         rows.map(function (u) {
           return invRowHtml(u, placeholder) +
             (INV.stateRow === u.unit_number ? invEditRowHtml(u, COLSPAN) : "");
@@ -4804,6 +5036,8 @@
         (pending ? '<span class="gbar-n is-dirty">' + pending + " unsaved change" +
                    (pending === 1 ? "" : "s") + "</span>" : "") +
         '<span class="spacer"></span>' +
+        '<button type="button" id="invCopy">Copy' +
+          (picked ? " " + picked + " row" + (picked === 1 ? "" : "s") : " all") + "</button>" +
         (picked ? '<button type="button" id="invClearSel">Clear selection</button>' : "") +
         (pending ? '<button type="button" id="invDiscard">Discard</button>' : "") +
         (pending ? '<button type="button" class="primary" id="invReview"' +
@@ -4888,6 +5122,10 @@
       });
     }
 
+    [].forEach.call($("viewInv").querySelectorAll("[data-sort]"), function (el) {
+      el.addEventListener("click", function () { invSortBy(el.getAttribute("data-sort")); });
+    });
+
     var all = $("invPickAll");
     if (all) { all.addEventListener("change", function () { invSelectAll(all.checked); }); }
 
@@ -4950,6 +5188,12 @@
         else if ((k === "d" || k === "D") && (e.metaKey || e.ctrlKey)) {
           e.preventDefault(); invFillDown();
         }
+        else if ((k === "c" || k === "C") && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault(); invCopy();
+        }
+        else if ((k === "a" || k === "A") && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault(); invSelectAll(true);
+        }
         else if (k === "Delete" || k === "Backspace") {
           if (INV.cur && invEditable().on) { e.preventDefault(); invSetPending(INV.cur.row, INV.cur.col, ""); renderInv(); invFocusCur(); }
         }
@@ -4969,6 +5213,7 @@
       });
     }
 
+    if ($("invCopy")) { $("invCopy").addEventListener("click", invCopy); }
     if ($("invClearSel")) {
       $("invClearSel").addEventListener("click", function () { INV.sel = {}; renderInv(); });
     }
