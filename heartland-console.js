@@ -722,6 +722,95 @@
     "  .rolechip.is-admin { background:var(--brand); color:var(--brand-ink); border-color:var(--brand); }",
     "  .rolechip.is-manager { border-color:var(--accent); color:var(--accent); }",
     "  .team-you { font-size:.6875rem; color:var(--ink-muted); }",
+    "  /* ── inventory ─────────────────────────────────────── */",
+    "  .inv-bar { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px; }",
+    "  .inv-bar .f { min-width:150px; }",
+    "  .inv-bar .f.grow { flex:1 1 220px; }",
+    "  .inv-bar .spacer { flex:1 1 auto; }",
+    "  /* The counts are the filter. A salesperson asking \"what is left\" and a",
+    "     salesperson clicking Available are doing the same thing, so the number that",
+    "     answers the question is also the control that acts on it. */",
+    "  .inv-stats { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }",
+    "  .inv-stat {",
+    "    font:inherit; text-align:left; cursor:pointer; padding:8px 14px;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:var(--surface); color:var(--ink); min-width:96px;",
+    "  }",
+    "  .inv-stat:hover { background:var(--surface-2); }",
+    "  .inv-stat.is-on { border-color:var(--accent); background:var(--brand-soft); }",
+    "  .inv-stat b { display:block; font-size:1.375rem; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.15; }",
+    "  .inv-stat span {",
+    "    display:block; font-size:.6875rem; text-transform:uppercase;",
+    "    letter-spacing:var(--tracking); color:var(--ink-2);",
+    "  }",
+    "  .inv-stat.is-avail b { color:var(--good); }",
+    "  .inv-stat.is-held b { color:var(--warning); }",
+    "  /* A banner, not a tag: it qualifies every number in the table below it, so it",
+    "     has to sit above the table rather than inside one column of it. */",
+    "  .inv-warn {",
+    "    display:flex; gap:10px; align-items:flex-start; margin-bottom:14px;",
+    "    padding:10px 14px; border:1px solid var(--warning);",
+    "    border-radius:var(--radius-sm); font-size:.8125rem; color:var(--ink);",
+    "    background:color-mix(in srgb, var(--warning) 10%, transparent);",
+    "  }",
+    "  .inv-warn strong { font-weight:600; }",
+    "  .inv-owed { font-size:.8125rem; color:var(--ink-2); }",
+    "  .inv-owed ul { margin:8px 0 0; padding-left:18px; }",
+    "  .inv-owed li { margin-bottom:3px; }",
+    "  .inv-owed code {",
+    "    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.75rem;",
+    "    color:var(--ink); background:var(--surface-2); padding:1px 5px;",
+    "    border-radius:var(--radius-sm);",
+    "  }",
+    "  #viewInv .card { padding:0; }",
+    "  #viewInv .card.pad { padding:16px 20px; margin:14px 0 0; }",
+    "  .inv-chips { display:inline-flex; gap:6px; flex-wrap:wrap; vertical-align:middle; }",
+    "  .inv-chip {",
+    "    display:inline-block; border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    padding:1px 8px; font-size:.75rem; color:var(--ink);",
+    "  }",
+    "  .inv-chip b { font-weight:600; color:var(--ink-2); font-variant-numeric:tabular-nums; }",
+    "  #viewInv .card.pad h2 { margin:0 0 6px; font-size:.875rem; }",
+    "  /* A state is the one thing every row is scanned for, so it gets colour and a",
+    "     shape rather than a word in the same grey as everything else. */",
+    "  .st { display:inline-block; font-size:.75rem; border:1px solid var(--rule);",
+    "    border-radius:20px; padding:1px 9px; white-space:nowrap; color:var(--ink-2); }",
+    "  .st.is-available { color:var(--good); border-color:var(--good); background:color-mix(in srgb, var(--good) 9%, transparent); }",
+    "  .st.is-held { color:var(--warning); border-color:var(--warning); background:color-mix(in srgb, var(--warning) 12%, transparent); }",
+    "  .st.is-sold { color:var(--ink-2); border-color:var(--ink-muted); background:var(--surface-2); }",
+    "  .st.is-unreleased { color:var(--ink-muted); border-style:dashed; }",
+    "  .st.is-unavailable { color:var(--critical); border-color:var(--critical); }",
+    "  /* Where a state came from, said quietly. A sold home backed by a reservation",
+    "     and one backed by a typed-in row are not the same fact. */",
+    "  .st-src { display:block; font-size:.6875rem; color:var(--ink-muted); margin-top:3px; }",
+    "  .inv-who { font-size:.75rem; color:var(--ink-muted); }",
+    "  .inv-buyer { color:var(--ink); }",
+    "  #viewInv tbody tr.is-plain { cursor:default; }",
+    "  #viewInv tbody tr.is-plain:hover td { background:transparent; }",
+    "  .inv-ph { color:var(--ink-muted); font-style:italic; }",
+    "  .inv-empty { padding:24px 20px; font-size:.8125rem; color:var(--ink-muted); }",
+    "  #viewInv tbody tr.is-editing td { background:var(--brand-soft); }",
+    "  .inv-edit-row td { background:var(--surface-2); padding:0; }",
+    "  .inv-edit-row:hover td { background:var(--surface-2); }",
+    "  .inv-edit { padding:16px 20px; max-width:620px; cursor:default; }",
+    "  .inv-edit-head { font-size:.875rem; margin-bottom:12px; }",
+    "  .inv-edit-warn {",
+    "    font-size:.75rem; color:var(--ink); margin-bottom:12px; padding:9px 12px;",
+    "    border:1px solid var(--warning); border-radius:var(--radius-sm);",
+    "    background:color-mix(in srgb, var(--warning) 10%, transparent);",
+    "  }",
+    "  .inv-edit-states { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }",
+    "  .inv-pick {",
+    "    font:inherit; font-size:.8125rem; padding:6px 13px; cursor:pointer;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:var(--surface); color:var(--ink);",
+    "  }",
+    "  .inv-pick:hover { background:var(--brand-soft); }",
+    "  .inv-pick.is-on { border-color:var(--accent); background:var(--brand); color:var(--brand-ink); }",
+    "  .inv-edit .nr-field { margin:0 0 12px; }",
+    "  .inv-edit-actions { display:flex; gap:8px; align-items:center; margin-top:4px; }",
+    "  .inv-edit-actions .spacer { flex:1 1 auto; }",
+    "  .inv-edit .err:empty { min-height:0; }",
     "  .nr-ac-note {",
     "    padding:4px 11px 6px; font-size:.6875rem; color:var(--ink-muted);",
     "    text-align:right; border-top:1px solid var(--rule);",
@@ -843,6 +932,7 @@
     "    <button id=\"tabDash\" aria-selected=\"true\">Dashboard</button>",
     "    <button id=\"tabToday\" aria-selected=\"false\">Today<span class=\"count\" id=\"todayCount\">0</span></button>",
     "    <button id=\"tabPipe\" aria-selected=\"false\">Pipeline<span class=\"count\" id=\"pipeCount\">0</span></button>",
+    "    <button id=\"tabInv\" aria-selected=\"false\">Inventory</button>",
     "    <button id=\"tabTeam\" aria-selected=\"false\" hidden>Team</button>",
     "  </nav>",
     "",
@@ -851,6 +941,9 @@
     "",
     "  <!-- Today -->",
     "  <section id=\"viewToday\" class=\"hide\"></section>",
+    "",
+    "  <!-- Inventory. The stock list, filled on first view. -->",
+    "  <section id=\"viewInv\" class=\"hide\"></section>",
     "",
     "  <!-- Team. Admin only - the button is hidden for everyone else and the endpoint",
     "       refuses them, which is the check that matters. -->",
@@ -3466,6 +3559,503 @@
      NOBODY IS EVER DELETED. A staff row carries the name on every audit event that
      person wrote; removing it would leave those events attributed to nothing. is_active
      false is how access is revoked, and the row stays. */
+  /* ---------- inventory ----------
+     THE STOCK LIST AN AGENT WORKS FROM, AND THE THING THAT REPLACES SIMS. Pipeline
+     answers "who is buying"; this answers "what is left", which is the question asked
+     in a show house with a buyer standing there.
+
+     IT NEVER DECIDES AVAILABILITY ITSELF. Every state on this screen is computed by
+     /staff/inventory from res_reservations.active_hold_key - the same single authority
+     the public brochure overlay reads - so the console and the website cannot disagree.
+     A second copy of that logic here is exactly the double-write this whole model was
+     built to remove.
+
+     WHERE A STATE HAS NO RESERVATION BEHIND IT, THE ROW SAYS SO. A development with no
+     reservation engine records sold and reserved homes directly, and the server returns
+     state_source telling us which authority answered. "Sold" backed by a real deal and
+     "sold" typed into a table are not the same fact, and an agent about to phone a buyer
+     deserves to know which one they are looking at.
+
+     PLACEHOLDER PRICES ARE MARKED, NOT HIDDEN. Stellenbosch Village's figures are demo
+     values imported faithfully from a site that shows them as "Price TBC". Rendered in
+     the same typeface as Polaris's real prices they would be quoted. */
+
+  var INV = {
+    slug: "", data: null, loading: false, err: "", q: "", state: "", type: "",
+    /* The home whose state is being changed, by unit number. Only ever one at a time:
+       this takes a home off the market, and a screen with four half-filled versions of
+       that form open at once is a screen somebody clicks the wrong Save on. */
+    editing: "", editState: "", editReason: "", editRef: "", editErr: "", saving: false
+  };
+
+  var INV_STATES = ["available", "held", "sold", "unreleased", "unavailable"];
+
+  var INV_OWED_LABEL = {
+    price_cents: "Price",
+    internal_area_sqm: "Internal area",
+    erf_area_sqm: "Erf area",
+    deposit_bond_pct: "Bond deposit %",
+    deposit_cash_pct: "Cash deposit %",
+    occupational_rental_pct: "Occupational rental %",
+    levy_monthly_cents: "Monthly levy",
+    rates_monthly_cents: "Monthly rates"
+  };
+
+  /* The pipeline's property filter is the closest thing to a "development I am working
+     on today", so opening Inventory lands on whatever is already selected there rather
+     than on an arbitrary first row. */
+  function invPickDefault() {
+    var props = (S.data && S.data.properties) || [];
+    if (!props.length) { return; }
+    var pref = $("fprop") ? $("fprop").value : "";
+    var has = false, i;
+    for (i = 0; i < props.length; i++) { if (props[i].slug === pref) { has = true; break; } }
+    invLoad(has ? pref : props[0].slug);
+  }
+
+  function invLoad(slug) {
+    if (!slug) { return; }
+    INV.slug = slug;
+    INV.loading = true; INV.err = ""; INV.data = null;
+    renderInv();
+    api("/staff/inventory?property=" + encodeURIComponent(slug))
+      .then(function (d) { INV.data = d; })
+      .catch(function (e) { INV.err = e.message; })
+      .then(function () { INV.loading = false; renderInv(); });
+  }
+
+  function invRows() {
+    var d = INV.data;
+    if (!d || !d.units) { return []; }
+    var q = INV.q.trim().toLowerCase();
+    return d.units.filter(function (u) {
+      if (INV.state && u.state !== INV.state) { return false; }
+      if (INV.type && (u.type_code || "") !== INV.type) { return false; }
+      if (!q) { return true; }
+      var hay = [u.unit_number, u.name, u.type_code, u.type_name, u.variant_code,
+                 (u.reservation && u.reservation.buyer_name),
+                 (u.reservation && u.reservation.reference)].join(" ").toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+  }
+
+  function invTypes() {
+    var d = INV.data, seen = {}, out = [];
+    if (!d || !d.units) { return out; }
+    d.units.forEach(function (u) {
+      var c = u.type_code || "";
+      if (!c || seen[c]) { return; }
+      seen[c] = true;
+      out.push({ code: c, name: u.type_name || c });
+    });
+    out.sort(function (a, b) { return a.code.localeCompare(b.code); });
+    return out;
+  }
+
+  /* A price that is not money must not look like money. */
+  function invPrice(u, placeholder) {
+    if (u.price_cents === null || u.price_cents === undefined) {
+      return '<span class="muted">—</span>';
+    }
+    if (placeholder) {
+      return '<span class="inv-ph" title="Placeholder — not a quotable price">' +
+             esc(randsShort(u.price_cents)) + "</span>";
+    }
+    return esc(randsShort(u.price_cents));
+  }
+
+  function invStateCell(u) {
+    var s = u.state || "available";
+    var src = "";
+    /* Only worth saying when it is surprising. A hold IS a reservation, and an
+       available home has no authority to name - saying so on 51 rows is noise. */
+    var tip = "";
+    if (u.state_source === "offer_state") {
+      src = '<span class="st-src">no reservation</span>';
+      if (u.offer_state && u.offer_state.note) {
+        tip = ' title="' + esc(u.offer_state.note) + '"';
+      }
+    }
+    return '<span class="st is-' + esc(s) + '"' + tip + ">" + esc(label(s)) + "</span>" + src;
+  }
+
+  function invWhoCell(u) {
+    var r = u.reservation;
+    if (r) {
+      return '<div class="inv-buyer">' + esc(r.buyer_name || "—") + "</div>" +
+             '<div class="inv-who">' +
+             (r.reference ? '<span class="mono">' + esc(r.reference) + "</span>" : "") +
+             (r.deal_stage ? " · " + esc(label(r.deal_stage)) : "") + "</div>";
+    }
+    /* NOT the offer-state note. Every imported row carries the same sentence, and
+       printing it seventeen times down a column says nothing the panel below the table
+       has not already said once. Only a reference specific to THIS home earns a cell. */
+    if (u.offer_state && u.offer_state.external_ref) {
+      return '<div class="inv-who"><span class="mono">' +
+             esc(u.offer_state.external_ref) + "</span></div>";
+    }
+    return '<span class="muted">—</span>';
+  }
+
+  /* The states a person may set. 'available' is first because clearing one is the most
+     common correction - a home marked sold that was not. */
+  var INV_SETTABLE = [
+    { v: "available",  t: "Available",  h: "Back on the market. Clears the recorded state entirely." },
+    { v: "reserved",   t: "Reserved",   h: "Somebody is on it, without a reservation in this system." },
+    { v: "sold",       t: "Sold",       h: "Gone. Sold outside the reserve flow." },
+    { v: "unreleased", t: "Unreleased", h: "Not yet offered for sale. Not the same as taken." }
+  ];
+
+  /* Sits directly under the home it belongs to, rather than in a modal: the row above is
+     the context - which home, at what price, in what state - and a dialog would cover it. */
+  function invEditRowHtml(u, cols) {
+    var isCms = !!(INV.data && INV.data.inventory_source === "cms");
+    return '<tr class="inv-edit-row"><td colspan="' + cols + '">' +
+      '<div class="inv-edit">' +
+      '<div class="inv-edit-head">Change what unit <strong>' +
+        esc(u.unit_number) + "</strong> says</div>" +
+
+      (isCms
+        ? '<div class="inv-edit-warn">This development still reads its availability from the ' +
+          "Webflow CMS, and that flag is written by the legacy automation. Recording a state " +
+          "here removes the home from this console and from the availability feed, but it does " +
+          "<strong>not</strong> change the CMS — the two will disagree until somebody sets the " +
+          "CMS toggle as well.</div>"
+        : "") +
+
+      '<div class="inv-edit-states">' +
+        INV_SETTABLE.map(function (s) {
+          return '<button type="button" class="inv-pick' +
+            (INV.editState === s.v ? " is-on" : "") + '" data-inv-set="' + s.v + '" title="' +
+            esc(s.h) + '">' + esc(s.t) + "</button>";
+        }).join("") + "</div>" +
+
+      '<div class="nr-field"><label for="invReason">Why</label>' +
+        '<input id="invReason" type="text" value="' + esc(INV.editReason) + '" ' +
+        'placeholder="Sold off-plan in the show house, 3 Sept"></div>' +
+      '<div class="nr-field"><label for="invRef">Reference <span class="muted">(optional)</span></label>' +
+        '<input id="invRef" type="text" value="' + esc(INV.editRef) + '" ' +
+        'placeholder="Where the sale actually lives — a deal number"></div>' +
+
+      '<div class="err" id="invEditErr">' + esc(INV.editErr) + "</div>" +
+      '<div class="inv-edit-actions">' +
+        '<button type="button" id="invCancel">Cancel</button>' +
+        '<span class="spacer"></span>' +
+        '<button type="button" class="primary" id="invSave"' +
+        (INV.saving || !INV.editState ? " disabled" : "") + ">" +
+        (INV.saving ? "Saving…" : "Save") + "</button>" +
+      "</div></div></td></tr>";
+  }
+
+  function invRowHtml(u, placeholder) {
+    var r = u.reservation;
+    var spec = [
+      u.bedrooms ? u.bedrooms + " bed" : null,
+      u.bathrooms ? u.bathrooms + " bath" : null,
+      u.parking ? u.parking + " garage" : null
+    ].filter(Boolean).join(" · ");
+    /* A home with a deal on it goes to the deal; a home without one is the only kind
+       whose state this screen may set, which is the same precedence the server enforces. */
+    return '<tr' + (r && r.uuid
+             ? ' data-inv-deal="' + esc(r.uuid) + '" data-inv-ref="' + esc(r.reference || "") + '"'
+             : ' data-inv-edit="' + esc(u.unit_number) + '"' +
+               (INV.editing === u.unit_number ? ' class="is-editing"' : "")) + ">" +
+      "<td><strong>" + esc(u.unit_number || u.name || "—") + "</strong>" +
+        /* "Unit 12" under a heading of "12" is the same fact twice. */
+        (u.name && u.name !== u.unit_number && u.name !== ("Unit " + u.unit_number)
+          ? '<div class="inv-who">' + esc(u.name) + "</div>" : "") +
+      "</td>" +
+      "<td>" + esc(u.type_code || "—") +
+        (u.variant_code && u.variant_code !== u.type_code
+          ? '<div class="inv-who">' + esc(u.variant_code) + "</div>" : "") + "</td>" +
+      "<td>" + (spec ? esc(spec) : '<span class="muted">—</span>') + "</td>" +
+      '<td class="num">' + (u.internal_area_sqm
+          ? esc(u.internal_area_sqm) + " m²" : '<span class="muted">—</span>') + "</td>" +
+      '<td class="num">' + invPrice(u, placeholder) + "</td>" +
+      "<td>" + invStateCell(u) + "</td>" +
+      "<td>" + invWhoCell(u) + "</td>" +
+    "</tr>";
+  }
+
+  /* Clicking a taken home goes to the deal on it. It routes through the pipeline's own
+     search rather than opening the drawer directly, because the drawer reads the loaded
+     pipeline list and the deal behind this row may not be in it - the filters, or simply
+     the page, may exclude it. Searching for the reference guarantees the server returns
+     the one row we want. */
+  function invOpenDeal(uuid, ref) {
+    if (!ref) { return; }
+    $("q").value = ref;
+    $("fstatus").value = ""; $("fstage").value = ""; $("fprop").value = "";
+    tab("pipe");
+    load().then(function () {
+      if (find(uuid)) { openDrawer(uuid); }
+    });
+  }
+
+  function renderInv() {
+    var d = INV.data;
+    var props = (S.data && S.data.properties) || [];
+    var placeholder = !!(d && d.prices_are_placeholder);
+    var c = (d && d.counts) || {};
+
+    var bar =
+      '<div class="inv-bar">' +
+      '<div class="f"><label for="invProp">Development</label><select id="invProp">' +
+        props.map(function (p) {
+          return '<option value="' + esc(p.slug) + '"' +
+            (p.slug === INV.slug ? " selected" : "") + ">" + esc(p.name) + "</option>";
+        }).join("") + "</select></div>" +
+      '<div class="f grow"><label for="invQ">Search</label>' +
+        '<input id="invQ" type="text" placeholder="Unit number, type, buyer, reservation number" value="' +
+        esc(INV.q) + '"></div>' +
+      '<div class="f"><label for="invType">Type</label><select id="invType">' +
+        '<option value="">All</option>' +
+        invTypes().map(function (t) {
+          return '<option value="' + esc(t.code) + '"' +
+            (t.code === INV.type ? " selected" : "") + ">" + esc(t.code) + "</option>";
+        }).join("") + "</select></div>" +
+      '<span class="spacer"></span>' +
+      '<button type="button" id="invRefresh"' + (INV.loading ? " disabled" : "") + ">" +
+        (INV.loading ? "Loading…" : "Refresh") + "</button>" +
+      "</div>";
+
+    if (INV.err) {
+      $("viewInv").innerHTML = bar + '<div class="card pad"><div class="err">' +
+        esc(INV.err) + "</div></div>";
+      invWire();
+      return;
+    }
+    if (!d) {
+      $("viewInv").innerHTML = bar + '<div class="card"><div class="inv-empty">' +
+        (INV.loading ? "Loading…" : "Choose a development.") + "</div></div>";
+      invWire();
+      return;
+    }
+
+    /* Every state that exists on this development, plus Available always - "0 available"
+       is the single most important thing this screen can say, and it must not vanish
+       because it is zero. */
+    var stats = '<div class="inv-stats">' +
+      '<button type="button" class="inv-stat' + (INV.state === "" ? " is-on" : "") +
+        '" data-inv-state=""><b>' + (c.units || 0) + "</b><span>All homes</span></button>" +
+      INV_STATES.map(function (s) {
+        var n = s === "available" ? (c.available || 0)
+              : s === "held" ? (c.held || 0)
+              : s === "sold" ? (c.sold || 0)
+              : s === "unreleased" ? (c.unreleased || 0)
+              : (c.unavailable_other || 0);
+        if (!n && s !== "available") { return ""; }
+        return '<button type="button" class="inv-stat' +
+          (s === "available" ? " is-avail" : (s === "held" ? " is-held" : "")) +
+          (INV.state === s ? " is-on" : "") +
+          '" data-inv-state="' + s + '"><b>' + n + "</b><span>" + esc(label(s)) + "</span></button>";
+      }).join("") + "</div>";
+
+    var warn = placeholder
+      ? '<div class="inv-warn"><div><strong>These prices are placeholders.</strong> ' +
+        esc((d.property_name || "This development")) +
+        " has not had real prices loaded — the figures below came across as demo values and " +
+        "are not quotable. Everything else on this screen is real.</div></div>"
+      : "";
+
+    /* Said once, above the table, rather than on the rows it applies to: it is a fact
+       about the development, not about any one home. */
+    var noEngine = (c.from_offer_state || 0) > 0
+      ? '<div class="card pad"><h2>Where these states come from</h2>' +
+        '<div class="inv-owed">' + c.from_offer_state + " of these homes are marked taken " +
+        "without a reservation behind them — recorded directly rather than sold through " +
+        "the reserve flow. A live reservation always overrides one of these, never the " +
+        "other way round.</div></div>"
+      : "";
+
+    var setup = "";
+    var owed = (d.setup && d.setup.unset_everywhere) || [];
+    var some = (d.setup && d.setup.unset_on_some) || [];
+    if (owed.length || some.length) {
+      /* Chips rather than a bulleted list: seven bullets is a column of prose for what
+         is really a set of labels, and it pushed the stock below the fold. */
+      setup = '<div class="card pad"><h2>What this development still owes</h2>' +
+        '<div class="inv-owed">' +
+        (owed.length
+          ? "<div>Not set on any home — not configured for these yet: " +
+            '<span class="inv-chips">' +
+            owed.map(function (f) {
+              return '<span class="inv-chip">' + esc(INV_OWED_LABEL[f] || f) + "</span>";
+            }).join("") + "</span></div>"
+          : "") +
+        (some.length
+          ? "<div" + (owed.length ? ' style="margin-top:8px"' : "") +
+            ">Missing on some homes — a data entry gap, not a setup step: " +
+            '<span class="inv-chips">' +
+            some.map(function (s) {
+              return '<span class="inv-chip">' + esc(INV_OWED_LABEL[s.field] || s.field) +
+                " <b>" + s.missing + "/" + s.of + "</b></span>";
+            }).join("") + "</span></div>"
+          : "") +
+        "</div></div>";
+    }
+
+    var rows = invRows();
+    var table = rows.length
+      ? '<div class="card tablewrap"><table><thead><tr>' +
+        "<th>Unit</th><th>Type</th><th>Spec</th>" +
+        '<th class="num">Internal</th><th class="num">Price</th>' +
+        "<th>State</th><th>Who</th></tr></thead><tbody>" +
+        rows.map(function (u) {
+          return invRowHtml(u, placeholder) +
+            (INV.editing === u.unit_number ? invEditRowHtml(u, 7) : "");
+        }).join("") +
+        "</tbody></table></div>"
+      : '<div class="card"><div class="inv-empty">' +
+        (d.units && d.units.length ? "No home matches those filters."
+                                   : "No homes imported for this development yet.") +
+        "</div></div>";
+
+    var foot = '<div class="inv-owed" style="margin-top:10px">' +
+      rows.length + " of " + ((d.counts && d.counts.units) || 0) + " shown · " +
+      "source " + esc(d.inventory_source || "cms") +
+      (d.last_synced_at ? " · synced " + esc(when(d.last_synced_at)) : "") + "</div>";
+
+    /* Order: what you must know before reading a number, then the stock itself, then
+       the explanations. An agent opens this screen to see homes, not paragraphs. */
+    $("viewInv").innerHTML = bar + stats + warn + table + foot + noEngine + setup;
+    invWire();
+  }
+
+  function invWire() {
+    var p = $("invProp");
+    if (p) { p.addEventListener("change", function () { invLoad(p.value); }); }
+
+    var q = $("invQ");
+    if (q) {
+      q.addEventListener("input", function () {
+        INV.q = q.value;
+        /* Re-rendered in place and focus put back, because the search box lives inside
+           the block being replaced. Losing the caret on every keystroke would make the
+           field unusable. */
+        var at = q.selectionStart;
+        renderInv();
+        var again = $("invQ");
+        if (again) { again.focus(); try { again.setSelectionRange(at, at); } catch (e) {} }
+      });
+    }
+
+    var t = $("invType");
+    if (t) { t.addEventListener("change", function () { INV.type = t.value; renderInv(); }); }
+
+    var r = $("invRefresh");
+    if (r) { r.addEventListener("click", function () { invLoad(INV.slug); }); }
+
+    [].forEach.call($("viewInv").querySelectorAll("[data-inv-state]"), function (el) {
+      el.addEventListener("click", function () {
+        var s = el.getAttribute("data-inv-state");
+        INV.state = (INV.state === s) ? "" : s;
+        renderInv();
+      });
+    });
+
+    [].forEach.call($("viewInv").querySelectorAll("[data-inv-deal]"), function (el) {
+      el.addEventListener("click", function () {
+        invOpenDeal(el.getAttribute("data-inv-deal"), el.getAttribute("data-inv-ref"));
+      });
+    });
+
+    [].forEach.call($("viewInv").querySelectorAll("[data-inv-edit]"), function (el) {
+      el.addEventListener("click", function () {
+        var n = el.getAttribute("data-inv-edit");
+        if (INV.editing === n) { invEditClose(); return; }
+        invEditOpen(n);
+      });
+    });
+
+    [].forEach.call($("viewInv").querySelectorAll("[data-inv-set]"), function (el) {
+      el.addEventListener("click", function (e) {
+        e.stopPropagation();
+        INV.editState = el.getAttribute("data-inv-set");
+        INV.editErr = "";
+        renderInv();
+      });
+    });
+
+    /* The editor lives inside the block every re-render replaces, so anything typed has
+       to be read back on each keystroke and focus restored - the same problem, and the
+       same answer, as the search box above. */
+    ["invReason", "invRef"].forEach(function (id) {
+      var el = $(id);
+      if (!el) { return; }
+      el.addEventListener("input", function () {
+        if (id === "invReason") { INV.editReason = el.value; } else { INV.editRef = el.value; }
+      });
+      el.addEventListener("click", function (e) { e.stopPropagation(); });
+    });
+
+    if ($("invCancel")) {
+      $("invCancel").addEventListener("click", function (e) { e.stopPropagation(); invEditClose(); });
+    }
+    if ($("invSave")) {
+      $("invSave").addEventListener("click", function (e) { e.stopPropagation(); invEditSave(); });
+    }
+    /* Clicks inside the editor must not reach the row underneath and toggle it shut. */
+    [].forEach.call($("viewInv").querySelectorAll(".inv-edit"), function (el) {
+      el.addEventListener("click", function (e) { e.stopPropagation(); });
+    });
+  }
+
+  function invEditOpen(unitNumber) {
+    var cur = null, i, us = (INV.data && INV.data.units) || [];
+    for (i = 0; i < us.length; i++) { if (us[i].unit_number === unitNumber) { cur = us[i]; break; } }
+    INV.editing = unitNumber;
+    /* Pre-selecting the state it is ALREADY in would make Save a no-op that still writes
+       an event. Start with nothing chosen, so Save means a decision. */
+    INV.editState = "";
+    INV.editReason = "";
+    INV.editRef = (cur && cur.offer_state && cur.offer_state.external_ref) || "";
+    INV.editErr = "";
+    renderInv();
+  }
+
+  function invEditClose() {
+    INV.editing = ""; INV.editState = ""; INV.editReason = "";
+    INV.editRef = ""; INV.editErr = ""; INV.saving = false;
+    renderInv();
+  }
+
+  function invEditSave() {
+    if (!INV.editState) { return; }
+    /* Checked here as well as on the server, so a person finds out before the round trip
+       rather than after it. The server is still the one that decides. */
+    if (!INV.editReason.trim()) {
+      INV.editErr = "Say why. This takes a home off the market without a deal behind it, " +
+        "so the record has to carry a reason.";
+      renderInv();
+      var r = $("invReason"); if (r) { r.focus(); }
+      return;
+    }
+    INV.saving = true; INV.editErr = "";
+    renderInv();
+    api("/staff/units/state", {
+      method: "POST",
+      body: JSON.stringify({
+        property_slug: INV.slug,
+        unit_number: INV.editing,
+        state: INV.editState,
+        reason: INV.editReason.trim(),
+        external_ref: INV.editRef.trim()
+      })
+    })
+      .then(function () {
+        INV.editing = ""; INV.editState = ""; INV.editReason = "";
+        INV.editRef = ""; INV.saving = false;
+        /* Reloaded rather than patched in memory: the counts, the states and the
+           from_offer_state total are all the server's answer, and a local guess at any of
+           them is a second authority. */
+        invLoad(INV.slug);
+      })
+      .catch(function (e) {
+        INV.saving = false; INV.editErr = e.message; renderInv();
+      });
+  }
+
   var TEAM = { rows: [], me: null, loaded: false, loading: false, busy: false, err: "", ok: "", editing: "", v: null };
 
   function teamDefaults() {
@@ -3920,6 +4510,7 @@
     { k: "dash",  btn: "tabDash",  view: "viewDash" },
     { k: "today", btn: "tabToday", view: "viewToday" },
     { k: "pipe",  btn: "tabPipe",  view: "viewPipe" },
+    { k: "inv",   btn: "tabInv",   view: "viewInv" },
     { k: "team",  btn: "tabTeam",  view: "viewTeam" }
   ];
   function tab(which) {
@@ -3927,6 +4518,7 @@
     /* Fetched on first view rather than with the pipeline: most sessions never open it,
        and it is a second request against a rate-limited API. */
     if (which === "team" && !TEAM.loaded && !TEAM.loading) { loadTeam(); }
+    if (which === "inv" && !INV.slug) { invPickDefault(); }
     TABS.forEach(function (t) {
       $(t.btn).setAttribute("aria-selected", which === t.k);
       $(t.view).classList.toggle("hide", which !== t.k);
