@@ -319,6 +319,10 @@
     "    background:var(--surface-2);",
     "  }",
     "  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }",
+    "  /* A word column reads left, and it is allowed to be narrow and clipped rather than",
+    "     forcing the grid wider - the full value is one click away in the cell editor. */",
+    "  td.txt, th.txt { text-align:left; }",
+    "  td.gcell.txt { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }",
     "  /* The reference is one token and must not be hyphenated down four lines. It only",
     "     started wrapping when the sidebar took 196px off the table; .tablewrap already",
     "     scrolls, so letting the column keep its width costs nothing. */",
@@ -1049,6 +1053,49 @@
     "    font:inherit; font-size:.8125rem; padding:6px 14px; cursor:pointer;",
     "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
     "    background:var(--surface-2); color:var(--ink);",
+    "  }",
+    "  /* THE FIELDS PANEL. Four small toggles per row rather than four switches, because",
+    "     they are read together - \"column, editable, not public\" is one sentence about a",
+    "     field, and four separate switches would make it four. */",
+    "  .fld-row {",
+    "    display:flex; gap:16px; align-items:center; justify-content:space-between;",
+    "    padding:11px 0; border-bottom:1px solid var(--rule);",
+    "  }",
+    "  .fld-src {",
+    "    font-size:.625rem; font-weight:600; text-transform:uppercase; margin-left:7px;",
+    "    letter-spacing:var(--tracking); color:var(--ink-muted);",
+    "  }",
+    "  .fld-flags { display:flex; gap:6px; flex:0 0 auto; }",
+    "  .fld-flag {",
+    "    font:inherit; font-size:.6875rem; padding:4px 10px; cursor:pointer;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:transparent; color:var(--ink-2);",
+    "  }",
+    "  .fld-flag:hover { background:var(--surface-2); color:var(--ink); }",
+    "  .fld-flag.is-on { background:var(--brand); color:var(--brand-ink); border-color:var(--accent); }",
+    "  .fld-flag:disabled { opacity:.5; cursor:default; }",
+    "  /* Not a disabled switch - a statement. The value belongs to the type, so there is no",
+    "     decision to make here and offering one would be offering a refusal. */",
+    "  .fld-flag.is-blocked {",
+    "    display:inline-block; font-size:.6875rem; padding:4px 10px; cursor:help;",
+    "    border:1px dashed var(--rule); border-radius:var(--radius-sm); color:var(--ink-muted);",
+    "  }",
+    "  .fld-menu { margin-top:18px; padding-top:14px; border-top:1px solid var(--rule); }",
+    "  .fld-menu-head, .fld-group h3 {",
+    "    margin:0 0 8px; font-size:.6875rem; text-transform:uppercase;",
+    "    letter-spacing:var(--tracking); color:var(--ink-2); font-weight:600;",
+    "  }",
+    "  .fld-group { margin-bottom:12px; }",
+    "  .fld-group h3 { color:var(--ink-muted); margin-top:10px; }",
+    "  .fld-add {",
+    "    font:inherit; font-size:.75rem; padding:5px 11px; margin:0 6px 6px 0; cursor:pointer;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:transparent; color:var(--ink);",
+    "  }",
+    "  .fld-add:hover { background:var(--surface-2); }",
+    "  .fld-add:disabled { opacity:.5; cursor:default; }",
+    "  .fld-add.is-have {",
+    "    display:inline-block; color:var(--ink-muted); border-style:dashed; cursor:default;",
     "  }",
     "  #invPhaseMove {",
     "    font:inherit; font-size:.75rem; padding:4px 8px;",
@@ -4273,6 +4320,10 @@
     if (changed || !keep) {
       INV.pending = {}; INV.sel = {}; INV.cur = null; INV.anchor = "";
       INV.bulk = null; INV.saveErr = "";
+      /* The Fields panel belongs to a development, so it goes with it. Keeping it open
+         across a switch would show one development's columns over another's stock. */
+      INV.phasesOpen = false; INV.phaseErr = "";
+      FLD.data = null; FLD.slug = ""; FLD.open = false; FLD.err = "";
     }
     INV.editing = null;
     /* The old rows stay on screen through a keeping reload, so the grid does not blink. */
@@ -4486,6 +4537,174 @@
       });
   }
 
+  /* THE FIELDS PANEL. Which optional columns this development uses, and what is still on the
+     menu. It is the answer to "give the sales team agency" - they choose their own columns
+     rather than asking for a schema change, and the standard menu is what stops two
+     developments inventing `orientation` and `aspect` for the same fact.
+
+     LOADED ONLY WHEN OPENED. It is a second call and most days nobody touches it; the grid
+     already has everything it needs from /staff/inventory. */
+  var FLD = { data: null, slug: "", loading: false, open: false, saving: "", err: "" };
+
+  function fldLoad(slug) {
+    if (!slug) { return; }
+    FLD.slug = slug; FLD.loading = true; FLD.err = "";
+    renderInv();
+    return api("/staff/fields?property=" + encodeURIComponent(slug))
+      .then(function (d) { FLD.data = d; })
+      .catch(function (e) { FLD.err = e.message; })
+      .then(function () { FLD.loading = false; renderInv(); });
+  }
+
+  /* Four decisions, and they are genuinely different questions. A development can record a
+     fact, show it to its own team, let them edit it, publish it and filter on it - erf number
+     is worth showing and never worth filtering on; a plot id is worth recording and never
+     worth publishing. One switch for all of them would force over-sharing to get a column. */
+  var FLD_FLAGS = [
+    { key: "is_grid", label: "Column",
+      why: "Gets a column in this grid." },
+    { key: "is_editable", label: "Editable",
+      why: "Staff may type into it here. Never available on a value that belongs to the type." },
+    { key: "is_public", label: "Public",
+      why: "A public endpoint may return it. Off by default - this is the one whose mistake only goes one way." },
+    { key: "is_filterable", label: "Filter",
+      why: "Appears as a filter chip on the site. Needs Public: a facet on withheld data is a chip that matches nothing." }
+  ];
+
+  function fldSet(fieldKey, flag, value) {
+    if (FLD.saving) { return; }
+    FLD.saving = fieldKey + ":" + flag; FLD.err = "";
+    renderInv();
+    var body = { property_slug: INV.slug, field_key: fieldKey, action: "set" };
+    body[flag] = value;
+    api("/staff/fields", { method: "POST", body: JSON.stringify(body) })
+      .then(function () {
+        FLD.saving = "";
+        /* Both, and in this order: the panel owns the flags, the grid owns the columns, and
+           a flag change moves both. Re-reading rather than patching keeps the server the only
+           thing that decides what a variant-sourced field is allowed to be. */
+        return fldLoad(INV.slug).then(function () { return invLoad(INV.slug, true); });
+      })
+      .catch(function (e) {
+        FLD.saving = ""; FLD.err = e.message; renderInv();
+      });
+  }
+
+  function fldAdopt(fieldKey) {
+    if (FLD.saving) { return; }
+    FLD.saving = "adopt:" + fieldKey; FLD.err = "";
+    renderInv();
+    api("/staff/fields", {
+      method: "POST",
+      body: JSON.stringify({
+        property_slug: INV.slug, field_key: fieldKey, action: "adopt", is_grid: true
+      })
+    })
+      .then(function () {
+        FLD.saving = "";
+        return fldLoad(INV.slug).then(function () { return invLoad(INV.slug, true); });
+      })
+      .catch(function (e) {
+        FLD.saving = ""; FLD.err = e.message; renderInv();
+      });
+  }
+
+  function fldFlagHtml(f, flag) {
+    var on = f[flag.key] === true;
+    /* A value that belongs to the way the home is built can never be edited from a unit row,
+       so the control says so rather than offering a switch the server will refuse. */
+    var blocked = (flag.key === "is_editable" && f.can_edit === false);
+    var busy = FLD.saving === (f.field_key + ":" + flag.key);
+    if (blocked) {
+      return '<span class="fld-flag is-blocked" title="This value belongs to the type - ' +
+        'every home built that way shares one, so editing it here would change all of them.">' +
+        esc(flag.label) + "</span>";
+    }
+    return '<button type="button" class="fld-flag' + (on ? " is-on" : "") + '"' +
+      (busy ? " disabled" : "") + ' data-fld-key="' + esc(f.field_key) + '" data-fld-flag="' +
+      esc(flag.key) + '" data-fld-to="' + (on ? "off" : "on") + '" title="' + esc(flag.why) +
+      '" aria-pressed="' + (on ? "true" : "false") + '">' + esc(flag.label) + "</button>";
+  }
+
+  function fldPanelHtml() {
+    if (!INV.slug) { return ""; }
+
+    if (!FLD.open) {
+      var n = (INV.data && INV.data.fields) || [];
+      var shown = n.filter(function (x) { return x.is_grid; }).length;
+      return '<div class="card pad ph-shut"><button type="button" id="invFldOpen">' +
+        "<b>Fields</b> <span>" +
+        (n.length
+          ? n.length + " in use, " + shown + " shown as columns"
+          : "none yet \u2014 choose what this development records") +
+        "</span></button></div>";
+    }
+
+    if (FLD.err) {
+      return '<div class="card pad ph-panel"><div class="ph-head"><h2>Fields</h2>' +
+        '<button type="button" id="invFldShut">Hide</button></div>' +
+        '<div class="err">' + esc(FLD.err) + "</div></div>";
+    }
+    if (!FLD.data) {
+      return '<div class="card pad ph-panel"><div class="ph-head"><h2>Fields</h2>' +
+        '<button type="button" id="invFldShut">Hide</button></div>' +
+        '<div class="inv-empty">' + (FLD.loading ? "Loading\u2026" : "Nothing loaded.") +
+        "</div></div>";
+    }
+
+    var d = FLD.data;
+    var mine = (d.fields || []).map(function (f) {
+      return '<div class="fld-row">' +
+        '<div class="feat-text"><div class="feat-name">' + esc(f.label) +
+          '<span class="fld-src">' + esc(f.source) + "</span></div>" +
+        '<div class="feat-desc">' +
+          /* The number that says whether a column is worth having. A field adopted and never
+             filled is a column of dashes, and the panel should say so rather than leaving
+             somebody to scroll the grid looking for values. */
+          (f.filled ? f.filled + " of " + f.of + " homes" : "no home has a value yet") +
+          (f.help_text ? " \u00b7 " + esc(f.help_text) : "") + "</div></div>" +
+        '<div class="fld-flags">' +
+          FLD_FLAGS.map(function (fl) { return fldFlagHtml(f, fl); }).join("") +
+        "</div></div>";
+    }).join("");
+
+    /* The menu, grouped the way the catalogue groups it, with what is already taken marked
+       rather than removed - somebody should be able to see that Orientation exists and that
+       they already have it. */
+    var groups = [], seen = {};
+    (d.catalogue || []).forEach(function (c) {
+      var g = c.category || "Other";
+      if (!seen[g]) { seen[g] = { name: g, items: [] }; groups.push(seen[g]); }
+      seen[g].items.push(c);
+    });
+
+    var menu = groups.map(function (g) {
+      return '<div class="fld-group"><h3>' + esc(g.name) + "</h3>" +
+        g.items.map(function (c) {
+          var busy = FLD.saving === ("adopt:" + c.field_key);
+          if (c.adopted && !c.retired) {
+            return '<span class="fld-add is-have" title="' + esc(c.help_text || "") + '">' +
+              esc(c.label) + " \u2713</span>";
+          }
+          return '<button type="button" class="fld-add" data-fld-adopt="' + esc(c.field_key) +
+            '"' + (busy ? " disabled" : "") + ' title="' + esc(c.help_text || "") + '">' +
+            esc(c.label) + (c.retired ? " \u21ba" : " +") + "</button>";
+        }).join("") + "</div>";
+    }).join("");
+
+    return '<div class="card pad ph-panel">' +
+      '<div class="ph-head"><h2>Fields</h2>' +
+      '<button type="button" id="invFldShut">Hide</button></div>' +
+      '<div class="inv-owed" style="margin-bottom:12px">What this development records about a ' +
+      "home, and where each fact is allowed to appear. Adding a field never publishes it \u2014 " +
+      "<strong>Column</strong>, <strong>Editable</strong>, <strong>Public</strong> and " +
+      "<strong>Filter</strong> are four separate decisions, because showing your own team a " +
+      "figure and putting it on the website are not the same thing.</div>" +
+      (mine || '<div class="inv-empty">No optional fields yet. Add one below.</div>') +
+      '<div class="fld-menu"><h3 class="fld-menu-head">Available to add</h3>' + menu + "</div>" +
+      "</div>";
+  }
+
   function invEditable() {
     /* Two different reasons a grid is read-only, and they need different words. */
     if (!featOn(INV.slug, "inventory_fields")) { return { on: false, why: "module" }; }
@@ -4496,9 +4715,68 @@
   /* Cents are stored as integers and shown as rands. A person types 3 200 000, not
      320000000, so the grid converts on the way in and on the way out - and the conversion
      is the only place that knows, so nothing downstream has to guess which it is holding. */
+  /* THE COLUMNS ON SCREEN = the fixed set, plus whatever this development chose. INV_COLS is
+     the money and the areas: every development has those and they are the same everywhere.
+     The rest is the development's own - orientation, erf number, beds - and the server
+     resolves each one onto the row whatever table it actually lives in, so the grid renders a
+     column without knowing or caring. That is the point: "does this development show
+     orientation" is a sales question and "is it a json key or a column" is not.
+
+     RECOMPUTED RATHER THAN CACHED. It changes when the Fields panel changes, and a cached
+     column list is how a grid ends up rendering a column the data no longer has. */
+  function invCols() {
+    var extra = ((INV.data && INV.data.fields) || []).filter(function (f) {
+      return f.is_grid;
+    }).map(function (f) {
+      return {
+        key: f.field_key,
+        label: f.label,
+        /* The registry's vocabulary, mapped onto the grid's. Anything the grid has no editor
+           for renders read-only rather than pretending. */
+        kind: f.kind === "money" ? "cents"
+            : f.kind === "number" ? "num"
+            : f.kind === "enum" ? "enum"
+            : (f.kind === "text" || f.kind === "url") ? "text"
+            : "ro",
+        w: (f.kind === "number" || f.kind === "money") ? 96 : 130,
+        unit: f.suffix || null,
+        options: f.options || null,
+        /* Where the value lives. The server put it in field_values either way. */
+        attr: true,
+        editable: f.is_editable === true,
+        help: f.help_text || null
+      };
+    });
+    return INV_COLS.concat(extra);
+  }
+
+  /* A fixed column reads off the row; a registry column reads off the resolved bag the
+     server built. Everything downstream is identical, which is why this is one function
+     rather than a branch in five of them. */
+  function invRaw(u, col) {
+    if (col.attr) {
+      var fv = u.field_values || {};
+      return fv[col.key];
+    }
+    return u[col.key];
+  }
+
+  /* Whether THIS column may be typed into, on top of whether the grid may be edited at all.
+     A registry column carries its own answer - a variant-sourced value belongs to forty homes
+     at once, and the server refuses it regardless of what the browser drew. */
+  function invColEditable(col, editable) {
+    if (!editable.on) { return false; }
+    if (col.kind === "ro") { return false; }
+    if (col.attr) { return col.editable === true; }
+    return true;
+  }
+
   function invToDisplay(col, v) {
     if (v === null || v === undefined || v === "") { return ""; }
     if (col.kind === "cents") { return String(Math.round(Number(v)) / 100); }
+    /* A list renders as a list. Joining is a display choice, not a storage one - the value
+       stays an array and such a column is read-only, so nothing ever parses the join back. */
+    if (Object.prototype.toString.call(v) === "[object Array]") { return v.join(", "); }
     return String(v);
   }
 
@@ -4508,6 +4786,9 @@
     /* Excel pastes carry thousands separators, currency marks and non-breaking spaces.
        Stripping them here means a person can paste what their spreadsheet shows rather
        than what the database wants. */
+    /* Text is text. Stripping a comma out of "North-east, corner" would be the grid
+       silently editing what somebody typed. */
+    if (col.kind === "text" || col.kind === "enum" || col.kind === "ro") { return s; }
     var cleaned = s.replace(/[R\s ,]/g, "");
     if (col.kind === "cents") {
       var n = Number(cleaned);
@@ -4522,7 +4803,7 @@
   function invCellValue(u, col) {
     var p = INV.pending[u.unit_number];
     if (p && Object.prototype.hasOwnProperty.call(p, col.key)) { return p[col.key]; }
-    return invToDisplay(col, u[col.key]);
+    return invToDisplay(col, invRaw(u, col));
   }
 
   function invIsDirty(unitNumber, field) {
@@ -4542,7 +4823,8 @@
 
   function invSetPending(unitNumber, field, display) {
     var col = null, i;
-    for (i = 0; i < INV_COLS.length; i++) { if (INV_COLS[i].key === field) { col = INV_COLS[i]; } }
+    var cols = invCols();
+    for (i = 0; i < cols.length; i++) { if (cols[i].key === field) { col = cols[i]; } }
     if (!col) { return; }
 
     var row = null, us = (INV.data && INV.data.units) || [];
@@ -4552,7 +4834,7 @@
     /* Typing a value back to what it already was should CLEAR the pending edit, not record
        a no-op. Otherwise the dirty count keeps climbing while nothing has actually changed,
        and Save sends rows the server will only answer "unchanged" to. */
-    var stored = invToDisplay(col, row[field]);
+    var stored = invToDisplay(col, invRaw(row, col));
     var typed = String(display === null || display === undefined ? "" : display).trim();
 
     if (!INV.pending[unitNumber]) { INV.pending[unitNumber] = {}; }
@@ -4605,21 +4887,22 @@
   function invMove(dRow, dCol) {
     var vis = invVisible();
     if (!vis.length) { return; }
-    if (!INV.cur) { INV.cur = { row: vis[0], col: INV_COLS[0].key }; renderInv(); return; }
+    var mcols = invCols();
+    if (!INV.cur) { INV.cur = { row: vis[0], col: mcols[0].key }; renderInv(); return; }
 
     var r = vis.indexOf(INV.cur.row);
     var c = 0, i;
-    for (i = 0; i < INV_COLS.length; i++) { if (INV_COLS[i].key === INV.cur.col) { c = i; } }
+    for (i = 0; i < mcols.length; i++) { if (mcols[i].key === INV.cur.col) { c = i; } }
     if (r === -1) { r = 0; }
 
     r += dRow; c += dCol;
     /* Tabbing off the end of a row wraps to the next one, the way a spreadsheet does. */
-    if (c >= INV_COLS.length) { c = 0; r += 1; }
-    if (c < 0) { c = INV_COLS.length - 1; r -= 1; }
+    if (c >= mcols.length) { c = 0; r += 1; }
+    if (c < 0) { c = mcols.length - 1; r -= 1; }
     if (r < 0) { r = 0; }
     if (r >= vis.length) { r = vis.length - 1; }
 
-    INV.cur = { row: vis[r], col: INV_COLS[c].key };
+    INV.cur = { row: vis[r], col: mcols[c].key };
     INV.editing = null;
     renderInv();
     invFocusCur();
@@ -4633,13 +4916,22 @@
   }
 
   function invBeginEdit(unitNumber, field, seed) {
-    if (!invEditable().on) { return; }
+    var editable = invEditable();
+    if (!editable.on) { return; }
+    /* And this particular column has to be open too. Checked here rather than only at the
+       click, because fill-down and paste reach the same edit by another route. */
+    var col = null;
+    invCols().forEach(function (c) { if (c.key === field) { col = c; } });
+    if (!col || !invColEditable(col, editable)) { return; }
     INV.cur = { row: unitNumber, col: field };
     INV.editing = { row: unitNumber, col: field, seed: seed };
     renderInv();
     var input = $("invCellInput");
     if (input) {
       input.focus();
+      /* A picker has neither select() nor a selection range - it is already showing its
+         options, which is the whole point of using one for an enum. */
+      if (input.tagName === "SELECT") { return; }
       if (seed === undefined) { input.select(); }
       else { input.setSelectionRange(input.value.length, input.value.length); }
     }
@@ -4665,11 +4957,12 @@
      the column, and it costs nothing: the paste path finds the row by position, and the
      server is only ever sent the stored number. */
   function invTsv(rows) {
-    var head = ["Unit"].concat(INV_COLS.map(function (c) { return c.label; }));
+    var tcols = invCols();
+    var head = ["Unit"].concat(tcols.map(function (c) { return c.label; }));
     var lines = [head.join("\t")];
     rows.forEach(function (u) {
       var cells = [invPad(u.unit_number)];
-      INV_COLS.forEach(function (c) { cells.push(invCellValue(u, c)); });
+      tcols.forEach(function (c) { cells.push(invCellValue(u, c)); });
       lines.push(cells.join("\t"));
     });
     return lines.join("\n");
@@ -4733,7 +5026,7 @@
     var us = (INV.data && INV.data.units) || [];
     var byNum = {}; us.forEach(function (u) { byNum[u.unit_number] = u; });
     var col = null;
-    INV_COLS.forEach(function (c) { if (c.key === INV.cur.col) { col = c; } });
+    invCols().forEach(function (c) { if (c.key === INV.cur.col) { col = c; } });
     if (!col) { return; }
 
     var seed = invCellValue(byNum[INV.cur.row], col);
@@ -4764,7 +5057,7 @@
        nothing to show for it. A block that names its rows should be matched on the name. */
     var headCells = lines[0].split("\t").map(function (c) { return c.trim().toLowerCase(); });
     var byLabel = {};
-    INV_COLS.forEach(function (c) { byLabel[c.label.toLowerCase()] = c; });
+    invCols().forEach(function (c) { byLabel[c.label.toLowerCase()] = c; });
 
     var isRoundTrip = headCells[0] === "unit" && lines.length > 1;
     if (isRoundTrip) {
@@ -4779,7 +5072,8 @@
     var vis = invVisible();
     var r0 = vis.indexOf(INV.cur.row);
     var c0 = 0;
-    INV_COLS.forEach(function (c, i) { if (c.key === INV.cur.col) { c0 = i; } });
+    var pcols = invCols();
+    pcols.forEach(function (c, i) { if (c.key === INV.cur.col) { c0 = i; } });
     if (r0 === -1) { return; }
 
     var filled = 0, skipped = 0;
@@ -4788,7 +5082,7 @@
       var rowNum = vis[r0 + li];
       if (!rowNum) { skipped += cells.length; return; }
       cells.forEach(function (cell, ci) {
-        var col = INV_COLS[c0 + ci];
+        var col = pcols[c0 + ci];
         if (!col) { skipped += 1; return; }
         invSetPending(rowNum, col.key, cell);
         filled += 1;
@@ -4865,7 +5159,7 @@
       for (f in INV.pending[num]) {
         if (!Object.prototype.hasOwnProperty.call(INV.pending[num], f)) { continue; }
         var col = null;
-        INV_COLS.forEach(function (c) { if (c.key === f) { col = c; } });
+        invCols().forEach(function (c) { if (c.key === f) { col = c; } });
         fields[f] = invFromDisplay(col, INV.pending[num][f]);
       }
       /* The STORED number, never the padded label - the server matches exactly now. */
@@ -4957,7 +5251,7 @@
       return ph ? Number(ph.sort_order || 0) : null;
     }
     var col = null;
-    INV_COLS.forEach(function (c) { if (c.key === key) { col = c; } });
+    invCols().forEach(function (c) { if (c.key === key) { col = c; } });
     if (!col) { return ""; }
     /* The PENDING value, not the stored one - a column sorted while it is being edited
        should sort by what is on screen. */
@@ -5129,9 +5423,23 @@
     var dirty = invIsDirty(u.unit_number, col.key);
     var focused = INV.cur && INV.cur.row === u.unit_number && INV.cur.col === col.key;
     var isEditing = INV.editing && INV.editing.row === u.unit_number && INV.editing.col === col.key;
+    /* A column can be closed to editing while the grid as a whole is open - a value that
+       belongs to the type rather than the home, or one the development adopted read-only. */
+    var live = invColEditable(col, editable);
 
     if (isEditing) {
       var seeded = (INV.editing.seed === undefined) ? val : INV.editing.seed;
+      /* AN ENUM GETS ITS OPTIONS AND NOTHING ELSE CAN BE TYPED. A free text box here is how
+         a near-miss gets saved and then matches no filter - the same reason the settings
+         panel refuses to render one. */
+      if (col.kind === "enum" && col.options && col.options.length) {
+        return '<td class="gcell is-editing"><select id="invCellInput">' +
+          '<option value=""' + (seeded === "" ? " selected" : "") + ">—</option>" +
+          col.options.map(function (o) {
+            return '<option value="' + esc(o) + '"' +
+              (String(seeded) === String(o) ? " selected" : "") + ">" + esc(o) + "</option>";
+          }).join("") + "</select></td>";
+      }
       return '<td class="gcell is-editing"><input id="invCellInput" type="text" value="' +
         esc(seeded) + '"></td>';
     }
@@ -5143,19 +5451,26 @@
       shown = Number(shown).toLocaleString("en-ZA", { maximumFractionDigits: 2 });
     }
     var ph = (col.key === "price_cents" && placeholder && shown !== "");
+    /* Numbers align right so a column can be read down; words do not, because a ragged left
+       edge is harder to scan than a ragged right one. */
+    var numeric = (col.kind === "cents" || col.kind === "area" || col.kind === "pct" ||
+                   col.kind === "num");
 
-    return '<td class="gcell num' + (dirty ? " is-dirty" : "") + (focused ? " is-cur" : "") +
-      (editable ? " is-live" : "") + (ph ? " inv-ph" : "") +
+    return '<td class="gcell' + (numeric ? " num" : " txt") + (dirty ? " is-dirty" : "") +
+      (focused ? " is-cur" : "") +
+      (live ? " is-live" : "") + (ph ? " inv-ph" : "") +
       '" data-cell="' + esc(u.unit_number) + "|" + esc(col.key) + '"' +
-      (editable ? ' tabindex="-1"' : "") + ">" +
+      (live ? ' tabindex="-1"' : "") + ">" +
       (shown === "" ? '<span class="muted">—</span>' : esc(shown)) +
-      (shown !== "" && col.unit ? ' <span class="gunit">' + col.unit + "</span>" : "") +
+      (shown !== "" && col.unit ? ' <span class="gunit">' + esc(col.unit) + "</span>" : "") +
       "</td>";
   }
 
   function invRowHtml(u, placeholder) {
     var r = u.reservation;
-    var editable = invEditable().on;
+    /* The whole answer, not just the boolean: invColEditable needs to know WHY the grid is
+       closed as well as whether it is, and a column can be closed while the grid is open. */
+    var editable = invEditable();
     var picked = !!INV.sel[u.unit_number];
     /* A home with a deal on it goes to the deal; a home without one is the only kind
        whose state this screen may set, which is the same precedence the server enforces.
@@ -5178,7 +5493,7 @@
         (u.variant_code && u.variant_code !== u.type_code
           ? '<div class="inv-who">' + esc(u.variant_code) + "</div>" : "") + "</td>" +
       (invPhasesOn() ? '<td class="gphase">' + invPhaseCell(u) + "</td>" : "") +
-      INV_COLS.map(function (c) { return invCellHtml(u, c, editable, placeholder); }).join("") +
+      invCols().map(function (c) { return invCellHtml(u, c, editable, placeholder); }).join("") +
       "<td>" + invStateCell(u) +
         /* The state editor moved onto the row it belongs to, because the grid now has a
            column for every other fact about the home. */
@@ -5389,7 +5704,7 @@
 
     var rows = invRows();
     var editable = invEditable();
-    var COLSPAN = 5 + INV_COLS.length + (invPhasesOn() ? 1 : 0);
+    var COLSPAN = 5 + invCols().length + (invPhasesOn() ? 1 : 0);
     var allPicked = rows.length > 0 && rows.every(function (u) { return INV.sel[u.unit_number]; });
 
     var table = rows.length
@@ -5404,8 +5719,11 @@
         (invPhasesOn()
           ? '<th class="gphase"><button type="button" class="gsortbtn" data-sort="phase">' +
             "Phase" + invSortMark("phase") + "</button></th>" : "") +
-        INV_COLS.map(function (c) {
-          return '<th class="num" style="min-width:' + c.w + 'px">' +
+        invCols().map(function (c) {
+          var numeric = (c.kind === "cents" || c.kind === "area" || c.kind === "pct" ||
+                         c.kind === "num");
+          return '<th class="' + (numeric ? "num" : "txt") + '" style="min-width:' + c.w +
+            'px"' + (c.help ? ' title="' + esc(c.help) + '"' : "") + ">" +
             '<button type="button" class="gsortbtn" data-sort="' + esc(c.key) + '">' +
             esc(c.label) + invSortMark(c.key) + "</button></th>";
         }).join("") +
@@ -5477,7 +5795,7 @@
     /* Order: what you must know before reading a number, then the stock itself, then
        the explanations. An agent opens this screen to see homes, not paragraphs. */
     $("viewInv").innerHTML = topbar + stats + warn + lock + invPhasePanelHtml() +
-      bar + bulk + gerr + table + foot + noEngine + setup;
+      fldPanelHtml() + bar + bulk + gerr + table + foot + noEngine + setup;
     invWire();
   }
 
@@ -5502,6 +5820,28 @@
         invPhaseRelease(el.getAttribute("data-ph-rel"), el.getAttribute("data-ph-to") === "on");
       });
     });
+    var fo = $("invFldOpen");
+    if (fo) {
+      fo.addEventListener("click", function () {
+        FLD.open = true;
+        /* Loaded on first open rather than with the grid - it is a second call and most days
+           nobody touches it. Re-opening for the same development reuses what it has. */
+        if (FLD.slug !== INV.slug || !FLD.data) { fldLoad(INV.slug); }
+        else { renderInv(); }
+      });
+    }
+    var fs2 = $("invFldShut");
+    if (fs2) { fs2.addEventListener("click", function () { FLD.open = false; renderInv(); }); }
+    [].forEach.call($("viewInv").querySelectorAll("[data-fld-flag]"), function (el) {
+      el.addEventListener("click", function () {
+        fldSet(el.getAttribute("data-fld-key"), el.getAttribute("data-fld-flag"),
+          el.getAttribute("data-fld-to") === "on");
+      });
+    });
+    [].forEach.call($("viewInv").querySelectorAll("[data-fld-adopt]"), function (el) {
+      el.addEventListener("click", function () { fldAdopt(el.getAttribute("data-fld-adopt")); });
+    });
+
     var pm = $("invPhaseMove");
     if (pm) {
       pm.addEventListener("change", function () {
