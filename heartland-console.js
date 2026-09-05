@@ -352,11 +352,14 @@
     "  .tag.warn { color:var(--warning); border-color:var(--warning); background:color-mix(in srgb, var(--warning) 10%, transparent); }",
     "",
     "  /* ── drawer ───────────────────────────────────────────────────────────────── */",
-    "  .scrim { position:fixed; inset:0; background:rgba(0,0,0,.42); display:none; }",
+    "  /* Above the grid's sticky headers (z-index 1-3) and below the modals (50+). Without",
+    "     a level of its own the drawer sat UNDER a sticky column head, which painted a strip",
+    "     of the grid across whatever the drawer was showing. */",
+    "  .scrim { position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.42); display:none; }",
     "  :host([data-scheme=\"dark\"]) .scrim { background:rgba(0,0,0,.66); }",
     "  .scrim.open { display:block; }",
     "  .drawer {",
-    "    position:fixed; top:0; right:0; bottom:0; width:min(580px,100%);",
+    "    position:fixed; top:0; right:0; bottom:0; width:min(580px,100%); z-index:31;",
     "    background:var(--surface); border-left:1px solid var(--ring); padding:22px;",
     "    overflow-y:auto; transform:translateX(100%);",
     "    transition:transform .22s cubic-bezier(.4,0,.2,1); box-shadow:var(--shadow-lg);",
@@ -1013,19 +1016,21 @@
     "  }",
     "  .gphase-tag.is-out { color:var(--brand-ink); background:var(--brand); border-color:var(--accent); }",
     "  .gphase-none { color:var(--ink-muted); }",
-    "  .ph-shut { padding:0 !important; }",
-    "  .ph-shut button {",
-    "    font:inherit; display:block; width:100%; text-align:left; cursor:pointer;",
-    "    padding:12px 20px; border:0; background:transparent; color:var(--ink);",
+    "  /* THE PANEL BAR. One row of buttons that open Phases and Fields in the side drawer.",
+    "     They used to be fold-out cards stacked above the grid; a drawer keeps the stock on",
+    "     screen while somebody works on either, and closes the way everything else does. */",
+    "  .panel-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }",
+    "  .panel-btn {",
+    "    font:inherit; cursor:pointer; text-align:left; padding:9px 14px;",
+    "    border:1px solid var(--rule); border-radius:var(--radius); background:var(--surface);",
+    "    color:var(--ink); box-shadow:var(--shadow-sm);",
     "  }",
-    "  .ph-shut button:hover { background:var(--surface-2); }",
-    "  .ph-shut span { color:var(--ink-2); font-size:.8125rem; margin-left:8px; }",
-    "  .ph-head { display:flex; align-items:baseline; justify-content:space-between; }",
-    "  .ph-head button {",
-    "    font:inherit; font-size:.75rem; padding:2px 9px; cursor:pointer;",
-    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
-    "    background:transparent; color:var(--ink-2);",
-    "  }",
+    "  .panel-btn:hover { background:var(--surface-2); }",
+    "  .panel-btn b { font-weight:600; }",
+    "  .panel-btn span { color:var(--ink-2); font-size:.8125rem; margin-left:8px; }",
+    "  .panel-btn[aria-expanded=\"true\"] { border-color:var(--accent); }",
+    "  .drawer .ph-row, .drawer .fld-row { flex-wrap:wrap; }",
+    "  .drawer .fld-flags { flex-wrap:wrap; }",
     "  .ph-row {",
     "    display:flex; gap:16px; align-items:center; justify-content:space-between;",
     "    padding:11px 0; border-bottom:1px solid var(--rule);",
@@ -1050,7 +1055,7 @@
     "  }",
     "  .ph-in.is-code { flex:0 0 84px; }",
     "  .ph-new button {",
-    "    font:inherit; font-size:.8125rem; padding:6px 14px; cursor:pointer;",
+    "    font:inherit; font-size:.8125rem; padding:6px 14px; cursor:pointer; white-space:nowrap;",
     "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
     "    background:var(--surface-2); color:var(--ink);",
     "  }",
@@ -1094,9 +1099,17 @@
     "  }",
     "  .fld-add:hover { background:var(--surface-2); }",
     "  .fld-add:disabled { opacity:.5; cursor:default; }",
-    "  .fld-add.is-have {",
-    "    display:inline-block; color:var(--ink-muted); border-style:dashed; cursor:default;",
+    "  /* In use reads as a pressed toggle, and it IS one: clicking it takes the field off",
+    "     again. Retiring keeps every recorded value, so the round trip costs nothing. */",
+    "  .fld-add.is-have { background:var(--brand); color:var(--brand-ink); border-color:var(--accent); }",
+    "  .fld-add.is-have:hover { background:var(--brand); opacity:.85; }",
+    "  .fld-remove {",
+    "    font:inherit; font-size:.6875rem; padding:4px 10px; cursor:pointer;",
+    "    border:1px solid transparent; border-radius:var(--radius-sm);",
+    "    background:transparent; color:var(--ink-muted);",
     "  }",
+    "  .fld-remove:hover { color:var(--ink); border-color:var(--rule); background:var(--surface-2); }",
+    "  .fld-remove:disabled { opacity:.5; cursor:default; }",
     "  #invPhaseMove {",
     "    font:inherit; font-size:.75rem; padding:4px 8px;",
     "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
@@ -2913,6 +2926,7 @@
     var r = find(uuid);
     if (!r) { return; }
     S.open = uuid;
+    PANEL.kind = "";
 
     var canStage = (r.status === "confirmed" || r.status === "awaiting_clearance");
     var opts = canStage ? stageOptions(r) : [];
@@ -3828,6 +3842,7 @@
 
   function closeDrawer() {
     S.open = null;
+    PANEL.kind = "";
     $("scrim").classList.remove("open");
     $("drawer").classList.remove("open");
     $("drawer").setAttribute("aria-hidden", "true");
@@ -4248,9 +4263,7 @@
 
   var INV = {
     slug: "", data: null, loading: false, err: "", q: "", state: "", type: "",
-    /* The release panel is folded away by default - most days nobody is launching anything,
-       and an open panel above the grid costs every agent a scroll to reach their stock. */
-    phasesOpen: false, phaseSaving: "", phaseErr: "",
+    phaseSaving: "", phaseErr: "",
     /* ---- the grid ----
        EDITS ARE HELD LOCALLY UNTIL SAVED, and that is the whole reason this feels like a
        spreadsheet rather than a form. Typing in a cell, tabbing on, pasting a column and
@@ -4320,10 +4333,11 @@
     if (changed || !keep) {
       INV.pending = {}; INV.sel = {}; INV.cur = null; INV.anchor = "";
       INV.bulk = null; INV.saveErr = "";
-      /* The Fields panel belongs to a development, so it goes with it. Keeping it open
-         across a switch would show one development's columns over another's stock. */
-      INV.phasesOpen = false; INV.phaseErr = "";
-      FLD.data = null; FLD.slug = ""; FLD.open = false; FLD.err = "";
+      /* The Phases and Fields drawers belong to a development, so they go with it. Keeping
+         one open across a switch would show one development's columns over another's stock. */
+      INV.phaseErr = "";
+      FLD.data = null; FLD.slug = ""; FLD.err = "";
+      panelClose();
     }
     INV.editing = null;
     /* The old rows stay on screen through a keeping reload, so the grid does not blink. */
@@ -4395,27 +4409,46 @@
       esc(short) + "</span>";
   }
 
-  /* THE RELEASE PANEL. Every phase, what is in it, and the one button that puts it on the
-     market. It is folded away by default because most days nobody is launching anything, and
-     an open panel above the grid would cost every agent a scroll to see their stock. */
-  function invPhasePanelHtml() {
-    if (!invPhasesOn()) { return ""; }
-    var list = invPhases();
+  /* THE PANEL BAR. Phases and Fields each get one button carrying a one-line summary, and
+     open in the side drawer. They used to be fold-out cards above the grid, and an open one
+     pushed the stock off the screen - which is the thing an agent came here to see. */
+  function panelBarHtml() {
+    if (!INV.slug || INV.err) { return ""; }
     var d = INV.data || {};
-    var can = canPhase();
-
-    if (!INV.phasesOpen) {
-      var out = 0, pending = 0;
+    var btns = [];
+    if (invPhasesOn()) {
+      var list = invPhases(), out = 0, pending = 0;
       list.forEach(function (p2) { if (p2.is_released) { out++; } else { pending++; } });
-      return '<div class="card pad ph-shut"><button type="button" id="invPhaseOpen">' +
-        "<b>Phases</b> <span>" +
+      btns.push('<button type="button" class="panel-btn" id="invPhaseOpen" aria-expanded="' +
+        (PANEL.kind === "phases" ? "true" : "false") + '"><b>Phases</b><span>' +
         (list.length
           ? out + " released, " + pending + " pending"
           : "none yet \u2014 create the first") +
         ((d.counts && d.counts.unphased)
           ? " \u00b7 " + d.counts.unphased + " in no phase" : "") +
-        "</span></button></div>";
+        "</span></button>");
     }
+    var n = d.fields || [];
+    var shown = n.filter(function (x) { return x.is_grid; }).length;
+    btns.push('<button type="button" class="panel-btn" id="invFldOpen" aria-expanded="' +
+      (PANEL.kind === "fields" ? "true" : "false") + '"><b>Fields</b><span>' +
+      (n.length
+        ? n.length + " in use, " + shown + " shown as columns"
+        : "none yet \u2014 choose what this development records") +
+      "</span></button>");
+    return '<div class="panel-bar">' + btns.join("") + "</div>";
+  }
+
+  /* THE RELEASE PANEL. Every phase, what is in it, and the one button that puts it on the
+     market. Rendered into the side drawer by renderPanel. */
+  function phasesDrawerHtml() {
+    if (!invPhasesOn()) {
+      return '<div class="inv-empty">Phases are switched off for this development. An admin ' +
+        "can turn them on under Developments.</div>";
+    }
+    var list = invPhases();
+    var d = INV.data || {};
+    var can = canPhase();
 
     /* What the PUBLIC sees, said here rather than left to somebody to remember, because the
        same phase behaves differently on the site depending on a setting two screens away. */
@@ -4465,14 +4498,11 @@
     var err = INV.phaseErr
       ? '<div class="err" style="margin-bottom:10px">' + esc(INV.phaseErr) + "</div>" : "";
 
-    return '<div class="card pad ph-panel">' +
-      '<div class="ph-head"><h2>Phases</h2>' +
-      '<button type="button" id="invPhaseShut">Hide</button></div>' +
-      '<div class="inv-owed" style="margin-bottom:12px">Releasing a phase writes nothing onto ' +
+    return '<div class="inv-owed" style="margin:12px 0">Releasing a phase writes nothing onto ' +
       "a single home. Availability is worked out when somebody asks \u2014 a hold first, then " +
       "anything recorded by hand, then the phase \u2014 so a home in this phase that is held " +
       "or already sold keeps its state either way. " + esc(vis) + "</div>" +
-      err + rowsHtml + mk + "</div>";
+      err + rowsHtml + mk;
   }
 
   function invPhaseRelease(id, on) {
@@ -4544,7 +4574,7 @@
 
      LOADED ONLY WHEN OPENED. It is a second call and most days nobody touches it; the grid
      already has everything it needs from /staff/inventory. */
-  var FLD = { data: null, slug: "", loading: false, open: false, saving: "", err: "" };
+  var FLD = { data: null, slug: "", loading: false, saving: "", err: "" };
 
   function fldLoad(slug) {
     if (!slug) { return; }
@@ -4571,42 +4601,43 @@
       why: "Appears as a filter chip on the site. Needs Public: a facet on withheld data is a chip that matches nothing." }
   ];
 
-  function fldSet(fieldKey, flag, value) {
+  /* ONE WRITE, THEN BOTH READS, AND THE SWITCHES STAY BUSY UNTIL THE READS ARE BACK. The
+     panel owns the flags and the grid owns the columns, so a change has to move both, and
+     re-reading rather than patching keeps the server the only thing that decides what a
+     variant-sourced field may be. The busy state used to clear the moment the write returned,
+     which left a half-second in which the switch showed its OLD state and accepted a click -
+     so a person who did not see it change clicked again and put it straight back. That is
+     what "I could not untoggle it" looked like from the other side of the screen. */
+  function fldWrite(tag, body) {
     if (FLD.saving) { return; }
-    FLD.saving = fieldKey + ":" + flag; FLD.err = "";
+    FLD.saving = tag; FLD.err = "";
     renderInv();
-    var body = { property_slug: INV.slug, field_key: fieldKey, action: "set" };
-    body[flag] = value;
     api("/staff/fields", { method: "POST", body: JSON.stringify(body) })
       .then(function () {
-        FLD.saving = "";
-        /* Both, and in this order: the panel owns the flags, the grid owns the columns, and
-           a flag change moves both. Re-reading rather than patching keeps the server the only
-           thing that decides what a variant-sourced field is allowed to be. */
         return fldLoad(INV.slug).then(function () { return invLoad(INV.slug, true); });
       })
-      .catch(function (e) {
-        FLD.saving = ""; FLD.err = e.message; renderInv();
-      });
+      .catch(function (e) { FLD.err = e.message; })
+      .then(function () { FLD.saving = ""; renderInv(); });
+  }
+
+  function fldSet(fieldKey, flag, value) {
+    var body = { property_slug: INV.slug, field_key: fieldKey, action: "set" };
+    body[flag] = value;
+    fldWrite(fieldKey + ":" + flag, body);
   }
 
   function fldAdopt(fieldKey) {
-    if (FLD.saving) { return; }
-    FLD.saving = "adopt:" + fieldKey; FLD.err = "";
-    renderInv();
-    api("/staff/fields", {
-      method: "POST",
-      body: JSON.stringify({
-        property_slug: INV.slug, field_key: fieldKey, action: "adopt", is_grid: true
-      })
-    })
-      .then(function () {
-        FLD.saving = "";
-        return fldLoad(INV.slug).then(function () { return invLoad(INV.slug, true); });
-      })
-      .catch(function (e) {
-        FLD.saving = ""; FLD.err = e.message; renderInv();
-      });
+    fldWrite("adopt:" + fieldKey,
+      { property_slug: INV.slug, field_key: fieldKey, action: "adopt", is_grid: true });
+  }
+
+  /* TAKING A FIELD OFF AGAIN. Retiring is a set, not a delete: every value recorded on every
+     home stays where it is, the column and the flags just stop applying, and adopting it back
+     brings all of it back. That is why this needs no confirm and why the catalogue can offer
+     it as a plain toggle. */
+  function fldRetire(fieldKey) {
+    fldWrite("retire:" + fieldKey,
+      { property_slug: INV.slug, field_key: fieldKey, action: "set", is_active: false });
   }
 
   function fldFlagHtml(f, flag) {
@@ -4626,34 +4657,16 @@
       '" aria-pressed="' + (on ? "true" : "false") + '">' + esc(flag.label) + "</button>";
   }
 
-  function fldPanelHtml() {
-    if (!INV.slug) { return ""; }
-
-    if (!FLD.open) {
-      var n = (INV.data && INV.data.fields) || [];
-      var shown = n.filter(function (x) { return x.is_grid; }).length;
-      return '<div class="card pad ph-shut"><button type="button" id="invFldOpen">' +
-        "<b>Fields</b> <span>" +
-        (n.length
-          ? n.length + " in use, " + shown + " shown as columns"
-          : "none yet \u2014 choose what this development records") +
-        "</span></button></div>";
-    }
-
-    if (FLD.err) {
-      return '<div class="card pad ph-panel"><div class="ph-head"><h2>Fields</h2>' +
-        '<button type="button" id="invFldShut">Hide</button></div>' +
-        '<div class="err">' + esc(FLD.err) + "</div></div>";
-    }
+  function fieldsDrawerHtml() {
     if (!FLD.data) {
-      return '<div class="card pad ph-panel"><div class="ph-head"><h2>Fields</h2>' +
-        '<button type="button" id="invFldShut">Hide</button></div>' +
+      return (FLD.err ? '<div class="err">' + esc(FLD.err) + "</div>" : "") +
         '<div class="inv-empty">' + (FLD.loading ? "Loading\u2026" : "Nothing loaded.") +
-        "</div></div>";
+        "</div>";
     }
 
     var d = FLD.data;
     var mine = (d.fields || []).map(function (f) {
+      var retiring = FLD.saving === ("retire:" + f.field_key);
       return '<div class="fld-row">' +
         '<div class="feat-text"><div class="feat-name">' + esc(f.label) +
           '<span class="fld-src">' + esc(f.source) + "</span></div>" +
@@ -4665,6 +4678,11 @@
           (f.help_text ? " \u00b7 " + esc(f.help_text) : "") + "</div></div>" +
         '<div class="fld-flags">' +
           FLD_FLAGS.map(function (fl) { return fldFlagHtml(f, fl); }).join("") +
+          '<button type="button" class="fld-remove" data-fld-retire="' + esc(f.field_key) +
+            '"' + (retiring ? " disabled" : "") +
+            ' title="Take this field off the development. Every value already recorded is kept, ' +
+            'and adding it back brings them back.">' + (retiring ? "\u2026" : "Remove") +
+          "</button>" +
         "</div></div>";
     }).join("");
 
@@ -4681,28 +4699,102 @@
     var menu = groups.map(function (g) {
       return '<div class="fld-group"><h3>' + esc(g.name) + "</h3>" +
         g.items.map(function (c) {
-          var busy = FLD.saving === ("adopt:" + c.field_key);
+          var busy = FLD.saving === ("adopt:" + c.field_key) ||
+                     FLD.saving === ("retire:" + c.field_key);
+          /* In use is a pressed toggle, and pressing it again takes the field off. It used
+             to be an inert tick, which left "how do I undo this" with no answer on the
+             screen - the one place a person looks for it is the button they just pressed. */
           if (c.adopted && !c.retired) {
-            return '<span class="fld-add is-have" title="' + esc(c.help_text || "") + '">' +
-              esc(c.label) + " \u2713</span>";
+            return '<button type="button" class="fld-add is-have" data-fld-retire="' +
+              esc(c.field_key) + '"' + (busy ? " disabled" : "") + ' aria-pressed="true" title="' +
+              esc((c.help_text ? c.help_text + " " : "") +
+                  "In use. Click to take it off again - recorded values are kept.") + '">' +
+              esc(c.label) + " \u2713</button>";
           }
           return '<button type="button" class="fld-add" data-fld-adopt="' + esc(c.field_key) +
-            '"' + (busy ? " disabled" : "") + ' title="' + esc(c.help_text || "") + '">' +
+            '"' + (busy ? " disabled" : "") + ' aria-pressed="false" title="' +
+            esc(c.help_text || "") + '">' +
             esc(c.label) + (c.retired ? " \u21ba" : " +") + "</button>";
         }).join("") + "</div>";
     }).join("");
 
-    return '<div class="card pad ph-panel">' +
-      '<div class="ph-head"><h2>Fields</h2>' +
-      '<button type="button" id="invFldShut">Hide</button></div>' +
-      '<div class="inv-owed" style="margin-bottom:12px">What this development records about a ' +
+    var err = FLD.err ? '<div class="err" style="margin-bottom:10px">' + esc(FLD.err) + "</div>" : "";
+
+    return '<div class="inv-owed" style="margin:12px 0">What this development records about a ' +
       "home, and where each fact is allowed to appear. Adding a field never publishes it \u2014 " +
       "<strong>Column</strong>, <strong>Editable</strong>, <strong>Public</strong> and " +
       "<strong>Filter</strong> are four separate decisions, because showing your own team a " +
-      "figure and putting it on the website are not the same thing.</div>" +
+      "figure and putting it on the website are not the same thing. Removing one keeps every " +
+      "value already recorded.</div>" + err +
       (mine || '<div class="inv-empty">No optional fields yet. Add one below.</div>') +
-      '<div class="fld-menu"><h3 class="fld-menu-head">Available to add</h3>' + menu + "</div>" +
-      "</div>";
+      '<div class="fld-menu"><h3 class="fld-menu-head">Available to add</h3>' + menu + "</div>";
+  }
+
+  /* ---------- the side drawer, for Phases and Fields ----------
+     THE SAME DRAWER THE PIPELINE USES for a reservation, so it closes the same three ways -
+     Close, the scrim, Escape - and only one thing is ever open in it. It re-renders whenever
+     the grid does, because every save in it changes the grid and the grid's reload is what
+     brings the fresh answer back. */
+  var PANEL = { kind: "" };
+
+  function openPanel(kind) {
+    S.open = null;
+    PANEL.kind = kind;
+    if (kind === "fields" && (FLD.slug !== INV.slug || !FLD.data)) { fldLoad(INV.slug); }
+    renderInv();
+  }
+
+  function panelClose() {
+    if (!PANEL.kind) { return; }
+    PANEL.kind = "";
+    $("scrim").classList.remove("open");
+    $("drawer").classList.remove("open");
+    $("drawer").setAttribute("aria-hidden", "true");
+  }
+
+  function renderPanel() {
+    if (!PANEL.kind) { return; }
+    var isPh = PANEL.kind === "phases";
+    var d = INV.data || {};
+    $("drawer").innerHTML =
+      "<header><div><h1>" + (isPh ? "Phases" : "Fields") + "</h1>" +
+        '<div class="muted">' + esc(d.property_name || INV.slug) + "</div></div>" +
+        '<button id="close">Close</button></header>' +
+      '<div id="panelBody">' + (isPh ? phasesDrawerHtml() : fieldsDrawerHtml()) + "</div>";
+    $("scrim").classList.add("open");
+    $("drawer").classList.add("open");
+    $("drawer").setAttribute("aria-hidden", "false");
+    $("close").addEventListener("click", closeDrawer);
+    panelWire();
+  }
+
+  function panelWire() {
+    var root = $("drawer");
+    var pa = $("invPhaseAdd");
+    if (pa) { pa.addEventListener("click", invPhaseAdd); }
+    var pn = $("invPhaseName");
+    if (pn) {
+      pn.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); invPhaseAdd(); }
+      });
+    }
+    [].forEach.call(root.querySelectorAll("[data-ph-rel]"), function (el) {
+      el.addEventListener("click", function () {
+        invPhaseRelease(el.getAttribute("data-ph-rel"), el.getAttribute("data-ph-to") === "on");
+      });
+    });
+    [].forEach.call(root.querySelectorAll("[data-fld-flag]"), function (el) {
+      el.addEventListener("click", function () {
+        fldSet(el.getAttribute("data-fld-key"), el.getAttribute("data-fld-flag"),
+          el.getAttribute("data-fld-to") === "on");
+      });
+    });
+    [].forEach.call(root.querySelectorAll("[data-fld-adopt]"), function (el) {
+      el.addEventListener("click", function () { fldAdopt(el.getAttribute("data-fld-adopt")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-fld-retire]"), function (el) {
+      el.addEventListener("click", function () { fldRetire(el.getAttribute("data-fld-retire")); });
+    });
   }
 
   function invEditable() {
@@ -5794,9 +5886,10 @@
 
     /* Order: what you must know before reading a number, then the stock itself, then
        the explanations. An agent opens this screen to see homes, not paragraphs. */
-    $("viewInv").innerHTML = topbar + stats + warn + lock + invPhasePanelHtml() +
-      fldPanelHtml() + bar + bulk + gerr + table + foot + noEngine + setup;
+    $("viewInv").innerHTML = topbar + stats + warn + lock + panelBarHtml() +
+      bar + bulk + gerr + table + foot + noEngine + setup;
     invWire();
+    renderPanel();
   }
 
   function invWire() {
@@ -5804,43 +5897,11 @@
     if (p) { p.addEventListener("change", function () { invLoad(p.value); }); }
 
     var po = $("invPhaseOpen");
-    if (po) { po.addEventListener("click", function () { INV.phasesOpen = true; renderInv(); }); }
-    var ps = $("invPhaseShut");
-    if (ps) { ps.addEventListener("click", function () { INV.phasesOpen = false; renderInv(); }); }
-    var pa = $("invPhaseAdd");
-    if (pa) { pa.addEventListener("click", invPhaseAdd); }
-    var pn = $("invPhaseName");
-    if (pn) {
-      pn.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") { e.preventDefault(); invPhaseAdd(); }
-      });
-    }
-    [].forEach.call($("viewInv").querySelectorAll("[data-ph-rel]"), function (el) {
-      el.addEventListener("click", function () {
-        invPhaseRelease(el.getAttribute("data-ph-rel"), el.getAttribute("data-ph-to") === "on");
-      });
-    });
+    if (po) { po.addEventListener("click", function () { openPanel("phases"); }); }
+    /* Fields are loaded on first open rather than with the grid - it is a second call and
+       most days nobody touches it. Re-opening for the same development reuses what it has. */
     var fo = $("invFldOpen");
-    if (fo) {
-      fo.addEventListener("click", function () {
-        FLD.open = true;
-        /* Loaded on first open rather than with the grid - it is a second call and most days
-           nobody touches it. Re-opening for the same development reuses what it has. */
-        if (FLD.slug !== INV.slug || !FLD.data) { fldLoad(INV.slug); }
-        else { renderInv(); }
-      });
-    }
-    var fs2 = $("invFldShut");
-    if (fs2) { fs2.addEventListener("click", function () { FLD.open = false; renderInv(); }); }
-    [].forEach.call($("viewInv").querySelectorAll("[data-fld-flag]"), function (el) {
-      el.addEventListener("click", function () {
-        fldSet(el.getAttribute("data-fld-key"), el.getAttribute("data-fld-flag"),
-          el.getAttribute("data-fld-to") === "on");
-      });
-    });
-    [].forEach.call($("viewInv").querySelectorAll("[data-fld-adopt]"), function (el) {
-      el.addEventListener("click", function () { fldAdopt(el.getAttribute("data-fld-adopt")); });
-    });
+    if (fo) { fo.addEventListener("click", function () { openPanel("fields"); }); }
 
     var pm = $("invPhaseMove");
     if (pm) {
