@@ -2,9 +2,9 @@
  "_README": [
   "THE CONSOLE/SERVER CONTRACT. Generated from the LIVE server by the Xano function",
   "emit_console_contract (fn 172) - never edited by hand.",
-  "6 Sep 17:19 - regenerated after res_development_fields.options was made nullable and",
-  "the three readers stopped forwarding {} as if it were a list. $.fields[].options is",
-  "now scalar (null on rows that have no enum) rather than object. Path counts unchanged.",
+  "6 Sep 19:41 - regenerated after resolve_development_fields (fn 176) became the one",
+  "implementation of the field-registry shape. The two staff reads now emit the SAME",
+  "normalised row: inventory gained can_edit and is_active, fields gained inherits.",
   "",
   "Each entry is a sorted list of 'path:kind' for one endpoint the console RENDERS from.",
   "kind is object | array | scalar. There are NO VALUES here, deliberately:",
@@ -17,7 +17,7 @@
   "parts of tests/fixtures/dash.html now disagree with the server."
  ],
  "generated_from": "stellenbosch",
- "generated_at": "2026-09-06T17:19Z",
+ "generated_at": "2026-09-06T19:41Z",
  "generator": "emit_console_contract (Xano fn 172, workspace 5, branch v1)",
  "endpoints": {
   "inventory": [
@@ -45,11 +45,13 @@
    "$.counts.variants_all:scalar",
    "$.counts:object",
    "$.fields:array",
+   "$.fields[].can_edit:scalar",
    "$.fields[].display_order:scalar",
    "$.fields[].field_key:scalar",
    "$.fields[].filled:scalar",
    "$.fields[].help_text:scalar",
    "$.fields[].inherits:scalar",
+   "$.fields[].is_active:scalar",
    "$.fields[].is_editable:scalar",
    "$.fields[].is_filterable:scalar",
    "$.fields[].is_grid:scalar",
@@ -318,6 +320,7 @@
    "$.fields[].field_key:scalar",
    "$.fields[].filled:scalar",
    "$.fields[].help_text:scalar",
+   "$.fields[].inherits:scalar",
    "$.fields[].is_active:scalar",
    "$.fields[].is_editable:scalar",
    "$.fields[].is_filterable:scalar",
