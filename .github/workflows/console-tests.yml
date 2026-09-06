@@ -1,0 +1,85 @@
+# THE CONSOLE SUITES, RUN WITHOUT ANYBODY'S LAPTOP.
+#
+# WHY THIS EXISTS. The twelve suites are the behavioural specification of the sales
+# console, and until 6 Sep the only way to run them was for a person to remember to.
+# That is the same argument that put run_smoke_all on a nightly schedule in Xano: a
+# suite only runs when somebody runs it, and the night an endpoint breaks is the night
+# nobody does.
+#
+# IT ALSO RUNS ON DEMAND. workflow_dispatch puts a "Run workflow" button in the GitHub
+# UI, including on a phone - which is the whole point, because the alternative is a
+# terminal.
+#
+# THE FIRST RUN IS ALSO A TEST OF THE RUNNER. test-console-dash asserts that the
+# browser really has South African locale data before it judges any money formatting.
+# A Chromium without it renders the console's en-ZA figures as en-US while reporting
+# supportedLocalesOf(["en-ZA"]) as supported - which is exactly how six assertions sat
+# green in a container for a week against a format no user has ever seen. If that
+# assertion goes red here, this runner cannot judge money either, and the fix is at the
+# bottom of this file rather than in the tests.
+name: Console tests
+
+on:
+  push:
+    paths:
+      - 'heartland-console.js'
+      - 'tests/**'
+      - '.github/workflows/console-tests.yml'
+  pull_request:
+    paths:
+      - 'heartland-console.js'
+      - 'tests/**'
+  workflow_dispatch:
+
+jobs:
+  suites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # playwright drives eleven of the suites; jsdom runs test-editors.
+      - name: Install test dependencies
+        run: npm install --prefix tests
+
+      # --with-deps pulls the system libraries headless Chromium needs on ubuntu.
+      #
+      # working-directory MATTERS HERE. `npx --prefix tests playwright ...` looks like
+      # it would use the copy just installed and does not - npx ignores --prefix,
+      # silently downloads a DIFFERENT playwright from the network, and installs that
+      # version's browsers instead. The suites would then run against a browser build
+      # nobody chose. Running from inside tests/ makes npx resolve the local one.
+      - name: Install Chromium
+        working-directory: tests
+        run: npx playwright install --with-deps chromium
+
+      # run.sh copies heartland-console.js into tests/fixtures/ first. Without that
+      # copy a run grades whatever was last left there - which has happened.
+      - name: Run the suites
+        run: ./tests/run.sh
+
+# ── IF THE LOCALE ASSERTION FAILS ON THIS RUNNER ────────────────────────────────
+#
+# It means this Chromium build has no South African locale data, so every money
+# figure it renders is unrepresentative and the run cannot judge that half of the
+# console. It does NOT mean the console is wrong - the console pins en-ZA in all
+# three of its formatters.
+#
+# The fix is to run the suites against a browser that has full ICU, not to soften
+# the assertion. Add a channel to the launch call, or install real Chrome on the
+# runner and use `channel: "chrome"`:
+#
+#   - name: Install Chrome (full ICU)
+#     working-directory: tests
+#     run: npx playwright install --with-deps chrome
+#
+# and launch with { channel: "chrome" } in the suites' `open` helpers.
+#
+# Do not "fix" it by comparing separators loosely everywhere and calling it green.
+# That is what was wrong before: six assertions that graded the browser build rather
+# than the code, and stayed green for a week against a format no user has ever seen.
