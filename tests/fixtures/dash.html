@@ -1,0 +1,1663 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;padding:0;background:#f0eeea}</style></head><body>
+<div id="hl-console-host"></div>
+<script>
+(function(){
+  var DAY = 86400000, now = Date.now();
+  // ?span=long stretches the confirmation dates past a year, so the 12-bucket cap
+  // on the time chart is really exercised rather than assumed.
+  var STEP = /[?&]span=long/.test(location.search) ? 20 : 9;
+  var SUBS = ["pre-qualify","sign-otp","pay-deposit","transfer-attorneys","bond-approval","bond-approved"];
+  var STATUS = ["confirmed","confirmed","confirmed","awaiting_payment","awaiting_clearance",
+                "held","payment_failed","cancelled","refunded"];
+  var PROPS = [{slug:"sanford-heart",name:"Sanford Heart",is_payfast_live:true},
+               {slug:"polaris",name:"Polaris",is_payfast_live:true},
+               {slug:"outeniqua",name:"Outeniqua",is_payfast_live:false},
+               {slug:"stellenbosch",name:"Stellenbosch Village",is_payfast_live:false}];
+  var items = [], i;
+  for (i = 0; i < 30; i++) {
+    var p = PROPS[i % 3];
+    var due = (i % 7 === 0) ? now - 2*DAY          // overdue
+            : (i % 7 === 1) ? now + 1.5*DAY        // <=3d
+            : (i % 7 === 2) ? now + 5*DAY          // <=7d
+            : (i % 7 === 3) ? now + 40*DAY         // further out
+            : null;                                 // no deadline
+    items.push({
+      uuid: "u" + i,
+      reference: "RES-" + p.slug.slice(0,3).toUpperCase() + "-" + String(i+1).padStart(3,"0"),
+      first_name: "Buyer", last_name: String(i+1), email: "b"+i+"@example.co.za", phone: "",
+      property_slug: p.slug, property_name: p.name, unit_name: "Unit " + (i+1),
+      status: STATUS[i % STATUS.length],
+      deal_stage: (i % 9 === 8) ? null : "reserve",
+      deal_sub_stage: (i % 9 === 8) ? null : SUBS[i % 6],
+      deal_stage_due_at: due,
+      overdue: due !== null && due < now,
+      days_left: due === null ? null : Math.round((due-now)/DAY),
+      needs_attention: (i % 11 === 0),
+      admin_notes: (i % 11 === 0) ? "Unit lost after payment" : "",
+      payer_route: (i % 4 === 0) ? "cash" : (i % 4 === 1) ? "undecided" : "bond",
+      reservation_fee_cents: 2500000,
+      total_cents: 180000000 + (i * 3700000),
+      // spread confirmations back over ~10 months; three rows never confirmed
+      confirmed_at: (i % 10 === 9) ? null : now - (i * STEP * DAY),
+      addon_count: 0, pf_payment_id: "pf" + i, has_member: true
+    });
+  }
+  window.__FIXTURE = {
+    staff: { name: "Anneke Grobler", role: "sales" },
+    matched: items.length,
+    summary: { total: items.length,
+               overdue: items.filter(function(r){return r.overdue;}).length,
+               needs_attention: items.filter(function(r){return r.needs_attention;}).length,
+               by_status: { confirmed: 10, awaiting_payment: 4 },
+               by_deal_stage: { reserve: 27 } },
+    properties: PROPS,
+    items: items
+  };
+  /* A model-native development: no Webflow ids, states recorded directly, and money
+     that is not money yet. */
+  (function () {
+    var us = [], st, i;
+    for (i = 1; i <= 12; i++) {
+      st = (i <= 7) ? "available" : (i <= 9) ? "sold" : (i === 10) ? "held" : "unreleased";
+      us.push({
+        unit_number: String(i), name: "Unit " + i, slug: "unit-" + i,
+        /* THE UNIT POINTS AT A VARIANT, and the type is read THROUGH it - which is the
+           shape of the real model, and the reason unit_variant_id is on the row at all. The
+           earlier fixture named a Type C that no variant belonged to; a register test would
+           have counted a home into a type nothing pointed at. */
+        unit_variant_id: (i % 2 === 0) ? 21 : 11,
+        type_code: (i % 2 === 0) ? "B" : "A",
+        type_name: "Type " + ((i % 2 === 0) ? "B" : "A"),
+        variant_code: (i % 2 === 0) ? "B1" : "A1",
+        type_is_active: true, variant_is_active: true, orphan_variant: false,
+        bedrooms: 3, bathrooms: 2, parking: 2,
+        price_cents: 300000000 + i * 10000000,
+        internal_area_sqm: (i % 3 === 0) ? null : 120 + i,
+        erf_area_sqm: null,
+        levy_monthly_cents: null, rates_monthly_cents: null,
+        deposit_bond_pct: (i === 1) ? 10 : null, deposit_cash_pct: null,
+        occupational_rental_pct: null,
+        state: st, state_source: st === "available" ? "none" : "offer_state",
+        is_available: st === "available",
+        reservation: null,
+        offer_state: st === "available" ? null : {
+          state: st === "held" ? "reserved" : st,
+          note: "Recorded directly — no reservation engine on this development.",
+          source: "imported_sv", external_ref: null, updated_at: Date.now()
+        },
+        attributes: { erf_number: 17500 + i, aspect: "North-facing" },
+        /* Resolved by the server, whatever table each one actually came from. The grid reads
+           only this - it never goes looking in attributes itself. */
+        field_values: {
+          aspect: (i % 2 === 0) ? "North-facing" : "East-facing",
+          erf_number: 17500 + i,
+          bedrooms: 3,
+          view_tags: ["park", "mountain"]
+        },
+        phase_id: (i <= 6) ? 1 : 2,
+        phase: (i <= 6)
+          ? { id: 1, name: "Phase 1", code: "P1", is_released: true, sort_order: 0 }
+          : { id: 2, name: "Phase 2", code: "P2", is_released: false, sort_order: 1 },
+        wf_unit_id: null, source: "sv"
+      });
+    }
+    /* THE CHAIN, APPLIED IN THE FIXTURE THE SAME WAY THE SERVER APPLIES IT: hold, then
+       offer state, then phase. A home in the pending phase that nothing else has claimed
+       becomes unreleased and says the phase answered. One that is already sold stays sold. */
+    us.forEach(function (x) {
+      if (x.state === "available" && x.phase && !x.phase.is_released) {
+        x.state = "unreleased";
+        x.state_source = "phase";
+        x.is_available = false;
+      }
+    });
+    /* THE TYPE AND VARIANT REGISTER, kept as its own object because the server keeps it in
+       its own tables and its own endpoint. The inventory read derives its type and variant
+       COUNTS from this rather than carrying its own, for the same reason the real one does:
+       two numbers for one fact eventually disagree, and the panel-bar button is drawn from
+       the grid read while the drawer is drawn from here. */
+    /* POLARIS HAS ITS OWN REGISTER, because the real endpoints read the same tables and a
+       fixture where /staff/inventory counts one type and /staff/types shows none would let a
+       test pass over exactly the disagreement this model exists to remove. Its rows are
+       cms-sourced, so they cannot be hard-deleted - the importer would write them back. */
+    window.__TYP_CMS = {
+      types: [
+        { id: 5, code: "polaris-heart-b", name: "Polaris Heart B", description: "3 Bedrooms",
+          display_order: 0, is_active: true, source: "cms", wf_item_id: "wf-t-b",
+          variants: [
+            { id: 51, code: "polaris-heart-b", name: null, is_default: true,
+              bedrooms: 3, bathrooms: 3.5, parking: 2, internal_area_sqm: 176,
+              patio_area_sqm: null, balcony_area_sqm: null, garage_area_sqm: null,
+              total_area_sqm: null, price_from_cents: null, description: null,
+              display_order: 0, is_active: true, source: "cms", stored_unit_count: null }
+          ] }
+      ]
+    };
+
+    /* THE REGISTER, IN ITS POST-MIGRATION SHAPE. THE FIGURES BELONG TO THE TYPE and a variant
+       stores only what it changes. Before 6 Sep every variant carried a full set copied down
+       from its type, which is why 512 of Stellenbosch's 544 resolved figures came off the
+       variant level and a type change moved nothing. A fixture still seeded that way would
+       let the console read the old flat columns and pass.
+
+       DELIBERATE SHAPES HERE, each one exercising something:
+         - A1 is the degenerate default and STORES NOTHING. This is the commonest row in the
+           system and the one a naive console draws blank.
+         - A2 genuinely overrides two figures, and ALSO restates bedrooms identically - the
+           tidiness signal, which is a decision rather than a fault and must not be drawn as
+           an error.
+         - A1 still carries a legacy stored from-price. Nothing reads it; the figure shown is
+           derived from the cheapest available home.
+         - Type B records patio area as ZERO, which must inherit as 0 and never as unset -
+           NULL means inherit, zero is a measurement. */
+    window.__TYP_SV = {
+      types: [
+        { id: 1, code: "A", name: "Type A", description: "Two levels, three bedrooms.",
+          display_order: 0, is_active: true, source: "native", wf_item_id: null,
+          bedrooms: 3, bathrooms: 2.5, parking: 2, internal_area_sqm: 188,
+          patio_area_sqm: 22, balcony_area_sqm: 13, garage_area_sqm: 45,
+          total_area_sqm: 268,
+          variants: [
+            { id: 11, code: "A1", name: null, is_default: true,
+              bedrooms: null, bathrooms: null, parking: null, internal_area_sqm: null,
+              patio_area_sqm: null, balcony_area_sqm: null, garage_area_sqm: null,
+              total_area_sqm: null, price_from_cents: 425000000, description: null,
+              display_order: 0, is_active: true, source: "native", stored_unit_count: null },
+            /* Its stored count is deliberately WRONG. The endpoint counts homes and returns
+               the stored column beside it, so the drawer can say the two disagree - and a
+               fixture that made them agree would never exercise that. */
+            { id: 12, code: "A2", name: "Corner", is_default: false,
+              bedrooms: 3, bathrooms: null, parking: null, internal_area_sqm: null,
+              patio_area_sqm: 31, balcony_area_sqm: null, garage_area_sqm: null,
+              total_area_sqm: 277, price_from_cents: null, description: null,
+              display_order: 1, is_active: true, source: "native", stored_unit_count: 4 }
+          ] },
+        { id: 2, code: "B", name: "Type B", description: null,
+          display_order: 1, is_active: true, source: "sv", wf_item_id: null,
+          bedrooms: 2, bathrooms: 1.5, parking: 1, internal_area_sqm: 110,
+          patio_area_sqm: 0, balcony_area_sqm: 12, garage_area_sqm: 43,
+          total_area_sqm: 165,
+          variants: [
+            { id: 21, code: "B1", name: null, is_default: true,
+              bedrooms: null, bathrooms: null, parking: null, internal_area_sqm: null,
+              patio_area_sqm: null, balcony_area_sqm: null, garage_area_sqm: null,
+              total_area_sqm: null, price_from_cents: null, description: null,
+              display_order: 0, is_active: true, source: "sv", stored_unit_count: null }
+          ] },
+        /* A RETIRED TYPE, with its variant retired alongside it - the only shape the server
+           allows, because an active variant under a retired type is the one combination
+           /public/inventory cannot render. It holds no homes, so it can be removed for good. */
+        { id: 3, code: "C", name: "Type C", description: null,
+          display_order: 2, is_active: false, source: "native", wf_item_id: null,
+          bedrooms: 4, bathrooms: 3.5, parking: 2, internal_area_sqm: 311,
+          patio_area_sqm: 39, balcony_area_sqm: 14, garage_area_sqm: 46,
+          total_area_sqm: 410,
+          variants: [
+            { id: 31, code: "C1", name: null, is_default: true,
+              bedrooms: null, bathrooms: null, parking: null, internal_area_sqm: null,
+              patio_area_sqm: null, balcony_area_sqm: null, garage_area_sqm: null,
+              total_area_sqm: null, price_from_cents: null, description: null,
+              display_order: 0, is_active: false, source: "native", stored_unit_count: null }
+          ] }
+      ]
+    };
+
+    window.__INV_SV = {
+      property_slug: "stellenbosch", property_name: "Stellenbosch Village",
+      inventory_source: "xano", prices_are_placeholder: true,
+      /* THE DEVELOPMENT'S OWN COLUMNS, one from each source, because the whole point is
+         that the grid cannot tell them apart. aspect is a key in the attributes bag and
+         editable; erf_number is the same but a number; beds comes off the VARIANT and can
+         never be edited from a unit row; view_tags is a list the grid can only show. */
+      fields: [
+        { field_key: "aspect", label: "Aspect", kind: "enum", source: "attribute",
+          options: ["North-facing", "East-facing", "South-facing", "West-facing"],
+          suffix: null, is_grid: true, is_public: true, is_filterable: true,
+          is_editable: true, display_order: 5, help_text: "Which way the home faces.",
+          filled: 12, of: 12 },
+        { field_key: "erf_number", label: "Erf number", kind: "number", source: "attribute",
+          options: null, suffix: null, is_grid: true, is_public: true, is_filterable: false,
+          is_editable: true, display_order: 6, help_text: null, filled: 12, of: 12 },
+        { field_key: "bedrooms", label: "Beds", kind: "number", source: "variant",
+          options: null, suffix: null, is_grid: true, is_public: false, is_filterable: false,
+          is_editable: false, display_order: 110,
+          help_text: "Belongs to the type, so every home of that variant shares one.",
+          filled: 12, of: 12 },
+        { field_key: "view_tags", label: "View features", kind: "tags", source: "attribute",
+          options: null, suffix: null, is_grid: false, is_public: true, is_filterable: true,
+          is_editable: false, display_order: 30, help_text: null, filled: 12, of: 12 }
+      ],
+      phases_on: true, phase_visibility: "hidden",
+      /* is_active mirrors the server: a retired phase is STILL RETURNED, flagged, because a
+         home still in it has to be explainable. Only pickers filter. */
+      phases: [
+        { id: 1, name: "Phase 1", code: "P1", sort_order: 0, is_released: true,
+          released_at: Date.now() - 86400000, note: "The lower terraces.",
+          unit_count: 6, available: 6, is_active: true },
+        { id: 2, name: "Phase 2", code: "P2", sort_order: 1, is_released: false,
+          released_at: null, note: null, unit_count: 6, available: 0, is_active: true }
+      ],
+      units: us,
+      counts: { units: 12, types: 3, variants: 2, available: 7, held: 1, sold: 2,
+                unreleased: 2, unavailable_other: 0, from_offer_state: 5, orphan_phase: 0 },
+      setup: {
+        unset_everywhere: ["internal_area_sqm", "erf_area_sqm", "deposit_bond_pct",
+                           "deposit_cash_pct", "occupational_rental_pct",
+                           "levy_monthly_cents", "rates_monthly_cents"],
+        unset_on_some: [], is_complete: false
+      },
+      last_synced_at: Date.now(), server_time: Date.now()
+    };
+  })();
+
+  /* A CMS-backed development: real prices, and the one taken home is taken because a
+     reservation holds it. */
+  window.__INV_CMS = {
+    property_slug: "polaris", property_name: "Polaris",
+    inventory_source: "cms", prices_are_placeholder: false,
+    phases_on: false, phase_visibility: "hidden", phases: [], fields: [],
+    units: [
+      { unit_number: "6", name: "Home 6", slug: "polaris-heart-06", type_code: "B",
+        unit_variant_id: 51, type_is_active: true, variant_is_active: true,
+        type_name: "Polaris Heart B", variant_code: "B", bedrooms: 3, bathrooms: 3.5,
+        parking: 2, price_cents: 579500000, internal_area_sqm: 176.2, erf_area_sqm: 309.9,
+        levy_monthly_cents: 396450, rates_monthly_cents: 271678, deposit_bond_pct: 10,
+        deposit_cash_pct: 30, occupational_rental_pct: 0.7,
+        state: "available", state_source: "none", is_available: true,
+        reservation: null, offer_state: null, attributes: {},
+        wf_unit_id: "wf-6", source: "cms" },
+      { unit_number: "10", name: "Home 10", slug: "polaris-heart-10", type_code: "B",
+        unit_variant_id: 51, type_is_active: true, variant_is_active: true,
+        type_name: "Polaris Heart B", variant_code: "B", bedrooms: 3, bathrooms: 3.5,
+        parking: 2, price_cents: 579500000, internal_area_sqm: 176.2, erf_area_sqm: 309.9,
+        levy_monthly_cents: 396450, rates_monthly_cents: 271678, deposit_bond_pct: 10,
+        deposit_cash_pct: 30, occupational_rental_pct: 0.7,
+        state: "sold", state_source: "reservation", is_available: false,
+        reservation: { reference: "RES-POL-001", uuid: "u0", status: "confirmed",
+                       buyer_name: "Mabitsela Mawasha", deal_stage: "finance",
+                       deal_sub_stage: "transfer-attorneys", deal_stage_due_at: null },
+        offer_state: null, attributes: {}, wf_unit_id: "wf-10", source: "cms" }
+    ],
+    counts: { units: 2, types: 1, variants: 1, available: 1, held: 0, sold: 1,
+              unreleased: 0, unavailable_other: 0, from_offer_state: 0 },
+    setup: { unset_everywhere: [], unset_on_some: [], is_complete: true },
+    last_synced_at: Date.now(), server_time: Date.now()
+  };
+
+  /* The module registry, matching what seed_feature_registry authors. Only the fields the
+     console actually renders. */
+  window.__FEAT_REGISTRY = [
+    { key: "inventory", label: "Inventory", category: "Inventory", default: true,
+      description: "The development's homes appear in the Inventory tab." },
+    { key: "inventory_edit", label: "Record availability", category: "Inventory", default: false,
+      description: "Staff may mark a home sold, reserved or unreleased. OFF by default." },
+    { key: "inventory_fields", label: "Edit unit details", category: "Inventory", default: false,
+      description: "Staff may edit prices, areas and deposit percentages in the grid. OFF by default." },
+    { key: "manual_reservations", label: "Manual reservations", category: "Reservations", default: true,
+      description: "Sales can type in a deal done in the show house." },
+    { key: "portal", label: "Owners portal", category: "Portal", default: true,
+      description: "Buyers are provisioned a portal login." }
+  ];
+  /* Decisions only. Absence means follow the default - the same sparse shape the real
+     res_config rows have. */
+  window.__FEAT_DECISIONS = { stellenbosch: { inventory_edit: true, inventory_fields: true } };
+
+  /* The setting registry, matching what seed_setting_registry authors. A setting's decision
+     is a typed VALUE rather than a boolean, which is the only thing that differs. */
+  window.__SET_REGISTRY = [
+    { key: "pricing_level", kind: "enum", label: "Where prices are set", category: "Inventory",
+      default: "unit", options: ["unit", "type"],
+      description: "unit - every home is priced individually. type - the price belongs to the variant." },
+    { key: "media_level", kind: "enum", label: "Where floorplans and renders live",
+      category: "Inventory", default: "type", options: ["type", "unit"],
+      description: "type - one set of drawings per way of building. unit - each home has its own." },
+    { key: "unit_pad", kind: "int", label: "Unit number width", category: "Inventory",
+      default: 0, options: [],
+      description: "How wide to write a unit number, zero-padded, when SHOWING it. 0 renders it as stored." },
+    { key: "phase_visibility", kind: "enum", label: "Unreleased phases", category: "Phases",
+      default: "hidden", options: ["hidden", "shown"],
+      description: "hidden - homes in an unreleased phase do not appear publicly at all." }
+  ];
+  window.__SET_DECISIONS = { stellenbosch: { unit_pad: 2 } };
+  window.__resolveFeatures = function () {
+    var devs = window.__FIXTURE.properties.map(function (p) {
+      var own = window.__FEAT_DECISIONS[p.slug] || {};
+      var features = {}, source = {}, on = 0;
+      window.__FEAT_REGISTRY.forEach(function (m) {
+        var has = Object.prototype.hasOwnProperty.call(own, m.key);
+        var val = has ? own[m.key] : (m.default === true);
+        features[m.key] = val;
+        source[m.key] = has ? "set" : "default";
+        if (val) { on++; }
+      });
+      /* Settings resolve exactly like modules - a decision, else the registry default - and
+         carry their own source so the panel can tell "chosen" from "never had an opinion". */
+      var sown = window.__SET_DECISIONS[p.slug] || {};
+      var settings = {}, ssource = {};
+      window.__SET_REGISTRY.forEach(function (x) {
+        var shas = Object.prototype.hasOwnProperty.call(sown, x.key);
+        settings[x.key] = shas ? sown[x.key] : x.default;
+        ssource[x.key] = shas ? "set" : "default";
+      });
+      return {
+        property_slug: p.slug, property_name: p.name, is_selling: !!p.is_payfast_live,
+        features: features, source: source, on_count: on, of: window.__FEAT_REGISTRY.length,
+        settings: settings, settings_source: ssource,
+        display: {
+          unit_pad: settings.unit_pad,
+          pricing_level: settings.pricing_level,
+          media_level: settings.media_level
+        },
+        unknown_keys: [], decision_count: Object.keys(own).length,
+        settings_decided: Object.keys(sown).length
+      };
+    });
+    return { registry: window.__FEAT_REGISTRY, setting_registry: window.__SET_REGISTRY,
+             developments: devs, known_property: true,
+             counts: { developments: devs.length, modules: window.__FEAT_REGISTRY.length,
+                       settings: window.__SET_REGISTRY.length } };
+  };
+
+  window.__UNITS = [
+    { wf_unit_id: "u-home-2", name: "Home 2", unit_number: "2", price_cents: 359500000,
+      price_display: "R3,595,000", unit_size: "ERF Size: 272.34 m2", available: true, unavailable_reason: null },
+    { wf_unit_id: "u-home-5", name: "Home 5", unit_number: "5", price_cents: 359500000,
+      price_display: "R3,595,000", unit_size: "ERF Size: 272.34 m2", available: true, unavailable_reason: null },
+    { wf_unit_id: "u-home-7", name: "Home 7", unit_number: "7", price_cents: 372000000,
+      price_display: "R3,720,000", unit_size: "ERF Size: 272.34 m2", available: true, unavailable_reason: null }
+  ];
+  window.__POSTED = null;
+  window.__DELETED = null;
+  window.__TEAM_POSTED = null;
+  window.__PW_POSTED = null;
+  window.__TEAM_CALLS = 0;
+  window.__TEAM = [
+    { id: 5, email: "daniel@tovstudio.co", name: "Daniel Lun", role: "admin",
+      is_active: true, last_login_at: Date.now() - 3600000, login_count: 16,
+      created_at: Date.now() - 30 * 86400000 },
+    { id: 6, email: "ana@heartland.co.za", name: "Ana Mokoena", role: "manager",
+      is_active: true, last_login_at: null, login_count: 0,
+      created_at: Date.now() - 2 * 86400000 },
+    { id: 7, email: "sipho@heartland.co.za", name: "Sipho Ndlovu", role: "sales",
+      is_active: false, last_login_at: Date.now() - 20 * 86400000, login_count: 4,
+      created_at: Date.now() - 60 * 86400000 }
+  ];
+  window.__ADDR_CALLS = [];
+  window.__CREATE_FAILS = /[?&]createfail=1/.test(location.search);
+  window.__ROLE = (/[?&]role=([a-z]+)/.exec(location.search) || [0, "sales"])[1];
+  window.__ADDR_MODE = (/[?&]addr=([a-z]+)/.exec(location.search) || [0, "ok"])[1];
+  window.__FIXTURE.staff.role = window.__ROLE;
+  // A row whose reference is a TEST number, so the tag can be asserted against a real
+  // one rather than against a string the test made up.
+  window.__FIXTURE.items[0].reference = "RES-TEST-SAN-001";
+  // A row with no Payfast payment, so the force checkbox can be asserted absent as well
+  // as present - a checkbox that is always there proves nothing.
+  window.__FIXTURE.items[1].pf_payment_id = null;
+  window.__FIXTURE.items[1].payment_status = "MANUAL";
+
+  var realFetch = window.fetch;
+  window.fetch = function (url, opts) {
+    var u = String(url);
+    var method = (opts && opts.method) || "GET";
+
+    var jsonOf = function (payload) {
+      return Promise.resolve({
+        ok: true, status: 200,
+        json: function () { return Promise.resolve(JSON.parse(payload)); },
+        text: function () { return Promise.resolve(payload); }
+      });
+    };
+
+    if (method === "POST" && u.indexOf("/staff/password") !== -1) {
+      window.__PW_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__PW_POSTED.current_password !== "correct-horse") {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"That is not your current password."}');
+        } });
+      }
+      return jsonOf('{"changed":true}');
+    }
+
+    if (u.indexOf("/staff/team") !== -1) {
+      if (method === "POST") {
+        window.__TEAM_POSTED = JSON.parse((opts && opts.body) || "{}");
+        var existing = null;
+        for (var t = 0; t < window.__TEAM.length; t++) {
+          if (window.__TEAM[t].email === window.__TEAM_POSTED.email) { existing = window.__TEAM[t]; }
+        }
+        if (existing) {
+          existing.name = window.__TEAM_POSTED.name;
+          existing.role = window.__TEAM_POSTED.role;
+          existing.is_active = window.__TEAM_POSTED.is_active !== false;
+        } else {
+          window.__TEAM.push({
+            id: 90 + window.__TEAM.length, email: window.__TEAM_POSTED.email,
+            name: window.__TEAM_POSTED.name, role: window.__TEAM_POSTED.role,
+            is_active: window.__TEAM_POSTED.is_active !== false,
+            last_login_at: null, login_count: 0, created_at: Date.now()
+          });
+        }
+        return jsonOf(JSON.stringify({
+          created: !existing, id: existing ? existing.id : 99,
+          email: window.__TEAM_POSTED.email, name: window.__TEAM_POSTED.name,
+          role: window.__TEAM_POSTED.role,
+          is_active: window.__TEAM_POSTED.is_active !== false
+        }));
+      }
+      window.__TEAM_CALLS++;
+      return jsonOf(JSON.stringify({
+        me: { id: 5, role: window.__ROLE },
+        team: window.__TEAM,
+        count: window.__TEAM.length
+      }));
+    }
+
+    if (u.indexOf("/public/address/suggest") !== -1) {
+      window.__ADDR_CALLS.push(u);
+      // This endpoint is read with r.json(), not the console's own api() helper, so the
+      // stub has to offer json() as well as text() or it emulates a Response that does
+      // not exist.
+      var addr = function (payload) {
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: function () { return Promise.resolve(JSON.parse(payload)); },
+          text: function () { return Promise.resolve(payload); }
+        });
+      };
+      if (window.__ADDR_MODE === "fail") {
+        return addr('{"ok":false,"provider":"none","reason":"GOOGLE_PLACES_KEY is not set in the Xano environment","suggestions":[]}');
+      }
+      if (window.__ADDR_MODE === "empty") {
+        return addr('{"ok":true,"provider":"google","status":200,"suggestions":[]}');
+      }
+      return addr(JSON.stringify({
+          ok: true, provider: "google", status: 200,
+          suggestions: [
+            { label: "17 Alice Road, Florida Park, Roodepoort, 1709, South Africa",
+              main: "17 Alice Road", secondary: "Florida Park, Roodepoort, South Africa",
+              place_id: "ChIJtest1" },
+            { label: "17 Alice Street, Sandton, 2196, South Africa",
+              main: "17 Alice Street", secondary: "Sandton, South Africa",
+              place_id: "ChIJtest2" }
+          ]
+        }));
+    }
+
+    if (method === "POST" && /\/staff\/reservations\/[^/]+\/delete$/.test(u)) {
+      window.__DELETED = { url: u, body: JSON.parse((opts && opts.body) || "{}") };
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({
+          deleted: true, reference: "RES-SAN-031", member_deleted: true,
+          member_shared: false, member_reason: "member deleted and verified absent",
+          cms_released: true, cms_status: 200, cms_reason: "released",
+          resequence: window.__DELETED.body.resequence
+            ? { ran: true, reason: "renumbered", change_count: 3, changes: [] }
+            : { ran: false, reason: "left as is", change_count: 0, changes: [] }
+        }));
+      } });
+    }
+
+    /* INVENTORY. Two shapes on purpose: a CMS-backed development whose states all
+       come from reservations, and a model-native one whose states come from
+       res_unit_offer_state with placeholder prices. The tab has to be right for both. */
+    /* The state writer. Records what was posted so a test can assert on it, and lets a
+       test force a refusal - the server refusing is a path the console has to handle. */
+    if (method === "POST" && u.indexOf("/staff/units/state") !== -1) {
+      window.__STATE_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__STATE_FAILS) {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"That home is held by a live reservation, so its availability is already decided by the deal on it."}');
+        } });
+      }
+      var sp = window.__STATE_POSTED;
+      var tgt = window.__INV_SV.units.filter(function (x) { return x.unit_number === sp.unit_number; })[0];
+      if (tgt) {
+        tgt.state = sp.state === "reserved" ? "held" : sp.state;
+        tgt.state_source = sp.state === "available" ? "none" : "offer_state";
+        tgt.is_available = sp.state === "available";
+        tgt.offer_state = sp.state === "available" ? null
+          : { state: sp.state, note: sp.reason, source: "console",
+              external_ref: sp.external_ref || null, updated_at: Date.now() };
+      }
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({ property_slug: sp.property_slug,
+          unit_number: sp.unit_number, state: sp.state, cleared: sp.state === "available" }));
+      } });
+    }
+
+    /* PER-DEVELOPMENT MODULES. The GET resolves defaults against decisions exactly as the
+       server does, so a test can assert on the three states rather than on a frozen blob. */
+    if (u.indexOf("/staff/property-config") !== -1 && method !== "POST") {
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify(window.__resolveFeatures()));
+      } });
+    }
+    if (method === "POST" && u.indexOf("/staff/property-config") !== -1) {
+      window.__FEAT_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__FEAT_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Only an admin can change what a development\'s console does."}');
+        } });
+      }
+      var fp = window.__FEAT_POSTED;
+      var slug = fp.property_slug;
+
+      /* One endpoint, two kinds. Which key was named decides which store is written, and
+         omitting the value reverts in both - the third state is the whole point. */
+      if (fp.setting_key) {
+        var sk = fp.setting_key;
+        var sdef = null;
+        window.__SET_REGISTRY.forEach(function (x) { if (x.key === sk) { sdef = x; } });
+        if (!sdef) {
+          return Promise.resolve({ ok: false, status: 400, text: function () {
+            return Promise.resolve('{"message":"That setting could not be applied."}');
+          } });
+        }
+        if (!window.__SET_DECISIONS[slug]) { window.__SET_DECISIONS[slug] = {}; }
+        if (Object.prototype.hasOwnProperty.call(fp, "value")) {
+          var raw = String(fp.value).trim();
+          /* The server casts to the declared kind and refuses anything else. An enum that
+             accepted a near-miss would resolve to the default while the screen said set. */
+          if (sdef.kind === "int") {
+            var n = Number(raw);
+            if (isNaN(n) || n !== Math.round(n)) {
+              return Promise.resolve({ ok: false, status: 400, text: function () {
+                return Promise.resolve('{"message":"That setting could not be applied."}');
+              } });
+            }
+            window.__SET_DECISIONS[slug][sk] = n;
+          } else if (sdef.kind === "enum") {
+            if ((sdef.options || []).indexOf(raw) === -1) {
+              return Promise.resolve({ ok: false, status: 400, text: function () {
+                return Promise.resolve('{"message":"That setting could not be applied."}');
+              } });
+            }
+            window.__SET_DECISIONS[slug][sk] = raw;
+          } else if (sdef.kind === "bool") {
+            window.__SET_DECISIONS[slug][sk] = (raw.toLowerCase() === "true");
+          } else {
+            window.__SET_DECISIONS[slug][sk] = raw;
+          }
+        } else {
+          delete window.__SET_DECISIONS[slug][sk];
+        }
+        return Promise.resolve({ ok: true, status: 200, text: function () {
+          return Promise.resolve(JSON.stringify({ kind: "setting", changed: {
+            property_slug: slug, setting_key: sk } }));
+        } });
+      }
+
+      var k = fp.feature_key;
+      if (!window.__FEAT_DECISIONS[slug]) { window.__FEAT_DECISIONS[slug] = {}; }
+      // Omitted enabled means revert - the decision is removed, not set to false.
+      if (Object.prototype.hasOwnProperty.call(fp, "enabled")) {
+        window.__FEAT_DECISIONS[slug][k] = fp.enabled === true;
+      } else {
+        delete window.__FEAT_DECISIONS[slug][k];
+      }
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({ kind: "feature", changed: {
+          property_slug: slug, feature_key: k } }));
+      } });
+    }
+
+    /* BULK UNIT EDIT. Mirrors the server's rules closely enough to be worth testing against:
+       integer cents, 0-100 percentages, positive areas, the identity allowlist, unchanged as
+       its own outcome, and the zero-padded-unit-number fallback that Excel forces. */
+    if (method === "POST" && u.indexOf("/staff/units/bulk") !== -1) {
+      window.__BULK_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__BULK_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Editing unit details is switched off for this development."}');
+        } });
+      }
+      var bp = window.__BULK_POSTED;
+      var dry = bp.dry_run === true;
+      var KIND = { price_cents:"cents", internal_area_sqm:"area", erf_area_sqm:"area",
+                   levy_monthly_cents:"cents", rates_monthly_cents:"cents",
+                   deposit_bond_pct:"pct", deposit_cash_pct:"pct",
+                   occupational_rental_pct:"pct", name:"text", slug:"text" };
+      var pool = window.__INV_SV.units;
+      var exact = {}, numeric = {};
+      pool.forEach(function (x) {
+        exact[x.unit_number] = x;
+        var n = Number(x.unit_number);
+        if (!isNaN(n)) { numeric[String(n)] = x; }
+      });
+      var rows = [], counts = { submitted: (bp.changes||[]).length, applied:0, unchanged:0,
+                                refused:0, fields_changed:0, matched_by_number:0 };
+      (bp.changes || []).forEach(function (ch) {
+        var asked = String(ch.unit_number);
+        var how = "exact", hit = exact[asked];
+        if (!hit) {
+          rows.push({ unit_number: asked, outcome:"refused", why:"no active home with that number on this development" });
+          counts.refused++; return;
+        }
+        if (how === "number") { counts.matched_by_number++; }
+        var changed = [], bad = null, accepted = {};
+        Object.keys(ch.fields || {}).forEach(function (f) {
+          if (bad) { return; }
+          var kind = KIND[f];
+          if (!kind) { bad = 'field "' + f + '" cannot be edited here'; return; }
+          var raw = ch.fields[f];
+          var val = (raw === null || raw === "" || raw === undefined) ? null : raw;
+          if (val !== null && kind !== "text") {
+            var n = Number(val);
+            if (isNaN(n)) { bad = f + ": not a number"; return; }
+            if (kind === "cents" && n !== Math.round(n)) { bad = f + ": money must be a whole number of cents, got " + n; return; }
+            if (kind === "pct" && (n < 0 || n > 100)) { bad = f + ": a percentage must be between 0 and 100, got " + n; return; }
+            if (kind === "area" && n <= 0) { bad = f + ": an area must be greater than zero, got " + n; return; }
+            val = n;
+          }
+          var was = (hit[f] === undefined || hit[f] === "") ? null : hit[f];
+          if (was === val) { return; }
+          accepted[f] = val;
+          changed.push({ field: f, was: was, now: val });
+        });
+        if (bad) { rows.push({ unit_number: hit.unit_number, asked_as: asked, matched_by: how, outcome:"refused", why: bad }); counts.refused++; return; }
+        if (!changed.length) { rows.push({ unit_number: hit.unit_number, asked_as: asked, matched_by: how, outcome:"unchanged", why:"every value already matched" }); counts.unchanged++; return; }
+        rows.push({ unit_number: hit.unit_number, asked_as: asked, matched_by: how,
+                    outcome: dry ? "would_apply" : "applied", changed: changed });
+        counts.applied++; counts.fields_changed += changed.length;
+        if (!dry) { Object.keys(accepted).forEach(function (f) { hit[f] = accepted[f]; }); }
+      });
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({
+          property_slug: bp.property_slug, property_name: "Stellenbosch Village",
+          dry_run: dry, counts: counts, rows: rows,
+          rows_written: dry ? 0 : counts.applied
+        }));
+      } });
+    }
+
+    if (u.indexOf("/staff/inventory") !== -1) {
+      var want = (/property=([^&]+)/.exec(u) || [0, ""])[1];
+      var body = (want === "stellenbosch") ? window.__INV_SV : window.__INV_CMS;
+      /* Counts are RECOMPUTED from the units on every read, exactly as the real endpoint
+         does. A fixture that returned a frozen total would let the console show a stale
+         number and the test would still pass - which is the bug most worth catching. */
+      /* TYPES AND VARIANTS ARE COUNTED FROM THE REGISTER, not carried on the inventory
+         object. Only the ACTIVE ones, which is what the real endpoint reports - and
+         orphan_variant is the number the panel-bar button warns with. */
+      /* Only Stellenbosch has a register in this fixture, so anything else keeps the counts
+         its own object carries. A tally that read one development's register while showing
+         another's stock is precisely the mix-up the console clears TYP.data to avoid. */
+      var reg0 = typReg(want);
+      var tActive = 0, vActive = 0, vById = {};
+      (reg0.types || []).forEach(function (t) {
+        if (t.is_active !== false) { tActive++; }
+        (t.variants || []).forEach(function (v) {
+          vById[String(v.id)] = v;
+          if (v.is_active !== false && t.is_active !== false) { vActive++; }
+        });
+      });
+      var orphaned = 0;
+      body.units.forEach(function (x) {
+        if (!vById[String(x.unit_variant_id)]) { orphaned++; }
+      });
+      var tally = { units: body.units.length, types: tActive,
+                    variants: vActive, orphan_variant: orphaned,
+                    available: 0, held: 0, sold: 0,
+                    unreleased: 0, unavailable_other: 0, from_offer_state: 0,
+                    from_phase: 0, unphased: 0 };
+      body.units.forEach(function (x) {
+        if (x.state === "available") { tally.available++; }
+        else if (x.state === "sold") { tally.sold++; }
+        else if (x.state === "held") { tally.held++; }
+        else if (x.state === "unreleased") { tally.unreleased++; }
+        else { tally.unavailable_other++; }
+        if (x.state_source === "offer_state") { tally.from_offer_state++; }
+        if (x.state_source === "phase") { tally.from_phase++; }
+        if (body.phases_on && !x.phase_id) { tally.unphased++; }
+      });
+      body.counts = tally;
+      /* A retired field is not part of the working set. The real endpoint filters on
+         is_active, and a fixture that kept showing the column would hide exactly the bug
+         Remove exists to fix. */
+      body = Object.assign({}, body, {
+        fields: (body.fields || []).filter(function (f) { return f.is_active !== false; })
+      });
+      /* Each phase's own tally, recomputed too - a release button that showed a frozen
+         "34 homes" would be exactly the stale number worth catching. */
+      (body.phases || []).forEach(function (ph) {
+        ph.unit_count = 0; ph.available = 0;
+        body.units.forEach(function (x) {
+          if (String(x.phase_id) !== String(ph.id)) { return; }
+          ph.unit_count++;
+          if (x.state === "available") { ph.available++; }
+        });
+      });
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify(body));
+      } });
+    }
+
+    /* FIELDS. The menu and the order. The fixture keeps the two rules that decide what the
+       panel may offer: a variant-sourced value can never be made editable, and adopting one
+       never publishes it. */
+    window.__FLD_CATALOGUE = window.__FLD_CATALOGUE || [
+      { field_key: "orientation", label: "Orientation", kind: "enum", source: "attribute",
+        options: ["North", "East", "South", "West"], suffix: null, category: "Position",
+        help_text: "Which way the home faces." },
+      { field_key: "levels", label: "Levels", kind: "number", source: "attribute",
+        options: [], suffix: null, category: "Position", help_text: "How many floors." },
+      { field_key: "garage_type", label: "Garage", kind: "enum", source: "attribute",
+        options: ["None", "Single", "Double"], suffix: null, category: "Parking",
+        help_text: "What kind of garage, if any." },
+      { field_key: "bedrooms", label: "Beds", kind: "number", source: "variant",
+        options: [], suffix: null, category: "The build",
+        help_text: "Belongs to the type." },
+      { field_key: "patio_area_sqm", label: "Patio area", kind: "number", source: "variant",
+        options: [], suffix: "m2", category: "The build", help_text: "Belongs to the type." }
+    ];
+
+    /* ---------- TYPES AND VARIANTS ---------- */
+    /* /delete is tested FIRST, because indexOf("/staff/types") matches it too. Ordering is
+       the whole routing here. */
+
+    function typReg(slug) {
+      if (slug === "polaris") {
+        window.__TYP_CMS = window.__TYP_CMS || { types: [] };
+        return window.__TYP_CMS;
+      }
+      window.__TYP_SV = window.__TYP_SV || { types: [] };
+      return window.__TYP_SV;
+    }
+    function typUnits(slug) {
+      var src = (slug === "polaris") ? window.__INV_CMS : window.__INV_SV;
+      return (src || {}).units || [];
+    }
+    function typRefuse(msg) {
+      return Promise.resolve({ ok: false, status: 400, text: function () {
+        return Promise.resolve(JSON.stringify({ message: msg }));
+      } });
+    }
+    function typOk(payload) {
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify(payload || { ok: true }));
+      } });
+    }
+    function typFindVar(id) {
+      var reg = typReg("stellenbosch"), out = null;
+      (reg.types || []).forEach(function (t) {
+        (t.variants || []).forEach(function (v) {
+          if (String(v.id) === String(id)) { out = { type: t, variant: v }; }
+        });
+      });
+      return out;
+    }
+    function typHomes(variantId, slug) {
+      var n = 0;
+      typUnits(slug || "stellenbosch").forEach(function (x) {
+        if (String(x.unit_variant_id) === String(variantId)) { n++; }
+      });
+      return n;
+    }
+
+    /* THE EIGHT FIGURES, and the chain that resolves them. A STUB IS A CLAIM ABOUT THE REAL
+       THING: the server moved these off the variant and onto the type on 6 Sep, so a fixture
+       that kept answering with the old flat shape would grade the console against a server
+       that no longer exists. variant > type, most specific wins, and NULL means inherit -
+       never zero, which is the whole reason a recorded 0 has to survive the test below. */
+    window.__TYP_SPEC_FIELDS = ["bedrooms", "bathrooms", "parking", "internal_area_sqm",
+      "patio_area_sqm", "balcony_area_sqm", "garage_area_sqm", "total_area_sqm"];
+
+    /* Which developments show the variant level. The console reads this off the payload; the
+       real answer comes from the features registry. Polaris is deliberately OFF, so a test can
+       prove the console hides the level rather than always drawing it. */
+    window.__TYP_VON = window.__TYP_VON || { stellenbosch: true, polaris: false };
+
+    function typSet(x) { return !(x === null || x === undefined || x === ""); }
+
+    function typResolve(t, v) {
+      var spec = {}, src = {}, overrides = {}, redundant = [], n = 0;
+      window.__TYP_SPEC_FIELDS.forEach(function (k) {
+        var own = v ? v[k] : null;
+        var up = t ? t[k] : null;
+        overrides[k] = typSet(own) ? own : null;
+        if (typSet(own)) {
+          n++;
+          spec[k] = own; src[k] = "variant";
+          if (typSet(up) && Number(up) === Number(own)) { redundant.push(k); }
+        } else if (typSet(up)) {
+          spec[k] = up; src[k] = "type";
+        } else {
+          spec[k] = null; src[k] = "none";
+        }
+      });
+      return { spec: spec, spec_source: src, overrides: overrides,
+               override_count: n, redundant_overrides: redundant };
+    }
+
+    function typTypeSpec(t) {
+      var spec = {}, n = 0;
+      window.__TYP_SPEC_FIELDS.forEach(function (k) {
+        var up = t ? t[k] : null;
+        spec[k] = typSet(up) ? up : null;
+        if (typSet(up)) { n++; }
+      });
+      return { spec: spec, spec_field_count: n };
+    }
+
+    /* DERIVED, NEVER READ OFF THE COLUMN - the cheapest AVAILABLE home. Recomputed here on
+       every read for the same reason the counts are: a frozen figure lets the console show a
+       stale price and the test still pass. */
+    function typPriceFrom(variantId, slug) {
+      var best = null, any = null;
+      typUnits(slug || "stellenbosch").forEach(function (x) {
+        if (String(x.unit_variant_id) !== String(variantId)) { return; }
+        var p = Number(x.price_cents);
+        if (!p) { return; }
+        if (any === null || p < any) { any = p; }
+        if (x.state !== "available") { return; }
+        if (best === null || p < best) { best = p; }
+      });
+      if (best !== null) { return { cents: best, basis: "available" }; }
+      if (any !== null) { return { cents: any, basis: "sold_out" }; }
+      return { cents: null, basis: "no_price" };
+    }
+
+    if (method === "GET" && u.indexOf("/staff/types") !== -1) {
+      /* __TYP_SLOW makes this read take a moment, so a test can look at the drawer WHILE a
+         write's reload is still in flight - the window in which a button used to show its old
+         state and take a second click. */
+      if (window.__TYP_SLOW && !window.__TYP_SLOW_ONCE) {
+        window.__TYP_SLOW_ONCE = true;
+        return new Promise(function (res) { setTimeout(res, 400); }).then(function () {
+          return window.fetch(url, opts);
+        }).then(function (r) { window.__TYP_SLOW_ONCE = false; return r; });
+      }
+      /* THE REGISTER IS PER DEVELOPMENT. The fixture only holds Stellenbosch's, so anything
+         else answers with an empty one - which is also the empty state a brand new
+         development starts in, and worth being able to look at. */
+      var wantT = (/property=([^&]+)/.exec(u) || [0, ""])[1];
+      var reg1 = typReg(wantT);
+      var noDef = 0, manyDef = 0, noActive = 0, underRetired = 0, mismatches = 0;
+      var dupVariants = 0, dupFields = 0, noFigures = 0, priceDis = 0;
+      var known = {};
+      (reg1.types || []).forEach(function (t) {
+        (t.variants || []).forEach(function (v) { known[String(v.id)] = true; });
+      });
+      var orph = 0;
+      typUnits(wantT).forEach(function (x) {
+        if (!known[String(x.unit_variant_id)]) { orph++; }
+      });
+      var outTypes = (reg1.types || []).map(function (t) {
+        var homes = 0, actives = 0, defaults = 0;
+        var vs = (t.variants || []).map(function (v) {
+          var live = typHomes(v.id, wantT);
+          homes += live;
+          if (v.is_active !== false) {
+            actives++;
+            if (t.is_active === false) { underRetired++; }
+          }
+          if (v.is_default) { defaults++; }
+          var stored = (v.stored_unit_count === null || v.stored_unit_count === undefined)
+            ? null : Number(v.stored_unit_count);
+          var dis = (stored !== null && stored !== live);
+          if (dis) { mismatches++; }
+          /* THE CHAIN, RESOLVED HERE THE WAY THE SERVER RESOLVES IT. The eight figures are
+             no longer flat on the variant: spec is what a home built this way actually is,
+             overrides is what this row itself decides, and spec_source says which level
+             answered. */
+          var ch = typResolve(t, v);
+          if (ch.redundant_overrides.length) {
+            dupVariants++; dupFields += ch.redundant_overrides.length;
+          }
+          var pf = typPriceFrom(v.id, wantT);
+          var sp = (v.price_from_cents === null || v.price_from_cents === undefined)
+            ? null : Number(v.price_from_cents);
+          var pdis = (sp !== null && sp !== pf.cents);
+          if (pdis) { priceDis++; }
+          return {
+            id: v.id, code: v.code,
+            /* Resolved: a variant with no name of its own carries its type's. */
+            name: v.name || t.name, stored_name: v.name,
+            is_default: v.is_default === true,
+            spec: ch.spec, spec_source: ch.spec_source,
+            overrides: ch.overrides, override_count: ch.override_count,
+            redundant_overrides: ch.redundant_overrides,
+            redundant_override_count: ch.redundant_overrides.length,
+            description: v.description, stored_description: v.description,
+            description_source: "variant",
+            display_order: v.display_order,
+            is_active: v.is_active !== false, source: v.source || null,
+            wf_item_id: null, last_synced_at: null,
+            unit_count: live, unit_count_all: live,
+            stored_unit_count: stored, count_disagrees: dis,
+            available_count: 0,
+            /* DERIVED. The stored column is reported beside it and read by nothing. */
+            price_from_cents: pf.cents, price_from_basis: pf.basis,
+            stored_price_from_cents: sp, price_from_disagrees: pdis,
+            can_hard_delete: (live === 0 && String(v.source || "native") === "native")
+          };
+        });
+        if (t.is_active !== false && vs.length > 0 && defaults === 0) { noDef++; }
+        if (t.is_active !== false && defaults > 1) { manyDef++; }
+        if (t.is_active !== false && actives === 0) { noActive++; }
+        var ts = typTypeSpec(t);
+        if (t.is_active !== false && ts.spec_field_count === 0 && vs.length > 0) { noFigures++; }
+        var tp = { cents: null, basis: "none" };
+        vs.forEach(function (v2) {
+          if (v2.price_from_cents === null) { return; }
+          if (tp.cents === null || v2.price_from_cents < tp.cents) {
+            tp = { cents: v2.price_from_cents, basis: v2.price_from_basis };
+          }
+        });
+        return {
+          id: t.id, code: t.code, name: t.name, description: t.description,
+          display_order: t.display_order, is_active: t.is_active !== false,
+          source: t.source || null, wf_item_id: null, last_synced_at: null,
+          /* THE FIGURES THE TYPE ITSELF CARRIES. This is where they live now. */
+          spec: ts.spec, spec_field_count: ts.spec_field_count,
+          price_from_cents: tp.cents, price_from_basis: tp.basis, available_count: 0,
+          variants: vs, variant_count: vs.length, active_variant_count: actives,
+          default_count: defaults, unit_count: homes, unit_count_all: homes,
+          can_hard_delete: (vs.length === 0 && homes === 0 &&
+                            String(t.source || "native") === "native")
+        };
+      });
+      return typOk({
+        property_slug: wantT, property_name: wantT === "polaris" ? "Polaris Heart" : "Stellenbosch Village",
+        types: outTypes,
+        /* RESOLVED BY THE SERVER. The console hides the whole variant level on this. */
+        variants_on: window.__TYP_VON[wantT] === true,
+        counts: {
+          types: outTypes.length,
+          types_active: outTypes.filter(function (t) { return t.is_active; }).length,
+          variants: outTypes.reduce(function (a, t) { return a + t.variant_count; }, 0),
+          variants_active: outTypes.reduce(function (a, t) { return a + t.active_variant_count; }, 0),
+          units: typUnits(wantT).length,
+          units_placed: outTypes.reduce(function (a, t) { return a + t.unit_count; }, 0)
+        },
+        integrity: {
+          types_without_default: noDef,
+          types_with_multiple_defaults: manyDef,
+          types_without_active_variant: noActive,
+          active_variant_under_retired_type: underRetired,
+          homes_pointing_at_no_variant: orph,
+          variant_unit_count_disagrees: mismatches,
+          /* TIDINESS, DELIBERATELY OUTSIDE is_clean - work still to do, not a broken
+             invariant. Folding them in would make the nightly run red for something nobody
+             needs woken up about. */
+          variant_price_from_disagrees: priceDis,
+          variants_with_redundant_overrides: dupVariants,
+          redundant_override_fields: dupFields,
+          types_carrying_no_figures: noFigures,
+          is_clean: (noDef === 0 && manyDef === 0 && noActive === 0 &&
+                     underRetired === 0 && orph === 0)
+        }
+      });
+    }
+
+    if (method === "POST" && u.indexOf("/staff/types/delete") !== -1) {
+      window.__TYP_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__TYP_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Only a manager or an admin can retire or remove a unit type."}');
+        } });
+      }
+      var dtb = window.__TYP_POSTED, dreg = typReg("stellenbosch"), dt = null;
+      (dreg.types || []).forEach(function (t) {
+        if (String(t.id) === String(dtb.type_id)) { dt = t; }
+      });
+      if (!dt) { return typRefuse("No unit type with that id."); }
+      var dhomes = 0;
+      (dt.variants || []).forEach(function (v) { dhomes += typHomes(v.id, wantT); });
+      if (dhomes > 0) {
+        return typRefuse("Homes are still built as this type, so it cannot be retired or " +
+          "removed - a retired type is not listed on /public/inventory and those homes would " +
+          "disappear from the site plan while the counts still claimed they were there.");
+      }
+      if (dtb.hard && (dt.variants || []).length > 0) {
+        return typRefuse("This type still has variant rows, and removing it would leave them " +
+          "pointing at nothing. Remove the variants first, or retire the type instead.");
+      }
+      if (dtb.hard && String(dt.source || "native") !== "native") {
+        return typRefuse("This type was created by an importer, so removing the row does not " +
+          "remove the type. Retire it instead.");
+      }
+      if (dtb.hard) {
+        dreg.types = (dreg.types || []).filter(function (t) { return t !== dt; });
+        return typOk({ removed: true, retired: false, variants_retired: 0 });
+      }
+      /* RETIRING A TYPE RETIRES ITS VARIANTS WITH IT, in that order, exactly as the server
+         does - an active variant under a retired type is the one unrenderable combination. */
+      var retired = 0;
+      (dt.variants || []).forEach(function (v) {
+        if (v.is_active !== false) { v.is_active = false; retired++; }
+      });
+      dt.is_active = false;
+      return typOk({ removed: false, retired: true, variants_retired: retired });
+    }
+
+    if (method === "POST" && u.indexOf("/staff/types") !== -1) {
+      window.__TYP_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__TYP_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Only a manager or an admin can create or edit a unit type."}');
+        } });
+      }
+      var tb = window.__TYP_POSTED, treg = typReg("stellenbosch");
+      var lower = function (x) { return String(x === null || x === undefined ? "" : x).trim().toLowerCase(); };
+      /* THE FIGURES NOW LAND ON THE TYPE, and an EMPTY STRING clears one. The endpoint
+         declares every one of them text? rather than decimal?, because decimal? coerces ""
+         to null at the input boundary and "clear this" then arrives indistinguishable from
+         "I did not mention this" - which made clearing a silent no-op for a day. A fraction
+         is refused rather than rounded, except bathrooms, where half is real. */
+      var typTakeFigures = function (row) {
+        var bad = null;
+        window.__TYP_SPEC_FIELDS.forEach(function (k) {
+          if (!(k in tb)) { return; }
+          if (tb[k] === "" || tb[k] === null) { row[k] = null; return; }
+          var nn = Number(tb[k]);
+          if (isNaN(nn) || nn < 0 || (k !== "bathrooms" && nn !== Math.round(nn))) {
+            bad = k; return;
+          }
+          row[k] = nn;
+        });
+        return bad;
+      };
+      if (tb.type_id) {
+        var et = null;
+        (treg.types || []).forEach(function (t) {
+          if (String(t.id) === String(tb.type_id)) { et = t; }
+        });
+        if (!et) { return typRefuse("That unit type could not be saved."); }
+        if (tb.code && lower(tb.code) !== lower(et.code)) {
+          return typRefuse("A type's code cannot be changed - everything downstream keys on it.");
+        }
+        if (tb.is_active === false) {
+          return typRefuse("Retiring a type goes through the delete endpoint.");
+        }
+        if (tb.name) { et.name = tb.name; }
+        if (tb.is_active === true) { et.is_active = true; }
+        var badT = typTakeFigures(et);
+        if (badT) {
+          return typRefuse("A number that is not a whole non-negative figure is refused rather " +
+            "than rounded.");
+        }
+        return typOk({ unit_type_id: et.id, created: false, restored: true,
+                       spec_field_count: typTypeSpec(et).spec_field_count });
+      }
+      if (!tb.code || !tb.name) { return typRefuse("A type needs a code and a name."); }
+      var clash = false;
+      (treg.types || []).forEach(function (t) {
+        if (lower(t.code) === lower(tb.code)) { clash = true; }
+        (t.variants || []).forEach(function (v) {
+          if (lower(v.code) === lower(tb.code)) { clash = true; }
+        });
+      });
+      if (clash) {
+        return typRefuse("A type or variant already uses that code here - retired ones count, " +
+          "because the code is the upsert key.");
+      }
+      var nid = 100 + (treg.types || []).length;
+      /* CREATING A TYPE SEEDS ITS DEGENERATE DEFAULT VARIANT, in the same call. Rule 7.
+         THE SEEDED VARIANT STORES NOTHING - it inherits everything, which is what makes
+         override_count mean something. Copying the figures down was the old behaviour and it
+         is what made every variant on every development look like it had made a decision. */
+      var newType = {
+        id: nid, code: tb.code, name: tb.name, description: tb.description || null,
+        display_order: (treg.types || []).length, is_active: true, source: "native",
+        wf_item_id: null,
+        variants: [{
+          id: nid * 10, code: tb.code, name: null, is_default: true,
+          bedrooms: null, bathrooms: null, parking: null, internal_area_sqm: null,
+          patio_area_sqm: null, balcony_area_sqm: null, garage_area_sqm: null,
+          total_area_sqm: null, price_from_cents: null, description: null,
+          display_order: 0, is_active: true, source: "native", stored_unit_count: null
+        }]
+      };
+      var badN = typTakeFigures(newType);
+      if (badN) {
+        return typRefuse("A number that is not a whole non-negative figure is refused rather " +
+          "than rounded.");
+      }
+      treg.types.push(newType);
+      return typOk({ unit_type_id: nid, created: true, seeded_variant_id: nid * 10,
+                     spec_field_count: typTypeSpec(newType).spec_field_count });
+    }
+
+    if (method === "POST" && u.indexOf("/staff/variants/delete") !== -1) {
+      window.__TYP_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__TYP_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Only a manager or an admin can retire or remove a variant."}');
+        } });
+      }
+      var vb = window.__TYP_POSTED, hit = typFindVar(vb.variant_id);
+      if (!hit) { return typRefuse("No variant with that id."); }
+      var homes = typHomes(hit.variant.id);
+      var siblings = (hit.type.variants || []).filter(function (v) {
+        return v !== hit.variant && v.is_active !== false;
+      }).length;
+      var wasRetired = hit.variant.is_active === false;
+      if (homes > 0 && !vb.reassign_to) {
+        return typRefuse("Homes are still built this way, so this variant cannot be retired - " +
+          "a retired variant is not listed on /public/inventory, and those homes would " +
+          "disappear from the site plan while the counts still claimed they were there.");
+      }
+      if (!wasRetired && siblings === 0) {
+        return typRefuse("This is the last active variant of its type, and a type with no " +
+          "variant is a type no home can point at. Retire the TYPE instead.");
+      }
+      if (!wasRetired && hit.variant.is_default) {
+        return typRefuse("This variant is its type's default. Promote another variant first - " +
+          "that demotes this one on the way past.");
+      }
+      if (vb.hard && String(hit.variant.source || "native") !== "native") {
+        return typRefuse("This variant was created by an importer, so removing the row does " +
+          "not remove the variant. Retire it instead.");
+      }
+      if (vb.hard) {
+        hit.type.variants = (hit.type.variants || []).filter(function (v) { return v !== hit.variant; });
+        return typOk({ removed: true, retired: false });
+      }
+      hit.variant.is_active = false;
+      hit.variant.is_default = false;
+      return typOk({ removed: false, retired: true });
+    }
+
+    if (method === "POST" && u.indexOf("/staff/variants") !== -1) {
+      window.__TYP_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__TYP_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Only a manager or an admin can create or edit a variant."}');
+        } });
+      }
+      var b2 = window.__TYP_POSTED, reg2 = typReg("stellenbosch");
+      var low2 = function (x) { return String(x === null || x === undefined ? "" : x).trim().toLowerCase(); };
+      var NUMS = window.__TYP_SPEC_FIELDS;
+      var vOn = window.__TYP_VON.stellenbosch === true;
+
+      /* THE FROM-PRICE IS DERIVED AND THE SERVER REFUSES A VALUE FOR IT. "" is accepted, to
+         clear a legacy stored figure. The console has no box for it any more; this refusal is
+         what proves the console cannot send one by accident. */
+      if ("price_from_cents" in b2 && b2.price_from_cents !== "" && b2.price_from_cents !== null) {
+        return typRefuse("The from-price is worked out from the cheapest available home and " +
+          "cannot be set. Send an empty string to clear a stored one.");
+      }
+
+      if (b2.variant_id) {
+        var h2 = typFindVar(b2.variant_id);
+        if (!h2) { return typRefuse("That variant could not be saved."); }
+        if (b2.code && low2(b2.code) !== low2(h2.variant.code)) {
+          return typRefuse("A variant's code cannot be changed.");
+        }
+        if (b2.is_default === false) {
+          return typRefuse("is_default false is not accepted. Promote another variant instead.");
+        }
+        if (b2.is_active === false) {
+          return typRefuse("Retiring a variant goes through the delete endpoint.");
+        }
+        /* THE MODULE GATES THE OVERRIDE, not just the second variant. Off means "no
+           variant-level data", and the invariant is held from both ends - the settings panel
+           refuses to switch it off where data exists, and this refuses to create data while
+           it is off. One-sided enforcement would be worthless. */
+        if (!vOn) {
+          var sent = [];
+          NUMS.forEach(function (k) {
+            if ((k in b2) && b2[k] !== "" && b2[k] !== null) { sent.push(k); }
+          });
+          if (sent.length) {
+            return typRefuse("Variants are off for this development, so a variant cannot " +
+              "carry its own figures. Set them on the type, or turn Variants on.");
+          }
+        }
+        var badf = null;
+        NUMS.forEach(function (k) {
+          if (!(k in b2)) { return; }
+          if (b2[k] === "" || b2[k] === null) { h2.variant[k] = null; return; }
+          var n2 = Number(b2[k]);
+          /* A FRACTION IS REFUSED, NOT ROUNDED - and bathrooms is the one genuinely decimal
+             figure, because half bathrooms are real. */
+          if (isNaN(n2) || n2 < 0 || (k !== "bathrooms" && n2 !== Math.round(n2))) {
+            badf = k; return;
+          }
+          h2.variant[k] = n2;
+        });
+        if (badf) {
+          return typRefuse("A number that is not a whole non-negative figure is refused rather " +
+            "than rounded, and money is integer cents.");
+        }
+        if ("name" in b2) { h2.variant.name = b2.name === "" ? null : b2.name; }
+        if (b2.is_active === true) { h2.variant.is_active = true; }
+        if (b2.is_default === true) {
+          (h2.type.variants || []).forEach(function (v) { v.is_default = (v === h2.variant); });
+        }
+        return typOk({ variant_id: h2.variant.id, created: false });
+      }
+
+      var pt = null;
+      (reg2.types || []).forEach(function (t) {
+        if (String(t.id) === String(b2.unit_type_id)) { pt = t; }
+      });
+      if (!pt) { return typRefuse("That variant could not be saved - no such type here."); }
+      if (!b2.code) { return typRefuse("A variant needs a code."); }
+      if (pt.is_active === false) {
+        return typRefuse("A retired type may not grow new ways of being built.");
+      }
+      var clash2 = false;
+      (reg2.types || []).forEach(function (t) {
+        (t.variants || []).forEach(function (v) {
+          if (low2(v.code) === low2(b2.code)) { clash2 = true; }
+        });
+      });
+      if (clash2) { return typRefuse("A variant already uses that code here."); }
+      if (!vOn && (pt.variants || []).length >= 1) {
+        return typRefuse("Variants are off for this development, so each type is built exactly " +
+          "one way. Turn Variants on in Settings first.");
+      }
+      var vid2 = 900 + Math.round(Math.random() * 90);
+      /* THE FIRST VARIANT OF A TYPE IS THE DEFAULT whether anybody said so or not, and
+         promoting one demotes its siblings in the same call. */
+      var alive = (pt.variants || []).filter(function (v) { return v.is_active !== false; }).length;
+      var mkDefault = (alive === 0) || (b2.is_default === true);
+      if (mkDefault) {
+        (pt.variants || []).forEach(function (v) { v.is_default = false; });
+      }
+      pt.variants = pt.variants || [];
+      pt.variants.push({
+        id: vid2, code: b2.code, name: b2.name || null, is_default: mkDefault,
+        bedrooms: null, bathrooms: null, parking: null, internal_area_sqm: null,
+        patio_area_sqm: null, balcony_area_sqm: null, garage_area_sqm: null,
+        total_area_sqm: null, price_from_cents: null, description: null,
+        display_order: pt.variants.length, is_active: true, source: "native",
+        stored_unit_count: null
+      });
+      return typOk({ variant_id: vid2, created: true, is_default: mkDefault });
+    }
+
+    if (method === "GET" && u.indexOf("/staff/fields") !== -1) {
+      /* __FLD_SLOW makes this read take a moment, so a test can look at the panel WHILE a
+         write's reload is in flight - the window in which a switch used to show its old
+         state and take a second click. */
+      if (window.__FLD_SLOW && !window.__FLD_SLOW_ONCE) {
+        window.__FLD_SLOW_ONCE = true;
+        return new Promise(function (res) { setTimeout(res, 400); }).then(function () {
+          return window.fetch(url, opts);
+        }).then(function (r) { window.__FLD_SLOW_ONCE = false; return r; });
+      }
+      var sv3 = window.__INV_SV;
+      var have = {};
+      (sv3.fields || []).forEach(function (f) { have[f.field_key] = f; });
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({
+          property_slug: "stellenbosch", property_name: "Stellenbosch Village",
+          /* Sorted by display_order, exactly as the endpoint sorts it - a panel whose order
+             came from array insertion would drift from the grid's column order. */
+          fields: (sv3.fields || []).filter(function (f) { return f.is_active !== false; })
+            .slice().sort(function (a, b) {
+            return (a.display_order || 9999) - (b.display_order || 9999);
+          }).map(function (f) {
+            return {
+              field_key: f.field_key, label: f.label, kind: f.kind, source: f.source,
+              options: f.options, suffix: f.suffix, is_grid: f.is_grid,
+              is_public: f.is_public, is_filterable: f.is_filterable,
+              is_editable: f.source === "variant" ? false : f.is_editable,
+              is_active: true, can_edit: f.source !== "variant",
+              display_order: f.display_order, help_text: f.help_text,
+              filled: f.filled, of: f.of
+            };
+          }),
+          catalogue: window.__FLD_CATALOGUE.map(function (c) {
+            return {
+              field_key: c.field_key, label: c.label, kind: c.kind, source: c.source,
+              options: c.options, suffix: c.suffix, category: c.category,
+              help_text: c.help_text, adopted: !!have[c.field_key],
+              retired: !!(have[c.field_key] && have[c.field_key].is_active === false)
+            };
+          }),
+          counts: { units: sv3.units.length, fields: (sv3.fields || []).length,
+                    in_grid: (sv3.fields || []).filter(function (f) { return f.is_grid; }).length,
+                    published: (sv3.fields || []).filter(function (f) { return f.is_public; }).length,
+                    catalogue: window.__FLD_CATALOGUE.length }
+        }));
+      } });
+    }
+
+    if (method === "POST" && u.indexOf("/staff/fields") !== -1) {
+      window.__FLD_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__FLD_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Only a manager or an admin can change what a development records about its homes."}');
+        } });
+      }
+      var fp2 = window.__FLD_POSTED;
+      var sv4 = window.__INV_SV;
+      sv4.fields = sv4.fields || [];
+
+      if (fp2.action === "adopt") {
+        var cat = null;
+        window.__FLD_CATALOGUE.forEach(function (c) {
+          if (c.field_key === fp2.field_key) { cat = c; }
+        });
+        if (!cat) {
+          return Promise.resolve({ ok: false, status: 400, text: function () {
+            return Promise.resolve('{"message":"That field is not in the catalogue."}');
+          } });
+        }
+        var back = null;
+        sv4.fields.forEach(function (f) { if (f.field_key === cat.field_key) { back = f; } });
+        if (back) {
+          /* Adopting a retired field brings it back with every value it had. */
+          back.is_active = true; back.is_grid = fp2.is_grid === true;
+          return Promise.resolve({ ok: true, status: 200, text: function () {
+            return Promise.resolve(JSON.stringify({ action: "adopt", changed: { field_key: cat.field_key, readopted: true } }));
+          } });
+        }
+        sv4.fields.push({
+          field_key: cat.field_key, label: cat.label, kind: cat.kind, source: cat.source,
+          options: cat.options || null, suffix: cat.suffix || null,
+          is_grid: fp2.is_grid === true, is_public: false, is_filterable: false,
+          /* Adopting never publishes, and a variant-sourced value is never editable. */
+          is_editable: cat.source !== "variant",
+          display_order: 500, help_text: cat.help_text, filled: 0, of: sv4.units.length
+        });
+        /* A newly adopted attribute has no value on any home yet - which is exactly what the
+           panel's "no home has a value yet" is for. */
+        sv4.units.forEach(function (un) {
+          un.field_values = un.field_values || {};
+          if (!Object.prototype.hasOwnProperty.call(un.field_values, cat.field_key)) {
+            un.field_values[cat.field_key] =
+              cat.source === "variant" ? (cat.field_key === "bedrooms" ? 3 : 24) : null;
+          }
+        });
+        if (cat.source === "variant") {
+          sv4.fields[sv4.fields.length - 1].filled = sv4.units.length;
+        }
+        return Promise.resolve({ ok: true, status: 200, text: function () {
+          return Promise.resolve(JSON.stringify({ action: "adopt", changed: { field_key: cat.field_key } }));
+        } });
+      }
+
+      var hit2 = null;
+      sv4.fields.forEach(function (f) { if (f.field_key === fp2.field_key) { hit2 = f; } });
+      if (!hit2) {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"No registry row for that field."}');
+        } });
+      }
+      /* The two refusals the server makes, mirrored: a facet needs Public, and a
+         variant-sourced value can never be editable from a unit row. */
+      if (fp2.is_editable === true && hit2.source === "variant") {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"That field\'s value belongs to the way the home is built, not to the home."}');
+        } });
+      }
+      var wantFilter = Object.prototype.hasOwnProperty.call(fp2, "is_filterable")
+        ? fp2.is_filterable : hit2.is_filterable;
+      var wantPublic = Object.prototype.hasOwnProperty.call(fp2, "is_public")
+        ? fp2.is_public : hit2.is_public;
+      if (wantFilter === true && wantPublic !== true) {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"A field cannot be filterable while it is not public."}');
+        } });
+      }
+      ["is_grid", "is_editable", "is_public", "is_filterable", "is_active", "label"].forEach(function (k) {
+        if (Object.prototype.hasOwnProperty.call(fp2, k)) { hit2[k] = fp2[k]; }
+      });
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({ action: "set", changed: { field_key: hit2.field_key } }));
+      } });
+    }
+
+    /* PHASES. The fixture mirrors the server's two rules that matter here: releasing writes
+       nothing onto a unit - the state is re-derived on the next read, exactly as the endpoint
+       derives it - and an unknown unit number refuses the whole run rather than moving the
+       half it recognised. */
+    /* REMOVING A PHASE. The fixture mirrors the server's three rules: retire keeps the row
+       and its homes, a hard delete is refused while any home points at the phase, and it is
+       refused outright once the phase has ever been released. */
+    if (method === "POST" && u.indexOf("/staff/phases/delete") !== -1) {
+      window.__PHDEL_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__PHDEL_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Only a manager or an admin can remove a phase."}');
+        } });
+      }
+      var pd = window.__PHDEL_POSTED;
+      var sv5 = window.__INV_SV;
+      var ph5 = null;
+      (sv5.phases || []).forEach(function (x) {
+        if (String(x.id) === String(pd.phase_id)) { ph5 = x; }
+      });
+      if (!ph5) {
+        return Promise.resolve({ ok: false, status: 404, text: function () {
+          return Promise.resolve('{"message":"No phase with that id."}');
+        } });
+      }
+      var inPhase = sv5.units.filter(function (x) { return String(x.phase_id) === String(ph5.id); });
+      if (pd.hard === true && inPhase.length > 0 && pd.release_homes !== true) {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"That phase still holds homes, so the row cannot be removed. Move them to another phase first, or pass release_homes."}');
+        } });
+      }
+      if (pd.hard === true && ph5.released_at) {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"That phase has been released before, and released_at is the record of it. Retire it instead."}');
+        } });
+      }
+      var onMarket = 0;
+      if (pd.hard === true && pd.release_homes === true) {
+        inPhase.forEach(function (x) {
+          x.phase_id = null; x.phase = null;
+          if (x.state === "unreleased" && x.state_source === "phase") { onMarket++; }
+        });
+        sv5.phases = (sv5.phases || []).filter(function (x) { return String(x.id) !== String(ph5.id); });
+      } else if (pd.hard === true) {
+        sv5.phases = (sv5.phases || []).filter(function (x) { return String(x.id) !== String(ph5.id); });
+      } else {
+        ph5.is_active = false;
+        /* The server sets is_active on the copy embedded in every unit too. Mirrored, so the
+           console is exercised against both the list and the embedded copy. */
+        inPhase.forEach(function (x) { if (x.phase) { x.phase.is_active = false; } });
+      }
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({
+          property_slug: "stellenbosch", phase_id: ph5.id, name: ph5.name,
+          removed: pd.hard === true, retired: pd.hard !== true,
+          homes_cleared: (pd.release_homes === true) ? inPhase.length : 0,
+          homes_on_market: onMarket, unit_count: inPhase.length
+        }));
+      } });
+    }
+
+    if (method === "POST" && u.indexOf("/staff/phases/release") !== -1) {
+      window.__PH_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__PH_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Only a manager or an admin can release a phase."}');
+        } });
+      }
+      var pr = window.__PH_POSTED;
+      var body2 = window.__INV_SV;
+      var hit = null;
+      (body2.phases || []).forEach(function (x) {
+        if (String(x.id) === String(pr.phase_id)) { hit = x; }
+      });
+      if (hit) {
+        hit.is_released = (pr.released === true);
+        if (hit.is_released && !hit.released_at) { hit.released_at = Date.now(); }
+        body2.units.forEach(function (un) {
+          if (String(un.phase_id) !== String(hit.id)) { return; }
+          un.phase = { id: hit.id, name: hit.name, code: hit.code,
+                       is_released: hit.is_released, sort_order: hit.sort_order };
+          /* Re-derive, hold then offer state then phase. Only a home nothing else claimed
+             moves - one recorded sold stays sold whichever way the phase goes. */
+          if (un.reservation) { return; }
+          if (un.offer_state) { return; }
+          un.state = hit.is_released ? "available" : "unreleased";
+          un.state_source = hit.is_released ? "none" : "phase";
+          un.is_available = hit.is_released;
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({ phase_id: pr.phase_id,
+          released: !!(hit && hit.is_released), units: hit ? hit.unit_count : 0 }));
+      } });
+    }
+
+    if (method === "POST" && u.indexOf("/staff/phases") !== -1) {
+      window.__PH_POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__PH_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Only a manager or an admin can change a development\'s phases."}');
+        } });
+      }
+      var np = window.__PH_POSTED;
+      var sv = window.__INV_SV;
+      sv.phases = sv.phases || [];
+
+      /* AN EDIT, not a create - which is how a retired phase comes back. is_active is
+         nullable all the way down: omitted keeps what the row has. */
+      if (np.phase_id) {
+        var edit = null;
+        sv.phases.forEach(function (x) { if (String(x.id) === String(np.phase_id)) { edit = x; } });
+        if (!edit) {
+          return Promise.resolve({ ok: false, status: 400, text: function () {
+            return Promise.resolve('{"message":"That phase belongs to another development."}');
+          } });
+        }
+        ["name", "code", "note"].forEach(function (k) {
+          if (Object.prototype.hasOwnProperty.call(np, k)) { edit[k] = np[k]; }
+        });
+        if (Object.prototype.hasOwnProperty.call(np, "is_active")) {
+          edit.is_active = np.is_active !== false;
+        }
+        return Promise.resolve({ ok: true, status: 200, text: function () {
+          return Promise.resolve(JSON.stringify({
+            phase_id: edit.id, created: false, name: edit.name,
+            is_active: edit.is_active !== false
+          }));
+        } });
+      }
+
+      /* A RETIRED phase never blocks a name, matching the server - two live phases called
+         "Phase 2" is the mistake worth refusing; a retired one is not in the way. */
+      var dup = false;
+      sv.phases.forEach(function (x) {
+        if (x.is_active === false) { return; }
+        if (String(x.name).toLowerCase() === String(np.name || "").toLowerCase()) { dup = true; }
+      });
+      if (dup) {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"A phase of that name already exists here."}');
+        } });
+      }
+      var maxId = 0, maxSort = -1;
+      sv.phases.forEach(function (x) {
+        if (x.id > maxId) { maxId = x.id; }
+        if (x.sort_order > maxSort) { maxSort = x.sort_order; }
+      });
+      sv.phases.push({ id: maxId + 1, name: np.name, code: np.code || null,
+        sort_order: maxSort + 1, is_released: false, released_at: null,
+        note: np.note || null, unit_count: 0, available: 0, is_active: true });
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({ phase_id: maxId + 1, created: true }));
+      } });
+    }
+
+    if (method === "POST" && u.indexOf("/staff/units/phase") !== -1) {
+      window.__PHMOVE_POSTED = JSON.parse((opts && opts.body) || "{}");
+      var mv = window.__PHMOVE_POSTED;
+      var sv2 = window.__INV_SV;
+      var byNum = {};
+      sv2.units.forEach(function (x) { byNum[String(Number(x.unit_number))] = x; });
+      var missing = [];
+      (mv.unit_numbers || []).forEach(function (nn) {
+        if (!byNum[String(Number(nn))]) { missing.push(nn); }
+      });
+      if (missing.length) {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"Some of those unit numbers are not in this development, so nothing was changed."}');
+        } });
+      }
+      var target = null;
+      if (mv.phase_id) {
+        (sv2.phases || []).forEach(function (x) {
+          if (String(x.id) === String(mv.phase_id)) { target = x; }
+        });
+      }
+      (mv.unit_numbers || []).forEach(function (nn) {
+        var un2 = byNum[String(Number(nn))];
+        un2.phase_id = target ? target.id : null;
+        un2.phase = target ? { id: target.id, name: target.name, code: target.code,
+                               is_released: target.is_released, sort_order: target.sort_order }
+                           : null;
+        if (un2.reservation || un2.offer_state) { return; }
+        var pending2 = target && !target.is_released;
+        un2.state = pending2 ? "unreleased" : "available";
+        un2.state_source = pending2 ? "phase" : "none";
+        un2.is_available = !pending2;
+      });
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({ counts: { matched: (mv.unit_numbers || []).length } }));
+      } });
+    }
+
+    if (u.indexOf("/staff/units") !== -1) {
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({
+          property: "sanford", property_name: "Sanford Heart",
+          fee_cents: 300000, is_selling: false,
+          units: window.__UNITS, available: window.__UNITS.length, truncated: false
+        }));
+      } });
+    }
+
+    if (method === "POST" && u.indexOf("/staff/reservations") !== -1 &&
+        u.indexOf("/staff/reservations/") === -1) {
+      window.__POSTED = JSON.parse((opts && opts.body) || "{}");
+      if (window.__CREATE_FAILS) {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"That home is already held by another reservation."}');
+        } });
+      }
+      var made = {
+        uuid: "u0", reference: "RES-SAN-031", status: "confirmed",
+        property_slug: window.__POSTED.property_slug, unit: "Home 5",
+        payer_route: window.__POSTED.payer_route, reservation_fee_cents: 300000,
+        deal_stage: "finance", deal_sub_stage: "sign-otp",
+        otp_generated: !!window.__POSTED.generate_otp,
+        cms_written: !/[?&]cmsfail=1/.test(location.search), cms_owner: "xano",
+        provisioning: { outcome: "created" }
+      };
+      return Promise.resolve({ ok: true, status: 200,
+        text: function () { return Promise.resolve(JSON.stringify(made)); } });
+    }
+
+    if (u.indexOf("/staff/reservations") !== -1 && u.indexOf("/staff/reservations/") === -1) {
+      // ?slow=N holds the response open so the boot screen can be observed; ?fail=1
+      // makes it error, so the boot screen can be shown to clear on failure too.
+      var slow = (/[?&]slow=(\d+)/.exec(location.search) || [0, 0])[1] | 0;
+      var res = /[?&]fail=1/.test(location.search)
+        ? { ok: false, status: 500, text: function () { return Promise.resolve('{"message":"boom"}'); } }
+        : { ok: true, status: 200,
+            text: function () { return Promise.resolve(JSON.stringify(window.__FIXTURE)); } };
+      return new Promise(function (r) { setTimeout(function () { r(res); }, slow); });
+    }
+    if (u.indexOf("/staff/") !== -1) {
+      return Promise.resolve({ ok: true, status: 200,
+        text: function () { return Promise.resolve("{}"); } });
+    }
+    return realFetch.apply(window, arguments);
+  };
+  // ?prefont=1 puts the stylesheet on the page already, the way a hand-pasted head
+  // snippet would, so the console's "inject once" guard is actually exercised.
+  if (/[?&]prefont=1/.test(location.search)) {
+    var pf = document.createElement("link");
+    pf.id = "hl-console-font"; pf.rel = "stylesheet";
+    pf.href = "https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap";
+    document.head.appendChild(pf);
+  }
+  try {
+    sessionStorage.setItem("hl_staff_token", "test-token");
+    sessionStorage.setItem("hl_staff_who", JSON.stringify({ name: "Anneke Grobler", role: window.__ROLE }));
+  } catch (e) {}
+}());
+</script>
+<script src="./heartland-console.js" defer></script>
+</body></html>
