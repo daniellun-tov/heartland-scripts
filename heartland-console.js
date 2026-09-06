@@ -1075,7 +1075,21 @@
     "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
     "    background:var(--surface); color:var(--ink);",
     "  }",
-    "  .typ-actions { display:flex; gap:8px; margin:4px 0 8px; }",
+    "  .typ-actions { display:flex; gap:8px; margin:4px 0 8px; align-items:center;",
+    "    flex-wrap:wrap; }",
+    "  /* AN INHERITED FIGURE IS A PLACEHOLDER, A STORED ONE IS A VALUE. The box shows the",
+    "     figure either way - what changes is whether it looks typed. Without this the two",
+    "     are indistinguishable on screen, and clearing an override becomes guesswork. */",
+    "  .typ-form input.is-inh::placeholder { color:var(--ink-muted); opacity:1; }",
+    "  .typ-form input.is-inh { border-style:dashed; }",
+    "  .typ-src { display:block; font-size:.625rem; color:var(--ink-muted); margin-top:3px; }",
+    "  .typ-src.is-own { color:var(--ink-2); }",
+    "  .typ-src.is-dup { color:var(--warn,#8a6d00); }",
+    "  .typ-tidy {",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    padding:9px 11px; margin:0 0 12px; font-size:.75rem; color:var(--ink-2);",
+    "  }",
+    "  .typ-off { font-size:.75rem; color:var(--ink-muted); margin:6px 0 0 14px; }",
     "  .ph-new { display:flex; gap:8px; align-items:center; margin-top:14px; }",
     "  .ph-in {",
     "    font:inherit; font-size:.8125rem; padding:6px 10px; flex:1 1 auto; min-width:0;",
@@ -4722,7 +4736,8 @@
   /* THE TYPE AND VARIANT REGISTER. Loaded on first open, like the field registry - it is a
      second call and most days nobody touches it. Re-opening for the same development reuses
      what it has. */
-  var TYP = { data: null, slug: "", loading: false, saving: "", err: "", editing: "" };
+  var TYP = { data: null, slug: "", loading: false, saving: "", err: "",
+              editing: "", editingType: "" };
 
   function typLoad(slug) {
     if (!slug) { return; }
@@ -4921,27 +4936,117 @@
     return (v === null || v === undefined) ? "" : String(v);
   }
 
+  function typSpecOf(o) { return (o && o.spec) || {}; }
+  function typSrcOf(o) { return (o && o.spec_source) || {}; }
+  function typOvrOf(v) { return (v && v.overrides) || {}; }
+
+  function typIsSet(x) { return !(x === null || x === undefined || x === ""); }
+
+  /* WHY THE DERIVED PRICE SOMETIMES NEEDS A WORD BESIDE IT. price_from is the cheapest
+     AVAILABLE home, and where nothing is available the server says so rather than inventing
+     a figure. An agent reading "from R2.4m" off a sold-out type would repeat it to a buyer. */
+  var TYP_BASIS = {
+    sold_out: "all sold",
+    all_homes: "incl. sold",
+    no_price: "no price yet",
+    none: ""
+  };
+
+  /* THE ONE-LINE SUMMARY, off the RESOLVED figures and never off the stored columns. A variant
+     that overrides nothing still describes a real home; reading its own null columns would
+     print a blank line for the commonest case in the system. */
+  function typSummary(o) {
+    var sp = typSpecOf(o), bits = [];
+    if (typIsSet(sp.bedrooms)) { bits.push(sp.bedrooms + " bed"); }
+    if (typIsSet(sp.bathrooms)) { bits.push(sp.bathrooms + " bath"); }
+    if (typIsSet(sp.parking)) { bits.push(sp.parking + " parking"); }
+    if (sp.total_area_sqm) { bits.push(sp.total_area_sqm + " m\u00b2"); }
+    if (o && o.price_from_cents) {
+      var note = TYP_BASIS[o.price_from_basis] || "";
+      bits.push("from " + randsShort(o.price_from_cents) + (note ? " (" + note + ")" : ""));
+    }
+    return bits;
+  }
+
+  /* ONE BOX. value is what this row STORES, placeholder is what it INHERITS, and the caption
+     says which - because clearing a figure and typing the same figure are different acts with
+     different consequences, and a box that looks the same either way makes them look identical.
+     The dashed border and the grey placeholder are the whole difference between "this variant
+     decides 3 bedrooms" and "3 bedrooms, decided by the type". */
+  function typBoxHtml(idBase, f, storedRaw, resolved, source, isRedundant) {
+    var id = idBase + f.key;
+    var has = typIsSet(storedRaw);
+    var ph = (!has && typIsSet(resolved)) ? String(resolved) : "";
+    var cls = has ? "" : " class=\"is-inh\"";
+    var note, ncls;
+    if (has) {
+      note = isRedundant ? "same as the type" : "set here";
+      ncls = isRedundant ? "typ-src is-dup" : "typ-src is-own";
+    } else if (source === "type") {
+      note = "from the type"; ncls = "typ-src";
+    } else if (source === "unit") {
+      note = "set per home"; ncls = "typ-src";
+    } else {
+      note = "not set anywhere"; ncls = "typ-src";
+    }
+    return '<div><label for="' + esc(id) + '">' + esc(f.label) + "</label>" +
+      '<input id="' + esc(id) + '" type="text"' + cls +
+      ' value="' + esc(has ? String(storedRaw) : "") + '"' +
+      (ph ? ' placeholder="' + esc(ph) + '"' : "") + ">" +
+      '<span class="' + ncls + '">' + esc(note) + "</span></div>";
+  }
+
+  /* THE TYPE EDITOR. It did not exist before the figures moved up to the type, which meant the
+     level that now holds them could not be edited from the console at all - the migration was
+     unreachable from the only screen anybody uses. */
+  function typTypeFormHtml(t) {
+    var busy = TYP.saving === ("t:" + t.id);
+    var spec = typSpecOf(t);
+    var idBase = "typt_" + t.id + "_";
+    var boxes = TYP_FIELDS.map(function (f) {
+      /* A type has nothing above it, so what it stores and what it resolves to are the same
+         thing and there is no placeholder to draw. */
+      return typBoxHtml(idBase, f, spec[f.key], null, "none", false);
+    }).join("");
+    var name = '<div><label for="' + esc(idBase) + 'name">Name</label>' +
+      '<input id="' + esc(idBase) + 'name" type="text" value="' + esc(t.name || "") + '"></div>';
+    return '<div class="typ-form">' + name + boxes + "</div>" +
+      '<div class="typ-actions">' +
+      '<button type="button" class="ph-btn primary" data-typt-save="' + esc(String(t.id)) +
+        '"' + (busy ? " disabled" : "") + ">" + (busy ? "Saving\u2026" : "Save") + "</button>" +
+      '<span class="feat-desc">These are the figures for every home built this way. An empty ' +
+      "box clears one \u2014 it does not mean zero. A variant that states nothing of its own " +
+      "follows whatever is here.</span>" +
+      "</div>";
+  }
+
   function typEditFormHtml(v) {
     var busy = TYP.saving === ("v:" + v.id);
+    var spec = typSpecOf(v), src = typSrcOf(v), ovr = typOvrOf(v);
+    var dup = {};
+    (v.redundant_overrides || []).forEach(function (k) { dup[k] = true; });
+    var idBase = "typf_" + v.id + "_";
     var boxes = TYP_FIELDS.map(function (f) {
-      return '<div><label for="typf_' + esc(f.key) + "_" + esc(String(v.id)) + '">' +
-        esc(f.label) + "</label>" +
-        '<input id="typf_' + esc(f.key) + "_" + esc(String(v.id)) +
-        '" type="text" value="' + esc(typVal(v[f.key])) + '"></div>';
+      return typBoxHtml(idBase, f, ovr[f.key], spec[f.key], src[f.key] || "none", dup[f.key]);
     }).join("");
-    var price = '<div><label for="typf_price_' + esc(String(v.id)) +
-      '">From price (R)</label><input id="typf_price_' + esc(String(v.id)) +
-      '" type="text" value="' +
-      esc(v.price_from_cents === null || v.price_from_cents === undefined
-        ? "" : String(Math.round(Number(v.price_from_cents)) / 100)) + '"></div>';
-    var name = '<div><label for="typf_name_' + esc(String(v.id)) +
-      '">Name</label><input id="typf_name_' + esc(String(v.id)) +
-      '" type="text" value="' + esc(v.name || "") + '"></div>';
-    return '<div class="typ-form">' + name + boxes + price + "</div>" +
+    var name = '<div><label for="' + esc(idBase) + 'name">Name</label>' +
+      '<input id="' + esc(idBase) + 'name" type="text" value="' + esc(v.stored_name || "") +
+      '"' + (v.stored_name ? "" : ' placeholder="' + esc(v.name || "") + '"') + "></div>";
+    /* NO FROM-PRICE BOX. It is derived from the cheapest available home and the server refuses
+       a value for it, so leaving the field here would produce a 400 nobody could explain. */
+    var stale = typIsSet(v.stored_price_from_cents)
+      ? '<div class="typ-src is-dup" style="margin:0 0 6px">This variant still carries a ' +
+        "stored from-price of " + esc(randsShort(v.stored_price_from_cents)) +
+        ". Nothing reads it \u2014 the figure shown is worked out from the cheapest home " +
+        "somebody can actually buy.</div>"
+      : "";
+    return '<div class="typ-form">' + name + boxes + "</div>" + stale +
       '<div class="typ-actions">' +
       '<button type="button" class="ph-btn primary" data-typv-save="' + esc(String(v.id)) +
         '"' + (busy ? " disabled" : "") + ">" + (busy ? "Saving\u2026" : "Save") + "</button>" +
-      '<span class="feat-desc">An empty box clears the figure. It does not mean zero.</span>' +
+      '<span class="feat-desc">An empty box <b>inherits from the type</b> \u2014 the grey ' +
+      "figure is what it would then be. Typing a figure overrides it here, and an override is " +
+      "a decision: it stops following the type if the type changes later.</span>" +
       "</div>";
   }
 
@@ -4955,6 +5060,10 @@
     var can = typCan();
     var list = d.types || [];
     var integ = d.integrity || {};
+    /* RESOLVED BY THE SERVER, never decided here. The console reads this the same way it reads
+       phases_on off /staff/inventory - a second copy of the rule is how the availability chain
+       ended up in four places. */
+    var variantsOn = d.variants_on === true;
 
     /* THE INVARIANTS, SHOWN RATHER THAN COUNTED SOMEWHERE NOBODY LOOKS. Every one of these
        should be zero and the writers refuse to create them, so a number here means something
@@ -4986,6 +5095,38 @@
         flags.map(function (t) { return esc(t); }).join("<br>") + "</div>"
       : "";
 
+    /* TIDINESS, NOT AN ERROR, and drawn as such - the server keeps these numbers deliberately
+       outside is_clean for the same reason. A variant restating a figure its type already
+       states is a DECISION that happens to match today; it simply stops following the type if
+       the type ever changes, which is almost never what an import meant. Reported so somebody
+       can clear them on purpose. Nothing here clears anything automatically. */
+    var tidy = [];
+    if (integ.variants_with_redundant_overrides) {
+      tidy.push(integ.variants_with_redundant_overrides + " variant" +
+        (integ.variants_with_redundant_overrides === 1 ? "" : "s") + " restate" +
+        (integ.variants_with_redundant_overrides === 1 ? "s" : "") + " " +
+        integ.redundant_override_fields + " figure" +
+        (integ.redundant_override_fields === 1 ? "" : "s") +
+        " the type already states. Clearing the box hands the figure back to the type, so it " +
+        "follows the type from then on. Leaving it is a choice, not a fault.");
+    }
+    if (integ.types_carrying_no_figures) {
+      tidy.push(integ.types_carrying_no_figures + " type" +
+        (integ.types_carrying_no_figures === 1 ? " carries" : "s carry") +
+        " no figures at all. Edit figures on the type puts them where every variant can " +
+        "inherit them.");
+    }
+    if (integ.variant_price_from_disagrees) {
+      tidy.push(integ.variant_price_from_disagrees + " variant" +
+        (integ.variant_price_from_disagrees === 1 ? "" : "s") +
+        " still carry a stored from-price that nothing reads. The figure shown is worked out " +
+        "from the cheapest home somebody can actually buy.");
+    }
+    var tidyHtml = tidy.length
+      ? '<div class="typ-tidy"><b>Worth tidying, nothing broken.</b><br>' +
+        tidy.map(function (t) { return esc(t); }).join("<br>") + "</div>"
+      : "";
+
     var rows = list.length
       ? list.map(function (t) {
           var gone = t.is_active === false;
@@ -5004,6 +5145,10 @@
                 : "");
           } else if (can) {
             ctrl =
+              '<button type="button" class="ph-btn is-quiet" data-typt-edit="' +
+                esc(String(t.id)) + '">' +
+                (String(TYP.editingType) === String(t.id) ? "Cancel" : "Edit figures") +
+                "</button>" +
               '<button type="button" class="ph-btn is-quiet" data-typ-retire="' +
                 esc(String(t.id)) + '"' + (busyT ? " disabled" : "") +
                 ' title="Take it out of every picker, and its variants with it. Refused while ' +
@@ -5014,12 +5159,7 @@
             var vgone = v.is_active === false;
             var busyV = TYP.saving === ("v:" + v.id);
             var editing = String(TYP.editing) === String(v.id);
-            var spec = [];
-            if (v.bedrooms !== null && v.bedrooms !== undefined) { spec.push(v.bedrooms + " bed"); }
-            if (v.bathrooms !== null && v.bathrooms !== undefined) { spec.push(v.bathrooms + " bath"); }
-            if (v.parking !== null && v.parking !== undefined) { spec.push(v.parking + " parking"); }
-            if (v.total_area_sqm) { spec.push(v.total_area_sqm + " m\u00b2"); }
-            if (v.price_from_cents) { spec.push("from " + randsShort(v.price_from_cents)); }
+            var spec = typSummary(v);
 
             var vctrl = "";
             if (can && vgone) {
@@ -5059,6 +5199,16 @@
               ? ' \u00b7 the stored count says ' + esc(String(v.stored_unit_count))
               : "";
 
+            /* WHAT THIS VARIANT ITSELF DECIDES, said on the row rather than only inside the
+               form. override_count 0 is the healthy shape after the migration and it should
+               look healthy, not blank - "follows the type" is an answer, not an absence. */
+            var ovrN = Number(v.override_count || 0);
+            var dupN = Number(v.redundant_override_count || 0);
+            var ovrTxt = ovrN === 0
+              ? "follows the type"
+              : (ovrN + " own figure" + (ovrN === 1 ? "" : "s") +
+                 (dupN ? ", " + dupN + " of them the same as the type" : ""));
+
             return '<div class="typ-wrap' + (vgone ? " is-retired" : "") + '">' +
               '<div class="typ-var"><div><div class="typ-name">' +
                 esc(v.code) + (v.name ? " \u00b7 " + esc(v.name) : "") +
@@ -5067,12 +5217,13 @@
               '<div class="feat-desc">' + v.unit_count + " home" +
                 (v.unit_count === 1 ? "" : "s") +
                 (spec.length ? " \u00b7 " + esc(spec.join(", ")) : "") + mismatch +
-                "</div></div>" +
+                ' \u00b7 <span' + (dupN ? ' class="typ-src is-dup"' : "") + ">" +
+                esc(ovrTxt) + "</span></div></div>" +
               '<div class="feat-controls">' + vctrl + "</div></div>" +
               (editing ? typEditFormHtml(v) : "") + "</div>";
           }).join("");
 
-          var addV = (can && !gone)
+          var addV = (can && !gone && variantsOn)
             ? '<div class="ph-new">' +
               '<input id="typVarCode' + esc(String(t.id)) + '" class="ph-in is-code" ' +
                 'type="text" placeholder="' + esc(t.code) + '2" aria-label="New variant code">' +
@@ -5084,20 +5235,40 @@
               "</button></div>"
             : "";
 
+          /* THE TYPE'S OWN FIGURES, on the type row. They belong here now - a variant states
+             only what it changes - so this is the line that has to carry them, and a type with
+             none is the thing worth noticing rather than an empty space. */
+          var tspec = typSummary(t);
+          var tfig = Number(t.spec_field_count || 0) === 0
+            ? ' \u00b7 <span class="typ-src">no figures yet</span>'
+            : (tspec.length ? " \u00b7 " + esc(tspec.join(", ")) : "");
+
+          /* THE VARIANT LEVEL IS HIDDEN WHERE THE MODULE IS OFF, and the server is what says
+             so. Every type still has exactly one variant behind it either way - no reader
+             branches on whether a development has real ones - so there is nothing to show and
+             nothing to explain beyond one line. */
+          var body = variantsOn
+            ? '<div class="typ-vars">' +
+                (vars || '<div class="feat-desc">No variants \u2014 no home can point at this ' +
+                  "type until it has one.</div>") + addV + "</div>"
+            : '<div class="typ-off">Built one way. Turn <b>Variants</b> on in Settings if this ' +
+              "type is ever built more than one way.</div>";
+
           return '<div class="typ-type' + (gone ? " is-retired" : "") + '">' +
             '<div class="typ-head"><div><div class="typ-name">' + esc(t.name) +
               ' <span class="ph-code">' + esc(t.code) + "</span>" +
               (gone ? ' <span class="feat-flag is-default">retired</span>' : "") + "</div>" +
             '<div class="feat-desc">' + t.unit_count + " home" +
-              (t.unit_count === 1 ? "" : "s") + " \u00b7 " + t.active_variant_count +
-              " of " + t.variant_count + " variant" + (t.variant_count === 1 ? "" : "s") +
-              " in use" +
+              (t.unit_count === 1 ? "" : "s") +
+              (variantsOn
+                ? " \u00b7 " + t.active_variant_count + " of " + t.variant_count + " variant" +
+                  (t.variant_count === 1 ? "" : "s") + " in use"
+                : "") + tfig +
               (t.source && t.source !== "native" ? " \u00b7 imported from " + esc(t.source) : "") +
               "</div></div>" +
             '<div class="feat-controls">' + ctrl + "</div></div>" +
-            '<div class="typ-vars">' +
-              (vars || '<div class="feat-desc">No variants \u2014 no home can point at this ' +
-                "type until it has one.</div>") + addV + "</div></div>";
+            (String(TYP.editingType) === String(t.id) && !gone ? typTypeFormHtml(t) : "") +
+            body + "</div>";
         }).join("")
       : '<div class="inv-empty">No types yet. A type is a kind of home \u2014 Type C, ' +
         "Sanford Heart A \u2014 and every home has to point at one, so a development needs at " +
@@ -5118,15 +5289,25 @@
     var err = TYP.err
       ? '<div class="err" style="margin-bottom:10px">' + esc(TYP.err) + "</div>" : "";
 
-    return '<div class="inv-owed" style="margin:12px 0">A <b>type</b> is a kind of home. A ' +
-      "<b>variant</b> is one way of building it \u2014 Type C might be built as C1 and C2, " +
-      "with their own areas and their own from price. Every home points at a variant, so a " +
-      "development with no real variants still gets one per type, made for it automatically. " +
-      "Exactly one variant per type is the <b>default</b>: that is the one that represents the " +
-      "type wherever types are listed, and promoting another demotes it in the same call. " +
-      "A code can never be changed \u2014 everything downstream keys on it \u2014 so the name " +
-      "is what to edit.</div>" +
-      warn + err + rows + mk;
+    var intro = variantsOn
+      ? "A <b>type</b> is a kind of home. A <b>variant</b> is one way of building it \u2014 " +
+        "Type C might be built as C1 and C2, with different areas. <b>The figures belong to " +
+        "the type</b>, and a variant states only what it changes: an empty box on a variant " +
+        "inherits, and the grey figure beside it is what it inherits. Every home points at a " +
+        "variant, so a development with no real variants still gets one per type, made for it " +
+        "automatically. Exactly one variant per type is the <b>default</b> \u2014 the one that " +
+        "represents the type wherever types are listed \u2014 and promoting another demotes it " +
+        "in the same call."
+      : "A <b>type</b> is a kind of home, and on this development each one is built exactly " +
+        "one way, so <b>the figures live on the type</b> and there is no variant level to " +
+        "look at. Every home still points at a variant behind the scenes; nothing here " +
+        "depends on whether a development has real ones. Turn <b>Variants</b> on in Settings " +
+        "if a type ever needs to be built two ways.";
+
+    return '<div class="inv-owed" style="margin:12px 0">' + intro +
+      " A code can never be changed \u2014 everything downstream keys on it \u2014 so the " +
+      "name is what to edit.</div>" +
+      warn + err + tidyHtml + rows + mk;
   }
 
   /* ONE WRITER FOR EVERY BUTTON HERE. They are all one POST and one re-read, and the re-read
@@ -5140,7 +5321,7 @@
     renderInv();
     api(url, { method: "POST", body: JSON.stringify(body) })
       .then(function () {
-        TYP.editing = "";
+        TYP.editing = ""; TYP.editingType = "";
         return typLoad(TYP.slug);
       })
       .then(function () { return invLoad(INV.slug, true); })
@@ -5230,23 +5411,30 @@
 
   function typToggleEdit(id) {
     TYP.editing = (String(TYP.editing) === String(id)) ? "" : String(id);
+    TYP.editingType = "";
     TYP.err = "";
     renderInv();
   }
 
-  /* SEND EVERY FIELD ON THE FORM, and send an empty box as an empty string, which the server
-     reads as "clear this". That is the honest reading of a form: what is on the screen is what
-     the row becomes. Omitting the empties would mean a person could never remove a figure they
-     had typed by mistake. */
-  function typSaveVariant(id) {
-    if (TYP.saving) { return; }
-    var body = {
-      property: TYP.slug, variant_id: Number(id),
-      reason: "edited from the sales console"
-    };
+  /* ONE FORM OPEN AT A TIME, across both levels. Two open forms with the same figures in them
+     is how somebody types into the wrong one. */
+  function typToggleEditType(id) {
+    TYP.editingType = (String(TYP.editingType) === String(id)) ? "" : String(id);
+    TYP.editing = "";
+    TYP.err = "";
+    renderInv();
+  }
+
+  /* READ THE EIGHT BOXES OFF A FORM. An empty box is sent as an EMPTY STRING, never omitted:
+     omitting it would mean "leave it alone", and then a figure typed by mistake could never be
+     removed. The server declares every one of these text? for exactly this reason - a decimal
+     input coerces "" to null on the way in, which makes "clear this" and "I did not mention
+     this" arrive identical, and clearing an override was silently a no-op for a day because of
+     it. Anything not a number stops the whole save rather than writing part of it. */
+  function typReadFigures(idBase, body) {
     var bad = "";
     TYP_FIELDS.forEach(function (f) {
-      var el = $("typf_" + f.key + "_" + id);
+      var el = $(idBase + f.key);
       if (!el) { return; }
       var raw = String(el.value || "").trim();
       if (raw === "") { body[f.key] = ""; return; }
@@ -5254,22 +5442,55 @@
       if (isNaN(n)) { bad = f.label; return; }
       body[f.key] = n;
     });
-    var pe = $("typf_price_" + id);
-    if (pe) {
-      var praw = String(pe.value || "").trim();
-      if (praw === "") { body.price_from_cents = ""; }
-      else {
-        var pn = Number(praw.replace(/[R\s,]/g, ""));
-        if (isNaN(pn)) { bad = "From price"; }
-        else { body.price_from_cents = Math.round(pn * 100); }
+    return bad;
+  }
+
+  function typSaveType(id) {
+    if (TYP.saving) { return; }
+    var idBase = "typt_" + id + "_";
+    var body = {
+      property: TYP.slug, type_id: Number(id),
+      reason: "figures edited from the sales console"
+    };
+    var bad = typReadFigures(idBase, body);
+    var ne = $(idBase + "name");
+    if (ne) {
+      var nm = String(ne.value || "").trim();
+      if (!nm) {
+        TYP.err = "A type needs a name.";
+        renderInv(); return;
       }
+      body.name = nm;
     }
-    var ne = $("typf_name_" + id);
+    if (bad) {
+      TYP.err = bad + " must be a number, or empty. An empty box clears the figure \u2014 " +
+        "it does not mean zero.";
+      renderInv(); return;
+    }
+    typWrite("t:" + id, "/staff/types", body);
+  }
+
+  /* SEND EVERY FIELD ON THE FORM, and send an empty box as an empty string. On a VARIANT that
+     string means "clear the override and inherit from the type again", which is the whole
+     point of the level - and it is why the empties must be sent rather than omitted.
+
+     NO FROM-PRICE. It is derived from the cheapest AVAILABLE home and the server refuses a
+     value for it outright, so a box here would produce a 400 nobody could explain. It used to
+     be on this form, and the figure it wrote was the one the register then contradicted. */
+  function typSaveVariant(id) {
+    if (TYP.saving) { return; }
+    var idBase = "typf_" + id + "_";
+    var body = {
+      property: TYP.slug, variant_id: Number(id),
+      reason: "edited from the sales console"
+    };
+    var bad = typReadFigures(idBase, body);
+    var ne = $(idBase + "name");
     if (ne) { body.name = String(ne.value || "").trim(); }
 
     if (bad) {
-      TYP.err = bad + " must be a number, or empty. The server refuses a fraction rather " +
-        "than rounding it \u2014 a figure nobody chose is worse than no figure.";
+      TYP.err = bad + " must be a number, or empty. An empty box hands the figure back to " +
+        "the type \u2014 it does not mean zero.";
       renderInv(); return;
     }
     typWrite("v:" + id, "/staff/variants", body);
@@ -5364,6 +5585,12 @@
     });
     [].forEach.call(root.querySelectorAll("[data-typv-edit]"), function (el) {
       el.addEventListener("click", function () { typToggleEdit(el.getAttribute("data-typv-edit")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typt-edit]"), function (el) {
+      el.addEventListener("click", function () { typToggleEditType(el.getAttribute("data-typt-edit")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typt-save]"), function (el) {
+      el.addEventListener("click", function () { typSaveType(el.getAttribute("data-typt-save")); });
     });
     [].forEach.call(root.querySelectorAll("[data-typv-save]"), function (el) {
       el.addEventListener("click", function () { typSaveVariant(el.getAttribute("data-typv-save")); });
