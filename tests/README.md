@@ -27,9 +27,31 @@ The server has its own suites, which live in Xano and are run from there:
 `run_smoke_fields`, `run_smoke_phases`, `run_smoke_reserve`. `run_smoke_all` runs the
 read-only ones nightly.
 
-**The gap between the two is a known hole, not a solved problem.** A stub is a claim about the
-real thing and it can be wrong; when a server refusal changes, the fixture has to change with
-it or the suite starts grading the fixture.
+**The gap between the two was a known hole until 6 Sep, and `test-contract.js` now closes the
+half of it that actually bit.** A stub is a claim about the real thing and it can be wrong;
+when a read changes shape, the fixture has to change with it or the suite starts grading the
+fixture. That is not hypothetical — the eight spec figures moved from the variant to the type,
+every server suite stayed green, every console suite stayed green, and the fixture went on
+emitting a field the server had stopped returning.
+
+`tests/fixtures/server-contract.json` is the SHAPE of the five reads the console renders
+from — paths and kinds, no values, generated from the live server by the Xano function
+`emit_console_contract` (fn 172). `test-contract.js` shapes the fixture's answers the same way
+and compares. The two directions are not treated equally: a path the FIXTURE returns and the
+server does not is a hard failure, because that is the fixture lying; a path the server returns
+and the fixture does not is reported, because a fixture is allowed to be a subset. It found a
+real defect on its first run — `res_development_fields.options` came back as `{}` where the
+console renders a list.
+
+**Regenerate the contract only when a read changes shape on purpose**, in the same commit as
+the fixture change: `runWorkspaceFunction emit_console_contract` (workspace 5, branch v1).
+
+What it still does not cover: values (deliberately — the reservations read carries real
+buyers), the write paths, and anything under a path where the server's first array element is
+null, since a contract that collapses arrays to their first element has nothing to say about
+what lies beneath one. Paths under `units[].attributes` and `units[].field_values` are keyed by
+data rather than schema, so they fold to `*` and their kinds are not compared — an array
+becoming an object in there is not caught. Both are recorded gaps, not oversights.
 
 ## Fixture rules, each paid for once
 
