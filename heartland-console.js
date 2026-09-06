@@ -1053,6 +1053,29 @@
     "  .ph-btn.is-quiet:hover { border-color:var(--rule); color:var(--ink); background:var(--surface-2); }",
     "  .ph-row.is-retired .ph-name { color:var(--ink-2); }",
     "  .ph-row.is-retired { opacity:.78; }",
+    "  /* TYPES AND VARIANTS. A type is a heading and its variants are indented under it,",
+    "     because that is the shape of the model: a home points at a VARIANT, and a variant is",
+    "     one way of building a type. Flattening the two would hide the level that matters. */",
+    "  .typ-type { border-bottom:1px solid var(--rule); padding:12px 0; }",
+    "  .typ-head { display:flex; gap:16px; align-items:center; justify-content:space-between; }",
+    "  .typ-name { font-size:.875rem; font-weight:600; color:var(--ink); }",
+    "  .typ-vars { margin:8px 0 0 14px; border-left:2px solid var(--rule); padding-left:12px; }",
+    "  .typ-var { display:flex; gap:12px; align-items:center; justify-content:space-between;",
+    "    padding:7px 0; }",
+    "  .typ-wrap + .typ-wrap { border-top:1px solid var(--rule); }",
+    "  .typ-type.is-retired, .typ-wrap.is-retired { opacity:.78; }",
+    "  .typ-type.is-retired .typ-name { color:var(--ink-2); }",
+    "  .typ-form {",
+    "    display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr));",
+    "    gap:8px; margin:6px 0 4px;",
+    "  }",
+    "  .typ-form label { display:block; font-size:.6875rem; color:var(--ink-muted); margin-bottom:3px; }",
+    "  .typ-form input {",
+    "    font:inherit; font-size:.8125rem; padding:6px 8px; width:100%; box-sizing:border-box;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:var(--surface); color:var(--ink);",
+    "  }",
+    "  .typ-actions { display:flex; gap:8px; margin:4px 0 8px; }",
     "  .ph-new { display:flex; gap:8px; align-items:center; margin-top:14px; }",
     "  .ph-in {",
     "    font:inherit; font-size:.8125rem; padding:6px 10px; flex:1 1 auto; min-width:0;",
@@ -3848,10 +3871,17 @@
 
   function closeDrawer() {
     S.open = null;
+    /* A PANEL BUTTON SAYS WHETHER IT IS OPEN, so closing one has to re-render it. Without
+       this the drawer goes away and the button keeps announcing aria-expanded="true" to a
+       screen reader for as long as nothing else redraws the grid - which, on a quiet
+       development, is until somebody changes something. It applies to Phases and Fields as
+       much as to Types; the types suite is only what noticed. */
+    var wasPanel = !!PANEL.kind;
     PANEL.kind = "";
     $("scrim").classList.remove("open");
     $("drawer").classList.remove("open");
     $("drawer").setAttribute("aria-hidden", "true");
+    if (wasPanel) { renderInv(); }
   }
 
   function moveStage(r) {
@@ -4343,6 +4373,11 @@
          one open across a switch would show one development's columns over another's stock. */
       INV.phaseErr = "";
       FLD.data = null; FLD.slug = ""; FLD.err = "";
+      /* The type register belongs to a development just as the field registry does. The
+         open check would reload it anyway, because TYP.slug no longer matches - but the
+         stale one would be RENDERED first, showing one development's types over another's
+         stock for as long as the read takes. */
+      TYP.data = null; TYP.slug = ""; TYP.err = ""; TYP.editing = "";
       panelClose();
     }
     INV.editing = null;
@@ -4451,6 +4486,22 @@
           ? " \u00b7 " + d.counts.unphased + " in no phase" : "") +
         "</span></button>");
     }
+    /* TYPES SITS BETWEEN PHASES AND FIELDS because that is its weight: a phase decides when
+       stock goes out, a type decides what the stock IS, and a field decides what gets
+       recorded about it. The count comes from the grid read, which is always loaded, so the
+       button can describe itself before anybody opens it. */
+    var tc = (d.counts && d.counts.types) || 0;
+    var vc = (d.counts && d.counts.variants) || 0;
+    var orph = (d.counts && d.counts.orphan_variant) || 0;
+    btns.push('<button type="button" class="panel-btn" id="invTypOpen" aria-expanded="' +
+      (PANEL.kind === "types" ? "true" : "false") + '"><b>Types</b><span>' +
+      (tc
+        ? tc + " type" + (tc === 1 ? "" : "s") + ", " + vc + " way" + (vc === 1 ? "" : "s") +
+          " of building them"
+        : "none yet \u2014 a development needs at least one") +
+      (orph ? " \u00b7 " + orph + " home" + (orph === 1 ? "" : "s") + " with no variant" : "") +
+      "</span></button>");
+
     var n = d.fields || [];
     var shown = n.filter(function (x) { return x.is_grid; }).length;
     btns.push('<button type="button" class="panel-btn" id="invFldOpen" aria-expanded="' +
@@ -4668,6 +4719,21 @@
 
      LOADED ONLY WHEN OPENED. It is a second call and most days nobody touches it; the grid
      already has everything it needs from /staff/inventory. */
+  /* THE TYPE AND VARIANT REGISTER. Loaded on first open, like the field registry - it is a
+     second call and most days nobody touches it. Re-opening for the same development reuses
+     what it has. */
+  var TYP = { data: null, slug: "", loading: false, saving: "", err: "", editing: "" };
+
+  function typLoad(slug) {
+    if (!slug) { return; }
+    TYP.slug = slug; TYP.loading = true; TYP.err = "";
+    renderInv();
+    return api("/staff/types?property=" + encodeURIComponent(slug))
+      .then(function (d) { TYP.data = d; })
+      .catch(function (e) { TYP.err = e.message; })
+      .then(function () { TYP.loading = false; renderInv(); });
+  }
+
   var FLD = { data: null, slug: "", loading: false, saving: "", err: "" };
 
   function fldLoad(slug) {
@@ -4829,12 +4895,393 @@
      Close, the scrim, Escape - and only one thing is ever open in it. It re-renders whenever
      the grid does, because every save in it changes the grid and the grid's reload is what
      brings the fresh answer back. */
+  /* ---------- types and variants ---------- */
+
+  /* Manager or admin, the same gate as phases and the same gate the server applies. A type is
+     what a development sells; the sales role prices and moves homes, it does not decide what
+     kinds of home exist. Hiding the buttons is a courtesy - the endpoints refuse regardless. */
+  function typCan() { return canPhase(); }
+
+  /* The figures a variant carries, in the order somebody fills them in. Every one is a WHOLE
+     number and the server refuses a fraction rather than rounding it - so an empty box means
+     "no figure", never zero. Money is the exception below: entered in rands and stored in
+     cents, the same convention the grid uses, because a person types what the price list says. */
+  var TYP_FIELDS = [
+    { key: "bedrooms", label: "Beds" },
+    { key: "bathrooms", label: "Baths" },
+    { key: "parking", label: "Parking" },
+    { key: "internal_area_sqm", label: "Internal m\u00b2" },
+    { key: "patio_area_sqm", label: "Patio m\u00b2" },
+    { key: "balcony_area_sqm", label: "Balcony m\u00b2" },
+    { key: "garage_area_sqm", label: "Garage m\u00b2" },
+    { key: "total_area_sqm", label: "Total m\u00b2" }
+  ];
+
+  function typVal(v) {
+    return (v === null || v === undefined) ? "" : String(v);
+  }
+
+  function typEditFormHtml(v) {
+    var busy = TYP.saving === ("v:" + v.id);
+    var boxes = TYP_FIELDS.map(function (f) {
+      return '<div><label for="typf_' + esc(f.key) + "_" + esc(String(v.id)) + '">' +
+        esc(f.label) + "</label>" +
+        '<input id="typf_' + esc(f.key) + "_" + esc(String(v.id)) +
+        '" type="text" value="' + esc(typVal(v[f.key])) + '"></div>';
+    }).join("");
+    var price = '<div><label for="typf_price_' + esc(String(v.id)) +
+      '">From price (R)</label><input id="typf_price_' + esc(String(v.id)) +
+      '" type="text" value="' +
+      esc(v.price_from_cents === null || v.price_from_cents === undefined
+        ? "" : String(Math.round(Number(v.price_from_cents)) / 100)) + '"></div>';
+    var name = '<div><label for="typf_name_' + esc(String(v.id)) +
+      '">Name</label><input id="typf_name_' + esc(String(v.id)) +
+      '" type="text" value="' + esc(v.name || "") + '"></div>';
+    return '<div class="typ-form">' + name + boxes + price + "</div>" +
+      '<div class="typ-actions">' +
+      '<button type="button" class="ph-btn primary" data-typv-save="' + esc(String(v.id)) +
+        '"' + (busy ? " disabled" : "") + ">" + (busy ? "Saving\u2026" : "Save") + "</button>" +
+      '<span class="feat-desc">An empty box clears the figure. It does not mean zero.</span>' +
+      "</div>";
+  }
+
+  function typesDrawerHtml() {
+    if (!TYP.data) {
+      return (TYP.err ? '<div class="err">' + esc(TYP.err) + "</div>" : "") +
+        '<div class="inv-empty">' + (TYP.loading ? "Loading\u2026" : "Nothing loaded.") +
+        "</div>";
+    }
+    var d = TYP.data;
+    var can = typCan();
+    var list = d.types || [];
+    var integ = d.integrity || {};
+
+    /* THE INVARIANTS, SHOWN RATHER THAN COUNTED SOMEWHERE NOBODY LOOKS. Every one of these
+       should be zero and the writers refuse to create them, so a number here means something
+       got past a rule - an importer, a hand edit - and the person on this screen is the one
+       who can do something about it. A count nobody can see is an invariant nobody keeps. */
+    var flags = [];
+    if (integ.types_without_default) {
+      flags.push(integ.types_without_default +
+        " type(s) have no default variant, so they cannot be shown wherever types are listed.");
+    }
+    if (integ.types_with_multiple_defaults) {
+      flags.push(integ.types_with_multiple_defaults +
+        " type(s) have more than one default variant.");
+    }
+    if (integ.types_without_active_variant) {
+      flags.push(integ.types_without_active_variant +
+        " type(s) have no active variant, so no home can point at them.");
+    }
+    if (integ.active_variant_under_retired_type) {
+      flags.push(integ.active_variant_under_retired_type +
+        " variant(s) are still active under a retired type. Their homes are not listed on the site.");
+    }
+    if (integ.homes_pointing_at_no_variant) {
+      flags.push(integ.homes_pointing_at_no_variant +
+        " home(s) point at a variant that is not there.");
+    }
+    var warn = flags.length
+      ? '<div class="err" style="margin-bottom:12px"><b>The register does not add up.</b><br>' +
+        flags.map(function (t) { return esc(t); }).join("<br>") + "</div>"
+      : "";
+
+    var rows = list.length
+      ? list.map(function (t) {
+          var gone = t.is_active === false;
+          var busyT = TYP.saving === ("t:" + t.id);
+          var ctrl = "";
+          if (can && gone) {
+            ctrl =
+              '<button type="button" class="ph-btn primary" data-typ-restore="' +
+                esc(String(t.id)) + '"' + (busyT ? " disabled" : "") + ">" +
+                (busyT ? "\u2026" : "Bring back") + "</button>" +
+              (t.can_hard_delete
+                ? '<button type="button" class="ph-btn is-quiet" data-typ-purge="' +
+                  esc(String(t.id)) + '"' + (busyT ? " disabled" : "") +
+                  ' title="Remove the row for good. It has no variants and no homes, so there ' +
+                  'is nothing to lose.">Delete permanently</button>'
+                : "");
+          } else if (can) {
+            ctrl =
+              '<button type="button" class="ph-btn is-quiet" data-typ-retire="' +
+                esc(String(t.id)) + '"' + (busyT ? " disabled" : "") +
+                ' title="Take it out of every picker, and its variants with it. Refused while ' +
+                'homes are still built this way.">Remove</button>';
+          }
+
+          var vars = (t.variants || []).map(function (v) {
+            var vgone = v.is_active === false;
+            var busyV = TYP.saving === ("v:" + v.id);
+            var editing = String(TYP.editing) === String(v.id);
+            var spec = [];
+            if (v.bedrooms !== null && v.bedrooms !== undefined) { spec.push(v.bedrooms + " bed"); }
+            if (v.bathrooms !== null && v.bathrooms !== undefined) { spec.push(v.bathrooms + " bath"); }
+            if (v.parking !== null && v.parking !== undefined) { spec.push(v.parking + " parking"); }
+            if (v.total_area_sqm) { spec.push(v.total_area_sqm + " m\u00b2"); }
+            if (v.price_from_cents) { spec.push("from " + randsShort(v.price_from_cents)); }
+
+            var vctrl = "";
+            if (can && vgone) {
+              vctrl =
+                '<button type="button" class="ph-btn primary" data-typv-restore="' +
+                  esc(String(v.id)) + '"' + (busyV ? " disabled" : "") + ">" +
+                  (busyV ? "\u2026" : "Bring back") + "</button>" +
+                (v.can_hard_delete
+                  ? '<button type="button" class="ph-btn is-quiet" data-typv-purge="' +
+                    esc(String(v.id)) + '"' + (busyV ? " disabled" : "") +
+                    ' title="Remove the row for good. No home is built this way.">Delete permanently</button>'
+                  : "");
+            } else if (can) {
+              vctrl =
+                (v.is_default
+                  ? ""
+                  : '<button type="button" class="ph-btn" data-typv-default="' +
+                    esc(String(v.id)) + '"' + (busyV ? " disabled" : "") +
+                    ' title="Make this the variant that represents the type. Whichever one ' +
+                    'holds it now is demoted in the same call - a type always has exactly ' +
+                    'one.">Make default</button>') +
+                '<button type="button" class="ph-btn is-quiet" data-typv-edit="' +
+                  esc(String(v.id)) + '">' + (editing ? "Cancel" : "Edit") + "</button>" +
+                (v.is_default
+                  ? ""
+                  : '<button type="button" class="ph-btn is-quiet" data-typv-retire="' +
+                    esc(String(v.id)) + '"' + (busyV ? " disabled" : "") +
+                    ' title="Take it out of every picker. Refused while homes are still built ' +
+                    'this way - unlike a phase, a retired variant stops its homes being listed ' +
+                    'on the site.">Remove</button>');
+            }
+
+            /* THE COUNTED NUMBER, and the stored one only when they disagree. unit_count on
+               the row is denormalised and the truth is the count of homes; showing the
+               disagreement is more honest than silently picking a side. */
+            var mismatch = v.count_disagrees
+              ? ' \u00b7 the stored count says ' + esc(String(v.stored_unit_count))
+              : "";
+
+            return '<div class="typ-wrap' + (vgone ? " is-retired" : "") + '">' +
+              '<div class="typ-var"><div><div class="typ-name">' +
+                esc(v.code) + (v.name ? " \u00b7 " + esc(v.name) : "") +
+                (v.is_default ? ' <span class="feat-flag">default</span>' : "") +
+                (vgone ? ' <span class="feat-flag is-default">retired</span>' : "") + "</div>" +
+              '<div class="feat-desc">' + v.unit_count + " home" +
+                (v.unit_count === 1 ? "" : "s") +
+                (spec.length ? " \u00b7 " + esc(spec.join(", ")) : "") + mismatch +
+                "</div></div>" +
+              '<div class="feat-controls">' + vctrl + "</div></div>" +
+              (editing ? typEditFormHtml(v) : "") + "</div>";
+          }).join("");
+
+          var addV = (can && !gone)
+            ? '<div class="ph-new">' +
+              '<input id="typVarCode' + esc(String(t.id)) + '" class="ph-in is-code" ' +
+                'type="text" placeholder="' + esc(t.code) + '2" aria-label="New variant code">' +
+              '<input id="typVarName' + esc(String(t.id)) + '" class="ph-in" type="text" ' +
+                'placeholder="Name (optional)" aria-label="New variant name">' +
+              '<button type="button" data-typ-addvar="' + esc(String(t.id)) + '"' +
+                (TYP.saving === ("addv:" + t.id) ? " disabled" : "") + ">" +
+                (TYP.saving === ("addv:" + t.id) ? "Adding\u2026" : "Add variant") +
+              "</button></div>"
+            : "";
+
+          return '<div class="typ-type' + (gone ? " is-retired" : "") + '">' +
+            '<div class="typ-head"><div><div class="typ-name">' + esc(t.name) +
+              ' <span class="ph-code">' + esc(t.code) + "</span>" +
+              (gone ? ' <span class="feat-flag is-default">retired</span>' : "") + "</div>" +
+            '<div class="feat-desc">' + t.unit_count + " home" +
+              (t.unit_count === 1 ? "" : "s") + " \u00b7 " + t.active_variant_count +
+              " of " + t.variant_count + " variant" + (t.variant_count === 1 ? "" : "s") +
+              " in use" +
+              (t.source && t.source !== "native" ? " \u00b7 imported from " + esc(t.source) : "") +
+              "</div></div>" +
+            '<div class="feat-controls">' + ctrl + "</div></div>" +
+            '<div class="typ-vars">' +
+              (vars || '<div class="feat-desc">No variants \u2014 no home can point at this ' +
+                "type until it has one.</div>") + addV + "</div></div>";
+        }).join("")
+      : '<div class="inv-empty">No types yet. A type is a kind of home \u2014 Type C, ' +
+        "Sanford Heart A \u2014 and every home has to point at one, so a development needs at " +
+        "least one before it can carry any stock.</div>";
+
+    var mk = can
+      ? '<div class="ph-new">' +
+        '<input id="typTypeName" class="ph-in" type="text" placeholder="Type D" ' +
+          'aria-label="New type name">' +
+        '<input id="typTypeCode" class="ph-in is-code" type="text" placeholder="D" ' +
+          'aria-label="Short code">' +
+        '<button type="button" id="typTypeAdd"' +
+          (TYP.saving === "newtype" ? " disabled" : "") + ">" +
+          (TYP.saving === "newtype" ? "Adding\u2026" : "Add type") + "</button>" +
+        "</div>"
+      : "";
+
+    var err = TYP.err
+      ? '<div class="err" style="margin-bottom:10px">' + esc(TYP.err) + "</div>" : "";
+
+    return '<div class="inv-owed" style="margin:12px 0">A <b>type</b> is a kind of home. A ' +
+      "<b>variant</b> is one way of building it \u2014 Type C might be built as C1 and C2, " +
+      "with their own areas and their own from price. Every home points at a variant, so a " +
+      "development with no real variants still gets one per type, made for it automatically. " +
+      "Exactly one variant per type is the <b>default</b>: that is the one that represents the " +
+      "type wherever types are listed, and promoting another demotes it in the same call. " +
+      "A code can never be changed \u2014 everything downstream keys on it \u2014 so the name " +
+      "is what to edit.</div>" +
+      warn + err + rows + mk;
+  }
+
+  /* ONE WRITER FOR EVERY BUTTON HERE. They are all one POST and one re-read, and the re-read
+     is TWO calls: the register itself, and the grid - because a type or variant change moves
+     what every home built that way shows. The busy flag is held until BOTH are back. It used
+     to clear when the write returned, leaving a second in which a row still showed its old
+     state and took a click, so somebody who saw nothing change clicked again. */
+  function typWrite(busyKey, url, body) {
+    if (TYP.saving) { return; }
+    TYP.saving = busyKey; TYP.err = "";
+    renderInv();
+    api(url, { method: "POST", body: JSON.stringify(body) })
+      .then(function () {
+        TYP.editing = "";
+        return typLoad(TYP.slug);
+      })
+      .then(function () { return invLoad(INV.slug, true); })
+      .catch(function (e) { TYP.err = e.message; })
+      .then(function () { TYP.saving = ""; renderInv(); });
+  }
+
+  function typAddType() {
+    if (TYP.saving) { return; }
+    var nameEl = $("typTypeName"), codeEl = $("typTypeCode");
+    var name = nameEl ? nameEl.value.trim() : "";
+    var code = codeEl ? codeEl.value.trim() : "";
+    if (!name || !code) {
+      TYP.err = "A type needs a name and a code. The code can never be changed afterwards, " +
+        "because everything downstream keys on it \u2014 so pick it deliberately.";
+      renderInv(); return;
+    }
+    typWrite("newtype", "/staff/types", {
+      property: TYP.slug, code: code, name: name,
+      reason: "created from the sales console"
+    });
+  }
+
+  function typRetireType(id) {
+    typWrite("t:" + id, "/staff/types/delete", {
+      type_id: Number(id), reason: "retired from the sales console"
+    });
+  }
+
+  function typRestoreType(id) {
+    typWrite("t:" + id, "/staff/types", {
+      property: TYP.slug, type_id: Number(id), is_active: true,
+      reason: "brought back from the sales console"
+    });
+  }
+
+  function typPurgeType(id) {
+    typWrite("t:" + id, "/staff/types/delete", {
+      type_id: Number(id), hard: true,
+      reason: "deleted from the sales console - it had no variants and no homes"
+    });
+  }
+
+  function typAddVariant(typeId) {
+    if (TYP.saving) { return; }
+    var codeEl = $("typVarCode" + typeId), nameEl = $("typVarName" + typeId);
+    var code = codeEl ? codeEl.value.trim() : "";
+    if (!code) {
+      TYP.err = "A variant needs a code. It can never be changed afterwards.";
+      renderInv(); return;
+    }
+    var body = {
+      property: TYP.slug, unit_type_id: Number(typeId), code: code,
+      reason: "created from the sales console"
+    };
+    var name = nameEl ? nameEl.value.trim() : "";
+    if (name) { body.name = name; }
+    typWrite("addv:" + typeId, "/staff/variants", body);
+  }
+
+  function typMakeDefault(id) {
+    typWrite("v:" + id, "/staff/variants", {
+      property: TYP.slug, variant_id: Number(id), is_default: true,
+      reason: "made the default from the sales console"
+    });
+  }
+
+  function typRetireVariant(id) {
+    typWrite("v:" + id, "/staff/variants/delete", {
+      variant_id: Number(id), reason: "retired from the sales console"
+    });
+  }
+
+  function typRestoreVariant(id) {
+    typWrite("v:" + id, "/staff/variants", {
+      property: TYP.slug, variant_id: Number(id), is_active: true,
+      reason: "brought back from the sales console"
+    });
+  }
+
+  function typPurgeVariant(id) {
+    typWrite("v:" + id, "/staff/variants/delete", {
+      variant_id: Number(id), hard: true,
+      reason: "deleted from the sales console - no home was built this way"
+    });
+  }
+
+  function typToggleEdit(id) {
+    TYP.editing = (String(TYP.editing) === String(id)) ? "" : String(id);
+    TYP.err = "";
+    renderInv();
+  }
+
+  /* SEND EVERY FIELD ON THE FORM, and send an empty box as an empty string, which the server
+     reads as "clear this". That is the honest reading of a form: what is on the screen is what
+     the row becomes. Omitting the empties would mean a person could never remove a figure they
+     had typed by mistake. */
+  function typSaveVariant(id) {
+    if (TYP.saving) { return; }
+    var body = {
+      property: TYP.slug, variant_id: Number(id),
+      reason: "edited from the sales console"
+    };
+    var bad = "";
+    TYP_FIELDS.forEach(function (f) {
+      var el = $("typf_" + f.key + "_" + id);
+      if (!el) { return; }
+      var raw = String(el.value || "").trim();
+      if (raw === "") { body[f.key] = ""; return; }
+      var n = Number(raw.replace(/[\s,]/g, ""));
+      if (isNaN(n)) { bad = f.label; return; }
+      body[f.key] = n;
+    });
+    var pe = $("typf_price_" + id);
+    if (pe) {
+      var praw = String(pe.value || "").trim();
+      if (praw === "") { body.price_from_cents = ""; }
+      else {
+        var pn = Number(praw.replace(/[R\s,]/g, ""));
+        if (isNaN(pn)) { bad = "From price"; }
+        else { body.price_from_cents = Math.round(pn * 100); }
+      }
+    }
+    var ne = $("typf_name_" + id);
+    if (ne) { body.name = String(ne.value || "").trim(); }
+
+    if (bad) {
+      TYP.err = bad + " must be a number, or empty. The server refuses a fraction rather " +
+        "than rounding it \u2014 a figure nobody chose is worse than no figure.";
+      renderInv(); return;
+    }
+    typWrite("v:" + id, "/staff/variants", body);
+  }
+
   var PANEL = { kind: "" };
 
   function openPanel(kind) {
     S.open = null;
     PANEL.kind = kind;
     if (kind === "fields" && (FLD.slug !== INV.slug || !FLD.data)) { fldLoad(INV.slug); }
+    if (kind === "types" && (TYP.slug !== INV.slug || !TYP.data)) { typLoad(INV.slug); }
     renderInv();
   }
 
@@ -4848,13 +5295,17 @@
 
   function renderPanel() {
     if (!PANEL.kind) { return; }
-    var isPh = PANEL.kind === "phases";
+    var kind = PANEL.kind;
     var d = INV.data || {};
+    var title = kind === "phases" ? "Phases"
+      : (kind === "types" ? "Types and variants" : "Fields");
+    var body = kind === "phases" ? phasesDrawerHtml()
+      : (kind === "types" ? typesDrawerHtml() : fieldsDrawerHtml());
     $("drawer").innerHTML =
-      "<header><div><h1>" + (isPh ? "Phases" : "Fields") + "</h1>" +
+      "<header><div><h1>" + title + "</h1>" +
         '<div class="muted">' + esc(d.property_name || INV.slug) + "</div></div>" +
         '<button id="close">Close</button></header>' +
-      '<div id="panelBody">' + (isPh ? phasesDrawerHtml() : fieldsDrawerHtml()) + "</div>";
+      '<div id="panelBody">' + body + "</div>";
     $("scrim").classList.add("open");
     $("drawer").classList.add("open");
     $("drawer").setAttribute("aria-hidden", "false");
@@ -4885,6 +5336,46 @@
     });
     [].forEach.call(root.querySelectorAll("[data-ph-purge]"), function (el) {
       el.addEventListener("click", function () { invPhasePurge(el.getAttribute("data-ph-purge")); });
+    });
+    var ta = $("typTypeAdd");
+    if (ta) { ta.addEventListener("click", typAddType); }
+    var tn = $("typTypeName");
+    if (tn) {
+      tn.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); typAddType(); }
+      });
+    }
+    [].forEach.call(root.querySelectorAll("[data-typ-addvar]"), function (el) {
+      el.addEventListener("click", function () {
+        typAddVariant(el.getAttribute("data-typ-addvar"));
+      });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typ-retire]"), function (el) {
+      el.addEventListener("click", function () { typRetireType(el.getAttribute("data-typ-retire")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typ-restore]"), function (el) {
+      el.addEventListener("click", function () { typRestoreType(el.getAttribute("data-typ-restore")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typ-purge]"), function (el) {
+      el.addEventListener("click", function () { typPurgeType(el.getAttribute("data-typ-purge")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typv-default]"), function (el) {
+      el.addEventListener("click", function () { typMakeDefault(el.getAttribute("data-typv-default")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typv-edit]"), function (el) {
+      el.addEventListener("click", function () { typToggleEdit(el.getAttribute("data-typv-edit")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typv-save]"), function (el) {
+      el.addEventListener("click", function () { typSaveVariant(el.getAttribute("data-typv-save")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typv-retire]"), function (el) {
+      el.addEventListener("click", function () { typRetireVariant(el.getAttribute("data-typv-retire")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typv-restore]"), function (el) {
+      el.addEventListener("click", function () { typRestoreVariant(el.getAttribute("data-typv-restore")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typv-purge]"), function (el) {
+      el.addEventListener("click", function () { typPurgeVariant(el.getAttribute("data-typv-purge")); });
     });
     [].forEach.call(root.querySelectorAll("[data-fld-flag]"), function (el) {
       el.addEventListener("click", function () {
@@ -6003,6 +6494,8 @@
     if (po) { po.addEventListener("click", function () { openPanel("phases"); }); }
     /* Fields are loaded on first open rather than with the grid - it is a second call and
        most days nobody touches it. Re-opening for the same development reuses what it has. */
+    var to = $("invTypOpen");
+    if (to) { to.addEventListener("click", function () { openPanel("types"); }); }
     var fo = $("invFldOpen");
     if (fo) { fo.addEventListener("click", function () { openPanel("fields"); }); }
 
