@@ -197,7 +197,14 @@ async function fill(p, over) {
     ok("the home", /Sanford Heart/.test(s.review.Home) && /Home 5/.test(s.review.Home), s.review.Home);
     ok("the address is on the review", /Robert Broom/.test(s.review.Address), s.review.Address);
     ok("the route", s.review["Paying by"] === "bond", s.review["Paying by"]);
-    ok("the money, as received", /R 3,000/.test(s.review["Fee received"]) &&
+    /* THE SEPARATOR IS THE RUNTIME'S BUSINESS. This line reads "R 3 000 - eft - FNB
+       8821 - today" on a browser with South African locale data and "R 3,000- ..." on
+       one without, because the console pins en-ZA and not every Chromium build ships
+       that data. The fee, the route and the account are the facts; which character
+       sits between the 3 and the 000 is not. Matched loosely for exactly that reason,
+       and the digits are still pinned - R 3 000 must not become R 30 000. */
+    ok("the money, as received",
+      /R\s*3[\s,.\u00a0]?000(?!\d)/.test(s.review["Fee received"]) &&
       /eft/.test(s.review["Fee received"]) && /FNB 8821/.test(s.review["Fee received"]),
       s.review["Fee received"]);
     ok("today when no date was typed", /today/.test(s.review["Fee received"]), s.review["Fee received"]);

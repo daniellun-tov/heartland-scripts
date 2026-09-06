@@ -15,6 +15,31 @@ function ok(name, cond, extra) {
   if (cond) { pass++; }
   else { fail++; console.log("  FAIL " + name + (extra !== undefined ? "  -> " + JSON.stringify(extra) : "")); }
 }
+/* MONEY IS COMPARED AS A NUMBER, NEVER AS A GLYPH SEQUENCE.
+
+   The console pins en-ZA in every money formatter - space thousands, comma decimal,
+   which is correct South African form and what a Heartland salesperson sees. A
+   Chromium built without South African locale data silently formats en-ZA as en-US
+   instead, AND reports Intl.NumberFormat.supportedLocalesOf(["en-ZA"]) as supported
+   while doing it. So an assertion written against literal separators is grading the
+   browser build, not the code.
+
+   Six assertions across three suites did exactly that: green in a container that
+   lacks the locale, red the first time anybody ran them on a real Mac - and the
+   string they demanded, "R 70,095,000.00", is one no South African user will ever
+   see. The number is the fact worth asserting; the separators are the runtime's
+   business, and the guard below is what says so out loud when they are wrong. */
+const amount = (str) => {
+  if (str === null || str === undefined) { return NaN; }
+  const m = String(str).replace(/[^0-9.,]/g, "");
+  /* A trailing separator followed by EXACTLY two digits is a decimal point. Anything
+     else is grouping - so "8,888,888" keeps all nine digits and "750 000,00" does
+     not become 75000000. */
+  const dec = /[.,](\d{2})$/.exec(m);
+  const whole = dec ? m.slice(0, m.length - 3) : m;
+  return Number(whole.replace(/[.,]/g, "")) + (dec ? Number(dec[1]) / 100 : 0);
+};
+
 const S = p => p.evaluate(() => {
   const r = document.getElementById("hl-console-host").shadowRoot;
   const txt = s => { const e = r.querySelector(s); return e ? e.textContent.trim() : null; };
@@ -91,6 +116,33 @@ const gear = async p => {
     return { ctx, p };
   };
 
+  // ── 0. the runtime itself ────────────────────────────────────────────────
+  {
+    const { ctx, p } = await open();
+    console.log("0. the runtime");
+    /* THE BROWSER'S LOCALE DATA IS PART OF WHAT IS UNDER TEST, so it gets asserted
+       rather than assumed. Chromium builds ship different ICU sets; one without South
+       African data formats the console's en-ZA money as en-US and REPORTS THE LOCALE
+       AS SUPPORTED while doing it. Every money rendering in such a run is then
+       unrepresentative of what any Heartland user sees.
+
+       This check going red does not mean the console is broken - it means THIS RUN
+       cannot tell you anything about how money looks. That is worth a red line,
+       because the alternative is what happened on 6 Sep: six assertions written
+       against the wrong separators, green in a container for a week. */
+    const loc = await p.evaluate(() => ({
+      claims: Intl.NumberFormat.supportedLocalesOf(["en-ZA"]).length === 1,
+      renders: (1234.5).toLocaleString("en-ZA", { minimumFractionDigits: 2 })
+    }));
+    ok("the browser really has South African locale data, not just a claim to it",
+      /^1\s234,50$/.test(loc.renders.replace(/\u00a0/g, " ")),
+      { claims_supported: loc.claims, actually_renders: loc.renders,
+        expected: "1 234,50 - space thousands, comma decimal",
+        note: "en-US-looking output here means this Chromium lacks en-ZA data. The console is fine; this RUN cannot judge money formatting." });
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
   // ── 1. the settings modal ────────────────────────────────────────────────
   {
     const { ctx, p } = await open();
@@ -157,10 +209,10 @@ const gear = async p => {
     ok("Today is not also showing", s.todayShown === false, s.todayShown);
     ok("reserved value", s.kpi["Reserved value"].value === "R 70.1m", s.kpi["Reserved value"]);
     ok("the exact figure rides in the tile's title",
-      s.kpi["Reserved value"].title === "R 70,095,000.00", s.kpi["Reserved value"].title);
+      amount(s.kpi["Reserved value"].title) === 70095000, s.kpi["Reserved value"].title);
     ok("reservation count", s.kpi["Reserved value"].note === "30 reservations", s.kpi["Reserved value"].note);
     ok("average price", s.kpi["Average price"].value === "R 2.34m", s.kpi["Average price"]);
-    ok("hold fees", s.kpi["Hold fees taken"].value === "R 750,000", s.kpi["Hold fees taken"]);
+    ok("hold fees", amount(s.kpi["Hold fees taken"].value) === 750000, s.kpi["Hold fees taken"]);
     ok("overdue count", s.kpi["Overdue"].value === "5", s.kpi["Overdue"]);
     ok("flagged count", s.kpi["Needs a decision"].value === "3", s.kpi["Needs a decision"]);
     ok("bond/cash/undecided split",
@@ -274,7 +326,7 @@ const gear = async p => {
     ok("By property compares three developments", s.prop.map(r => r.label).sort().join("|") ===
       "Outeniqua|Polaris|Sanford Heart", s.prop.map(r => r.label));
     ok("sorted by value, highest first",
-      s.prop[0].value === "R 23,735,000", s.prop.map(r => r.value));
+      amount(s.prop[0].value) === 23735000, s.prop.map(r => r.value));
     ok("unit count rides beside the value", s.prop[0].note === "10 units", s.prop[0].note);
 
     await p.evaluate(() => {
@@ -285,7 +337,7 @@ const gear = async p => {
     s = await S(p);
     ok("KPIs narrow to that property", s.kpi["Reserved value"].note === "10 reservations",
       s.kpi["Reserved value"].note);
-    ok("and to its value", s.kpi["Reserved value"].title === "R 23,365,000.00",
+    ok("and to its value", amount(s.kpi["Reserved value"].title) === 23365000,
       s.kpi["Reserved value"].title);
     ok("the cards say which property they are showing",
       s.funnelSub.indexOf("Polaris") !== -1, s.funnelSub);
@@ -418,12 +470,32 @@ const gear = async p => {
 
   // ── 11. the boot screen ──────────────────────────────────────────────────
   {
-    // Held open for 900ms so the loading state can actually be observed. It is in
-    // the markup rather than built in script, so it is on screen at first paint -
-    // before this file has even parsed.
-    const { ctx, p } = await open("light", "?slow=900");
+    /* THIS BLOCK DELIBERATELY DOES NOT USE open(), AND THAT IS THE WHOLE FIX.
+
+       open() calls goto(), which resolves on the LOAD event - and load waits for the
+       Google Fonts stylesheet the console injects into document.head. A machine that
+       can reach fonts.googleapis.com fires load hundreds of milliseconds later than
+       one that cannot, so a fixed sleep afterwards lands on either side of the stub's
+       delay depending on the NETWORK. These two assertions passed in a container with
+       no egress and failed on a Mac, and neither result said anything about the code.
+
+       So: resolve on domcontentloaded, hold the response open long enough that there
+       is no race left to lose, and WAIT FOR the boot screen instead of sleeping
+       towards it. The fixture's own rules said not to time a round trip with a fixed
+       wait; this is that rule applied to the page load itself.
+
+       The boot screen is in the markup rather than built in script, so it is on
+       screen at first paint - before the bundle has even parsed. */
+    const ctx = await browser.newContext({ colorScheme: "light", viewport: { width: 1360, height: 1000 } });
+    const p = await ctx.newPage();
+    p.__errs = []; p.on("pageerror", e => p.__errs.push(String(e)));
     console.log("11. boot screen");
-    await p.waitForTimeout(150);
+    await p.goto(FX + "/dash.html?slow=3000", { waitUntil: "domcontentloaded" });
+    await p.waitForFunction(() => {
+      const h = document.getElementById("hl-console-host");
+      const el = h && h.shadowRoot && h.shadowRoot.getElementById("boot");
+      return !!el;
+    }, { timeout: 8000 });
     let b = await p.evaluate(() => {
       const r = document.getElementById("hl-console-host").shadowRoot;
       const el = r.getElementById("boot");
@@ -449,10 +521,14 @@ const gear = async p => {
     ok("and they are animating", b.animated === true, b.animated);
     ok("the wordmark comes from the brand", b.word === "Heartland", b.word);
     ok("announced to a screen reader", b.live === "polite", b.live);
-    await p.waitForTimeout(1100);
-    b = await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot
-      .getElementById("boot").classList.contains("gone"));
-    ok("and it clears once the data lands", b === true, b);
+    /* Waited FOR, not slept towards - the stub holds the response 3s and a slower
+       machine must not turn that into a failure. */
+    let cleared = true;
+    try {
+      await p.waitForFunction(() => document.getElementById("hl-console-host").shadowRoot
+        .getElementById("boot").classList.contains("gone"), { timeout: 9000 });
+    } catch (e) { cleared = false; }
+    ok("and it clears once the data lands", cleared === true, cleared);
     await ctx.close();
   }
 

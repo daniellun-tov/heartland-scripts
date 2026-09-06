@@ -380,9 +380,14 @@ const key = async (p, k, mods) => {
       /555/.test(await cellText(p, "1", "erf_area_sqm") || "") &&
       /777/.test(await cellText(p, "2", "erf_area_sqm") || ""),
       [await cellText(p, "1", "erf_area_sqm"), await cellText(p, "2", "erf_area_sqm")]);
+    /* THE NUMBER, NOT ITS SEPARATORS. The grid formats through the console's en-ZA
+       money helper, so this cell reads "8 888 888" on a browser with South African
+       locale data and "8,888,888" on one without. Asserting the literal string graded
+       the Chromium build rather than the paste routing - green in a container, red on
+       a Mac. Strip everything that is not a digit and compare the figure. */
+    const pasted = await cellText(p, "1", "price_cents") || "";
     ok("and reordered columns follow their header",
-      /8,888,888/.test(await cellText(p, "1", "price_cents") || ""),
-      await cellText(p, "1", "price_cents"));
+      pasted.replace(/[^0-9]/g, "") === "8888888", pasted);
 
     /* A column that is not editable here should be named, not silently dropped. */
     await p.evaluate(() => {
