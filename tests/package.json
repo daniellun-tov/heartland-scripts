@@ -1,0 +1,9 @@
+{
+  "name": "heartland-console-tests",
+  "private": true,
+  "description": "Console suites. Playwright drives Chromium against the fixture pages; jsdom runs the one suite that only needs the DOM. Install with: npm install --prefix tests",
+  "devDependencies": {
+    "playwright": "^1.47.0",
+    "jsdom": "^25.0.0"
+  }
+}
