@@ -359,6 +359,208 @@ const set = (p, id, value) => p.evaluate(a => {
     await ctx.close();
   }
 
+  /* ── 12-15. THE ALLOWED VALUES OF AN ENUM ───────────────────────────────
+     Until the panel could edit these, setting them meant calling the API by hand - and a
+     field switched to enum from the console arrived with none, which bulk_update_units then
+     refuses every value for. These sections grade the editor AND the two rules that decide
+     whether it appears at all. */
+
+  // ── 12. what the panel shows ────────────────────────────────────────────
+  {
+    const { ctx, p } = await open("?role=admin&varenum=1");
+    console.log("12. an enum's allowed values are on the panel");
+    await openPanel(p);
+    /* The chips, in the order the server stores them - a list somebody reordered on purpose
+       reads back the way they left it. */
+    ok("an enum lists its allowed values",
+      (await all(p, '.fld-row .fld-opt')).slice(0, 4).join("|") ===
+        "North-facing|East-facing|South-facing|West-facing",
+      await all(p, ".fld-row .fld-opt"));
+    ok("and they are visible, not merely in the markup",
+      await p.evaluate(() => {
+        const e = document.getElementById("hl-console-host").shadowRoot
+          .querySelector(".fld-row .fld-opt");
+        return e ? e.getBoundingClientRect().height > 0 : false;
+      }));
+    /* A field with no list has nothing to show, and an empty "Values" row on every text
+       column would be four lines of nothing. */
+    ok("a field that is not an enum shows no values row",
+      (await count(p, ".fld-opts")) === 2, await count(p, ".fld-opts"));
+    /* THE RULE THAT DECIDES WHETHER THERE IS AN EDITOR AT ALL. A variant-sourced value comes
+       off the type and the grid never writes it, so a list of allowed values would govern
+       nothing - shown, not editable, exactly like the Editable flag beside it. */
+    ok("an attribute-sourced enum offers an editor",
+      (await count(p, '[data-fld-opts="aspect"]')) === 1);
+    ok("a type-owned enum does not",
+      (await count(p, '[data-fld-opts="finish_pack"]')) === 0 &&
+      (await count(p, '[data-fld-opts]')) === 1);
+    ok("but its values are still shown",
+      (await all(p, ".fld-row .fld-opt")).includes("Premium"),
+      await all(p, ".fld-row .fld-opt"));
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
+  // ── 13. editing them ────────────────────────────────────────────────────
+  {
+    const { ctx, p } = await open();
+    console.log("13. changing an enum's allowed values");
+    await openPanel(p);
+    await click(p, '[data-fld-opts="aspect"]');
+    await p.waitForTimeout(200);
+    ok("Edit values opens a box", (await count(p, "#fldOptsText")) === 1);
+    /* ONE VALUE PER LINE, prefilled with what is stored - anything else makes a person
+       retype four values to add a fifth. */
+    ok("prefilled one value per line",
+      (await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot
+        .getElementById("fldOptsText").value)) ===
+        "North-facing\nEast-facing\nSouth-facing\nWest-facing");
+    ok("one editor at a time", (await count(p, "[data-fld-opts-save]")) === 1);
+
+    /* Blank lines, stray whitespace and a repeat - all three arrive together when somebody
+       pastes a column out of a spreadsheet, and the console cleans them the way the server
+       does so what the box previews is what gets stored. */
+    await set(p, "fldOptsText",
+      "North-facing\n East-facing \n\nSouth-facing\nWest-facing\nNorth-facing\n  \nSea-facing");
+    await click(p, '[data-fld-opts-save="aspect"]');
+    await p.waitForTimeout(700);
+    const sent = await p.evaluate(() => window.__FLD_POSTED);
+    ok("it posts the values as a list, trimmed, deduped and blanks dropped",
+      JSON.stringify(sent.options) === JSON.stringify(
+        ["North-facing", "East-facing", "South-facing", "West-facing", "Sea-facing"]), sent);
+    ok("it is a set on the right field, with no clear alongside it",
+      sent.action === "set" && sent.field_key === "aspect" &&
+      !Object.prototype.hasOwnProperty.call(sent, "clear_options"), sent);
+    ok("the editor closes on success", (await count(p, "#fldOptsText")) === 0);
+    ok("and the chips show the new list",
+      (await all(p, '.fld-row .fld-opt')).join("|") ===
+        "North-facing|East-facing|South-facing|West-facing|Sea-facing",
+      await all(p, ".fld-row .fld-opt"));
+    /* The grid reads the same registry, so a value added here is one the cell picker offers
+       - that is the whole reason the panel owns this. */
+    await clickId(p, "close");
+    await p.waitForTimeout(150);
+    await click(p, '[data-cell="1|aspect"]');
+    await p.waitForTimeout(100);
+    await click(p, '[data-cell="1|aspect"]');
+    await p.waitForTimeout(200);
+    ok("and the grid's picker offers it",
+      (await all(p, "#invCellInput option")).includes("Sea-facing"),
+      await all(p, "#invCellInput option"));
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
+  // ── 14. the two refusals worth surfacing ────────────────────────────────
+  {
+    const { ctx, p } = await open();
+    console.log("14. what the server refuses");
+    await openPanel(p);
+    await click(p, '[data-fld-opts="aspect"]');
+    await p.waitForTimeout(200);
+    /* AN EMPTY BOX IS clear_options, NEVER AN EMPTY LIST. An empty json array arrives at the
+       endpoint as null and is indistinguishable from omitting the argument, so posting one
+       would be a save that quietly did nothing and reported success. Trap 41. */
+    await set(p, "fldOptsText", "  \n\n ");
+    await click(p, '[data-fld-opts-save="aspect"]');
+    await p.waitForTimeout(700);
+    const cleared = await p.evaluate(() => window.__FLD_POSTED);
+    ok("an empty box asks to CLEAR rather than sending an empty list",
+      cleared.clear_options === true &&
+      !Object.prototype.hasOwnProperty.call(cleared, "options"), cleared);
+    /* And the server refuses it, because an enum with no values is a field the grid refuses
+       every value for. The console's job is to say so, not to pre-empt it. */
+    ok("the server's refusal is shown in its own words",
+      /at least one allowed value/.test(await txt(p, "#drawer .err") || ""),
+      await txt(p, "#drawer .err"));
+    /* THE POINT OF THE REFUSAL IS THE INSTRUCTION IN IT, so throwing away what was typed
+       while showing it would be the worst of both. */
+    ok("and the box stays open", (await count(p, "#fldOptsText")) === 1);
+    ok("with what was typed still in it",
+      (await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot
+        .getElementById("fldOptsText").value)).trim() === "");
+
+    /* THE ORPHAN REFUSAL. Six homes carry East-facing; dropping it leaves a filter chip that
+       matches nothing and grid cells nobody can re-save. */
+    await set(p, "fldOptsText", "North-facing\nSouth-facing\nWest-facing");
+    await click(p, '[data-fld-opts-save="aspect"]');
+    await p.waitForTimeout(700);
+    ok("removing a value homes already carry is refused, with the count",
+      /already carry values/.test(await txt(p, "#drawer .err") || "") &&
+      /6 homes/.test(await txt(p, "#drawer .err") || "") &&
+      /East-facing/.test(await txt(p, "#drawer .err") || ""),
+      await txt(p, "#drawer .err"));
+    ok("and the box is still open on the list that was refused",
+      (await count(p, "#fldOptsText")) === 1 &&
+      (await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot
+        .getElementById("fldOptsText").value)).split("\n").length === 3);
+    await click(p, "[data-fld-opts-cancel]");
+    await p.waitForTimeout(200);
+    ok("and nothing was changed", (await all(p, ".fld-row .fld-opt")).length === 4,
+      await all(p, ".fld-row .fld-opt"));
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
+  // ── 15. cancelling, and not double-sending ──────────────────────────────
+  {
+    const { ctx, p } = await open();
+    console.log("15. cancelling");
+    await openPanel(p);
+    await click(p, '[data-fld-opts="aspect"]');
+    await p.waitForTimeout(200);
+    await set(p, "fldOptsText", "Only one");
+    await click(p, "[data-fld-opts-cancel]");
+    await p.waitForTimeout(200);
+    ok("Cancel shuts the box", (await count(p, "#fldOptsText")) === 0);
+    ok("and sends nothing",
+      (await p.evaluate(() => window.__FLD_POSTED)) === undefined,
+      await p.evaluate(() => window.__FLD_POSTED));
+    ok("the stored values are untouched",
+      (await all(p, ".fld-row .fld-opt")).length === 4,
+      await all(p, ".fld-row .fld-opt"));
+    /* Reopening starts from the stored list, not from what was abandoned - a box that
+       remembers a cancelled edit is one that saves it by accident later. */
+    await click(p, '[data-fld-opts="aspect"]');
+    await p.waitForTimeout(200);
+    ok("reopening starts from what is stored, not from the abandoned draft",
+      (await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot
+        .getElementById("fldOptsText").value)).split("\n").length === 4);
+
+    /* SECTION 11's BUG, ON THIS CONTROL. A Save whose write is still in flight shows no sign
+       of having been pressed unless it goes busy, and the person who saw nothing happen
+       presses it again - which on this control would post the same list twice.
+
+       THE WRITE IS THE WINDOW, NOT THE RE-READ. The editor closes the moment the write
+       returns, so slowing the reload the way section 11 does would leave nothing on screen
+       to grade. */
+    await p.evaluate(() => { window.__FLD_POST_SLOW = true; });
+    await set(p, "fldOptsText", "North-facing\nEast-facing\nSouth-facing\nWest-facing\nSea-facing");
+    /* Counted BEFORE the first press, because the fixture only counts a write once it has
+       actually reached the branch - reading the counter mid-flight would compare a number
+       against itself and pass however many times the button was pressed. */
+    const before = (await p.evaluate(() => window.__FLD_POSTS)) || 0;
+    await click(p, '[data-fld-opts-save="aspect"]');
+    await p.waitForTimeout(150);
+    ok("while the write is in flight Save says so",
+      (await attr(p, "[data-fld-opts-save]", "disabled")) !== null &&
+      /Saving/.test(await txt(p, "[data-fld-opts-save]") || ""),
+      await txt(p, "[data-fld-opts-save]"));
+    ok("and Cancel cannot throw the write away underneath it",
+      (await attr(p, "[data-fld-opts-cancel]", "disabled")) !== null);
+    await click(p, "[data-fld-opts-save]");
+    await p.waitForTimeout(900);
+    ok("so two presses sent exactly one write",
+      (await p.evaluate(() => window.__FLD_POSTS)) === before + 1,
+      { before, after: await p.evaluate(() => window.__FLD_POSTS) });
+    ok("and the save landed, once",
+      (await all(p, ".fld-row .fld-opt")).length === 5 &&
+      (await count(p, "#fldOptsText")) === 0,
+      await all(p, ".fld-row .fld-opt"));
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
   await browser.close();
   console.log("\n" + pass + " passed, " + fail + " failed");
   process.exit(fail ? 1 : 0);
