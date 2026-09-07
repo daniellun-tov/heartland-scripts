@@ -465,10 +465,12 @@
         log("saved · otp_locked=" + lock + (reason ? " (" + reason + ")" : ""), lock ? "ok" : "");
         return load(R.uuid).then(function () {
           if (R) { R._lock = lock; R._lockReason = reason; renderReservation(); }
-          /* THE MOMENT THE HOLD IS TAKEN. Confirming is the buyer arriving at the last step
-             before payment, which is the whole answer to "when do the ten minutes start".
-             load() above has usually done this already; this covers the case where the
-             PATCH moved them past details and the reload had not yet seen it. */
+          /* A BELT-AND-BRACES CLAIM, NOT THE MOMENT IT IS TAKEN ANY MORE. Since 7 Sep the
+             hold is claimed on the first load of the flow, so by the time anyone confirms
+             holdOn is already true and this is a no-op. It stays because it costs one
+             boolean test and covers the one case load() cannot: a claim that failed
+             earlier - the countdown fails open - getting a second chance at the step where
+             the number actually matters. */
           if (confirming) { holdClaim(); }
         });
       })
@@ -476,7 +478,7 @@
   }
 
   /* ----------------------------------------------------------------- hold
-     THE TEN MINUTES, AND THE FIRST TIME IT HAS MEANT ANYTHING.
+     THE HOLD WINDOW, AND THE FIRST TIME IT HAS MEANT ANYTHING.
 
      What it replaces: /reserve/3 counts ten minutes in sessionStorage against the BUYER'S
      OWN DEVICE CLOCK, and at zero redirects them away without telling the server. Nothing on
@@ -485,11 +487,23 @@
      that ended days ago. Set the device clock forward and the old timer expired instantly;
      set it back and it never did.
 
-     WHEN THE HOLD IS TAKEN. On reaching the last step before payment - the confirm PATCH -
-     and not before. Browsing the details step blocks nobody. Taking it at draft creation
-     would mean somebody merely looking at a home costs you a live unit for ten minutes; the
-     old behaviour, taking it at checkout, let two buyers fill in the whole form and told the
-     second one only at Payfast.
+     WHEN THE HOLD IS TAKEN. THE MOMENT THE RESERVATION IS OPENED - the first load of the
+     flow, before the details step - and it runs for the development's hold_minutes.
+
+     THIS IS THE SECOND ANSWER TO THAT QUESTION AND IT REVERSES THE FIRST. The hold was
+     originally taken on the confirm PATCH, on the argument that "somebody merely looking at
+     a home should not cost you a live unit for ten minutes". Daniel, 7 Sep: the buyer needs
+     the home held while they FILL IN THE INTAKE, not from the moment they have finished it.
+     A hold that begins at confirm protects the ten seconds between confirm and Payfast and
+     leaves the whole form - names, ID numbers, addresses, add-ons, OTP details - unprotected,
+     which is the stretch where two buyers actually collide. The window is 30 minutes for that
+     reason, not 10: it is now sized to the intake, not to a payment redirect.
+
+     WHAT THAT COSTS, STATED PLAINLY. A buyer who opens the flow and wanders off does take a
+     home off the market for half an hour. That is the deliberate trade, and it is only
+     affordable because the hold is now REAL: release_expired_holds runs every 60 seconds and
+     hands the home back on its own. Under the old arrangement the same abandonment held the
+     home forever, so this is a shorter leash than the one it replaces, not a longer one.
 
      A RELOAD DOES NOT RESTART IT. POST /hold is idempotent: called again while the hold is
      live it returns the SAME deadline, with already_held true. That is why this can be
@@ -542,13 +556,17 @@
     };
   }
 
-  /* Claim only where the buyer is actually at the payment step, and only once per hold.
-     Everything about when NOT to call is here rather than at the call sites, so the three
-     places that ask cannot each answer it differently. */
+  /* Claim on any reservation that is still claimable, and only once per hold. Everything
+     about when NOT to call is here rather than at the call sites, so the three places that
+     ask cannot each answer it differently.
+
+     THERE IS NO pastDetails() TEST HERE ANY MORE. That guard was what made the hold start at
+     confirm; removing it is the whole of the 7 Sep change, and the STATUS test below is the
+     real gate - it always was. A draft is claimable, and a draft is what the buyer has when
+     they land on step one. */
   function holdClaim() {
     if (!R || !R.uuid) { return; }
     if (holdOn) { return; }
-    if (!pastDetails()) { return; }
     /* Past the point where a hold can be claimed - checkout owns the clock from here, and
        claim_unit_hold refuses awaiting_payment outright rather than rewriting the deadline
        on a row that is mid-payment. holdFollow keeps the display honest instead. */
