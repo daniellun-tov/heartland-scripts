@@ -1106,8 +1106,8 @@
     "     they are read together - \"column, editable, not public\" is one sentence about a",
     "     field, and four separate switches would make it four. */",
     "  .fld-row {",
-    "    display:flex; gap:16px; align-items:center; justify-content:space-between;",
-    "    padding:11px 0; border-bottom:1px solid var(--rule);",
+    "    display:flex; flex-wrap:wrap; gap:16px; align-items:center;",
+    "    justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--rule);",
     "  }",
     "  .fld-src {",
     "    font-size:.625rem; font-weight:600; text-transform:uppercase; margin-left:7px;",
@@ -1153,6 +1153,28 @@
     "  }",
     "  .fld-remove:hover { color:var(--ink); border-color:var(--rule); background:var(--surface-2); }",
     "  .fld-remove:disabled { opacity:.5; cursor:default; }",
+    "  /* THE ALLOWED VALUES of an enum. Only an enum has them, so only an enum shows this -",
+    "     and an enum with NONE is a field the grid refuses every value for, which is why the",
+    "     empty state is a warning rather than a blank. One value per line, deliberately: a",
+    "     comma-separated box cannot hold a value with a comma in it. */",
+    "  .fld-opts { flex:0 0 100%; display:flex; flex-wrap:wrap; align-items:center; gap:6px; }",
+    "  .fld-opts-label {",
+    "    font-size:.625rem; font-weight:600; text-transform:uppercase;",
+    "    letter-spacing:var(--tracking); color:var(--ink-muted);",
+    "  }",
+    "  .fld-opt {",
+    "    font-size:.6875rem; padding:3px 8px; border-radius:var(--radius-sm);",
+    "    background:var(--surface-2); color:var(--ink-2); border:1px solid var(--rule);",
+    "  }",
+    "  .fld-opts-none { font-size:.6875rem; color:var(--warning); }",
+    "  .fld-opts-edit { flex:0 0 100%; }",
+    "  .fld-opts-edit textarea {",
+    "    font:inherit; font-size:.75rem; width:100%; min-height:104px; padding:8px 10px;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:var(--surface); color:var(--ink); resize:vertical;",
+    "  }",
+    "  .fld-opts-hint { font-size:.6875rem; color:var(--ink-muted); margin:6px 0 7px; }",
+    "  .fld-opts-act { display:flex; gap:6px; }",
     "  #invPhaseMove {",
     "    font:inherit; font-size:.75rem; padding:4px 8px;",
     "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
@@ -4749,7 +4771,8 @@
       .then(function () { TYP.loading = false; renderInv(); });
   }
 
-  var FLD = { data: null, slug: "", loading: false, saving: "", err: "" };
+  var FLD = { data: null, slug: "", loading: false, saving: "", err: "",
+              editing: "", draft: "" };
 
   function fldLoad(slug) {
     if (!slug) { return; }
@@ -4783,12 +4806,16 @@
      which left a half-second in which the switch showed its OLD state and accepted a click -
      so a person who did not see it change clicked again and put it straight back. That is
      what "I could not untoggle it" looked like from the other side of the screen. */
-  function fldWrite(tag, body) {
+  function fldWrite(tag, body, closeEditor) {
     if (FLD.saving) { return; }
     FLD.saving = tag; FLD.err = "";
     renderInv();
     api("/staff/fields", { method: "POST", body: JSON.stringify(body) })
       .then(function () {
+        /* Only on SUCCESS. A refusal leaves the editor open with what was typed still in it,
+           because the server's message is an instruction to change something - closing the
+           box would throw away the thing it is about. */
+        if (closeEditor) { FLD.editing = ""; FLD.draft = ""; }
         return fldLoad(INV.slug).then(function () { return invLoad(INV.slug, true); });
       })
       .catch(function (e) { FLD.err = e.message; })
@@ -4813,6 +4840,88 @@
   function fldRetire(fieldKey) {
     fldWrite("retire:" + fieldKey,
       { property_slug: INV.slug, field_key: fieldKey, action: "set", is_active: false });
+  }
+
+  /* EDITING AN ENUM'S ALLOWED VALUES. One form open at a time, the same rule the type and
+     variant editors follow - two boxes holding the same kind of thing is how a person types
+     into the wrong one. */
+  function fldOptsOpen(fieldKey) {
+    var f = null;
+    (FLD.data && FLD.data.fields ? FLD.data.fields : []).forEach(function (x) {
+      if (x.field_key === fieldKey) { f = x; }
+    });
+    var list = (f && Object.prototype.toString.call(f.options) === "[object Array]")
+      ? f.options : [];
+    FLD.editing = fieldKey;
+    FLD.draft = list.join("\n");
+    FLD.err = "";
+    renderInv();
+  }
+
+  function fldOptsCancel() {
+    FLD.editing = ""; FLD.draft = ""; FLD.err = "";
+    renderInv();
+  }
+
+  /* ONE VALUE PER LINE, and the same cleaning the server does - trimmed, blanks dropped,
+     duplicates removed, order kept - so what the box previews is what gets stored.
+
+     AN EMPTY BOX IS SENT AS clear_options, NOT AS AN EMPTY LIST, and that is not a detail.
+     An empty json array does not survive the HTTP boundary: it arrives at the endpoint as
+     null, which is indistinguishable from omitting the argument, so sending one would be a
+     save that quietly did nothing and reported success. clear_options carries the meaning,
+     and the server refuses it on an enum - which is the right answer, because an enum with
+     no values is a field the grid refuses every value for. See trap 41. */
+  function fldOptsSave(fieldKey) {
+    var box = root.getElementById("fldOptsText");
+    var raw = box ? box.value : FLD.draft;
+    var seen = {}, list = [];
+    String(raw || "").split("\n").forEach(function (line) {
+      var v = line.trim();
+      if (!v || seen[v]) { return; }
+      seen[v] = true; list.push(v);
+    });
+    var body = { property_slug: INV.slug, field_key: fieldKey, action: "set" };
+    if (list.length) { body.options = list; } else { body.clear_options = true; }
+    fldWrite("opts:" + fieldKey, body, true);
+  }
+
+  function fldOptsHtml(f) {
+    if (String(f.kind) !== "enum") { return ""; }
+    var opts = (Object.prototype.toString.call(f.options) === "[object Array]") ? f.options : [];
+    var busy = FLD.saving === ("opts:" + f.field_key);
+
+    if (FLD.editing === f.field_key) {
+      return '<div class="fld-opts-edit">' +
+        '<textarea id="fldOptsText" rows="6" spellcheck="false" aria-label="Allowed values for ' +
+          esc(f.label) + '">' + esc(FLD.draft) + "</textarea>" +
+        '<div class="fld-opts-hint">One value per line. Blank lines and repeats are dropped. ' +
+          "A home already carrying a value you remove will block the save \u2014 the server " +
+          "says which values and how many homes.</div>" +
+        '<div class="fld-opts-act">' +
+          '<button type="button" class="btn btn-sm" data-fld-opts-save="' + esc(f.field_key) +
+            '"' + (busy ? " disabled" : "") + ">" + (busy ? "Saving\u2026" : "Save values") +
+          "</button>" +
+          '<button type="button" class="btn btn-sm btn-ghost" data-fld-opts-cancel="1"' +
+            (busy ? " disabled" : "") + ">Cancel</button>" +
+        "</div></div>";
+    }
+
+    /* A variant-sourced value comes from the type and the grid never writes it, so a list of
+       allowed values would govern nothing. Shown, not editable - the same reasoning as the
+       Editable flag beside it. */
+    var canEdit = String(f.source) === "attribute";
+    return '<div class="fld-opts"><span class="fld-opts-label">Values</span>' +
+      (opts.length
+        ? opts.map(function (o) { return '<span class="fld-opt">' + esc(o) + "</span>"; }).join("")
+        : '<span class="fld-opts-none">None set \u2014 the grid refuses every value until ' +
+          "there is at least one.</span>") +
+      (canEdit
+        ? '<button type="button" class="fld-remove" data-fld-opts="' + esc(f.field_key) + '"' +
+          (FLD.saving ? " disabled" : "") + ' title="Change the values this field accepts.">' +
+          (opts.length ? "Edit values" : "Set values") + "</button>"
+        : "") +
+      "</div>";
   }
 
   function fldFlagHtml(f, flag) {
@@ -4858,7 +4967,7 @@
             ' title="Take this field off the development. Every value already recorded is kept, ' +
             'and adding it back brings them back.">' + (retiring ? "\u2026" : "Remove") +
           "</button>" +
-        "</div></div>";
+        "</div>" + fldOptsHtml(f) + "</div>";
     }).join("");
 
     /* The menu, grouped the way the catalogue groups it, with what is already taken marked
@@ -5613,6 +5722,23 @@
     [].forEach.call(root.querySelectorAll("[data-fld-adopt]"), function (el) {
       el.addEventListener("click", function () { fldAdopt(el.getAttribute("data-fld-adopt")); });
     });
+    [].forEach.call(root.querySelectorAll("[data-fld-opts]"), function (el) {
+      el.addEventListener("click", function () { fldOptsOpen(el.getAttribute("data-fld-opts")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-fld-opts-cancel]"), function (el) {
+      el.addEventListener("click", function () { fldOptsCancel(); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-fld-opts-save]"), function (el) {
+      el.addEventListener("click", function () {
+        fldOptsSave(el.getAttribute("data-fld-opts-save"));
+      });
+    });
+    /* Kept in state as it is typed, so a re-render triggered by anything else does not throw
+       away what somebody has half-written. */
+    var fldOptsBox = root.querySelector("#fldOptsText");
+    if (fldOptsBox) {
+      fldOptsBox.addEventListener("input", function () { FLD.draft = fldOptsBox.value; });
+    }
     [].forEach.call(root.querySelectorAll("[data-fld-retire]"), function (el) {
       el.addEventListener("click", function () { fldRetire(el.getAttribute("data-fld-retire")); });
     });

@@ -152,7 +152,34 @@
     });
   }
 
-  w.HLHold = { start: start, stop: stop,
+  /* FOLLOW A DEADLINE SOMEBODY ELSE SET, without asking for a new hold.
+
+     Checkout grants its OWN fresh window - a person typing a card number at Payfast should
+     not lose the home at 9:59 - and the claim endpoint refuses a reservation that has already
+     reached awaiting_payment, correctly: it will not rewrite the deadline on a row that is
+     mid-payment. So after a checkout the countdown here is showing a deadline that is no
+     longer the real one, and there is no call that would refresh it.
+
+     This is that refresh. It takes the deadline off a reservation read the page already has,
+     re-derives the clock offset from the same response, and keeps counting. It never asks for
+     a hold and never extends one - it only stops the page from displaying a stale number,
+     which on this particular screen is the number the buyer is acting on. */
+  function follow(expiresAt, serverTime, cfg) {
+    var exp = ms(expiresAt);
+    if (exp === null) { return false; }
+    if (cfg) { S.cfg = cfg; }
+    if (!S.cfg) { return false; }
+    var srv = ms(serverTime);
+    if (srv !== null) { S.offset = srv - Date.now(); }
+    stop();
+    S.deadline = exp;
+    S.expired = false;
+    render();
+    S.timer = w.setInterval(tick, 1000);
+    return true;
+  }
+
+  w.HLHold = { start: start, stop: stop, follow: follow,
                remaining: function () {
                  return S.deadline === null ? null : Math.max(0, Math.round((S.deadline - nowServer()) / 1000));
                } };

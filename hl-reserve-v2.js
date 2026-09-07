@@ -143,9 +143,28 @@
     ".ok{color:#0a7a3d}.bad{color:#b00020}.mut{color:#6b6b76}" +
     ".log{border-top:1px solid #ececed;margin-top:14px;padding-top:10px;font-size:11px}" +
     ".log div{padding:2px 0;border-bottom:1px solid #f4f4f5}" +
+    /* THE HOLD BAR LIVES OUTSIDE #body ON PURPOSE. renderReservation() replaces #body
+       wholesale, and HLHold keeps a reference to the element it writes into - so a bar drawn
+       inside it would be destroyed on the next render and the countdown would tick on into a
+       node that is no longer on the page, showing a frozen number. Its own node, written
+       once, survives every re-render. */
+    ".hold{display:none;align-items:center;gap:10px;margin:0 0 10px;padding:8px 10px;" +
+      "border:1px solid #d9d9de;border-radius:8px;background:#fafafa;font-size:12px}" +
+    ".hold.on{display:flex}" +
+    ".hold-lbl{color:#6b6b76;text-transform:uppercase;font-size:10px;letter-spacing:.06em}" +
+    ".hold-t{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;" +
+      "font-variant-numeric:tabular-nums;color:#1a1a1f}" +
+    ".hold-t.is-urgent{color:#b26a00}" +
+    ".hold-t.is-expired{color:#b00020}" +
+    ".hold-note{color:#6b6b76}" +
     "</style>" +
     '<div class="p">' +
       "<h2>Reserve v2 — uuid flow harness</h2>" +
+      '<div class="hold" id="holdBar">' +
+        '<span class="hold-lbl">Held for</span>' +
+        '<span class="hold-t" id="holdT">--:--</span>' +
+        '<span class="hold-note" id="holdNote"></span>' +
+      "</div>" +
       '<div id="body"></div>' +
       '<div class="log"><div class="mut">Activity</div><div id="log"></div></div>' +
     "</div>";
@@ -396,6 +415,12 @@
         }
         log("loaded " + (R.unit && R.unit.name) + " · " + R.status);
         renderReservation();
+        /* A RELOAD MUST NOT LOSE THE HOLD, and must not restart it either. The endpoint is
+           idempotent, so asking again is free and returns the same deadline; past the
+           claimable states the payment window is followed instead. */
+        var lst = String(R.status || "").toLowerCase();
+        if (lst === "awaiting_payment" || lst === "awaiting_clearance") { holdFollow(); }
+        else { holdClaim(); }
       })
       .catch(function (e) {
         log("load failed: " + e.message, "bad");
@@ -440,9 +465,116 @@
         log("saved · otp_locked=" + lock + (reason ? " (" + reason + ")" : ""), lock ? "ok" : "");
         return load(R.uuid).then(function () {
           if (R) { R._lock = lock; R._lockReason = reason; renderReservation(); }
+          /* THE MOMENT THE HOLD IS TAKEN. Confirming is the buyer arriving at the last step
+             before payment, which is the whole answer to "when do the ten minutes start".
+             load() above has usually done this already; this covers the case where the
+             PATCH moved them past details and the reload had not yet seen it. */
+          if (confirming) { holdClaim(); }
         });
       })
       .catch(function (e) { log("save failed: " + e.message, "bad"); });
+  }
+
+  /* ----------------------------------------------------------------- hold
+     THE TEN MINUTES, AND THE FIRST TIME IT HAS MEANT ANYTHING.
+
+     What it replaces: /reserve/3 counts ten minutes in sessionStorage against the BUYER'S
+     OWN DEVICE CLOCK, and at zero redirects them away without telling the server. Nothing on
+     the server read hold_expires_at either, so a buyer who walked away held that home
+     forever and the next buyer was refused at checkout by the unique index - about a hold
+     that ended days ago. Set the device clock forward and the old timer expired instantly;
+     set it back and it never did.
+
+     WHEN THE HOLD IS TAKEN. On reaching the last step before payment - the confirm PATCH -
+     and not before. Browsing the details step blocks nobody. Taking it at draft creation
+     would mean somebody merely looking at a home costs you a live unit for ten minutes; the
+     old behaviour, taking it at checkout, let two buyers fill in the whole form and told the
+     second one only at Payfast.
+
+     A RELOAD DOES NOT RESTART IT. POST /hold is idempotent: called again while the hold is
+     live it returns the SAME deadline, with already_held true. That is why this can be
+     called unconditionally on load once the buyer is past details, and why a timer a buyer
+     could reset with F5 is not a limit.
+
+     IT FAILS OPEN. If HLHold is not on the page, or the call fails, the countdown does not
+     start and nothing else changes. A clock that did not load must never be the reason
+     somebody cannot pay. The one refusal worth showing is a live rival - somebody else is
+     part-way through reserving this home - and that comes back as a 403.
+  */
+  var holdOn = false;
+
+  function holdCfg() {
+    return {
+      base: BASE,
+      uuid: R && R.uuid,
+      display: $("holdT"),
+      onHeld: function (h) {
+        holdOn = true;
+        $("holdBar").className = "hold on";
+        $("holdNote").textContent = h.alreadyHeld ? "already running" : "";
+        /* Only announced when it is news. A reload re-claiming the same hold is not an
+           event, and logging it every time would bury the one that is. */
+        if (!h.alreadyHeld) {
+          log("hold taken · " + h.holdMinutes + " min · " + h.secondsRemaining + "s left", "ok");
+        }
+      },
+      onExpire: function () {
+        /* IT HAS LEARNED THAT A DEADLINE PASSED AND NOTHING ELSE. The server may disagree -
+           a payment may have landed in the last second, or the sweep may not have run yet -
+           so the honest answer is to go and ask rather than to decide here. The old timer
+           redirected on its own authority. */
+        log("the hold ran out - asking the server what the reservation is now", "bad");
+        $("holdNote").textContent = "expired — reloading";
+        holdOn = false;
+        if (R && R.uuid) { load(R.uuid); }
+      },
+      onRival: function (msg) {
+        holdOn = false;
+        $("holdBar").className = "hold on";
+        $("holdT").textContent = "--:--";
+        $("holdNote").textContent = msg;
+        log("hold refused: " + msg, "bad");
+      },
+      onError: function (e) {
+        holdOn = false;
+        log("hold unavailable (" + e.message + ") - continuing without a countdown", "mut");
+      }
+    };
+  }
+
+  /* Claim only where the buyer is actually at the payment step, and only once per hold.
+     Everything about when NOT to call is here rather than at the call sites, so the three
+     places that ask cannot each answer it differently. */
+  function holdClaim() {
+    if (!R || !R.uuid) { return; }
+    if (holdOn) { return; }
+    if (!pastDetails()) { return; }
+    /* Past the point where a hold can be claimed - checkout owns the clock from here, and
+       claim_unit_hold refuses awaiting_payment outright rather than rewriting the deadline
+       on a row that is mid-payment. holdFollow keeps the display honest instead. */
+    var st = String((R && R.status) || "").toLowerCase();
+    if (st !== "draft" && st !== "held" && st !== "expired" && st !== "payment_failed") { return; }
+    if (!w.HLHold) {
+      log("HLHold is not on the page - no countdown. Load hl-hold-countdown.js first.", "mut");
+      return;
+    }
+    w.HLHold.start(holdCfg());
+  }
+
+  /* AFTER CHECKOUT THE DEADLINE IS SOMEBODY ELSE'S. checkout_reservation grants its own
+     fresh window, and the claim endpoint will not touch a row that has reached
+     awaiting_payment - so without this the bar would keep counting down a deadline that is
+     no longer the one the server is enforcing, at the exact screen where the buyer is
+     acting on the number. */
+  function holdFollow() {
+    if (!w.HLHold || !R) { return; }
+    var exp = R.hold_expires_at;
+    if (exp === null || exp === undefined || exp === "") { return; }
+    if (w.HLHold.follow(exp, R.server_time, holdCfg())) {
+      holdOn = true;
+      $("holdBar").className = "hold on";
+      $("holdNote").textContent = "payment window";
+    }
   }
 
   /* ------------------------------------------------------------- checkout
@@ -623,7 +755,17 @@
       api: api,
       get: function () { return R; },
       load: load,
-      reset: function () { drop(UUID_KEY); },
+      reset: function () {
+        if (w.HLHold) { w.HLHold.stop(); }
+        holdOn = false;
+        drop(UUID_KEY);
+      },
+      hold: {
+        claim: holdClaim,
+        follow: holdFollow,
+        running: function () { return holdOn; },
+        remaining: function () { return w.HLHold ? w.HLHold.remaining() : null; }
+      },
       checkout: {
         fieldsToPost: checkoutFieldsToPost,
         problems: function (data, uuid) { return checkoutProblems(data, uuid); },
