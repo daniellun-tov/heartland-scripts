@@ -75,7 +75,10 @@ const clickId = (p, id) => p.evaluate(i =>
     // The CMS development must NOT be tarred with it.
     await set(p, "invProp", "polaris");
     await p.waitForTimeout(250);
-    ok("a development with real prices gets no banner", (await count(p, "#viewInv .inv-warn")) === 0);
+    /* Targeted at the PRICE banner by id. It used to count every .inv-warn on the screen,
+       which meant the day availability grew a banner of its own this assertion went red
+       about something it was never testing. */
+    ok("a development with real prices gets no banner", (await count(p, "#invPriceWarn")) === 0);
     ok("and no price is marked placeholder", (await count(p, "#viewInv .inv-ph")) === 0);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
@@ -303,6 +306,129 @@ const clickId = (p, id) => p.evaluate(i =>
     await p.waitForTimeout(150);
     ok("a model-native development gets no such warning",
       (await count(p, "#viewInv .inv-edit-warn")) === 0);
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
+  /* ── THE CMS AVAILABILITY MIRROR ────────────────────────────────────────
+     A development that sells outside the reserve flow leaves no reservation and no recorded
+     state here, so every home reads available - Outeniqua showed ten for sale on 7 Sep while
+     the CMS had five of them sold. These grade the control that goes and reads the CMS, and
+     above all the two things that make it safe to press: it never writes on the first click,
+     and it never overrules a person. */
+  {
+    const { ctx, p } = await open("?role=admin");
+    console.log("the CMS availability mirror");
+    await openInv(p);
+    await set(p, "invProp", "polaris");
+    await p.waitForTimeout(300);
+    await p.evaluate(() => { window.__CMS_WANT = { "6": "sold", "10": "sold" }; });
+
+    ok("a CMS-backed development is offered the sync", (await count(p, "#cmsCheck")) === 1);
+    /* Nothing to sync FROM on a development whose inventory lives here. */
+    await set(p, "invProp", "stellenbosch");
+    await p.waitForTimeout(300);
+    ok("a Xano-native one is not", (await count(p, "#cmsCheck")) === 0);
+    await set(p, "invProp", "polaris");
+    await p.waitForTimeout(300);
+
+    /* THE FIRST CLICK NEVER WRITES. A control that takes homes off the market on one press
+       is not one anybody should have to trust. */
+    await click(p, "#cmsCheck");
+    await p.waitForTimeout(500);
+    const dry = await p.evaluate(() => window.__CMS_POSTED);
+    ok("checking asks for a dry run", dry.dry_run === true && dry.property_slug === "polaris", dry);
+    ok("and it says what would change, by home",
+      /would change 1 home/i.test(await txt(p, ".cms-plan h4") || "") &&
+      /Home 6/.test(await txt(p, ".cms-plan") || ""),
+      await txt(p, ".cms-plan"));
+    /* Home 10 is already sold in this fixture, so only home 6 moves - a mirror that listed
+       every home it looked at would be noise, and the count would stop meaning anything. */
+    ok("a home already in step is not listed as a change",
+      !/Home 10/.test(await txt(p, ".cms-plan ul") || "") &&
+      /1 already right/.test(await txt(p, ".cms-plan") || ""),
+      await txt(p, ".cms-plan ul"));
+    ok("the grid has not moved yet",
+      (await txt(p, '#viewInv [data-inv-state="sold"] b')) === "1",
+      await txt(p, '#viewInv [data-inv-state="sold"] b'));
+
+    await click(p, "#cmsApply");
+    await p.waitForTimeout(700);
+    const wet = await p.evaluate(() => window.__CMS_POSTED);
+    ok("applying sends a real run", wet.dry_run === false, wet);
+    ok("exactly two calls, one each way",
+      (await p.evaluate(() => window.__CMS_POSTS)) === 2,
+      await p.evaluate(() => window.__CMS_POSTS));
+    ok("and the grid moves with it",
+      (await txt(p, '#viewInv [data-inv-state="sold"] b')) === "2",
+      await txt(p, '#viewInv [data-inv-state="sold"] b'));
+    ok("the panel reports what it did, not what it would do",
+      /Done/i.test(await txt(p, ".cms-plan h4") || ""), await txt(p, ".cms-plan h4"));
+    ok("and stops offering Apply", (await count(p, "#cmsApply")) === 0);
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
+  {
+    const { ctx, p } = await open("?role=admin");
+    console.log("the mirror never overrules a person");
+    await openInv(p);
+    await set(p, "invProp", "polaris");
+    await p.waitForTimeout(300);
+    /* The CMS says sold; somebody recorded reserved here. The server refuses to touch it and
+       reports the disagreement - and the panel must SHOW that rather than fold it into a
+       count, because "the CMS and one of your people disagree about home 6" is the most
+       useful thing on the screen. */
+    await p.evaluate(() => {
+      window.__CMS_WANT = { "6": "sold", "10": "sold" };
+      window.__CMS_KEEP = { "6": "reserved" };
+    });
+    await click(p, "#cmsCheck");
+    await p.waitForTimeout(500);
+    const kept = await txt(p, ".cms-keep");
+    ok("a hand-set state is called out on its own, with both answers",
+      /somebody set them here/i.test(kept || "") &&
+      /reserved/.test(kept || "") && /sold/.test(kept || ""), kept);
+    ok("and it is not counted as a change",
+      /already in step/i.test(await txt(p, ".cms-plan h4") || ""),
+      await txt(p, ".cms-plan h4"));
+    /* Nothing to apply, so nothing to press - a mirror whose only proposal is one it refuses
+       to make must not offer a button that would do nothing. */
+    ok("and Apply is not offered", (await count(p, "#cmsApply")) === 0);
+
+    await click(p, "#cmsCancel");
+    await p.waitForTimeout(200);
+    ok("Cancel puts the panel away", (await count(p, ".cms-plan")) === 0);
+    ok("and sends nothing more",
+      (await p.evaluate(() => window.__CMS_POSTS)) === 1,
+      await p.evaluate(() => window.__CMS_POSTS));
+
+    /* One development's sold list over another's stock is the mistake worth preventing. */
+    await click(p, "#cmsCheck");
+    await p.waitForTimeout(500);
+    ok("a report is on screen", (await count(p, ".cms-plan")) === 1);
+    await set(p, "invProp", "stellenbosch");
+    await p.waitForTimeout(300);
+    await set(p, "invProp", "polaris");
+    await p.waitForTimeout(300);
+    ok("switching development throws the report away", (await count(p, ".cms-plan")) === 0);
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
+  {
+    const { ctx, p } = await open("?role=sales");
+    console.log("the mirror is manager or admin");
+    await openInv(p);
+    await set(p, "invProp", "polaris");
+    await p.waitForTimeout(300);
+    /* Hiding it is never the enforcement - the endpoint checks too - but a salesperson should
+       not be shown a button that will be refused. */
+    ok("a salesperson is not offered it", (await count(p, "#cmsCheck")) === 0);
+    ok("while still being told the CMS owns availability here",
+      /reads available until somebody says otherwise/i.test(
+        await txt(p, "#viewInv .inv-warn") || ""),
+      await txt(p, "#viewInv .inv-warn"));
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }

@@ -692,6 +692,71 @@
       } });
     }
 
+    /* ROUTED BEFORE THE INVENTORY READ, and that is not tidiness. The branch below matches
+       on the path alone with no method test, so "/staff/inventory/mirror-cms" satisfies it
+       too - a POST fell straight through into the GET and came back as a grid. Ordering is
+       the whole routing in this file.
+       Mirrors mirror_cms_offer_states closely enough to grade the console's two-step: a dry
+       run reports and writes nothing, a real run applies and the grid changes underneath it.
+       The one rule that must be here rather than approximated is that a state somebody set
+       from the console is NEVER overwritten - it comes back in kept_manual, and the panel is
+       expected to draw it in its own block rather than fold it into a count. */
+    if (method === "POST" && u.indexOf("/staff/inventory/mirror-cms") !== -1) {
+      window.__CMS_POSTED = JSON.parse((opts && opts.body) || "{}");
+      window.__CMS_POSTS = (window.__CMS_POSTS || 0) + 1;
+      if (window.__CMS_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Only a manager or an admin can mirror the CMS onto the inventory."}');
+        } });
+      }
+      var cp = window.__CMS_POSTED;
+      var cmsSrc = (cp.property_slug === "polaris") ? window.__INV_CMS : window.__INV_SV;
+      var want = window.__CMS_WANT || {};
+      var keepers = window.__CMS_KEEP || {};
+      var writes = [], keeps = [];
+      (cmsSrc.units || []).forEach(function (un3) {
+        var w = want[un3.unit_number];
+        if (!w) { return; }
+        if (keepers[un3.unit_number]) {
+          keeps.push({ unit_id: un3.unit_number, unit_number: un3.unit_number,
+                       console_says: keepers[un3.unit_number], cms_says: w, set_by: "console" });
+          return;
+        }
+        if (un3.state === w) { return; }
+        writes.push({ unit_id: un3.unit_number, unit_number: un3.unit_number,
+                      property_slug: cp.property_slug, state: w, was: un3.state,
+                      external_ref: "wf:" + un3.unit_number, note: "Mirrored from the CMS." });
+      });
+      /* A REAL RUN CHANGES THE STOCK, so the grid the console reloads afterwards is a
+         different grid. A fixture that reported changes without making them would let a
+         console that never reloads pass. */
+      if (cp.dry_run !== true) {
+        writes.forEach(function (w2) {
+          (cmsSrc.units || []).forEach(function (un4) {
+            if (un4.unit_number === w2.unit_number) { un4.state = w2.state; }
+          });
+        });
+        cmsSrc.counts = cmsSrc.counts || {};
+        cmsSrc.counts.sold = (cmsSrc.units || []).filter(function (x) { return x.state === "sold"; }).length;
+        cmsSrc.counts.available = (cmsSrc.units || []).filter(function (x) { return x.state === "available"; }).length;
+      }
+      var acct = writes.length + keeps.length +
+                 ((cmsSrc.units || []).length - writes.length - keeps.length);
+      return Promise.resolve({ ok: true, status: 200, text: function () {
+        return Promise.resolve(JSON.stringify({
+          dry_run: cp.dry_run === true,
+          inventory_source: "cms",
+          units_active: (cmsSrc.units || []).length,
+          to_write: writes, to_clear: [], kept_manual: keeps, no_cms_item: [],
+          to_write_count: writes.length, to_clear_count: 0,
+          manual_rows: keeps.length, kept_manual_count: keeps.length, no_cms_item_count: 0,
+          unchanged: (cmsSrc.units || []).length - writes.length - keeps.length,
+          accounted_for: acct, reconciles: acct === (cmsSrc.units || []).length,
+          short_read: window.__CMS_SHORT === true
+        }));
+      } });
+    }
+
     if (u.indexOf("/staff/inventory") !== -1) {
       var want = (/property=([^&]+)/.exec(u) || [0, ""])[1];
       var body = (want === "stellenbosch") ? window.__INV_SV : window.__INV_CMS;
@@ -1160,6 +1225,32 @@
           "a retired variant is not listed on /public/inventory, and those homes would " +
           "disappear from the site plan while the counts still claimed they were there.");
       }
+
+      /* REASSIGN, MIRRORED PROPERLY. The stub used to refuse without reassign_to and then do
+         nothing at all WITH it - so a console that sent the flag and never moved a home would
+         have gone green. The target must be a different ACTIVE variant on the development,
+         exactly as the server's lambda requires, and it may sit under a different type: that
+         is allowed, and it changes what those homes ARE, which is the whole reason the
+         console makes somebody type the code first. */
+      var movedN = 0;
+      if (vb.reassign_to) {
+        var tgt = typFindVar(vb.reassign_to);
+        if (!tgt || tgt.variant === hit.variant || tgt.variant.is_active === false) {
+          return typRefuse("reassign_to must be the id of a different, ACTIVE variant on this " +
+            "same development. A retired one cannot receive homes, because they would " +
+            "immediately stop being listed.");
+        }
+        /* THE HOMES FIRST, then the variant - reversed, every home built this way is briefly
+           an orphan, and the server says so in its own header. */
+        typUnits("stellenbosch").forEach(function (un5) {
+          if (String(un5.unit_variant_id) !== String(hit.variant.id)) { return; }
+          un5.unit_variant_id = tgt.variant.id;
+          un5.variant_code = tgt.variant.code;
+          un5.type_code = tgt.type.code;
+          un5.type_name = tgt.type.name;
+          movedN++;
+        });
+      }
       if (!wasRetired && siblings === 0) {
         return typRefuse("This is the last active variant of its type, and a type with no " +
           "variant is a type no home can point at. Retire the TYPE instead.");
@@ -1174,11 +1265,11 @@
       }
       if (vb.hard) {
         hit.type.variants = (hit.type.variants || []).filter(function (v) { return v !== hit.variant; });
-        return typOk({ removed: true, retired: false });
+        return typOk({ removed: true, retired: false, homes_moved: movedN });
       }
       hit.variant.is_active = false;
       hit.variant.is_default = false;
-      return typOk({ removed: false, retired: true });
+      return typOk({ removed: false, retired: true, homes_moved: movedN });
     }
 
     if (method === "POST" && u.indexOf("/staff/variants") !== -1) {

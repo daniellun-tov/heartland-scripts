@@ -800,6 +800,23 @@
     "    background:color-mix(in srgb, var(--warning) 10%, transparent);",
     "  }",
     "  .inv-warn strong { font-weight:600; }",
+    "  /* THE CMS SYNC, inside the banner that explains why the grid is read-only - which is",
+    "     the one place on the screen where somebody is already being told the CMS is the",
+    "     source. A button for it anywhere else would need its own paragraph to make sense. */",
+    "  .cms-sync { margin-top:10px; }",
+    "  .cms-sync-act { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }",
+    "  .cms-plan {",
+    "    margin-top:10px; padding:10px 12px; border:1px solid var(--rule);",
+    "    border-radius:var(--radius-sm); background:var(--surface);",
+    "  }",
+    "  .cms-plan h4 { margin:0 0 6px; font-size:.8125rem; font-weight:600; }",
+    "  .cms-plan ul { margin:4px 0 0; padding-left:18px; }",
+    "  .cms-plan li { margin-bottom:2px; }",
+    "  .cms-plan .mut { color:var(--ink-2); }",
+    "  .cms-keep {",
+    "    margin-top:8px; padding:8px 10px; border-left:3px solid var(--warning);",
+    "    background:color-mix(in srgb, var(--warning) 8%, transparent);",
+    "  }",
     "  .inv-owed { font-size:.8125rem; color:var(--ink-2); }",
     "  .inv-owed ul { margin:8px 0 0; padding-left:18px; }",
     "  .inv-owed li { margin-bottom:3px; }",
@@ -1077,6 +1094,26 @@
     "  }",
     "  .typ-actions { display:flex; gap:8px; margin:4px 0 8px; align-items:center;",
     "    flex-wrap:wrap; }",
+    "  /* MOVING HOMES OFF A VARIANT changes what every one of them IS, so it does not look",
+    "     like the other controls. It is the widest thing in the drawer and it is bordered in",
+    "     the warning colour, because the thing that makes it safe is that it cannot be",
+    "     mistaken for Cancel. */",
+    "  .typ-move {",
+    "    margin:6px 0 10px; padding:10px 12px; border:1px solid var(--warning);",
+    "    border-radius:var(--radius-sm); font-size:.8125rem;",
+    "    background:color-mix(in srgb, var(--warning) 8%, transparent);",
+    "  }",
+    "  .typ-move h4 { margin:0 0 6px; font-size:.8125rem; font-weight:600; }",
+    "  .typ-move label { display:block; font-size:.6875rem; color:var(--ink-muted); margin:8px 0 3px; }",
+    "  .typ-move select, .typ-move input {",
+    "    font:inherit; font-size:.8125rem; padding:6px 8px; width:100%; box-sizing:border-box;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:var(--surface); color:var(--ink);",
+    "  }",
+    "  .typ-move-warn { margin-top:8px; font-weight:600; color:var(--warning); }",
+    "  /* A STATEMENT, NOT A DISABLED BUTTON - the same shape the Fields panel uses where a",
+    "     value belongs to the type. There is no decision to offer. */",
+    "  .typ-blocked { font-size:.6875rem; color:var(--ink-muted); }",
     "  /* AN INHERITED FIGURE IS A PLACEHOLDER, A STORED ONE IS A VALUE. The box shows the",
     "     figure either way - what changes is whether it looks typed. Without this the two",
     "     are indistinguishable on screen, and clearing an override becomes guesswork. */",
@@ -4408,12 +4445,20 @@
       /* The Phases and Fields drawers belong to a development, so they go with it. Keeping
          one open across a switch would show one development's columns over another's stock. */
       INV.phaseErr = "";
+      /* A CMS report names homes by number, and every development has a home 3. Carrying one
+         across a switch would show one development's sold list over another's stock. */
+      cmsReset();
       FLD.data = null; FLD.slug = ""; FLD.err = "";
       /* The type register belongs to a development just as the field registry does. The
          open check would reload it anyway, because TYP.slug no longer matches - but the
          stale one would be RENDERED first, showing one development's types over another's
          stock for as long as the read takes. */
       TYP.data = null; TYP.slug = ""; TYP.err = ""; TYP.editing = "";
+      /* A half-filled move form names a variant that belongs to the development being left.
+         Carrying it across would put one development's confirmation box over another's
+         stock, and the code typed into it would confirm nothing. */
+      TYP.editingType = ""; TYP.moving = "";
+      TYP.moveTo = ""; TYP.moveWhy = ""; TYP.moveConfirm = "";
       panelClose();
     }
     INV.editing = null;
@@ -4759,7 +4804,13 @@
      second call and most days nobody touches it. Re-opening for the same development reuses
      what it has. */
   var TYP = { data: null, slug: "", loading: false, saving: "", err: "",
-              editing: "", editingType: "" };
+              editing: "", editingType: "", moving: "", moveTo: "",
+              /* HELD IN STATE, because every refusal re-renders. Left on the DOM alone, the
+                 reason somebody wrote by hand and the code they typed were wiped by the very
+                 error telling them to change something else - which turns "fix one field"
+                 into "type all three again", and is how a person ends up confirming with a
+                 code they pasted rather than read. */
+              moveWhy: "", moveConfirm: "" };
 
   function typLoad(slug) {
     if (!slug) { return; }
@@ -5292,13 +5343,26 @@
                     'one.">Make default</button>') +
                 '<button type="button" class="ph-btn is-quiet" data-typv-edit="' +
                   esc(String(v.id)) + '">' + (editing ? "Cancel" : "Edit") + "</button>" +
+                /* THREE DIFFERENT ANSWERS, and only one of them is a button that removes
+                   something. A default variant cannot go at all until another is promoted -
+                   that is a statement, not a disabled control, the same shape the Fields
+                   panel uses. One with homes in it needs them moved first, and the button
+                   says so rather than offering a Remove the server will refuse. */
                 (v.is_default
-                  ? ""
-                  : '<button type="button" class="ph-btn is-quiet" data-typv-retire="' +
-                    esc(String(v.id)) + '"' + (busyV ? " disabled" : "") +
-                    ' title="Take it out of every picker. Refused while homes are still built ' +
-                    'this way - unlike a phase, a retired variant stops its homes being listed ' +
-                    'on the site.">Remove</button>');
+                  ? '<span class="typ-blocked" title="is_default is what represents the type ' +
+                    'wherever types are listed, and exactly one variant per type carries it. ' +
+                    'Make another variant the default first - that demotes this one on the ' +
+                    'way past.">default \u2014 promote another to remove this</span>'
+                  : (Number(v.unit_count || 0) > 0
+                    ? '<button type="button" class="ph-btn is-quiet" data-typv-move="' +
+                      esc(String(v.id)) + '"' + (busyV ? " disabled" : "") +
+                      ' title="Move the homes built this way onto another variant, then take ' +
+                      'this one out of every picker. A retired variant stops its homes being ' +
+                      'listed on the site, so they cannot be left here.">Move homes \u0026 remove</button>'
+                    : '<button type="button" class="ph-btn is-quiet" data-typv-retire="' +
+                      esc(String(v.id)) + '"' + (busyV ? " disabled" : "") +
+                      ' title="Take it out of every picker. No home is built this way, so ' +
+                      'nothing moves.">Remove</button>'));
             }
 
             /* THE COUNTED NUMBER, and the stored one only when they disagree. unit_count on
@@ -5329,7 +5393,7 @@
                 ' \u00b7 <span' + (dupN ? ' class="typ-src is-dup"' : "") + ">" +
                 esc(ovrTxt) + "</span></div></div>" +
               '<div class="feat-controls">' + vctrl + "</div></div>" +
-              (editing ? typEditFormHtml(v) : "") + "</div>";
+              (editing ? typEditFormHtml(v) : "") + typMoveHtml(v, t) + "</div>";
           }).join("");
 
           var addV = (can && !gone && variantsOn)
@@ -5430,7 +5494,11 @@
     renderInv();
     api(url, { method: "POST", body: JSON.stringify(body) })
       .then(function () {
-        TYP.editing = ""; TYP.editingType = "";
+        /* ONLY ON SUCCESS. A refusal leaves every form open with what was typed still in it,
+           because the server's message is an instruction to change something - and the move
+           form in particular holds a reason somebody wrote by hand. */
+        TYP.editing = ""; TYP.editingType = ""; TYP.moving = "";
+        TYP.moveTo = ""; TYP.moveWhy = ""; TYP.moveConfirm = "";
         return typLoad(TYP.slug);
       })
       .then(function () { return invLoad(INV.slug, true); })
@@ -5516,6 +5584,193 @@
       variant_id: Number(id), hard: true,
       reason: "deleted from the sales console - no home was built this way"
     });
+  }
+
+  /* ------------------------------------------------- moving homes off a variant
+     THE ONE THING THE DRAWER DELIBERATELY WOULD NOT DO. delete_unit_variant has taken
+     reassign_to since it was written, and the drawer withheld it on purpose: moving forty
+     homes onto a different variant changes what every one of them IS, and a button that does
+     that in one press will eventually be pressed by accident. The server's refusal said what
+     to do instead, which was honest and left the job undoable from the only screen anybody
+     uses. This is the considered version that was owed.
+
+     WHY IT CANNOT SIMPLY BE A PICKER. A retired variant is not listed by /public/inventory,
+     so retiring one that still holds homes takes them off the site plan while the counts go
+     on saying they are there. That is why the server refuses it - and it means the move is
+     not a tidy-up, it is a change to what those homes are sold as.
+
+     THREE THINGS STAND BETWEEN THE BUTTON AND THE WRITE, and each one catches a different
+     mistake: a destination chosen deliberately, a reason somebody has to type, and the
+     variant's own code typed back. The last is the one that catches the wrong ROW - every
+     other guard here would pass just as happily on a variant next to the intended one.
+
+     A CROSS-TYPE MOVE IS ALLOWED AND IS NOT THE SAME ACT. The server accepts any other active
+     variant on the development, including one under a different type - so these homes would
+     change type, and their bedrooms, areas and price all come from the type. That is a
+     legitimate thing to want and a terrible thing to do by accident, so it is offered in its
+     own group and says what it means the moment it is picked. */
+  function typMoveOpen(id) {
+    TYP.moving = String(id);
+    TYP.moveTo = ""; TYP.moveWhy = ""; TYP.moveConfirm = "";
+    TYP.editing = ""; TYP.editingType = ""; TYP.err = "";
+    renderInv();
+  }
+
+  function typMoveCancel() {
+    TYP.moving = ""; TYP.moveTo = ""; TYP.moveWhy = ""; TYP.moveConfirm = ""; TYP.err = "";
+    renderInv();
+  }
+
+  /* Every OTHER active variant on the development, with the type it sits under, because the
+     destination list is the one place the type matters more than the variant. */
+  function typMoveTargets(exceptId) {
+    var out = [];
+    ((TYP.data && TYP.data.types) || []).forEach(function (t) {
+      (t.variants || []).forEach(function (v) {
+        if (String(v.id) === String(exceptId)) { return; }
+        if (v.is_active === false) { return; }
+        out.push({ id: v.id, code: v.code, name: v.name || null,
+                   type_id: t.id, type_code: t.code, type_name: t.name,
+                   type_retired: t.is_active === false });
+      });
+    });
+    return out;
+  }
+
+  function typFindVariant(id) {
+    var found = null;
+    ((TYP.data && TYP.data.types) || []).forEach(function (t) {
+      (t.variants || []).forEach(function (v) {
+        if (String(v.id) === String(id)) { found = { v: v, t: t }; }
+      });
+    });
+    return found;
+  }
+
+  function typMoveSave(id) {
+    if (TYP.saving) { return; }
+    var hit = typFindVariant(id);
+    if (!hit) { return; }
+    var toEl = $("typMoveTo"), whyEl = $("typMoveWhy"), confEl = $("typMoveConfirm");
+    var to = toEl ? toEl.value : TYP.moveTo;
+    var why = (whyEl ? whyEl.value : TYP.moveWhy).trim();
+    var conf = (confEl ? confEl.value : TYP.moveConfirm).trim();
+    TYP.moveWhy = why; TYP.moveConfirm = conf;
+
+    if (!to) {
+      TYP.err = "Choose where these homes should go. They cannot be left without a variant \u2014 " +
+        "a home that points at nothing is one nothing can describe.";
+      renderInv(); return;
+    }
+    if (!why) {
+      TYP.err = "Give a reason. This changes what every one of these homes is built as, and " +
+        "the event is the only record of why somebody did it.";
+      renderInv(); return;
+    }
+    /* THE CODE, TYPED BACK. Not a confirm dialog - a dialog is dismissed by the same reflex
+       that opened it. Typing the code is the only guard here that catches the wrong ROW. */
+    if (conf.toLowerCase() !== String(hit.v.code || "").toLowerCase()) {
+      TYP.err = "Type the variant's code (" + hit.v.code + ") to confirm. Every other check " +
+        "here would pass just as happily on the variant next to this one.";
+      renderInv(); return;
+    }
+
+    var toV = null;
+    typMoveTargets(id).forEach(function (x) { if (String(x.id) === String(to)) { toV = x; } });
+    typWrite("move:" + id, "/staff/variants/delete", {
+      variant_id: Number(id),
+      reassign_to: Number(to),
+      reason: why + " \u2014 moved " + (hit.v.unit_count || 0) + " home" +
+        ((hit.v.unit_count || 0) === 1 ? "" : "s") + " onto " +
+        (toV ? toV.type_code + "/" + toV.code : String(to)) +
+        " and retired " + hit.v.code + ", from the sales console"
+    });
+  }
+
+  function typMoveHtml(v, t) {
+    if (String(TYP.moving) !== String(v.id)) { return ""; }
+    var n = Number(v.unit_count || 0);
+    var targets = typMoveTargets(v.id);
+    var same = targets.filter(function (x) { return String(x.type_id) === String(t.id); });
+    var other = targets.filter(function (x) { return String(x.type_id) !== String(t.id); });
+    var busy = TYP.saving === ("move:" + v.id);
+
+    var opt = function (x) {
+      return '<option value="' + esc(String(x.id)) + '"' +
+        (String(TYP.moveTo) === String(x.id) ? " selected" : "") + ">" +
+        esc(x.code) + (x.name ? " \u00b7 " + esc(x.name) : "") + "</option>";
+    };
+
+    /* NOWHERE TO MOVE THEM IS A REAL STATE, and it is the one the server would refuse anyway:
+       the last active variant of a type cannot go. Say so here rather than letting somebody
+       fill in a form that cannot be submitted. */
+    if (!targets.length) {
+      return '<div class="typ-move"><h4>There is nowhere to move these homes.</h4>' +
+        "Every home has to point at an active variant, and this development has no other one. " +
+        "Add a variant first, or retire the whole type \u2014 that retires its variants with it " +
+        "and keeps every home explainable." +
+        '<div class="typ-actions" style="margin-top:10px">' +
+        '<button type="button" class="ph-btn is-quiet" data-typv-movecancel="1">Close</button>' +
+        "</div></div>";
+    }
+
+    var picked = null;
+    targets.forEach(function (x) { if (String(x.id) === String(TYP.moveTo)) { picked = x; } });
+    var crossType = picked && String(picked.type_id) !== String(t.id);
+
+    return '<div class="typ-move">' +
+      "<h4>" + n + " home" + (n === 1 ? " is" : "s are") + " built this way.</h4>" +
+      "They have to go somewhere before this variant can be removed. A retired variant is not " +
+      "listed on the site, so leaving them here would take " + n + " home" +
+      (n === 1 ? "" : "s") + " off the site plan while the totals still said " +
+      (n === 1 ? "it was" : "they were") + " there." +
+
+      '<label for="typMoveTo">Move them to</label>' +
+      '<select id="typMoveTo"' + (busy ? " disabled" : "") + '>' +
+        '<option value="">Choose a variant\u2026</option>' +
+        (same.length
+          ? '<optgroup label="' + esc(t.code) + ' \u2014 the same type">' +
+            same.map(opt).join("") + "</optgroup>"
+          : "") +
+        (other.length
+          ? '<optgroup label="A DIFFERENT TYPE \u2014 this changes what the homes are">' +
+            other.map(function (x) {
+              return '<option value="' + esc(String(x.id)) + '"' +
+                (String(TYP.moveTo) === String(x.id) ? " selected" : "") + ">" +
+                esc(x.type_code) + " / " + esc(x.code) +
+                (x.name ? " \u00b7 " + esc(x.name) : "") +
+                (x.type_retired ? " (retired type)" : "") + "</option>";
+            }).join("") + "</optgroup>"
+          : "") +
+      "</select>" +
+
+      /* SAID THE MOMENT IT IS PICKED, not buried in the button. The figures live on the type,
+         so a cross-type move rewrites every one of them for every home. */
+      (crossType
+        ? '<div class="typ-move-warn">That is a different type. These ' + n + " home" +
+          (n === 1 ? "" : "s") + " would become " + esc(picked.type_code) +
+          " \u2014 bedrooms, bathrooms, areas and price all come from the type, so every one of " +
+          "those figures changes with them." + "</div>"
+        : "") +
+
+      '<label for="typMoveWhy">Why</label>' +
+      '<input id="typMoveWhy" type="text" placeholder="Created by mistake; the homes belong on ' +
+        esc(t.code) + '1" aria-label="Why these homes are moving" value="' + esc(TYP.moveWhy) +
+        '"' + (busy ? " disabled" : "") + ">" +
+
+      '<label for="typMoveConfirm">Type <strong>' + esc(v.code) + "</strong> to confirm</label>" +
+      '<input id="typMoveConfirm" type="text" autocomplete="off" spellcheck="false" ' +
+        'aria-label="Type the variant code to confirm" value="' + esc(TYP.moveConfirm) + '"' +
+        (busy ? " disabled" : "") + ">" +
+
+      '<div class="typ-actions" style="margin-top:10px">' +
+        '<button type="button" class="ph-btn" data-typv-movesave="' + esc(String(v.id)) + '"' +
+          (busy ? " disabled" : "") + ">" +
+          (busy ? "Moving\u2026" : "Move " + n + " home" + (n === 1 ? "" : "s") + " and remove") +
+        "</button>" +
+        '<button type="button" class="ph-btn is-quiet" data-typv-movecancel="1"' +
+          (busy ? " disabled" : "") + ">Cancel</button>" +
+      "</div></div>";
   }
 
   function typToggleEdit(id) {
@@ -5707,6 +5962,32 @@
     [].forEach.call(root.querySelectorAll("[data-typv-retire]"), function (el) {
       el.addEventListener("click", function () { typRetireVariant(el.getAttribute("data-typv-retire")); });
     });
+    [].forEach.call(root.querySelectorAll("[data-typv-move]"), function (el) {
+      el.addEventListener("click", function () { typMoveOpen(el.getAttribute("data-typv-move")); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typv-movecancel]"), function (el) {
+      el.addEventListener("click", function () { typMoveCancel(); });
+    });
+    [].forEach.call(root.querySelectorAll("[data-typv-movesave]"), function (el) {
+      el.addEventListener("click", function () { typMoveSave(el.getAttribute("data-typv-movesave")); });
+    });
+    /* Kept in state as it is chosen, because picking a different TYPE has to change what the
+       form says - and a re-render triggered by anything else must not lose the choice. */
+    var typMoveSel = root.querySelector("#typMoveTo");
+    if (typMoveSel) {
+      typMoveSel.addEventListener("change", function () {
+        TYP.moveTo = typMoveSel.value; renderInv();
+      });
+    }
+    /* Kept as they are typed, so a refusal about one field does not empty the other two. */
+    var typWhyEl = root.querySelector("#typMoveWhy");
+    if (typWhyEl) {
+      typWhyEl.addEventListener("input", function () { TYP.moveWhy = typWhyEl.value; });
+    }
+    var typConfEl = root.querySelector("#typMoveConfirm");
+    if (typConfEl) {
+      typConfEl.addEventListener("input", function () { TYP.moveConfirm = typConfEl.value; });
+    }
     [].forEach.call(root.querySelectorAll("[data-typv-restore]"), function (el) {
       el.addEventListener("click", function () { typRestoreVariant(el.getAttribute("data-typv-restore")); });
     });
@@ -5742,6 +6023,148 @@
     [].forEach.call(root.querySelectorAll("[data-fld-retire]"), function (el) {
       el.addEventListener("click", function () { fldRetire(el.getAttribute("data-fld-retire")); });
     });
+  }
+
+  /* ------------------------------------------------------- the CMS sync
+     A development that sells OUTSIDE the reservation engine - Outeniqua and Polaris both do,
+     through the legacy automation - leaves no reservation and no recorded state in this
+     system, so every home falls through the availability chain and the grid calls it
+     available. On 7 Sep Outeniqua showed ten homes for sale while the CMS had five of them
+     sold. This is the button that goes and reads the CMS.
+
+     IT DRY-RUNS FIRST, ALWAYS. The server takes a dry_run flag and this never skips it: the
+     first click asks what WOULD change and shows the list, and only a second, deliberate
+     click writes. A control that silently takes five homes off the market on one press is
+     not one anybody should have to trust.
+
+     A PERSON OUTRANKS THE MIRROR, and the panel says so out loud. The server refuses to
+     touch a state somebody set from this console and reports the disagreement instead; those
+     rows are drawn in their own block rather than folded into the count, because "the CMS
+     and one of your people disagree about home 12" is the most useful thing this screen can
+     tell anybody. */
+  var CMS = { busy: false, plan: null, err: "", applied: false };
+
+  function cmsReset() {
+    CMS.busy = false; CMS.plan = null; CMS.err = ""; CMS.applied = false;
+  }
+
+  /* Manager or admin, the same gate as releasing a phase and for the same reason: it decides
+     which homes an agent may sell. The server checks it too - this only stops a salesperson
+     being shown a button that will be refused. */
+  function canMirror() {
+    var role = String((S.staff && S.staff.role) || "sales").toLowerCase();
+    return role === "manager" || role === "admin";
+  }
+
+  function cmsRun(dry) {
+    if (CMS.busy || !INV.slug) { return; }
+    CMS.busy = true; CMS.err = ""; CMS.applied = false;
+    if (dry) { CMS.plan = null; }
+    renderInv();
+    api("/staff/inventory/mirror-cms", {
+      method: "POST",
+      body: JSON.stringify({ property_slug: INV.slug, dry_run: dry === true })
+    })
+      .then(function (d) {
+        CMS.plan = d;
+        CMS.applied = (dry !== true);
+        /* Only a real run changes what the grid should be showing. */
+        if (dry !== true) { return invLoad(INV.slug, true); }
+      })
+      .catch(function (e) { CMS.err = e.message; })
+      .then(function () { CMS.busy = false; renderInv(); });
+  }
+
+  function cmsLine(x) {
+    return "Home " + esc(invPad(x.unit_number)) + " \u2192 " + esc(x.state) +
+      (x.was && x.was !== "available" ? " (was " + esc(x.was) + ")" : "");
+  }
+
+  function cmsPlanHtml() {
+    var p = CMS.plan;
+    if (!p) { return ""; }
+    var writes = p.to_write || [];
+    var clears = p.to_clear || [];
+    var keeps = p.kept_manual || [];
+    var missing = p.no_cms_item || [];
+    var nothing = !writes.length && !clears.length;
+
+    var out = '<div class="cms-plan"><h4>' +
+      (CMS.applied
+        ? (nothing ? "Nothing needed changing." : "Done \u2014 " + (writes.length + clears.length) +
+           " home" + ((writes.length + clears.length) === 1 ? "" : "s") + " updated.")
+        : (nothing ? "Everything is already in step with the CMS."
+                   : "This would change " + (writes.length + clears.length) + " home" +
+                     ((writes.length + clears.length) === 1 ? "" : "s") + ".")) +
+      "</h4>";
+
+    if (writes.length) {
+      out += "<ul>" + writes.map(function (w) { return "<li>" + cmsLine(w) + "</li>"; }).join("") + "</ul>";
+    }
+    if (clears.length) {
+      out += '<div class="mut" style="margin-top:6px">Back on the market, because the CMS no ' +
+        "longer marks them taken:</div><ul>" +
+        clears.map(function (c) {
+          return "<li>Home " + esc(invPad(c.unit_number)) + " (was " + esc(c.was) + ")</li>";
+        }).join("") + "</ul>";
+    }
+
+    /* THE DIVERGENCES. Never folded into a count - somebody has to look at these. */
+    if (keeps.length) {
+      out += '<div class="cms-keep"><strong>Left alone, because somebody set them here.</strong> ' +
+        "A state recorded in this console is never overwritten by the CMS \u2014 change it on the " +
+        "home itself if the CMS is right.<ul>" +
+        keeps.map(function (k) {
+          return "<li>Home " + esc(invPad(k.unit_number)) + ": this console says <strong>" +
+            esc(k.console_says) + "</strong>, the CMS says <strong>" + esc(k.cms_says) +
+            "</strong></li>";
+        }).join("") + "</ul></div>";
+    }
+    if (missing.length) {
+      out += '<div class="cms-keep"><strong>Not found in the CMS.</strong> Left exactly as they ' +
+        "are \u2014 a home the CMS did not hand back is not the same as one it says is free.<ul>" +
+        missing.map(function (m) {
+          return "<li>Home " + esc(invPad(m.unit_number)) + "</li>";
+        }).join("") + "</ul></div>";
+    }
+    if (p.short_read) {
+      out += '<div class="cms-keep"><strong>The CMS returned fewer homes than it says it has.</strong> ' +
+        "Nothing was released on the strength of a short read, but the collection has outgrown " +
+        "what this can page through in one go.</div>";
+    }
+
+    out += '<div class="mut" style="margin-top:8px">' + (p.units_active || 0) +
+      " home" + ((p.units_active || 0) === 1 ? "" : "s") + " checked \u00b7 " +
+      (p.unchanged || 0) + " already right" +
+      ((p.manual_rows || 0) ? " \u00b7 " + p.manual_rows + " set here" : "") + "</div>";
+
+    return out + "</div>";
+  }
+
+  function cmsSyncHtml() {
+    if (!canMirror()) { return ""; }
+    var plan = CMS.plan;
+    var pending = plan && !CMS.applied &&
+      (((plan.to_write || []).length + (plan.to_clear || []).length) > 0);
+    return '<div class="cms-sync">' +
+      (CMS.err ? '<div class="err" style="margin-bottom:8px">' + esc(CMS.err) + "</div>" : "") +
+      cmsPlanHtml() +
+      '<div class="cms-sync-act" style="margin-top:10px">' +
+        '<button type="button" id="cmsCheck"' + (CMS.busy ? " disabled" : "") + '>' +
+          (CMS.busy && !pending ? "Reading the CMS\u2026" : "Check the CMS") + "</button>" +
+        (pending
+          ? '<button type="button" class="primary" id="cmsApply"' + (CMS.busy ? " disabled" : "") +
+            ">" + (CMS.busy ? "Applying\u2026" : "Apply these changes") + "</button>"
+          : "") +
+        /* A REPORT THAT CANNOT BE PUT AWAY is a banner. Cancel used to appear only alongside
+           Apply, so a run whose every finding was one the server REFUSED to act on - the
+           divergences, which are the most worth reading - left a panel with no way out of it
+           short of switching development. Anything on screen gets a way off it. */
+        (plan
+          ? '<button type="button" id="cmsCancel"' + (CMS.busy ? " disabled" : "") + ">" +
+            (pending ? "Cancel" : "Close") + "</button>"
+          : "") +
+      "</div></div>";
   }
 
   function invEditable() {
@@ -6698,7 +7121,11 @@
       }).join("") + "</div>";
 
     var warn = placeholder
-      ? '<div class="inv-warn"><div><strong>These prices are placeholders.</strong> ' +
+      /* Each banner carries its own id. There used to be only one .inv-warn on this screen
+         and a test counted them, so the day a second appeared an assertion about PRICES went
+         red about AVAILABILITY - which tells whoever reads it nothing true. A class is a
+         style; an id is what a claim is made about. */
+      ? '<div class="inv-warn" id="invPriceWarn"><div><strong>These prices are placeholders.</strong> ' +
         esc((d.property_name || "This development")) +
         " has not had real prices loaded — the figures below came across as demo values and " +
         "are not quotable. Everything else on this screen is real.</div></div>"
@@ -6786,10 +7213,30 @@
       lock = editable.why === "cms"
         ? '<div class="inv-warn"><div><strong>These rows are a nightly copy of the Webflow ' +
           "CMS.</strong> Editing them here would look like it worked and then be overwritten " +
-          "by the next import, so the grid is read-only. Change them in Webflow — or move " +
+          "by the next import, so the grid is read-only. Change them in Webflow \u2014 or move " +
           "this development's inventory into Xano, and this becomes the place.</div></div>"
         : '<div class="inv-owed" style="margin-bottom:12px">Editing unit details is switched ' +
           "off for this development. An admin can turn it on under Developments.</div>";
+    }
+
+    /* AVAILABILITY IS A DIFFERENT QUESTION FROM EDITING, AND IT GETS ITS OWN BANNER.
+       This lived inside the read-only banner for about ten minutes, which was wrong: that
+       banner only draws where the inventory-editing module is ON, so on a development with
+       editing switched off - the commonest shape for one the legacy flow still runs - the
+       person was told nothing about availability at all, and the sync had nowhere to appear.
+       Whether a home is taken and whether staff may retype its area are unrelated decisions.
+
+       Only for a CMS-backed development. Where the inventory lives in Xano there is nothing
+       to mirror FROM, and offering the button would invite somebody to overwrite the real
+       answer with a stale one - which the server refuses anyway. */
+    var cmsAvail = "";
+    if (d.inventory_source === "cms" && (d.units || []).length) {
+      cmsAvail = '<div class="inv-warn" id="invAvailWarn"><div><strong>Nothing here records whether these homes ' +
+        "are taken.</strong> This development sells outside the reserve flow, so its sales " +
+        "leave no reservation in this system \u2014 every home reads available until somebody says " +
+        "otherwise. The Webflow CMS has the answer." +
+        cmsSyncHtml() +
+        "</div></div>";
     }
 
     /* The bulk bar only exists when there is something for it to do. */
@@ -6833,7 +7280,7 @@
 
     /* Order: what you must know before reading a number, then the stock itself, then
        the explanations. An agent opens this screen to see homes, not paragraphs. */
-    $("viewInv").innerHTML = topbar + stats + warn + lock + panelBarHtml() +
+    $("viewInv").innerHTML = topbar + stats + warn + lock + cmsAvail + panelBarHtml() +
       bar + bulk + gerr + table + foot + noEngine + setup;
     invWire();
     renderPanel();
@@ -6842,6 +7289,16 @@
   function invWire() {
     var p = $("invProp");
     if (p) { p.addEventListener("change", function () { invLoad(p.value); }); }
+
+    /* One development's CMS report over another's stock is the mistake worth preventing, so
+       the panel is cleared on the way out rather than on the way in - the same rule the
+       drawer follows. */
+    var cmsC = $("cmsCheck");
+    if (cmsC) { cmsC.addEventListener("click", function () { cmsRun(true); }); }
+    var cmsA = $("cmsApply");
+    if (cmsA) { cmsA.addEventListener("click", function () { cmsRun(false); }); }
+    var cmsX = $("cmsCancel");
+    if (cmsX) { cmsX.addEventListener("click", function () { cmsReset(); renderInv(); }); }
 
     var po = $("invPhaseOpen");
     if (po) { po.addEventListener("click", function () { openPanel("phases"); }); }

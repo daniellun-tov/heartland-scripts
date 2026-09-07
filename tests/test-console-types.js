@@ -195,22 +195,174 @@ const drawer = (p) => txt(p, "#drawer");
   // ── 6. a refusal from the server is shown, in the server's words ────────
   {
     const { ctx, p } = await open("?role=admin");
-    console.log("6. refusals");
+    console.log("6. what a variant holding homes is offered");
     await openTypes(p);
-    /* Make A2 the default so A1 - which holds six homes - becomes removable in the UI. The
-       server then refuses it, and THAT is the message a person has to see: retiring a
-       variant that still holds homes takes them off the site plan, which is the difference
-       between a variant and a phase. */
+    /* A2 holds no homes and is not the default, so there is nothing to move and it goes
+       straight out. Checked BEFORE promoting it, because promoting it is what takes the
+       plain Remove away. */
+    ok("an empty variant still gets a plain Remove",
+      (await count(p, '[data-typv-retire="12"]')) === 1 &&
+      (await count(p, '[data-typv-move="12"]')) === 0);
+
+    /* Make A2 the default, so A1 - which holds six homes - is no longer blocked by the
+       default rule and the console has to answer the harder question. */
     await click(p, "[data-typv-default]");
     await p.waitForTimeout(500);
-    await click(p, "[data-typv-retire]");
+
+    /* THE CONSOLE NO LONGER OFFERS AN ACTION THE SERVER ALWAYS REFUSES. A plain Remove on a
+       variant with homes in it could only ever produce a 400 about the site plan; the button
+       now names what actually has to happen first. */
+    ok("a variant holding homes is offered a move, not a bare Remove",
+      (await count(p, '[data-typv-move="11"]')) === 1 &&
+      (await count(p, '[data-typv-retire="11"]')) === 0);
+    /* THE DEFAULT IS A STATEMENT, NOT A DISABLED BUTTON. There is no decision to offer, and
+       an inert control invites somebody to keep pressing it. */
+    ok("the default variant is told why it cannot go, rather than shown a dead button",
+      /promote another/i.test(await txt(p, ".typ-blocked") || ""),
+      await txt(p, ".typ-blocked"));
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
+  // ── 6b. moving the homes off it ─────────────────────────────────────────
+  {
+    const { ctx, p } = await open("?role=admin");
+    console.log("6b. moving homes off a variant");
+    await openTypes(p);
+    await click(p, "[data-typv-default]");
     await p.waitForTimeout(500);
-    const err = await txt(p, "#drawer .err");
-    ok("the refusal is rendered", err !== null, err);
-    ok("in the server's own words, not a generic failure",
-      /Homes are still built this way/.test(err || ""), err);
-    ok("and it explains the consequence", /site plan/.test(err || ""), err);
-    ok("nothing was retired", (await count(p, ".typ-wrap.is-retired")) === 1);
+    await click(p, '[data-typv-move="11"]');
+    await p.waitForTimeout(300);
+
+    const form = await txt(p, ".typ-move");
+    ok("the form says how many homes and what would happen to them",
+      /6 homes are built this way/i.test(form || "") && /site plan/i.test(form || ""), form);
+    ok("it offers the other variants as destinations",
+      (await count(p, "#typMoveTo option")) > 1);
+    /* Same type first, a different type in its own group - moving a home to another type
+       changes every figure it has. */
+    ok("and separates the same type from a different one",
+      (await count(p, "#typMoveTo optgroup")) === 2 &&
+      /DIFFERENT TYPE/.test(await p.evaluate(() => [...document.getElementById("hl-console-host")
+        .shadowRoot.querySelectorAll("#typMoveTo optgroup")].map(o => o.label).join("|"))),
+      await p.evaluate(() => [...document.getElementById("hl-console-host")
+        .shadowRoot.querySelectorAll("#typMoveTo optgroup")].map(o => o.label).join("|")));
+
+    /* THREE GUARDS, AND NONE OF THEM MAY BE SKIPPED. Each catches a different mistake, and
+       none of them may let a write through on its own. */
+    await click(p, '[data-typv-movesave="11"]');
+    await p.waitForTimeout(250);
+    ok("no destination is refused here, before the server is troubled",
+      /Choose where these homes should go/i.test(await txt(p, "#drawer .err") || ""),
+      await txt(p, "#drawer .err"));
+
+    await set(p, "typMoveTo", "12");
+    await p.waitForTimeout(250);
+    await click(p, '[data-typv-movesave="11"]');
+    await p.waitForTimeout(250);
+    ok("and so is no reason", /Give a reason/i.test(await txt(p, "#drawer .err") || ""),
+      await txt(p, "#drawer .err"));
+
+    await set(p, "typMoveWhy", "created by mistake");
+    await set(p, "typMoveConfirm", "A2");
+    await click(p, '[data-typv-movesave="11"]');
+    await p.waitForTimeout(250);
+    /* THE ONE THAT CATCHES THE WRONG ROW. A2 is the variant next door and every other check
+       here would have passed on it. */
+    ok("typing a neighbouring variant's code does not confirm this one",
+      /Type the variant's code \(A1\)/.test(await txt(p, "#drawer .err") || ""),
+      await txt(p, "#drawer .err"));
+    ok("and nothing has been sent through any of that",
+      (await posted(p)) === undefined || (await posted(p)).reassign_to === undefined,
+      await posted(p));
+
+    await set(p, "typMoveConfirm", "a1");
+    await click(p, '[data-typv-movesave="11"]');
+    await p.waitForTimeout(800);
+    const sent = await posted(p);
+    ok("the code is matched case-insensitively", sent && sent.variant_id === 11, sent);
+    ok("it sends the destination, not a bare retire",
+      sent && sent.reassign_to === 12, sent);
+    ok("with a reason carrying what was typed and what it did",
+      sent && /created by mistake/.test(sent.reason) && /moved 6 homes/.test(sent.reason),
+      sent && sent.reason);
+    ok("the form closes on success", (await count(p, ".typ-move")) === 0);
+    /* THE HOMES ACTUALLY MOVED. A console that sent reassign_to and a fixture that ignored
+       it would agree perfectly with each other and be wrong together, so this reads the
+       stock rather than the response. */
+    const after = await p.evaluate(() => {
+      const u = window.__INV_SV.units || [];
+      return { a1: u.filter(x => String(x.unit_variant_id) === "11").length,
+               a2: u.filter(x => String(x.unit_variant_id) === "12").length };
+    });
+    ok("all six homes really moved, and none was left behind",
+      after.a1 === 0 && after.a2 === 6, after);
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
+  // ── 6c. a different type is a different act ─────────────────────────────
+  {
+    const { ctx, p } = await open("?role=admin");
+    console.log("6c. cross-type moves, cancelling, and refusals");
+    await openTypes(p);
+    await click(p, "[data-typv-default]");
+    await p.waitForTimeout(500);
+    await click(p, '[data-typv-move="11"]');
+    await p.waitForTimeout(300);
+    /* B1 is under Type B. The figures live on the TYPE, so this rewrites every one of them
+       for all six homes - and the form has to say so the moment it is picked, not in the
+       button. */
+    await set(p, "typMoveTo", "21");
+    await p.waitForTimeout(250);
+    const warn = await txt(p, ".typ-move-warn");
+    ok("picking a different type says what that means, immediately",
+      /different type/i.test(warn || "") && /come from the type/i.test(warn || ""), warn);
+    ok("and names the type they would become", /\bB\b/.test(warn || ""), warn);
+
+    await set(p, "typMoveTo", "12");
+    await p.waitForTimeout(250);
+    ok("going back to the same type withdraws the warning",
+      (await count(p, ".typ-move-warn")) === 0);
+
+    await click(p, "[data-typv-movecancel]");
+    await p.waitForTimeout(250);
+    ok("Cancel puts the form away", (await count(p, ".typ-move")) === 0);
+    ok("and sent nothing",
+      (await posted(p)) === undefined || (await posted(p)).reassign_to === undefined,
+      await posted(p));
+
+    /* A SERVER REFUSAL STILL REACHES THE PERSON IN THE SERVER'S OWN WORDS. That was the point
+       of the old section 6, and it must not be lost with the button that used to reach it. */
+    await click(p, '[data-typv-move="11"]');
+    await p.waitForTimeout(300);
+    await p.evaluate(() => { window.__TYP_FAILS = true; });
+    await set(p, "typMoveTo", "12");
+    await set(p, "typMoveWhy", "tidying up");
+    await set(p, "typMoveConfirm", "A1");
+    await click(p, '[data-typv-movesave="11"]');
+    await p.waitForTimeout(700);
+    ok("a refusal is rendered in the server's words",
+      /Only a manager or an admin/.test(await txt(p, "#drawer .err") || ""),
+      await txt(p, "#drawer .err"));
+    /* The refusal is an instruction to change something; closing the form would throw away
+       the reason somebody wrote by hand. */
+    ok("and the form stays open with what was typed still in it",
+      (await count(p, ".typ-move")) === 1 &&
+      (await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot
+        .getElementById("typMoveWhy").value)) === "tidying up");
+
+    /* A HALF-FILLED CONFIRMATION BOX NAMES A VARIANT ON THE DEVELOPMENT BEING LEFT. Carried
+       across, the code typed into it would confirm nothing, and the count in the heading
+       would describe another development's homes. */
+    await p.evaluate(() => { window.__TYP_FAILS = false; });
+    await set(p, "invProp", "polaris");
+    await p.waitForTimeout(400);
+    await set(p, "invProp", "stellenbosch");
+    await p.waitForTimeout(400);
+    await openTypes(p);
+    ok("switching development throws the move form away",
+      (await count(p, ".typ-move")) === 0);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
