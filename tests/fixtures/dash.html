@@ -86,7 +86,14 @@
           note: "Recorded directly — no reservation engine on this development.",
           source: "imported_sv", external_ref: null, updated_at: Date.now()
         },
-        attributes: { erf_number: 17500 + i, aspect: "North-facing" },
+        /* THE RAW BAG, and it must AGREE with field_values below. It used to say
+           "North-facing" on all twelve while the resolved copy alternated, which made
+           the fixture a claim no server could satisfy - and set_development_field reads
+           the BAG when it works out whether a new option list would orphan values homes
+           already carry, so the orphan refusal would have been graded against data the
+           grid never showed. */
+        attributes: { erf_number: 17500 + i,
+                      aspect: (i % 2 === 0) ? "North-facing" : "East-facing" },
         /* Resolved by the server, whatever table each one actually came from. The grid reads
            only this - it never goes looking in attributes itself. */
         field_values: {
@@ -249,6 +256,20 @@
       },
       last_synced_at: Date.now(), server_time: Date.now()
     };
+
+    /* A VARIANT-SOURCED ENUM, behind a switch rather than in the standing fixture. The panel
+       shows an enum's allowed values but offers an editor only where the grid could actually
+       write them, and the only way to grade that rule is against a field that is an enum AND
+       belongs to the type. Added under a query param because a fifth standing field would
+       move every count the other ten sections assert. */
+    if (/[?&]varenum=1/.test(location.search)) {
+      window.__INV_SV.fields.push({
+        field_key: "finish_pack", label: "Finish pack", kind: "enum", source: "variant",
+        options: ["Standard", "Premium"], suffix: null, is_grid: false, is_public: false,
+        is_filterable: false, is_editable: false, display_order: 120,
+        help_text: "Chosen when the type is built.", filled: 12, of: 12
+      });
+    }
   })();
 
   /* A CMS-backed development: real prices, and the one taken home is taken because a
@@ -1318,8 +1339,24 @@
       } });
     }
 
+    /* __FLD_POST_SLOW holds the WRITE in flight, where __FLD_SLOW holds the re-read. They
+       are different windows and only one of them is the one a Save button lives in: the
+       editor closes the moment the write returns, so a test that slows the read is looking
+       at a panel the box has already left. */
+    if (method === "POST" && u.indexOf("/staff/fields") !== -1 &&
+        window.__FLD_POST_SLOW && !window.__FLD_POST_SLOW_ONCE) {
+      window.__FLD_POST_SLOW_ONCE = true;
+      return new Promise(function (res) { setTimeout(res, 400); }).then(function () {
+        return window.fetch(url, opts);
+      }).then(function (r) { window.__FLD_POST_SLOW_ONCE = false; return r; });
+    }
+
     if (method === "POST" && u.indexOf("/staff/fields") !== -1) {
       window.__FLD_POSTED = JSON.parse((opts && opts.body) || "{}");
+      /* A COUNT, not just the last body. "It sent the right thing" and "it sent it once" are
+         different claims, and the second one is the whole point of a control that stays busy
+         until the re-read is back. */
+      window.__FLD_POSTS = (window.__FLD_POSTS || 0) + 1;
       if (window.__FLD_FAILS) {
         return Promise.resolve({ ok: false, status: 403, text: function () {
           return Promise.resolve('{"message":"Only a manager or an admin can change what a development records about its homes."}');
@@ -1380,13 +1417,104 @@
           return Promise.resolve('{"message":"No registry row for that field."}');
         } });
       }
-      /* The two refusals the server makes, mirrored: a facet needs Public, and a
-         variant-sourced value can never be editable from a unit row. */
-      if (fp2.is_editable === true && hit2.source === "variant") {
+      /* The refusals the server makes, mirrored IN THE SERVER'S ORDER - the allowed-value
+         rules first, then the facet rule, then the one about a value that belongs to the
+         type. Order matters to a test: a call that breaks two rules must come back with the
+         same one named here as in production.
+
+         ---- ALLOWED VALUES, mirroring set_development_field --------------------------
+         A stub is a claim about the real thing, so this carries the server's five refusals
+         and its three-way resolution rather than a convenient approximation of them. The one
+         that matters most is what an EMPTY LIST means: over HTTP it arrives as null and is
+         indistinguishable from omitting the argument, so the server treats it as "leave them
+         alone" and takes clear_options as the only way to remove them. A fixture that
+         accepted [] as a clear would grade the console green on a save that does nothing in
+         production. See trap 41. */
+      var fxIsArr = function (v) { return Object.prototype.toString.call(v) === "[object Array]"; };
+      var fxOptList = function (v) { return fxIsArr(v) ? v : null; };
+      var fxGiven = function (v) { return !(v === null || v === undefined); };
+
+      var wasKind2 = String(hit2.kind || "").trim().toLowerCase();
+      var nextKind2 = String((fxGiven(fp2.kind) ? fp2.kind : hit2.kind) || "").trim().toLowerCase();
+      var wasOpts2 = fxOptList(hit2.options);
+
+      var rawOpts2 = fp2.options;
+      var optsSent2 = fxGiven(rawOpts2);
+      var clearOpts2 = (fp2.clear_options === true);
+      var notAList2 = optsSent2 && !fxIsArr(rawOpts2);
+
+      /* Trimmed, blanks dropped, duplicates removed, order kept - the same cleaning, so the
+         fixture cannot accept a list the server would have reduced to something else. */
+      var cleaned2 = [];
+      if (optsSent2 && !notAList2) {
+        var seenOpt2 = {};
+        for (var oi = 0; oi < rawOpts2.length; oi++) {
+          var os = String(rawOpts2[oi] === null || rawOpts2[oi] === undefined ? "" : rawOpts2[oi]).trim();
+          if (os === "" || seenOpt2[os] === true) { continue; }
+          seenOpt2[os] = true; cleaned2.push(os);
+        }
+      }
+      var replacing2 = optsSent2 && cleaned2.length > 0;
+
+      var nextOpts2 = wasOpts2;
+      if (clearOpts2) { nextOpts2 = null; }
+      else if (replacing2) { nextOpts2 = cleaned2; }
+
+      /* Changing kind away from enum clears them - they describe an enum and mean nothing on
+         a text field. */
+      var clearedByKind2 = false;
+      if (nextKind2 !== "enum" && !replacing2 && !clearOpts2 && nextOpts2 !== null) {
+        nextOpts2 = null; clearedByKind2 = true;
+      }
+
+      if (notAList2) {
         return Promise.resolve({ ok: false, status: 400, text: function () {
-          return Promise.resolve('{"message":"That field\'s value belongs to the way the home is built, not to the home."}');
+          return Promise.resolve('{"message":"options must be a LIST of allowed values. To remove the values, send clear_options rather than an empty list."}');
         } });
       }
+      if (clearOpts2 && replacing2) {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"Send options or clear_options, not both."}');
+        } });
+      }
+      if (nextKind2 !== "enum" && replacing2) {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"Only an enum has allowed values."}');
+        } });
+      }
+      if (nextKind2 === "enum" && (nextOpts2 === null || nextOpts2.length === 0)) {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"An enum needs at least one allowed value. A field set to enum with no values is one the grid refuses every value for."}');
+        } });
+      }
+      /* THE ORPHAN REFUSAL, read off the raw attributes bag exactly as the server reads it -
+         renaming a value twelve homes already carry leaves a filter chip matching nothing and
+         grid cells nobody can re-save. Checked only where options are actually supplied or the
+         field is becoming an enum, so a field whose data already drifted is not frozen against
+         every unrelated edit. */
+      if (nextKind2 === "enum" && (replacing2 || wasKind2 !== "enum") &&
+          nextOpts2 !== null && nextOpts2.length > 0 && hit2.source === "attribute") {
+        var allow2 = {}, orphanN = 0, orphanEx = [], seenOrph = {};
+        for (var ai = 0; ai < nextOpts2.length; ai++) { allow2[String(nextOpts2[ai])] = true; }
+        (sv4.units || []).forEach(function (un2) {
+          var v2 = (un2.attributes || {})[hit2.field_key];
+          if (v2 === null || v2 === undefined || String(v2) === "") { return; }
+          var s2 = String(v2);
+          if (allow2[s2] === true) { return; }
+          orphanN = orphanN + 1;
+          if (seenOrph[s2] !== true && orphanEx.length < 3) { seenOrph[s2] = true; orphanEx.push(s2); }
+        });
+        if (orphanN > 0) {
+          var omsg = "Refused: homes on this development already carry values that list does " +
+            "not allow. Found across " + orphanN + " homes, for example: " +
+            orphanEx.join(", ") + ". Include those values in the list, or change the data first.";
+          return Promise.resolve({ ok: false, status: 400, text: function () {
+            return Promise.resolve(JSON.stringify({ message: omsg }));
+          } });
+        }
+      }
+
+      /* A facet is a public control, so a chip on withheld data is refused. */
       var wantFilter = Object.prototype.hasOwnProperty.call(fp2, "is_filterable")
         ? fp2.is_filterable : hit2.is_filterable;
       var wantPublic = Object.prototype.hasOwnProperty.call(fp2, "is_public")
@@ -1396,11 +1524,24 @@
           return Promise.resolve('{"message":"A field cannot be filterable while it is not public."}');
         } });
       }
+      /* And a variant-sourced value can never be editable from a unit row. */
+      if (fp2.is_editable === true && hit2.source === "variant") {
+        return Promise.resolve({ ok: false, status: 400, text: function () {
+          return Promise.resolve('{"message":"That field\'s value belongs to the way the home is built, not to the home."}');
+        } });
+      }
       ["is_grid", "is_editable", "is_public", "is_filterable", "is_active", "label"].forEach(function (k) {
         if (Object.prototype.hasOwnProperty.call(fp2, k)) { hit2[k] = fp2[k]; }
       });
+      /* kind and options are the RESOLVED values, not the copied inputs - the whole point of
+         the block above is that what gets stored is not what was sent. */
+      hit2.kind = nextKind2;
+      hit2.options = nextOpts2;
       return Promise.resolve({ ok: true, status: 200, text: function () {
-        return Promise.resolve(JSON.stringify({ action: "set", changed: { field_key: hit2.field_key } }));
+        return Promise.resolve(JSON.stringify({ action: "set",
+          option_count: nextOpts2 === null ? 0 : nextOpts2.length,
+          options_cleared: clearOpts2, options_cleared_by_kind: clearedByKind2,
+          changed: { field_key: hit2.field_key } }));
       } });
     }
 
