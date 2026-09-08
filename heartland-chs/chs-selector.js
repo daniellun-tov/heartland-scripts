@@ -14,8 +14,9 @@
    What it actually does:
      1. positions each bed over the plan from the CMS percentages
      2. swaps the state combo class on a bed
-     3. shows one floor at a time
-     4. fills the panel, prefills the form, draws the snapshot
+     3. stacks both floors so ground and first are visible at once
+     4. shows one apartment at a time (all six share the same five plots)
+     5. fills the panel, prefills the form, draws the snapshot
 
    Styling lives in these Webflow classes — edit them in the Designer:
      chs_selector_wrap  chs_floors_switch  chs_floors_tab (+ is-chs-active)
@@ -44,7 +45,8 @@
     taken:      'is-chs-taken',
     unreleased: 'is-chs-unreleased',
     activeTab:  'is-chs-active',
-    emptyChip:  'is-chs-empty'
+    emptyChip:  'is-chs-empty',
+    shown:      'is-chs-shown'
   };
 
   var SELECTABLE  = 'Available';
@@ -54,7 +56,9 @@
   var INK = { gold: '#B79A63', navy: '#171B54', wash: 'rgba(246,243,236,.55)',
               muted: 'rgba(32,34,84,.28)', mutedInk: 'rgba(255,255,255,.85)' };
 
-  var state = { floor: 'first', selectedId: null, beds: [] };
+  // bands: each floor's vertical slice of the stacked stage, 0-1 of stage height.
+  // Measured from the plan images themselves - no hardcoded dimensions.
+  var state = { apartment: null, selectedId: null, beds: [], bands: null };
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
@@ -113,28 +117,96 @@
     };
   }
 
+  /* ---------- stacked floors ---------------------------------------------
+     Both plans are shown at once, ground above first, in normal document
+     flow inside .chs_plan_stage. A bed's CMS coordinates are percentages of
+     ITS OWN floor image, so they have to be remapped into the taller stacked
+     box. The split comes from the images' natural sizes, measured at runtime
+     - if the plans are re-exported at a different height it still lines up. */
+  function measureBands() {
+    var g = $('[data-chs-plan="ground"]'), f = $('[data-chs-plan="first"]');
+    if (!g || !f || !g.naturalWidth || !f.naturalWidth) return null;
+    var gh = g.naturalHeight / g.naturalWidth;   // height as a fraction of width
+    var fh = f.naturalHeight / f.naturalWidth;
+    var total = gh + fh;
+    return {
+      ground: { top: 0,          scale: gh / total },
+      first:  { top: gh / total, scale: fh / total }
+    };
+  }
+
+  function whenPlansReady(cb) {
+    var imgs = $$('[data-chs-plan]');
+    var left = imgs.length;
+    if (!left) return;
+    imgs.forEach(function (img) {
+      if (img.complete && img.naturalWidth) { if (!--left) cb(); }
+      else img.addEventListener('load', function () { if (!--left) cb(); }, { once: true });
+    });
+  }
+
+  /* Where a bed's plot sits in the stacked stage, as percentages. */
+  function place(b) {
+    var band = state.bands && state.bands[b.floor];
+    if (!band) return null;
+    return {
+      left:   b.x - b.w / 2,
+      width:  b.w,
+      top:    (band.top * 100) + (b.y - b.h / 2) * band.scale,
+      height: b.h * band.scale
+    };
+  }
+
+  /* ---------- which apartment ---------------------------------------------
+     All six apartments are the same plan, so every apartment's bed 3 sits on
+     exactly the same spot. Drawing them all stacks six hotspots per plot and
+     the top one wins - which is why an unreleased Phase 2 bed used to cover
+     an available one. Only ever show one apartment at a time.              */
+  function apartmentsPresent() {
+    var seen = [], out = [];
+    state.beds.forEach(function (b) {
+      if (b.apartment && seen.indexOf(b.apartment) === -1) { seen.push(b.apartment); out.push(b.apartment); }
+    });
+    out.sort(function (a, c) { return (parseInt(apt(a), 10) || 0) - (parseInt(apt(c), 10) || 0); });
+    return out;
+  }
+
+  function setApartment(name) {
+    state.apartment = name;
+    paint();
+    var cap  = $('[data-chs-field="floor-label"]');
+    var note = $('[data-chs-field="floor-note"]');
+    var one  = state.beds.filter(function (b) { return b.apartment === name; })[0];
+    if (cap)  cap.textContent  = name || '';
+    if (note) note.textContent = one ? [one.gender && one.gender + ' apartment', one.phase].filter(Boolean).join(' \u00b7 ') : '';
+    document.dispatchEvent(new CustomEvent('chs:apartmentChanged', { detail: name }));
+  }
+
+  function visible(b) { return b.apartment === state.apartment; }
+
   /* ---------- paint ------------------------------------------------------ */
   function paint() {
     state.beds.forEach(function (b) {
       var el = b.el;
+      var on = visible(b);
+      el.style.display = on ? '' : 'none';
+      if (!on) return;
 
-      // plan-x / plan-y are the CENTRE of the plot, as % of the floor image
-      el.style.left   = (b.x - b.w / 2) + '%';
-      el.style.top    = (b.y - b.h / 2) + '%';
-      el.style.width  = b.w + '%';
-      el.style.height = b.h + '%';
+      var pos = place(b);
+      if (!pos) return;                        // plans not measured yet
+      el.style.left   = pos.left + '%';
+      el.style.top    = pos.top + '%';
+      el.style.width  = pos.width + '%';
+      el.style.height = pos.height + '%';
 
-      // state combo — remove all three, then add the one that applies
+      // state combo - remove all three, then add the one that applies
       el.classList.remove(STATE_CLASS.taken, STATE_CLASS.unreleased, STATE_CLASS.selected);
       var selectable = b.status === SELECTABLE;
       if (b.status === UNRELEASED)   el.classList.add(STATE_CLASS.unreleased);
       else if (!selectable)          el.classList.add(STATE_CLASS.taken);
       if (b.id === state.selectedId) el.classList.add(STATE_CLASS.selected);
 
-      // only the active floor is visible
-      el.style.display = b.floor === state.floor ? '' : 'none';
-
-      // a11y — the item is a link/div in Webflow, so give it button semantics
+      // a11y - the item is a link/div in Webflow, so give it button semantics
       el.setAttribute('role', 'button');
       el.setAttribute('aria-label', label(b));
       if (selectable) {
@@ -146,24 +218,35 @@
       }
     });
 
+    positionFloorLabels();
     paintFloorCounts();
     paintEmpty();
   }
 
+  /* Floor captions sit inside the stage, pinned to the top of their band. */
+  function positionFloorLabels() {
+    if (!state.bands) return;
+    $$('[data-chs-floorlabel]').forEach(function (el) {
+      var band = state.bands[el.getAttribute('data-chs-floorlabel')];
+      if (band) el.style.top = (band.top * 100) + '%';
+    });
+  }
+
   function label(b) {
     var where = 'Apartment ' + apt(b.apartment) + ', ' + b.room + ', bed ' + b.num;
-    if (b.status === UNRELEASED)  return where + ' — releasing in Phase 2, not yet available';
-    if (b.status !== SELECTABLE)  return where + ' — already taken';
+    if (b.status === UNRELEASED)  return where + ' \u2014 releasing in Phase 2, not yet available';
+    if (b.status !== SELECTABLE)  return where + ' \u2014 already taken';
     return where + ', ' + b.rate + ' per month. Choose this bed.';
   }
 
   function apt(a) { return (a || '').replace(/^Apartment\s*/i, ''); }
 
+  /* Counts are per floor, within the apartment on show. */
   function paintFloorCounts() {
     $$('[data-chs-floor-tab]').forEach(function (tab) {
       var key = tab.getAttribute('data-chs-floor-tab');
       var free = state.beds.filter(function (b) {
-        return b.floor === key && b.status === SELECTABLE;
+        return visible(b) && b.floor === key && b.status === SELECTABLE;
       }).length;
       var out = $('.chs_floors_count', tab);
       if (out) out.textContent = free === 0 ? 'none free' : free + ' free';
@@ -173,31 +256,7 @@
   function paintEmpty() {
     var box = $('[data-chs="empty"]');
     if (!box) return;
-    var anyOnFloor = state.beds.some(function (b) { return b.floor === state.floor; });
-    box.style.display = anyOnFloor ? 'none' : '';
-  }
-
-  /* ---------- floors ----------------------------------------------------- */
-  function setFloor(key) {
-    state.floor = key;
-
-    $$('[data-chs-plan]').forEach(function (img) {
-      img.style.display = img.getAttribute('data-chs-plan') === key ? '' : 'none';
-    });
-    $$('[data-chs-floor-tab]').forEach(function (tab) {
-      var on = tab.getAttribute('data-chs-floor-tab') === key;
-      tab.classList.toggle(STATE_CLASS.activeTab, on);
-      tab.setAttribute('aria-pressed', String(on));
-    });
-
-    var f = floorMeta(key);
-    var cap  = $('[data-chs-field="floor-label"]'); if (cap)  cap.textContent  = f.label;
-    var note = $('[data-chs-field="floor-note"]');  if (note) note.textContent = f.note;
-
-    state.beds.forEach(function (b) {
-      b.el.style.display = b.floor === key ? '' : 'none';
-    });
-    paintEmpty();
+    box.style.display = state.beds.some(visible) ? 'none' : '';
   }
 
   /* ---------- selection -------------------------------------------------- */
@@ -209,7 +268,7 @@
     state.beds.forEach(function (b) {
       b.el.classList.toggle(STATE_CLASS.selected, b.id === id);
     });
-    if (bed.floor !== state.floor) setFloor(bed.floor);
+    if (bed.apartment !== state.apartment) setApartment(bed.apartment);
 
     fillPanel(bed);
     fillForm(bed);
@@ -235,7 +294,7 @@
     put(p, 'size',      bed.size ? bed.size + ' m²' : '');
     put(p, 'sharing',   bed.share === '1' ? 'Private room' : 'You would share with 1 other');
     put(p, 'gender',    bed.gender ? bed.gender + ' apartment' : '');
-    p.style.display = '';
+    p.classList.add(STATE_CLASS.shown);
   }
 
   function put(root, field, val) {
@@ -290,7 +349,7 @@
       c.fillStyle = INK.wash;
       c.fillRect(0, 0, W, H);
 
-      state.beds.filter(function (b) { return b.floor === bed.floor; })
+      state.beds.filter(function (b) { return b.floor === bed.floor && b.apartment === bed.apartment; })
         .forEach(function (b) {
           var on = b.id === bed.id;
           var w = b.w / 100 * W, h = b.h / 100 * H;
@@ -318,7 +377,7 @@
     put(wrap, 'snap-bed', bed.name);
     put(wrap, 'snap-where', bed.apartment + ' · ' + floorMeta(bed.floor).label + ' · ' + bed.room);
     put(wrap, 'snap-rate', bed.rate + ' per month');
-    wrap.style.display = '';
+    wrap.classList.add(STATE_CLASS.shown);
   }
 
   function rr(c, x, y, w, h, r) {
@@ -333,17 +392,37 @@
   /* ---------- wiring ----------------------------------------------------- */
   function refresh() {
     state.beds = readBeds();
+    if (!state.bands) state.bands = measureBands();
+
     if (state.selectedId && !state.beds.some(function (b) { return b.id === state.selectedId; })) {
       state.selectedId = null;
+    }
+
+    // Keep the apartment on show if it survived the filter, else fall back to
+    // the lowest-numbered one still in the list.
+    var present = apartmentsPresent();
+    if (present.indexOf(state.apartment) === -1) {
+      setApartment(present.length ? present[0] : null);
+      return;                                  // setApartment paints
     }
     paint();
   }
 
+  function deepLink() {
+    var want = new URLSearchParams(window.location.search).get('bed');
+    if (!want) return;
+    var m = state.beds.filter(function (b) { return b.slug === want; })[0];
+    if (m) select(m.id);
+  }
+
   function init() {
+    // Both floors are on screen at once, so the tabs are now jump links.
     $$('[data-chs-floor-tab]').forEach(function (tab) {
       tab.addEventListener('click', function (e) {
         e.preventDefault();
-        setFloor(tab.getAttribute('data-chs-floor-tab'));
+        var key = tab.getAttribute('data-chs-floor-tab');
+        var target = $('[data-chs-floorlabel="' + key + '"]') || $('[data-chs-plan="' + key + '"]');
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
     });
 
@@ -358,14 +437,17 @@
       if (item) { e.preventDefault(); select(item.getAttribute('data-bed-id')); }
     });
 
-    refresh();
-    setFloor(state.floor);
+    // Both floors are always on screen now; clear any legacy inline hiding.
+    $$('[data-chs-plan]').forEach(function (img) { img.style.display = ''; });
 
-    var want = new URLSearchParams(window.location.search).get('bed');
-    if (want) {
-      var m = state.beds.filter(function (b) { return b.slug === want; })[0];
-      if (m) select(m.id);
-    }
+    // Plans must be loaded before anything can be positioned.
+    whenPlansReady(function () {
+      state.bands = measureBands();
+      refresh();
+      deepLink();
+    });
+    window.addEventListener('resize', positionFloorLabels);
+
 
     // Repaint after Finsweet filters.
     window.FinsweetAttributes = window.FinsweetAttributes || [];
@@ -386,5 +468,8 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
-  window.CHSSelector = { refresh: refresh, select: select, setFloor: setFloor, state: state };
+  window.CHSSelector = {
+    refresh: refresh, select: select, setApartment: setApartment,
+    apartments: apartmentsPresent, state: state
+  };
 })();
