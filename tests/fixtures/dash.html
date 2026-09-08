@@ -1865,7 +1865,22 @@
       // ?slow=N holds the response open so the boot screen can be observed; ?fail=1
       // makes it error, so the boot screen can be shown to clear on failure too.
       var slow = (/[?&]slow=(\d+)/.exec(location.search) || [0, 0])[1] | 0;
-      var res = /[?&]fail=1/.test(location.search)
+      // TWO DIFFERENT 403s, AND THE CONSOLE MUST TELL THEM APART.
+      // ?expired=1 is Xano's REAL answer to an expired staff token, copied verbatim:
+      // ACCESS DENIED with that exact sentence, and NOT a 401. A stub that returned 401
+      // here would prove the old code worked rather than the new code.
+      // ?refuse=1 is the other kind - a refusal this console means and the person must
+      // READ. Without it nothing would object to signing out on every 403, which would
+      // be the worse bug: throwing somebody to a login screen to tell them they lack a
+      // permission they will still lack.
+      // Both anchored on [?&] - trap: "fail=1" is a substring of "cmsfail=1".
+      var res = /[?&]expired=1/.test(location.search)
+        ? { ok: false, status: 403, text: function () {
+            return Promise.resolve('{"code":"ERROR_CODE_ACCESS_DENIED","message":"This token is expired."}'); } }
+        : /[?&]refuse=1/.test(location.search)
+        ? { ok: false, status: 403, text: function () {
+            return Promise.resolve('{"code":"ERROR_CODE_ACCESS_DENIED","message":"Your role cannot see other people\u2019s pipeline."}'); } }
+        : /[?&]fail=1/.test(location.search)
         ? { ok: false, status: 500, text: function () { return Promise.resolve('{"message":"boom"}'); } }
         : { ok: true, status: 200,
             text: function () { return Promise.resolve(JSON.stringify(window.__FIXTURE)); } };

@@ -1821,7 +1821,32 @@
           var j = null;
           try { j = JSON.parse(t); } catch (e) {}
           if (!r.ok) {
-            if (r.status === 401 && opts.auth !== false) { signOut("Your session expired. Sign in again."); }
+            /* AN EXPIRED SESSION DOES NOT ALWAYS ARRIVE AS A 401. Xano answers an expired
+               JWT with ACCESS DENIED and the sentence "This token is expired.", and the
+               status check alone let that fall through to the generic handler - so the
+               console printed Xano's own wording into whichever panel had asked, sat
+               there looking like a broken feature, and left the dead token in storage.
+               Seen 7 Sep on Developments; the same would have happened on every panel.
+
+               THE STATUS CANNOT BE THE ONLY TEST, AND THE STATUS ALONE CANNOT BE THE TEST
+               EITHER. Signing out on any 403 would be worse than the bug: this console
+               refuses things with 403 on purpose and means them - a sales role reaching an
+               admin panel, a field the registry will not let you edit, a development still
+               on the legacy flow. Those are answers, not expiries, and throwing the person
+               back to a login screen would be a lie about what happened. So the message is
+               what discriminates, and it is matched narrowly. */
+            var authGone = !!(j && typeof j.message === "string" &&
+              /token is expired|token has expired|invalid token|unauthenticated|not authenticated|missing authentication/i.test(j.message));
+            if (opts.auth !== false && (r.status === 401 || authGone)) {
+              signOut("Your session expired. Sign in again.");
+              /* AND THE ERROR THAT TRAVELS ON IS OURS, NOT XANO'S. signOut hides the app,
+                 but every caller still catches this and writes e.message into its own
+                 panel - so without this line Xano's sentence is sitting in the DOM behind
+                 the login card, one stray unhide from being read by a person who is being
+                 told something quite different. Replacing it here is one line and makes
+                 the guarantee real rather than dependent on a panel staying hidden. */
+              throw new Error("Your session expired. Sign in again.");
+            }
             throw new Error((j && j.message) || ("Request failed (" + r.status + ")"));
           }
           return j;

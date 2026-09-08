@@ -706,6 +706,57 @@ const gear = async p => {
     await ctx.close();
   }
 
+  // ── an expired staff token ───────────────────────────────────────────────
+  // Xano answers an expired JWT with ACCESS DENIED (403) and the sentence "This token
+  // is expired." - NOT a 401. The console tested the status only, so that answer fell
+  // through to the generic handler: Xano's own wording was printed into whichever panel
+  // had asked, the panel looked like a broken feature, and the dead token stayed in
+  // storage. Seen on Developments, 7 Sep.
+  {
+    const { ctx, p } = await open(null, "?expired=1");
+    console.log("expired session");
+    await p.waitForTimeout(400);
+    const st = await p.evaluate(() => {
+      const r = document.getElementById("hl-console-host").shadowRoot;
+      const wrap = r.getElementById("loginWrap");
+      return { appHidden: r.getElementById("app").classList.contains("hide"),
+               loginVisible: wrap.getBoundingClientRect().height > 0,
+               loginErr: r.getElementById("loginErr").textContent,
+               boot: r.getElementById("boot").classList.contains("gone"),
+               raw: r.innerHTML.indexOf("This token is expired.") };
+    });
+    ok("a 403 carrying Xano's expiry message signs the person out",
+      st.appHidden === true && st.loginVisible === true, st);
+    ok("and says so in our own words", /session expired/i.test(st.loginErr), st.loginErr);
+    // Not "is not visible" - the string must not be in the document at all. It would
+    // otherwise sit in the hidden app behind the login card, one stray unhide from
+    // being read by somebody who is being told something quite different.
+    ok("Xano's raw wording never reaches the page", st.raw === -1, st.raw);
+    ok("with no boot screen left over", st.boot === true, st.boot);
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
+  // ── a 403 that is an ANSWER, not an expiry ───────────────────────────────
+  // This is the assertion that makes the message test load-bearing rather than
+  // decorative: without it, signing out on every 403 passes everything above.
+  {
+    const { ctx, p } = await open(null, "?refuse=1");
+    console.log("a refusal that is not an expiry");
+    await p.waitForTimeout(400);
+    const st = await p.evaluate(() => {
+      const r = document.getElementById("hl-console-host").shadowRoot;
+      return { appHidden: r.getElementById("app").classList.contains("hide"),
+               loginVisible: r.getElementById("loginWrap").getBoundingClientRect().height > 0,
+               who: r.getElementById("who").textContent };
+    });
+    ok("a business 403 does NOT sign the person out",
+      st.appHidden === false && st.loginVisible === false, st);
+    ok("and the refusal itself is what they read", /role cannot see/.test(st.who), st.who);
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
   await browser.close();
   console.log("\n" + pass + " passed, " + fail + " failed");
   process.exit(fail ? 1 : 0);
