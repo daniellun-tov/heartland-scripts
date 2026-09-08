@@ -45,8 +45,9 @@
     taken:      'is-chs-taken',
     unreleased: 'is-chs-unreleased',
     activeTab:  'is-chs-active',
-    emptyChip:  'is-chs-empty',
     shown:      'is-chs-shown'
+    /* Chips with no matches are handled by Finsweet's own .is-list-emptyfacet
+       class - styled as a combo on .chs_chip. Nothing to do here. */
   };
 
   var SELECTABLE  = 'Available';
@@ -135,14 +136,43 @@
     };
   }
 
-  function whenPlansReady(cb) {
+  /* Webflow ships these images with loading="lazy". Below the fold they stay
+     unloaded, naturalWidth is 0, and anything that waited on their load event
+     never ran - which silently killed positioning, the snapshot and the whole
+     panel. So: never gate rendering on the images. Render now, re-measure and
+     repaint whenever a plan actually arrives, and force them to load. */
+  function watchPlans(onReady) {
     var imgs = $$('[data-chs-plan]');
-    var left = imgs.length;
-    if (!left) return;
     imgs.forEach(function (img) {
-      if (img.complete && img.naturalWidth) { if (!--left) cb(); }
-      else img.addEventListener('load', function () { if (!--left) cb(); }, { once: true });
+      img.setAttribute('loading', 'eager');
+      if (img.decoding) img.decoding = 'sync';
+      if (img.complete && img.naturalWidth) return;
+      img.addEventListener('load', onReady, { once: true });
+      // Nudge a lazy image that the browser has not started yet.
+      if (!img.complete && img.src) { var u = img.src; img.src = u; }
     });
+    if (window.ResizeObserver) {
+      var host = $('[data-chs="plan-stage"]');
+      if (host) new ResizeObserver(onReady).observe(host);
+    }
+  }
+
+
+  /* Re-measure the floor bands and repaint. Safe to call repeatedly. */
+  function remeasure() {
+    var bands = measureBands();
+    if (!bands) return;
+    var changed = !state.bands ||
+      bands.first.top !== state.bands.first.top ||
+      bands.first.scale !== state.bands.first.scale;
+    state.bands = bands;
+    if (changed) {
+      paint();
+      if (state.selectedId) {
+        var bed = state.beds.filter(function (b) { return b.id === state.selectedId; })[0];
+        if (bed) drawSnapshot(bed);
+      }
+    }
   }
 
   /* Where a bed's plot sits in the stacked stage, as percentages. */
@@ -390,7 +420,7 @@
     }
 
     if (img.complete && img.naturalWidth) draw();
-    else img.addEventListener('load', draw, { once: true });
+    else img.addEventListener('load', draw, { once: true });   // lazy plan
 
     put(wrap, 'snap-bed', bed.name);
     put(wrap, 'snap-where', bed.apartment + ' · ' + floorMeta(bed.floor).label + ' · ' + bed.room);
@@ -410,7 +440,7 @@
   /* ---------- wiring ----------------------------------------------------- */
   function refresh() {
     state.beds = readBeds();
-    if (!state.bands) state.bands = measureBands();
+    if (!state.bands) state.bands = measureBands();   // may still be null; remeasure() retries
 
     if (state.selectedId && !state.beds.some(function (b) { return b.id === state.selectedId; })) {
       state.selectedId = null;
@@ -461,13 +491,11 @@
     // Both floors are always on screen now; clear any legacy inline hiding.
     $$('[data-chs-plan]').forEach(function (img) { img.style.display = ''; });
 
-    // Plans must be loaded before anything can be positioned.
-    whenPlansReady(function () {
-      state.bands = measureBands();
-      refresh();
-      deepLink();
-    });
-    window.addEventListener('resize', positionFloorLabels);
+    // Render straight away - the plans may still be loading.
+    refresh();
+    deepLink();
+    watchPlans(function () { remeasure(); positionFloorLabels(); });
+    window.addEventListener('resize', function () { remeasure(); positionFloorLabels(); });
 
 
     // Repaint after Finsweet filters.
