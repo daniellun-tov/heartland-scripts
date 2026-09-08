@@ -274,6 +274,9 @@
     fillForm(bed);
     drawSnapshot(bed);
 
+    var panel = $('[data-chs="detail-panel"]');
+    if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
     try {
       var u = new URL(window.location.href);
       u.searchParams.set('bed', bed.slug);
@@ -297,6 +300,20 @@
     p.classList.add(STATE_CLASS.shown);
   }
 
+  /* "Reserve this bed" in the panel: bring the form up and put the cursor in
+     the first field. The delay lets the smooth scroll land before focus, and
+     preventScroll stops focus() from yanking the page a second time. */
+  function goToForm() {
+    var form = $('[data-chs="reserve-form"]');
+    if (!form) return;
+    form.classList.add(STATE_CLASS.shown);
+    var first = form.querySelector('input:not([type="hidden"]), select, textarea');
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(function () {
+      if (first) first.focus({ preventScroll: true });
+    }, 450);
+  }
+
   function put(root, field, val) {
     var el = $('[data-chs-field="' + field + '"]', root);
     if (el) el.textContent = val || '';
@@ -306,6 +323,7 @@
   function fillForm(bed) {
     var form = $('[data-chs="reserve-form"]');
     if (!form) return;
+    form.classList.add(STATE_CLASS.shown);       // hidden until a bed is chosen
     var vals = {
       'bed-item-id': bed.id,               // Make finds the CMS record on this
       'bed-name':    bed.name,
@@ -428,7 +446,10 @@
 
     // Delegated so it survives Finsweet re-rendering the list.
     document.addEventListener('click', function (e) {
-      var item = e.target.closest ? e.target.closest('[data-chs="bed-item"]') : null;
+      var t = e.target;
+      var cta = t.closest ? t.closest('[data-chs="reserve-cta"]') : null;
+      if (cta) { e.preventDefault(); goToForm(); return; }
+      var item = t.closest ? t.closest('[data-chs="bed-item"]') : null;
       if (item) { e.preventDefault(); select(item.getAttribute('data-bed-id')); }
     });
     document.addEventListener('keydown', function (e) {
