@@ -204,6 +204,12 @@
   function setApartment(name) {
     state.apartment = name;
     paint();
+    // 3D view card: show the highlight overlay for the apartment on show.
+    // Every overlay is a real Webflow Image in the DOM, so no URLs live here.
+    $$('[data-chs-overlay]').forEach(function (img) {
+      img.classList.toggle(STATE_CLASS.shown, img.getAttribute('data-chs-overlay') === name);
+    });
+
     var cap  = $('[data-chs-field="floor-label"]');
     var note = $('[data-chs-field="floor-note"]');
     var one  = state.beds.filter(function (b) { return b.apartment === name; })[0];
