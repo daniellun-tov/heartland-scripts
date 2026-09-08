@@ -237,6 +237,7 @@
       if (b.id === state.selectedId) el.classList.add(STATE_CLASS.selected);
 
       // a11y - the item is a link/div in Webflow, so give it button semantics
+      el.setAttribute('data-bed-id', b.id);
       el.setAttribute('role', 'button');
       el.setAttribute('aria-label', label(b));
       if (selectable) {
@@ -342,6 +343,12 @@
     setTimeout(function () {
       if (first) first.focus({ preventScroll: true });
     }, 450);
+  }
+
+  /* Which bed does this hotspot belong to? Matched by element identity - the
+     ids live in the hidden CMS nodes, not in an attribute. */
+  function bedFor(el) {
+    return state.beds.filter(function (b) { return b.el === el; })[0] || null;
   }
 
   function put(root, field, val) {
@@ -480,12 +487,14 @@
       var cta = t.closest ? t.closest('[data-chs="reserve-cta"]') : null;
       if (cta) { e.preventDefault(); goToForm(); return; }
       var item = t.closest ? t.closest('[data-chs="bed-item"]') : null;
-      if (item) { e.preventDefault(); select(item.getAttribute('data-bed-id')); }
+      var bed  = item && bedFor(item);
+      if (bed) { e.preventDefault(); select(bed.id); }
     });
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       var item = e.target.closest ? e.target.closest('[data-chs="bed-item"]') : null;
-      if (item) { e.preventDefault(); select(item.getAttribute('data-bed-id')); }
+      var bed  = item && bedFor(item);
+      if (bed) { e.preventDefault(); select(bed.id); }
     });
 
     // Both floors are always on screen now; clear any legacy inline hiding.
