@@ -209,12 +209,17 @@
      with a hidden apartment-name node - the same trick the hotspots use.
      No image URLs live in this file.                                        */
   function paintOverlays(name) {
-    $$('[data-chs-overlay-img]').forEach(function (img) {
-      var item  = (img.closest && img.closest('.w-dyn-item')) || img.parentElement;
+    $$('[data-chs-overlay-img]').forEach(function (el) {
+      var item  = (el.closest && el.closest('.w-dyn-item')) || el.parentElement;
       var owner = item ? val(item, 'apartment') : '';
       var on    = !!name && owner === name;
-      if (on) { img.setAttribute('loading', 'eager'); img.removeAttribute('data-chs-defer'); }
-      img.classList.toggle(STATE_CLASS.shown, on);
+      // The overlay is a Webflow Lightbox link wrapping the CMS image, so pull
+      // the image out to load it eagerly the moment its apartment is chosen.
+      if (on) {
+        var pic = el.tagName === 'IMG' ? el : el.querySelector('img');
+        if (pic) pic.setAttribute('loading', 'eager');
+      }
+      el.classList.toggle(STATE_CLASS.shown, on);
     });
     // Legacy static overlays, kept working if any are still on the page.
     $$('[data-chs-overlay]').forEach(function (img) {
