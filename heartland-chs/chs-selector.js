@@ -201,14 +201,31 @@
     return out;
   }
 
-  function setApartment(name) {
-    state.apartment = name;
-    paint();
-    // 3D view card: show the highlight overlay for the apartment on show.
-    // Every overlay is a real Webflow Image in the DOM, so no URLs live here.
+  /* ---------- 3D view overlays -------------------------------------------
+     The highlights live in the Beds CMS (field apartment-highlight, carried by
+     all five beds of an apartment). A Collection List filtered to bed-number 1
+     renders exactly one overlay per apartment. Webflow cannot bind a CMS field
+     to a custom attribute on a Collection Item, so each item pairs the image
+     with a hidden apartment-name node - the same trick the hotspots use.
+     No image URLs live in this file.                                        */
+  function paintOverlays(name) {
+    $$('[data-chs-overlay-img]').forEach(function (img) {
+      var item  = (img.closest && img.closest('.w-dyn-item')) || img.parentElement;
+      var owner = item ? val(item, 'apartment') : '';
+      var on    = !!name && owner === name;
+      if (on) { img.setAttribute('loading', 'eager'); img.removeAttribute('data-chs-defer'); }
+      img.classList.toggle(STATE_CLASS.shown, on);
+    });
+    // Legacy static overlays, kept working if any are still on the page.
     $$('[data-chs-overlay]').forEach(function (img) {
       img.classList.toggle(STATE_CLASS.shown, img.getAttribute('data-chs-overlay') === name);
     });
+  }
+
+  function setApartment(name) {
+    state.apartment = name;
+    paint();
+    paintOverlays(name);
 
     var cap  = $('[data-chs-field="floor-label"]');
     var note = $('[data-chs-field="floor-note"]');
