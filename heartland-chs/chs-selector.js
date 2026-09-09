@@ -599,12 +599,39 @@
   /* "Reserve this bed" in the panel: bring the form up and put the cursor in
      the first field. The delay lets the smooth scroll land before focus, and
      preventScroll stops focus() from yanking the page a second time. */
+  /* How much is covered by something pinned to the top of the window. The
+     navbar is fixed, so scrolling the form flush to the viewport top hides
+     its heading behind it. Anything explicitly marked wins; otherwise take
+     the tallest fixed/sticky bar sitting at the top, ignoring full-height
+     overlays like the page transition. */
+  function topCover() {
+    var marked = $('[data-chs="sticky-header"]');
+    var bars = marked ? [marked] : $$('body *').filter(function (el) {
+      var pos = getComputedStyle(el).position;
+      return pos === 'fixed' || pos === 'sticky';
+    });
+
+    var cover = 0;
+    bars.forEach(function (el) {
+      var r = el.getBoundingClientRect();
+      if (!r.height || r.height > window.innerHeight * 0.3) return;  // not a bar
+      if (r.top > 2 || r.bottom <= 0) return;                        // not at the top
+      if (r.bottom > cover) cover = r.bottom;
+    });
+    return cover;
+  }
+
   function goToForm() {
     var form = $('[data-chs="reserve-form"]');
     if (!form) return;
     form.classList.add(STATE_CLASS.shown);
     var first = form.querySelector('input:not([type="hidden"]), select, textarea');
-    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Reading the rect after the reveal forces layout, so this is the form's
+    // real position. Leave the navbar's height plus a little air above it.
+    var top = form.getBoundingClientRect().top + window.pageYOffset - topCover() - 16;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+
     setTimeout(function () {
       if (first) first.focus({ preventScroll: true });
     }, 450);
