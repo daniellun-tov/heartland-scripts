@@ -243,6 +243,65 @@
   function visible(b) { return b.apartment === state.apartment; }
 
   /* ---------- paint ------------------------------------------------------ */
+  /* ---------- room plots -------------------------------------------------
+     The three room outlines and their four labels are Designer elements, not
+     CMS items: they are identical in all six apartments, so their geometry
+     rides on data attributes rather than costing five CMS fields we do not
+     have. They are placed with the same band remapping the beds get, and the
+     layer sits under the hotspot list so a bed always wins the click.
+     Percentages are of the floor image the room sits on, exactly as for beds:
+     x / y are the CENTRE, w / h the size. Edit them in Webflow, not here.   */
+  function geom(el) {
+    var g = {
+      floor: (el.getAttribute('data-chs-floor') || '').toLowerCase(),
+      x: num(el.getAttribute('data-chs-x')),
+      y: num(el.getAttribute('data-chs-y')),
+      w: num(el.getAttribute('data-chs-w')),
+      h: num(el.getAttribute('data-chs-h'))
+    };
+    if (g.x === null || g.y === null) return null;
+    if (g.floor !== 'ground' && g.floor !== 'first') return null;
+    return g;
+  }
+
+  // Label type scales with the plan, so publish the plan's rendered width and
+  // let the stylesheet do the arithmetic. Keeps the ratio out of this file.
+  function publishPlanWidth() {
+    var stage = $('[data-chs="plan-stage"]');
+    if (stage) stage.style.setProperty('--chs-plan-w', stage.clientWidth + 'px');
+  }
+
+  function paintRooms() {
+    publishPlanWidth();
+
+    var sel  = state.beds.filter(function (b) { return b.id === state.selectedId; })[0];
+    var room = sel ? sel.room : null;
+
+    $$('[data-chs-room]').forEach(function (el) {
+      var g = geom(el);
+      if (!g || g.w === null || g.h === null) return;
+      var pos = place(g);
+      if (!pos) return;
+      el.style.left   = pos.left + '%';
+      el.style.top    = pos.top + '%';
+      el.style.width  = pos.width + '%';
+      el.style.height = pos.height + '%';
+      // Selecting a bed lifts its room from the resting 0.7 to full strength.
+      el.classList.toggle(STATE_CLASS.selected,
+        !!room && el.getAttribute('data-chs-room') === room);
+    });
+
+    // Labels are anchored on their centre and translated, so only x / y apply.
+    $$('[data-chs-room-label]').forEach(function (el) {
+      var g = geom(el);
+      if (!g) return;
+      var band = state.bands && state.bands[g.floor];
+      if (!band) return;
+      el.style.left = g.x + '%';
+      el.style.top  = ((band.top * 100) + g.y * band.scale) + '%';
+    });
+  }
+
   function paint() {
     state.beds.forEach(function (b) {
       var el = b.el;
@@ -278,6 +337,7 @@
     });
 
     positionFloorLabels();
+    paintRooms();
     paintFloorCounts();
     paintEmpty();
   }
@@ -342,6 +402,7 @@
       history.replaceState(null, '', u);
     } catch (e) {}
 
+    paintRooms();                              // lift the selected bed's room
     document.dispatchEvent(new CustomEvent('chs:bedSelected', { detail: bed }));
   }
 
@@ -531,8 +592,8 @@
     // Render straight away - the plans may still be loading.
     refresh();
     deepLink();
-    watchPlans(function () { remeasure(); positionFloorLabels(); });
-    window.addEventListener('resize', function () { remeasure(); positionFloorLabels(); });
+    watchPlans(function () { remeasure(); positionFloorLabels(); paintRooms(); });
+    window.addEventListener('resize', function () { remeasure(); positionFloorLabels(); paintRooms(); });
 
 
     // Repaint after Finsweet filters.
