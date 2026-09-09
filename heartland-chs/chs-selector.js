@@ -59,7 +59,7 @@
 
   // bands: each floor's vertical slice of the stacked stage, 0-1 of stage height.
   // Measured from the plan images themselves - no hardcoded dimensions.
-  var state = { apartment: null, selectedId: null, beds: [], bands: null };
+  var state = { apartment: null, selectedId: null, beds: [], bands: null, all: {} };
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
@@ -302,6 +302,41 @@
     });
   }
 
+  /* ---------- hero counters ----------------------------------------------
+     Three counters sit in the hero, well above the selector. They are keyed by
+     the DOM ids set in the Designer and are filled from the CMS, so the numbers
+     cannot drift from the inventory.
+
+     Phase 2 stock is left out on purpose. An Unreleased bed is neither
+     available nor reserved, and counting it would advertise stock nobody can
+     book - see "Front-end rules for Phase 2 stock" in the CMS contract. So
+     TOTAL means beds released for booking, and total = available + reserved
+     always holds. Releasing Phase 2 moves those ten into the totals by itself.
+
+     "Reserved" carries Reserved and Occupied together: both mean taken, and
+     keeping them in one bucket is what makes the three numbers reconcile.     */
+  var COUNTER = {
+    totals_TotalBedsWrapper:          function ()  { return true; },
+    totals_TotalBedsAvailableWrapper: function (b) { return b.status === SELECTABLE; },
+    totals_TotalBedsReservedWrapper:  function (b) { return b.status !== SELECTABLE; }
+  };
+
+  function paintTotals() {
+    var released = [];
+    Object.keys(state.all).forEach(function (id) {
+      if (state.all[id].status !== UNRELEASED) released.push(state.all[id]);
+    });
+    // Nothing read yet - leave whatever the Designer holds rather than flash 0.
+    if (!released.length) return;
+
+    Object.keys(COUNTER).forEach(function (key) {
+      var el = document.getElementById(key);
+      if (!el) return;
+      var n = released.filter(COUNTER[key]).length;
+      if (el.textContent.trim() !== String(n)) el.textContent = String(n);
+    });
+  }
+
   function paint() {
     state.beds.forEach(function (b) {
       var el = b.el;
@@ -536,6 +571,10 @@
   /* ---------- wiring ----------------------------------------------------- */
   function refresh() {
     state.beds = readBeds();
+    // Finsweet removes filtered-out items from the DOM, so the hero counters
+    // count a union of every bed seen since load, not the current view.
+    state.beds.forEach(function (b) { state.all[b.id] = b; });
+    paintTotals();
     if (!state.bands) state.bands = measureBands();   // may still be null; remeasure() retries
 
     if (state.selectedId && !state.beds.some(function (b) { return b.id === state.selectedId; })) {
