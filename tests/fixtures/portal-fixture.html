@@ -1,0 +1,285 @@
+<!-- Reference markup for the portal module. The smallest page exercising every hook. -->
+<style>
+  /* The Designer hides a row template with a CLASS, and .hlp-doc is a flex row. Both
+     are here because the renderer has to unhide the first without flattening the
+     second - the bug that ran "Floor plan - Ground" and "OPEN" together. */
+  .hlp-tpl { display: none; }
+  .hlp-doc { display: flex; }
+  /* A template hidden by a class the renderer has never heard of. The clone cannot be
+     unhidden by removing hlp-tpl, so the measured fallback has to catch it. */
+  .mystery-hide { display: none; }
+  /* The deadline card is a FLEX ROW. show() reveals it, and revealing must not decide
+     how it lays out - that is what put the clock and the due date on separate lines. */
+  .hl-due { display: flex; }
+  /* The OTP card is revealed by show(), and show() must not decide its layout either. */
+  .hl-otp-1 { display: grid; }
+  .hl-due-hidden { display: none; }
+</style>
+<div data-hl-portal data-hl-theme>
+
+  <div data-hl-portal-loading>Loading…</div>
+
+  <div data-hl-portal-empty>
+    <p data-hl-portal-message>You have no reservations yet.</p>
+    <a href="/log-in" data-hl-login-link>Log in</a>
+  </div>
+
+  <div class="hl-topbar">
+    <a class="hl-topbar-brand" href="/portal"><img class="hl-topbar-logo" src="/logo.avif" alt="Heartland"></a>
+    <div data-hl-switcher>
+      <div data-hl-switcher-list></div>
+    </div>
+    <div data-hl-topbar-menu>
+      <a href="#" data-ms-action="logout" id="nav-logout">Log out</a>
+    </div>
+  </div>
+
+  <p data-hl-current-home></p>
+
+  <nav data-hl-nav class="hlp-nav" aria-label="Your home">
+    <a class="hlp-nav-link is-here" href="/portal" aria-current="page" id="tab-home" data-hl-tab="home">Your home</a>
+    <a class="hlp-nav-link" href="/portal-order" id="tab-order" data-hl-tab="order">Your order</a>
+    <a class="hlp-nav-link" href="/portal-documents" id="tab-docs" data-hl-tab="documents">Documents</a>
+    <a class="hlp-nav-link" href="/portal?tab=team" id="tab-team" data-hl-tab="team">Your team</a>
+  </nav>
+
+  <div data-hl-tab-panel="home" id="panel-home">the dashboard</div>
+
+  <div class="hl-otp-1" data-hl-otp id="otp-card">
+    <div data-hl-otp-sign id="otp-sign">
+      <a data-hl-otp-link id="otp-link">Sign your Offer to Purchase</a>
+    </div>
+    <div data-hl-otp-signed id="otp-signed">
+      <a data-hl-otp-doc id="otp-doc">View signed Offer to Purchase</a>
+      <span data-hl-otp-date id="otp-date"></span>
+    </div>
+    <div data-hl-otp-waiting id="otp-waiting">We are preparing your Offer to Purchase.</div>
+    <div data-hl-otp-blocked id="otp-blocked">This deadline has passed.</div>
+  </div>
+
+  <div data-hl-step-action="pre-qualify" id="act-prequal">
+    <a data-hl-step-link id="prequal-link">Pre-qualify online</a>
+    <img data-hl-step-logo id="prequal-logo" alt="">
+  </div>
+  <div data-hl-step-action="sign-otp" id="act-signotp">
+    <a data-hl-step-link id="signotp-link">Sign now</a>
+  </div>
+
+  <div data-hl-tab-panel="order" id="panel-order">the order summary</div>
+  <div data-hl-tab-panel="documents" id="panel-docs">the documents</div>
+
+  <nav>
+    <a href="/portal" id="nav-home">Home</a>
+    <a href="/portal-order" id="nav-order">Order summary</a>
+    <a href="/portal-documents" id="nav-docs">Documents</a>
+    <a href="/portal-login" id="nav-out">Log out</a>
+    <a href="/contact" id="nav-contact">Contact</a>
+    <a href="https://example.com/x" id="nav-ext">Elsewhere</a>
+    <a href="/help" id="nav-marked" data-hl-portal-link>Help</a>
+  </nav>
+
+  <!-- More than one home: the index is shown instead of the dashboard. -->
+  <div data-hl-portal-index>
+    <p data-hl-portal-notice style="display:none"></p>
+    <div data-hl-index>
+      <a data-hl-index-row href="#">
+        <span data-hl="property_name"></span>
+        <span data-hl="unit_name"></span>
+        <span data-hl="stage_label"></span>
+        <span data-hl="substage_label"></span>
+        <span data-hl="due_label"></span>
+        <span data-hl="grand_total_cents"></span>
+      </a>
+    </div>
+  </div>
+
+  <div data-hl-portal-body>
+    <div data-hl="property_name">Heartland</div>
+    <h1 data-hl="unit.name">Your home</h1>
+    <p data-hl="reference">—</p>
+    <p data-hl="total_cents">—</p>
+    <p data-hl="purchase_deposit_cents">—</p>
+
+    <!-- the tracker -->
+    <div data-hl-stage="reserve">Reserve</div>
+    <div data-hl-stage="finance">Finance</div>
+    <div data-hl-stage="build">Build</div>
+    <div data-hl-stage="move-in">Move in</div>
+
+    <!-- finance sub-steps; a cash buyer never sees three of these -->
+    <div data-hl-substage="pre-qualify"><span data-hl-mark class="hl-substep-mark"></span><span>Pre-qualify</span></div>
+    <div data-hl-substage="sign-otp"><span data-hl-mark class="hl-substep-mark"></span><span>Sign your OTP</span></div>
+    <div data-hl-substage="pay-deposit"><span data-hl-mark class="hl-substep-mark"></span><span>Pay the deposit</span></div>
+    <div data-hl-substage="bond-approval"><span data-hl-mark class="hl-substep-mark"></span><span>Bond approval</span></div>
+    <div data-hl-substage="bond-approved"><span data-hl-mark class="hl-substep-mark"></span><span>Bond approved</span></div>
+    <div data-hl-substage="transfer-attorneys"><span data-hl-mark class="hl-substep-mark"></span><span>Transfer</span></div>
+
+    <div data-hl-route="bond">Your bond application</div>
+    <div data-hl-route="cash">Paying cash</div>
+
+    <div class="hl-due" data-hl-countdown-wrap>
+      <span data-hl-countdown>0</span> days left, due <span data-hl-due></span>
+      <div data-hl-countdown-label></div>
+      <div data-hl-cd>
+        <span data-hl-cd-d></span><span data-hl-cd-d-label></span>
+        <span data-hl-cd-h></span><span data-hl-cd-h-label></span>
+        <span data-hl-cd-m></span><span data-hl-cd-m-label></span>
+        <span data-hl-cd-s></span><span data-hl-cd-s-label></span>
+      </div>
+      <span data-hl-countdown-exact></span>
+    </div>
+
+    <a data-hl-show="otp_url" data-hl-attr="href:otp_url" data-hl-action>Sign your Offer to Purchase</a>
+
+    <!-- what the buyer is being asked to do now, in words -->
+    <div data-hl-next>
+      <span>Your next step</span>
+      <h2 data-hl-next-title></h2>
+    </div>
+
+    <!-- the deadline has passed, or the deal has ended -->
+    <div data-hl-blocked style="display:none">
+      <p data-hl-blocked-reason></p>
+    </div>
+
+    <!-- the step presentation; the script fills and hides this -->
+    <div data-hl-slides></div>
+
+    <!-- LISTS. One row is drawn per list; the script clones it per item and removes
+         the original. Same shape as the legacy clientzone cards, so the CSS carries. -->
+
+    <!-- the buyer's own documents -->
+    <div data-hl-list="documents">
+      <a data-hl-row class="doc-link-card" style="display:none" data-hl-attr="href:url">
+        <div data-hl="label">Document</div>
+      </a>
+    </div>
+    <div data-hl-empty="documents">Your documents will appear here once they are signed.</div>
+
+    <div data-hl-list="property-documents">
+      <a data-hl-row class="doc-link-card" style="display:none" data-hl-attr="href:url">
+        <div data-hl="label">Document</div>
+      </a>
+    </div>
+    <div data-hl-empty="property-documents">Documents for this development will appear here.</div>
+
+    <!-- THE PICTURES. The gallery is a strip of renders; the floorplans are downloads.
+         Kept apart deliberately - a plan is something a buyer saves and takes to a
+         contractor, a render is something they look at. -->
+    <div data-hl-lightbox data-hl-list="gallery">
+      <a data-hl-row class="hlp-shot mystery-hide" data-hl-attr="href:url">
+        <img data-hl-attr="src:url" alt="">
+        <div data-hl="label">Render</div>
+      </a>
+    </div>
+    <div data-hl-empty="gallery">Images of your home will appear here.</div>
+
+    <div data-hl-list="floorplans">
+      <a data-hl-row class="hlp-doc hlp-tpl" data-hl-attr="href:url">
+        <div data-hl="label">Floor plan</div>
+      </a>
+    </div>
+    <div data-hl-empty="floorplans">Your floor plans will appear here.</div>
+
+    <!-- The flat list, kept so markup that wants everybody in one place still works. -->
+    <div data-hl-list="team">
+      <div data-hl-row class="hlp-person" style="display:none">
+        <img data-hl-attr="src:photo" data-hl-show="has_photo" alt="">
+        <div data-hl="name">Name</div>
+        <div data-hl="position">Role</div>
+        <div data-hl="bio" data-hl-show="has_bio">Bio</div>
+      </div>
+    </div>
+    <div data-hl-empty="team">Your Heartland contact will be listed here.</div>
+
+    <!-- The people on this development, sectioned by group. -->
+    <div data-hl-group="heartland">
+      <h3>Heartland</h3>
+      <div data-hl-list="team:heartland">
+        <div data-hl-row class="hlp-person" style="display:none">
+          <img data-hl-attr="src:photo" data-hl-show="has_photo" alt="">
+          <div data-hl="name">Name</div>
+          <div data-hl="position">Role</div>
+          <div data-hl="company" data-hl-show="has_company">Company</div>
+          <div data-hl="bio" data-hl-show="has_bio">Bio</div>
+          <a data-hl-attr="href:website_url" data-hl-show="has_site" data-hl="website_label">Visit</a>
+        </div>
+      </div>
+    </div>
+    <div data-hl-group="builder">
+      <h3>Builder</h3>
+      <div data-hl-list="team:builder">
+        <div data-hl-row class="hlp-person" style="display:none">
+          <div data-hl="name">Name</div>
+          <div data-hl="position">Role</div>
+          <div data-hl="company" data-hl-show="has_company">Company</div>
+          <a data-hl-attr="href:website_url" data-hl-show="has_site" data-hl="website_label">Visit</a>
+        </div>
+      </div>
+    </div>
+    <div data-hl-group="conveyancer-bond">
+      <h3>Conveyancer &amp; Bond</h3>
+      <div data-hl-list="team:conveyancer-bond">
+        <div data-hl-row class="hlp-person" style="display:none">
+          <div data-hl="name">Name</div>
+          <div data-hl="position">Role</div>
+          <div data-hl="company" data-hl-show="has_company">Company</div>
+          <a data-hl-attr="href:website_url" data-hl-show="has_site" data-hl="website_label">Visit</a>
+        </div>
+      </div>
+    </div>
+    <div data-hl-team-empty>Your Heartland contact will be listed here.</div>
+
+    <!-- Who to phone. Sticky card on the Your Home panel. -->
+    <div data-hl-list="contacts">
+      <div data-hl-row class="hlp-contact" style="display:none">
+        <div data-hl="name">Name</div>
+        <div data-hl="label" data-hl-show="has_label">Role</div>
+        <a data-hl-attr="href:phone_href" data-hl-show="has_phone" data-hl="phone">Phone</a>
+        <a data-hl-attr="href:email_href" data-hl-show="has_email" data-hl="email">Email</a>
+      </div>
+    </div>
+    <div data-hl-empty="contacts">Contact details will appear here.</div>
+
+    <!-- the order summary -->
+    <div data-hl-list="spec">
+      <div data-hl-row style="display:none">
+        <span data-hl="label">Choice</span>
+        <span data-hl="value">—</span>
+      </div>
+    </div>
+    <div data-hl-empty="spec">No options were chosen.</div>
+
+    <div data-hl-list="addons">
+      <div data-hl-row style="display:none">
+        <span data-hl="name">Add-on</span>
+        <span data-hl="price_cents">—</span>
+      </div>
+    </div>
+    <div data-hl-empty="addons">No add-ons on this home.</div>
+
+    <!-- Agreed with sales AFTER the reservation. Kept apart from the add-ons above
+         because those are inside the signed purchase price and these are not. -->
+    <div data-hl-list="extras">
+      <div data-hl-row style="display:none">
+        <span data-hl="name">Upgrade</span>
+        <span data-hl="price_cents">&mdash;</span>
+      </div>
+    </div>
+    <div data-hl-empty="extras">Nothing agreed since you reserved.</div>
+    <div data-hl="agreed_extras_total_cents">&mdash;</div>
+    <div data-hl="grand_total_cents">&mdash;</div>
+
+    <div data-hl="unit_price_cents">—</div>
+    <div data-hl="addons_total_cents">—</div>
+    <div data-hl="total_cents">—</div>
+    <div data-hl="total_ex_vat_cents">—</div>
+    <div data-hl="vat_cents">—</div>
+    <div data-hl="reservation_fee_cents">—</div>
+    <div data-hl="levy_cents">—</div>
+    <div data-hl="rates_cents">—</div>
+    <div data-hl-show="purchase_deposit_cents"><span data-hl="purchase_deposit_cents">—</span></div>
+    <div data-hl="configuration.finance_upgrades">—</div>
+    <div data-hl="configuration.include_bond_cost">—</div>
+  </div>
+</div>

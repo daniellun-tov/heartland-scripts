@@ -1,0 +1,135 @@
+<!-- ============================================================================
+     REFERENCE MARKUP for heartland-reserve.js. This is not a design - it is the
+     smallest page that exercises every hook, so it doubles as the test fixture and
+     as the thing to copy attributes from in the Designer.
+
+     Style it however you like. The script never looks at a class or a tag, only at
+     data-hl* attributes, so nothing here constrains the design.
+
+     Paths are the ones GET /public/reservations/{uuid} actually returns. There is no
+     unit.display_name - the endpoint folds it into unit.name - and the size field is
+     unit.unit_size, not unit_size_text. Both were got wrong once by writing markup
+     from memory instead of from the endpoint.
+     ========================================================================== -->
+
+<!-- The wrapper the theme tokens are written onto. Inline beats any stylesheet, which
+     is the point: the page's head code may still carry an older hand-written block. -->
+<div data-hl-theme>
+
+<!-- progress -->
+<div data-hl-progress="unit">Unit</div>
+<div data-hl-progress="details">Details</div>
+<div data-hl-progress="pay">Payment</div>
+<div data-hl-progress="done">Done</div>
+
+<div data-hl-status></div>
+
+<!-- STEP 1 - confirm the unit -->
+<section data-hl-step="unit">
+  <h2 data-hl="unit.name">Unit name goes here</h2>
+  <p data-hl="unit.unit_number">Home N</p>
+  <p data-hl="unit.price_display">R0</p>
+  <p data-hl="unit.unit_area">0</p>
+  <p data-hl="unit_price_cents">R0.00</p>
+  <p data-hl="reservation_fee_cents">R0.00</p>
+  <!-- a path the response does not carry: must keep this copy, not blank it -->
+  <p data-hl="unit.nonexistent_field">Designed fallback copy</p>
+  <button data-hl-goto="details">Continue</button>
+</section>
+
+<!-- STEP 2 - buyer details -->
+<section data-hl-step="details">
+  <!-- Webflow refuses a text input outside a Form, so this is a form on the real page
+       too. It has no submit button; Enter is caught by the flow. -->
+  <form>
+  <!-- Each field is a wrapper holding a label, the control, and a reserved line for
+       its own message. The wrapper is found by walking up from the control until an
+       ancestor contains that field's [data-hl-error] - no class name is load-bearing. -->
+  <div><label class="hl-label">First name</label>
+       <input data-hl-field="first_name" data-hl-required>
+       <div data-hl-error="first_name"></div></div>
+  <div><label class="hl-label">Last name</label>
+       <input data-hl-field="last_name" data-hl-required>
+       <div data-hl-error="last_name"></div></div>
+  <div><label class="hl-label">Email</label>
+       <input data-hl-field="email" data-hl-required>
+       <div data-hl-error="email"></div></div>
+  <div><label class="hl-label">Mobile number</label>
+       <input data-hl-field="phone" data-hl-required>
+       <div data-hl-error="phone"></div></div>
+  <div><label class="hl-label">Work number</label>
+       <input data-hl-field="work_phone">
+       <div data-hl-error="work_phone"></div></div>
+  <div><label class="hl-label">Buying as</label>
+  <select data-hl-field="buyer_type" data-hl-required>
+    <option value="">Please choose</option>
+    <option value="individual">An individual</option>
+    <option value="company">A company</option>
+    <option value="trust">A trust</option>
+  </select>
+  <div data-hl-error="buyer_type"></div></div>
+  <div><label class="hl-label">ID or registration number</label>
+       <input data-hl-field="id_number" data-hl-required>
+       <div data-hl-id-hint></div>
+       <div data-hl-error="id_number"></div></div>
+  <!-- individuals only: a company registration number is not a date -->
+  <div data-hl-only-for="individual">
+    <label class="hl-label">Date of birth</label>
+    <input type="date" data-hl-field="dob" data-hl-required>
+    <div data-hl-error="dob"></div>
+  </div>
+  <!-- entities only -->
+  <div data-hl-only-for="entity">
+    <p>We will ask for the registration documents later.</p>
+  </div>
+  <div><label class="hl-label">Nationality</label>
+       <input data-hl-field="nationality" data-hl-required>
+       <div data-hl-error="nationality"></div></div>
+  <div><label class="hl-label">Address</label>
+       <input data-hl-field="address" data-hl-suggest data-hl-required>
+       <div data-hl-suggest-list></div>
+       <div data-hl-error="address"></div></div>
+  <div><label class="hl-label">How are you paying?</label>
+  <select data-hl-field="payer_route" data-hl-required>
+    <option value="">Please choose</option>
+    <option value="bond">Bond</option>
+    <option value="cash">Cash</option>
+    <option value="undecided">Not sure yet</option>
+  </select>
+  <!-- The composed sentence does not fit a label written as a question, so this one
+       carries its own wording. That is what the override is for. -->
+  <div data-hl-error="payer_route"
+       data-hl-required-message="Please tell us how you are paying."></div></div>
+  <!-- deliberately not writable: proves the whitelist refuses it -->
+  <input data-hl-field="total_cents">
+  </form>
+  <button data-hl-back="unit">Back</button>
+  <button data-hl-action="save">Save</button>
+  <button data-hl-goto="pay">Confirm details</button>
+</section>
+
+<!-- STEP 3 - pay.
+     The OTP hooks below are kept HERE but are deliberately NOT on the real page. The
+     Offer to Purchase is built when the buyer confirms their details, but signing it
+     belongs to the portal, not to the reservation flow - a buyer who has not paid yet
+     should not be signing. The hooks stay in the fixture because data-hl-show,
+     data-hl-hide and data-hl-attr are general features that need covering somewhere. -->
+<section data-hl-step="pay">
+  <p data-hl="unit.name"></p>
+  <p data-hl="total_cents"></p>
+  <p data-hl="reservation_fee_cents"></p>
+  <p data-hl="purchase_deposit_cents"></p>
+  <a data-hl-show="otp_url" data-hl-attr="href:otp_url">Open your Offer to Purchase</a>
+  <p data-hl-hide="otp_url">Your Offer to Purchase is not ready yet.</p>
+  <button data-hl-back="details">Back</button>
+  <button data-hl-action="checkout">Pay the reservation fee</button>
+</section>
+
+<!-- STEP 4 - done -->
+<section data-hl-step="done">
+  <p data-hl="status"></p>
+  <p data-hl="reference"></p>
+  <p data-hl="uuid"></p>
+</section>
+
+</div>
