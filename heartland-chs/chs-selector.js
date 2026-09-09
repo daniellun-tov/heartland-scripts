@@ -45,7 +45,8 @@
     taken:      'is-chs-taken',
     unreleased: 'is-chs-unreleased',
     activeTab:  'is-chs-active',
-    shown:      'is-chs-shown'
+    shown:      'is-chs-shown',
+    hidden:     'is-chs-hidden'
     /* Chips with no matches are handled by Finsweet's own .is-list-emptyfacet
        class - styled as a combo on .chs_chip. Nothing to do here. */
   };
@@ -473,6 +474,7 @@
     });
 
     positionFloorLabels();
+    paintPanelState(!!state.selectedId);
     paintRooms();
     paintFloorCounts();
     paintFacets();
@@ -546,6 +548,27 @@
     document.dispatchEvent(new CustomEvent('chs:bedSelected', { detail: bed }));
   }
 
+  /* ---------- the card before anything is picked --------------------------
+     The selection card is always on screen; only its contents swap. Before a
+     bed is chosen it shows [data-chs="panel-empty"] and hides every
+     [data-chs="panel-picked"] block - the head, the rows and the CTA. Both
+     halves are Designer elements, so the copy is edited in Webflow, and this
+     also clears a stale card when the chosen bed is filtered away.          */
+  function paintPanelState(picked) {
+    var p = $('[data-chs="detail-panel"]');
+    if (!p) return;
+    p.classList.add(STATE_CLASS.shown);
+    $$('[data-chs="panel-empty"]', p).forEach(function (el) {
+      el.classList.toggle(STATE_CLASS.hidden, !!picked);
+    });
+    $$('[data-chs="panel-picked"]', p).forEach(function (el) {
+      el.classList.toggle(STATE_CLASS.hidden, !picked);
+    });
+    // The snapshot only means anything next to a chosen bed.
+    var snap = $('[data-chs="snapshot"]');
+    if (snap) snap.classList.toggle(STATE_CLASS.hidden, !picked);
+  }
+
   function fillPanel(bed) {
     var p = $('[data-chs="detail-panel"]');
     if (!p) return;
@@ -564,7 +587,7 @@
     put(p, 'size',      bed.size ? bed.size + ' m²' : '');
     put(p, 'sharing',   bed.share === '1' ? 'Private room' : 'You would share with 1 other');
     put(p, 'gender',    bed.gender ? bed.gender + ' apartment' : '');
-    p.classList.add(STATE_CLASS.shown);
+    paintPanelState(true);
   }
 
   /* "Reserve this bed" in the panel: bring the form up and put the cursor in
