@@ -317,15 +317,24 @@
      keeping them in one bucket is what makes the three numbers reconcile.     */
   var COUNTER = {
     totals_TotalBedsWrapper:          function ()  { return true; },
-    totals_TotalBedsAvailableWrapper: function (b) { return b.status === SELECTABLE; },
-    totals_TotalBedsReservedWrapper:  function (b) { return b.status !== SELECTABLE; }
+    totals_TotalBedsAvailableWrapper: function (s) { return s === SELECTABLE; },
+    totals_TotalBedsReservedWrapper:  function (s) { return s !== SELECTABLE; }
   };
 
+  // Statuses of the WHOLE inventory. The hotspot list is Finsweet-filtered and
+  // starts filtered to one apartment, so it is the wrong source - a hidden
+  // Collection List of every CHS bed feeds these instead. If that list is ever
+  // removed, fall back to the union of beds seen since load.
+  function allStatuses() {
+    var nodes = $$('[data-chs-total="status"]');
+    if (nodes.length) {
+      return nodes.map(function (n) { return n.textContent.trim(); });
+    }
+    return Object.keys(state.all).map(function (id) { return state.all[id].status; });
+  }
+
   function paintTotals() {
-    var released = [];
-    Object.keys(state.all).forEach(function (id) {
-      if (state.all[id].status !== UNRELEASED) released.push(state.all[id]);
-    });
+    var released = allStatuses().filter(function (s) { return s && s !== UNRELEASED; });
     // Nothing read yet - leave whatever the Designer holds rather than flash 0.
     if (!released.length) return;
 
