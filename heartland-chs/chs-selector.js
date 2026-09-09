@@ -234,7 +234,10 @@
 
     var cap  = $('[data-chs-field="floor-label"]');
     var note = $('[data-chs-field="floor-note"]');
-    var one  = state.beds.filter(function (b) { return b.apartment === name; })[0];
+    // Fall back to the inventory: with a gender filter on a mismatched
+    // apartment the list is empty, and the labels must still read.
+    var one  = state.beds.filter(function (b) { return b.apartment === name; })[0] ||
+               inventory().filter(function (b) { return b.apartment === name; })[0];
     if (cap)  cap.textContent  = name || '';
     if (note) note.textContent = one ? [one.gender && one.gender + ' apartment', one.phase].filter(Boolean).join(' \u00b7 ') : '';
     document.dispatchEvent(new CustomEvent('chs:apartmentChanged', { detail: name }));
@@ -321,20 +324,109 @@
     totals_TotalBedsReservedWrapper:  function (s) { return s !== SELECTABLE; }
   };
 
-  // Statuses of the WHOLE inventory. The hotspot list is Finsweet-filtered and
-  // starts filtered to one apartment, so it is the wrong source - a hidden
-  // Collection List of every CHS bed feeds these instead. If that list is ever
-  // removed, fall back to the union of beds seen since load.
-  function allStatuses() {
-    var nodes = $$('[data-chs-total="status"]');
-    if (nodes.length) {
-      return nodes.map(function (n) { return n.textContent.trim(); });
+  /* ---------- the whole inventory ----------------------------------------
+     The hotspot list is Finsweet-filtered and starts filtered to one
+     apartment, so it can never answer "how many beds are there". A hidden
+     Collection List of every CHS bed (data-chs="totals-source") does. Counts,
+     facets and the gender lookup all read from here. If that list is ever
+     removed, fall back to the union of beds seen since load - degraded, for
+     the same reason, but better than nothing.                                */
+  function tot(item, key) {
+    var n = item.querySelector('[data-chs-total="' + key + '"]');
+    return n ? n.textContent.trim() : '';
+  }
+
+  function inventory() {
+    var items = $$('[data-chs="totals-source"] .w-dyn-item');
+    if (items.length) {
+      return items.map(function (it) {
+        return {
+          apartment: tot(it, 'apartment'),
+          gender:    tot(it, 'gender'),
+          phase:     tot(it, 'phase'),
+          status:    tot(it, 'status')
+        };
+      });
     }
-    return Object.keys(state.all).map(function (id) { return state.all[id].status; });
+    return Object.keys(state.all).map(function (id) {
+      var b = state.all[id];
+      return { apartment: b.apartment, gender: b.gender, phase: b.phase, status: b.status };
+    });
+  }
+
+  // What the filter chips are currently set to, read off the checked radios so
+  // it is right even when the filter matches nothing and the list is empty.
+  function activeFilters() {
+    var out = {};
+    $$('[fs-list-field]').forEach(function (i) {
+      if (i.checked) out[i.getAttribute('fs-list-field')] = i.getAttribute('fs-list-value');
+    });
+    return out;
+  }
+
+  function apartmentGender(name) {
+    var hit = inventory().filter(function (b) { return b.apartment === name; })[0];
+    return hit ? hit.gender : '';
+  }
+
+  /* ---------- facet counts ------------------------------------------------
+     Finsweet's own facet counts count every matching item, which meant a bed
+     going Reserved left the chip counts untouched. These count only beds a
+     student can actually book, so the chips are taken off Finsweet in the
+     Designer (data-chs-facet-count instead of fs-list-element) and filled
+     here. Standard facet semantics otherwise: a chip counts what you would
+     get if you picked it, with the OTHER active chips still applied.        */
+  function paintFacets() {
+    var inv = inventory();
+    if (!inv.length) return;
+    var active = activeFilters();
+
+    $$('[data-chs-facet-count]').forEach(function (out) {
+      var input = out.parentElement && out.parentElement.querySelector('[fs-list-field]');
+      if (!input) return;
+      var field = input.getAttribute('fs-list-field');
+      var value = input.getAttribute('fs-list-value');
+
+      var n = inv.filter(function (b) {
+        if (b.status !== SELECTABLE) return false;
+        if (b[field] !== value) return false;
+        for (var f in active) {
+          if (f !== field && active[f] && b[f] !== active[f]) return false;
+        }
+        return true;
+      }).length;
+
+      if (out.textContent.trim() !== String(n)) out.textContent = String(n);
+    });
+  }
+
+  /* ---------- gender mismatch --------------------------------------------
+     Picking a Male apartment while filtering for Female used to leave a blank
+     plan and no floor labels. The plan now stays put, with the floor labels
+     intact, behind a blurred overlay that says what happened.                */
+  function paintBlock() {
+    var box = $('[data-chs="plan-block"]');
+    if (!box) return;
+    var active = activeFilters();
+    var wanted = active.gender;
+    var apt    = active.apartment;
+    var has    = apt ? apartmentGender(apt) : '';
+    var clash  = !!(wanted && has && wanted !== has);
+
+    if (clash) {
+      var note = $('[data-chs-field="block-note"]', box);
+      if (note) {
+        note.textContent = 'This apartment is a ' + has + ' Apartment. ' +
+                           'You\u2019re filtering for ' + wanted + ' Apartments.';
+      }
+    }
+    box.classList.toggle(STATE_CLASS.shown, clash);
   }
 
   function paintTotals() {
-    var released = allStatuses().filter(function (s) { return s && s !== UNRELEASED; });
+    var released = inventory()
+      .map(function (b) { return b.status; })
+      .filter(function (s) { return s && s !== UNRELEASED; });
     // Nothing read yet - leave whatever the Designer holds rather than flash 0.
     if (!released.length) return;
 
@@ -383,6 +475,8 @@
     positionFloorLabels();
     paintRooms();
     paintFloorCounts();
+    paintFacets();
+    paintBlock();
     paintEmpty();
   }
 
@@ -419,7 +513,9 @@
   function paintEmpty() {
     var box = $('[data-chs="empty"]');
     if (!box) return;
-    box.style.display = state.beds.some(visible) ? 'none' : '';
+    // The mismatch overlay already explains an empty plan - don't say it twice.
+    var blocked = !!$('[data-chs="plan-block"].' + STATE_CLASS.shown);
+    box.style.display = (blocked || state.beds.some(visible)) ? 'none' : '';
   }
 
   /* ---------- selection -------------------------------------------------- */
@@ -590,14 +686,16 @@
       state.selectedId = null;
     }
 
-    // Keep the apartment on show if it survived the filter, else fall back to
-    // the lowest-numbered one still in the list.
+    // A checked apartment chip wins outright - it is what the student asked
+    // for, even when the gender filter leaves it with no beds to show.
+    var chosen = activeFilters().apartment;
     var present = apartmentsPresent();
-    if (present.indexOf(state.apartment) === -1) {
-      setApartment(present.length ? present[0] : null);
-      return;                                  // setApartment paints
-    }
-    paint();
+    var want = chosen || (present.indexOf(state.apartment) === -1
+      ? (present.length ? present[0] : null)
+      : state.apartment);
+
+    if (want !== state.apartment) { setApartment(want); }   // setApartment paints
+    else { paint(); }
   }
 
   function deepLink() {
