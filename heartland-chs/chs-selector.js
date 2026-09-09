@@ -60,7 +60,7 @@
 
   // bands: each floor's vertical slice of the stacked stage, 0-1 of stage height.
   // Measured from the plan images themselves - no hardcoded dimensions.
-  var state = { apartment: null, selectedId: null, beds: [], bands: null, all: {} };
+  var state = { apartment: null, selectedId: null, beds: [], bands: null, sig: '', all: {} };
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
@@ -162,11 +162,11 @@
   /* Re-measure the floor bands and repaint. Safe to call repeatedly. */
   function remeasure() {
     var bands = measureBands();
-    if (!bands) return;
-    var changed = !state.bands ||
-      bands.first.top !== state.bands.first.top ||
-      bands.first.scale !== state.bands.first.scale;
-    state.bands = bands;
+    if (bands) state.bands = bands;
+    var sig = planSignature();
+    if (sig.indexOf('x') !== -1) return;        // plans not laid out yet
+    var changed = sig !== state.sig;
+    state.sig = sig;
     if (changed) {
       paint();
       if (state.selectedId) {
@@ -176,16 +176,45 @@
     }
   }
 
-  /* Where a bed's plot sits in the stacked stage, as percentages. */
-  function place(b) {
-    var band = state.bands && state.bands[b.floor];
-    if (!band) return null;
+  /* Where a floor's image actually sits inside the stage, as percentages of
+     the stage box. Everything on the plan is positioned against THIS rather
+     than against the stage itself, because the stage can hold other things -
+     the floor labels go static on mobile so they no longer overlay the plan -
+     and the moment it does, a percentage of the stage stops being a
+     percentage of the drawing. Measured from the laid-out DOM, so it holds
+     whatever else is in there and whatever the breakpoint does.            */
+  function planBox(floor) {
+    var img   = $('[data-chs-plan="' + floor + '"]');
+    var stage = $('[data-chs="plan-stage"]');
+    if (!img || !stage) return null;
+    var sw = stage.offsetWidth, sh = stage.offsetHeight;
+    if (!sw || !sh || !img.offsetWidth || !img.offsetHeight) return null;
     return {
-      left:   b.x - b.w / 2,
-      width:  b.w,
-      top:    (band.top * 100) + (b.y - b.h / 2) * band.scale,
-      height: b.h * band.scale
+      left:   img.offsetLeft / sw * 100,
+      top:    img.offsetTop  / sh * 100,
+      wScale: img.offsetWidth  / sw,   // one % of the image, in % of the stage
+      hScale: img.offsetHeight / sh
     };
+  }
+
+  function place(b) {
+    var box = planBox(b.floor);
+    if (!box) return null;
+    return {
+      left:   box.left + (b.x - b.w / 2) * box.wScale,
+      width:  b.w * box.wScale,
+      top:    box.top  + (b.y - b.h / 2) * box.hScale,
+      height: b.h * box.hScale
+    };
+  }
+
+  // Changes whenever the plan's box inside the stage moves or resizes - a
+  // breakpoint switch, a label wrapping onto a second line, an image loading.
+  function planSignature() {
+    return ['ground', 'first'].map(function (f) {
+      var b = planBox(f);
+      return b ? [b.left, b.top, b.wScale, b.hScale].join(',') : 'x';
+    }).join('|');
   }
 
   /* ---------- which apartment ---------------------------------------------
@@ -305,10 +334,10 @@
     $$('[data-chs-room-label]').forEach(function (el) {
       var g = geom(el);
       if (!g) return;
-      var band = state.bands && state.bands[g.floor];
-      if (!band) return;
-      el.style.left = g.x + '%';
-      el.style.top  = ((band.top * 100) + g.y * band.scale) + '%';
+      var box = planBox(g.floor);
+      if (!box) return;
+      el.style.left = (box.left + g.x * box.wScale) + '%';
+      el.style.top  = (box.top  + g.y * box.hScale) + '%';
     });
   }
 
@@ -490,10 +519,13 @@
 
   /* Floor captions sit inside the stage, pinned to the top of their band. */
   function positionFloorLabels() {
-    if (!state.bands) return;
     $$('[data-chs-floorlabel]').forEach(function (el) {
-      var band = state.bands[el.getAttribute('data-chs-floorlabel')];
-      if (band) el.style.top = (band.top * 100) + '%';
+      // On mobile these are static and sit above the plan in normal flow;
+      // pinning a top would do nothing there, and clearing it keeps the
+      // inline style from leaking back when the breakpoint changes.
+      if (getComputedStyle(el).position !== 'absolute') { el.style.top = ''; return; }
+      var box = planBox(el.getAttribute('data-chs-floorlabel'));
+      if (box) el.style.top = box.top + '%';
     });
   }
 
