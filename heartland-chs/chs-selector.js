@@ -272,7 +272,13 @@
   // let the stylesheet do the arithmetic. Keeps the ratio out of this file.
   function publishPlanWidth() {
     var stage = $('[data-chs="plan-stage"]');
-    if (stage) stage.style.setProperty('--chs-plan-w', stage.clientWidth + 'px');
+    if (!stage) return;
+    // On mobile the plan is drawn wider than the screen inside a horizontal
+    // scroller, so size the labels from what is actually visible - otherwise
+    // the type would grow with the pannable canvas rather than the viewport.
+    var scroll = $('[data-chs="plan-scroll"]');
+    var w = (scroll && scroll.clientWidth) || stage.clientWidth;
+    stage.style.setProperty('--chs-plan-w', w + 'px');
   }
 
   function paintRooms() {
