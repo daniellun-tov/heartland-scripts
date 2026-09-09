@@ -549,7 +549,14 @@
   function fillPanel(bed) {
     var p = $('[data-chs="detail-panel"]');
     if (!p) return;
+    // display-name reads "Bed 2 \u00b7 South room". The card shows the bed on
+    // one line and the room smaller underneath, so it is split here rather
+    // than adding a second CMS field. bed-name still works if anything wants
+    // the whole string.
+    var half = String(bed.name || '').split('\u00b7');
     put(p, 'bed-name',  bed.name);
+    put(p, 'bed-label', half[0].trim());
+    put(p, 'bed-room',  half.length > 1 ? half.slice(1).join('\u00b7').trim() : '');
     put(p, 'apartment', bed.apartment);
     put(p, 'room',      bed.room);
     put(p, 'floor',     floorMeta(bed.floor).label);
