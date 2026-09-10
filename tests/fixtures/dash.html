@@ -61,6 +61,8 @@
     for (i = 1; i <= 12; i++) {
       st = (i <= 7) ? "available" : (i <= 9) ? "sold" : (i === 10) ? "held" : "unreleased";
       us.push({
+        /* The row id delete_unit is addressed by. The real endpoint carries it on every row. */
+        unit_id: 100 + i,
         unit_number: String(i), name: "Unit " + i, slug: "unit-" + i,
         /* THE UNIT POINTS AT A VARIANT, and the type is read THROUGH it - which is the
            shape of the real model, and the reason unit_variant_id is on the row at all. The
@@ -246,6 +248,9 @@
           released_at: null, note: null, unit_count: 6, available: 0, is_active: true }
       ],
       units: us,
+      /* RETIRED HOMES ride along in their own list, as the real endpoint returns them since
+         10 Sep - out of the grid, out of the counts, visible only so restore can be offered. */
+      retired: [],
       counts: { units: 12, types: 3, variants: 2, available: 7, held: 1, sold: 2,
                 unreleased: 2, unavailable_other: 0, from_offer_state: 5, orphan_phase: 0 },
       setup: {
@@ -341,6 +346,27 @@
       description: "hidden - homes in an unreleased phase do not appear publicly at all." }
   ];
   window.__SET_DECISIONS = { stellenbosch: { unit_pad: 2 } };
+  /* res_properties as the console sees it. Stellenbosch is the native one; the rest are
+     CMS-backed, so their tier-2 fields are refused per field by the property writer below. */
+  window.__RECORDS = {
+    "sanford-heart": { source: "cms", has_webflow_row: true, name: "Sanford Heart",
+      hold_minutes: 30, sales_email: "sales@sanford.example", whatsapp_from: null, notify_webhook: null,
+      reservation_fee_cents: 300000, is_selling: true, is_payfast_live: true, uses_new_flow: true,
+      bond_rate: 11.75, bond_years: 20, bond_deposit_pct: 10 },
+    polaris: { source: "cms", has_webflow_row: true, name: "Polaris",
+      hold_minutes: 10, sales_email: null, whatsapp_from: null, notify_webhook: null,
+      reservation_fee_cents: 300000, is_selling: true, is_payfast_live: true, uses_new_flow: false,
+      bond_rate: 11.75, bond_years: 20, bond_deposit_pct: 10 },
+    outeniqua: { source: "cms", has_webflow_row: true, name: "Outeniqua",
+      hold_minutes: 10, sales_email: null, whatsapp_from: null, notify_webhook: null,
+      reservation_fee_cents: 300000, is_selling: false, is_payfast_live: false, uses_new_flow: false,
+      bond_rate: null, bond_years: null, bond_deposit_pct: null },
+    stellenbosch: { source: "native", has_webflow_row: false, name: "Stellenbosch Village",
+      hold_minutes: 30, sales_email: null, whatsapp_from: null, notify_webhook: null,
+      reservation_fee_cents: null, is_selling: false, is_payfast_live: false, uses_new_flow: false,
+      bond_rate: null, bond_years: null, bond_deposit_pct: null }
+  };
+
   window.__resolveFeatures = function () {
     var devs = window.__FIXTURE.properties.map(function (p) {
       var own = window.__FEAT_DECISIONS[p.slug] || {};
@@ -363,6 +389,8 @@
       });
       return {
         property_slug: p.slug, property_name: p.name, is_selling: !!p.is_payfast_live,
+        /* THE RECORD - the third kind of per-development fact, carried since 10 Sep. */
+        record: window.__RECORDS[p.slug] || null,
         features: features, source: source, on_count: on, of: window.__FEAT_REGISTRY.length,
         settings: settings, settings_source: ssource,
         display: {
@@ -626,6 +654,41 @@
     /* BULK UNIT EDIT. Mirrors the server's rules closely enough to be worth testing against:
        integer cents, 0-100 percentages, positive areas, the identity allowlist, unchanged as
        its own outcome, and the zero-padded-unit-number fallback that Excel forces. */
+    /* THE DEVELOPMENT RECORD WRITER. Per-field outcomes, the two tiers drawn by source,
+       and the validator's bounds - the shapes the card has to render. */
+    if (method === "POST" && /\/staff\/property(\?|$)/.test(u)) {
+      var pb = JSON.parse((opts && opts.body) || "{}");
+      window.__PROP_POSTED = pb;
+      if (window.__PROP_FAILS) {
+        return Promise.resolve({ ok: false, status: 403, text: function () {
+          return Promise.resolve('{"message":"Only an admin can change a development\'s record."}'); } });
+      }
+      var recRow = window.__RECORDS[pb.property_slug];
+      if (!recRow) {
+        return Promise.resolve({ ok: false, status: 404, text: function () {
+          return Promise.resolve('{"message":"No development with that slug."}'); } });
+      }
+      var ALWAYS = { hold_minutes: 1, sales_email: 1, whatsapp_from: 1, notify_webhook: 1 };
+      var NATIVE = { name: 1, reservation_fee_cents: 1, is_selling: 1, is_payfast_live: 1, uses_new_flow: 1,
+                     bond_rate: 1, bond_years: 1, bond_deposit_pct: 1 };
+      var rep = [], cnt = { applied: 0, unchanged: 0, refused: 0 };
+      Object.keys(pb.fields || {}).forEach(function (k) {
+        var v = pb.fields[k];
+        if (!ALWAYS[k] && !NATIVE[k]) { rep.push({ field: k, outcome: "refused", why: "not a field this function writes." }); cnt.refused++; return; }
+        if (NATIVE[k] && recRow.source !== "native") { rep.push({ field: k, outcome: "refused", why: "this development is kept in step with the Webflow CMS, and the nightly resync rewrites this field from there." }); cnt.refused++; return; }
+        if (k === "hold_minutes" && v !== "" && (Number(v) < 1 || Number(v) > 1440)) { rep.push({ field: k, outcome: "refused", why: "a hold window longer than a day is almost certainly a mistake, got " + v }); cnt.refused++; return; }
+        var was = recRow[k] === undefined ? null : recRow[k];
+        var now = (v === "" || v === null) ? null : v;
+        if (String(was) === String(now)) { rep.push({ field: k, outcome: "unchanged" }); cnt.unchanged++; return; }
+        if (pb.dry_run !== true) { recRow[k] = now; }
+        rep.push({ field: k, outcome: "applied", was: was, now: now }); cnt.applied++;
+      });
+      return typOk({ property_slug: pb.property_slug, created: 0, adopted: 0, existed: 1,
+        was_source: recRow.source, counts: cnt, fields: rep,
+        now: { found: true, source: recRow.source, hold_minutes: recRow.hold_minutes },
+        dry_run: pb.dry_run === true ? true : null });
+    }
+
     if (method === "POST" && u.indexOf("/staff/units/bulk") !== -1) {
       window.__BULK_POSTED = JSON.parse((opts && opts.body) || "{}");
       if (window.__BULK_FAILS) {
@@ -797,6 +860,7 @@
         if (x.state_source === "phase") { tally.from_phase++; }
         if (body.phases_on && !x.phase_id) { tally.unphased++; }
       });
+      tally.retired = (body.retired || []).length;
       body.counts = tally;
       /* A retired field is not part of the working set. The real endpoint filters on
          is_active, and a fixture that kept showing the column would hide exactly the bug
@@ -1828,6 +1892,93 @@
       return Promise.resolve({ ok: true, status: 200, text: function () {
         return Promise.resolve(JSON.stringify({ counts: { matched: (mv.unit_numbers || []).length } }));
       } });
+    }
+
+    /* A HOME'S LIFE - create_unit and delete_unit, mirroring the server's refusals so the
+       console is graded against the answers it will actually get. Both record what was posted. */
+    if (method === "POST" && u.indexOf("/staff/units/delete") !== -1) {
+      var db = JSON.parse((opts && opts.body) || "{}");
+      window.__UNIT_DEL_POSTED = db;
+      if (window.__UNIT_DEL_FAILS) {
+        return typRefuse(String(window.__UNIT_DEL_FAILS));
+      }
+      var sv = window.__INV_SV;
+      var hardD = db.hard === true, restoreD = db.restore === true;
+      if (hardD && restoreD) { return typRefuse("hard and restore are opposites - pass one or the other."); }
+      var live = null, liveIx = -1, ret = null, retIx = -1;
+      sv.units.forEach(function (x, ix) { if (Number(x.unit_id) === Number(db.unit_id)) { live = x; liveIx = ix; } });
+      (sv.retired || []).forEach(function (x, ix) { if (Number(x.unit_id) === Number(db.unit_id)) { ret = x; retIx = ix; } });
+      if (!live && !ret) {
+        return Promise.resolve({ ok: false, status: 404, text: function () {
+          return Promise.resolve('{"message":"No home with that id."}'); } });
+      }
+      if (hardD) {
+        var victim = live || ret;
+        if (String(victim.source || "native") !== "native") {
+          return typRefuse("This home came from an importer, so removing the row does not remove the home. Retire it instead.");
+        }
+        if (live) { sv.units.splice(liveIx, 1); } else { sv.retired.splice(retIx, 1); }
+        return typOk({ unit_id: db.unit_id, removed: 1, restored: 0 });
+      }
+      if (restoreD) {
+        if (ret) {
+          sv.retired.splice(retIx, 1);
+          sv.units.push(ret.__row);
+        }
+        return typOk({ unit_id: db.unit_id, removed: 0, restored: 1, was_retired: ret ? 1 : 0 });
+      }
+      if (live) {
+        sv.units.splice(liveIx, 1);
+        sv.retired.push({ unit_id: live.unit_id, unit_number: live.unit_number, name: live.name,
+          key: "stellenbosch:" + live.unit_number, unit_variant_id: live.unit_variant_id,
+          variant_code: live.variant_code, type_code: live.type_code, source: live.source,
+          wf_unit_id: live.wf_unit_id, __row: live });
+      }
+      return typOk({ unit_id: db.unit_id, removed: 0, restored: 0, was_retired: live ? 0 : 1 });
+    }
+    if (method === "POST" && /\/staff\/units(\?|$)/.test(u)) {
+      var cb = JSON.parse((opts && opts.body) || "{}");
+      window.__UNIT_POSTED = cb;
+      if (window.__UNIT_FAILS) { return typRefuse(String(window.__UNIT_FAILS)); }
+      if (cb.property_slug !== "stellenbosch") {
+        return typRefuse("This development's inventory still comes from the Webflow CMS, so its homes here are a nightly shadow of it.");
+      }
+      var num = String(cb.unit_number || "").trim();
+      if (!num) { return typRefuse("A home needs a number."); }
+      if (num.length > 1 && num.charAt(0) === "0") { return typRefuse("Unit numbers are stored plain, so use the number without its leading zero."); }
+      var cv = null, ct = null;
+      (typReg("stellenbosch").types || []).forEach(function (t) {
+        (t.variants || []).forEach(function (v) { if (v.code === cb.variant_code && v.is_active !== false) { cv = v; ct = t; } });
+      });
+      if (!cv) {
+        return Promise.resolve({ ok: false, status: 404, text: function () {
+          return Promise.resolve('{"message":"No variant with that code on this development."}'); } });
+      }
+      var takenLive = window.__INV_SV.units.some(function (x) { return x.unit_number === num; });
+      var takenRet = (window.__INV_SV.retired || []).some(function (x) { return x.unit_number === num; });
+      if (takenRet) { return typRefuse("A retired home already has that number on this development. Restore that home rather than creating a second one."); }
+      if (takenLive) { return typRefuse("A home with that number already exists on this development."); }
+      var nm = cb.name || ("Home " + num);
+      var made = null;
+      if (cb.dry_run !== true) {
+        window.__UNIT_SEQ = (window.__UNIT_SEQ || 200) + 1;
+        made = window.__UNIT_SEQ;
+        window.__INV_SV.units.push({
+          unit_id: made, unit_number: num, name: nm, slug: null,
+          unit_variant_id: cv.id, type_code: ct.code, type_name: ct.name, variant_code: cv.code,
+          type_is_active: true, variant_is_active: true, orphan_variant: false,
+          bedrooms: null, bathrooms: null, parking: null, price_cents: null,
+          internal_area_sqm: null, erf_area_sqm: null, levy_monthly_cents: null, rates_monthly_cents: null,
+          deposit_bond_pct: null, deposit_cash_pct: null, occupational_rental_pct: null,
+          state: "available", state_source: "none", is_available: true,
+          reservation: null, offer_state: null, attributes: {}, field_values: {},
+          phase_id: null, phase: null, wf_unit_id: null, source: "native"
+        });
+      }
+      return typOk({ property_slug: "stellenbosch", property_name: "Stellenbosch Village",
+        unit_number: num, key: "stellenbosch:" + num, name: nm,
+        variant_code: cv.code, variant_id: cv.id, unit_type_id: ct.id,
+        unit_id: made, source: "native", dry_run: cb.dry_run === true ? true : null });
     }
 
     if (u.indexOf("/staff/units") !== -1) {

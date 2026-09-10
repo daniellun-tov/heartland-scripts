@@ -1139,6 +1139,37 @@
     "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
     "    background:var(--surface-2); color:var(--ink);",
     "  }",
+    "  /* ADDING A HOME sits above the grid, not in a drawer: the grid is the context - what",
+    "     numbers are taken, what the last row looks like - and the row it makes lands there. */",
+    "  .inv-add { margin-bottom:12px; }",
+    "  .inv-add .ph-new { margin-top:10px; flex-wrap:wrap; }",
+    "  .inv-add .ph-in.is-num { flex:0 0 96px; }",
+    "  .inv-add select.ph-in { flex:0 0 240px; }",
+    "  .inv-add .inv-owed { margin-top:10px; }",
+    "  .inv-retire {",
+    "    border-top:1px solid var(--rule); margin-top:14px; padding-top:12px;",
+    "    display:flex; gap:12px; align-items:center;",
+    "  }",
+    "  .inv-retire .inv-owed { flex:1 1 auto; }",
+    "  .inv-retired .feat-row { padding:10px 0; }",
+    "  .inv-retired .ph-in { flex:0 0 96px; }",
+    "  /* THE DEVELOPMENT RECORD. Plain inputs on feat-rows, saved together with one reason,",
+    "     because the server reports per field and one Save per field would be twelve events",
+    "     for one decision. */",
+    "  .rec-in {",
+    "    font:inherit; font-size:.8125rem; padding:6px 10px; width:260px; max-width:100%;",
+    "    border:1px solid var(--rule); border-radius:var(--radius-sm);",
+    "    background:var(--surface); color:var(--ink);",
+    "  }",
+    "  .rec-in.is-short { width:110px; }",
+    "  .rec-in.is-dirty { border-color:var(--accent); }",
+    "  .rec-ro { font-size:.8125rem; color:var(--ink-2); }",
+    "  .rec-foot { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:14px; }",
+    "  .rec-foot .nr-field { flex:1 1 220px; margin:0; }",
+    "  .rec-foot .spacer { flex:1 1 auto; }",
+    "  .rec-report { margin:12px 0 0; padding-left:18px; font-size:.8125rem; color:var(--ink-2); }",
+    "  .rec-report li { margin-bottom:3px; }",
+    "  .rec-report li.is-refused { color:var(--critical); }",
     "  /* THE FIELDS PANEL. Four small toggles per row rather than four switches, because",
     "     they are read together - \"column, editable, not public\" is one sentence about a",
     "     field, and four separate switches would make it four. */",
@@ -4306,7 +4337,7 @@
        appears after the ones the module registry named. */
     sreg.forEach(function (x) { group(x.category).settings.push(x); });
 
-    var body = groups.map(function (g) {
+    var body = recHtml(dev) + groups.map(function (g) {
       return '<div class="card pad feat-group"><h2>' + esc(g.name) + "</h2>" +
         g.modules.map(function (m) { return featRowHtml(m, dev); }).join("") +
         g.settings.map(function (x) { return setRowHtml(x, dev); }).join("") + "</div>";
@@ -4339,9 +4370,12 @@
       el.addEventListener("click", function () {
         FEAT.slug = el.getAttribute("data-feat-dev");
         FEAT.saveErr = "";
+        /* A half-edited record belongs to the development being left. */
+        recReset();
         renderFeat();
       });
     });
+    recWire();
     [].forEach.call($("viewDev").querySelectorAll("[data-feat-key]"), function (el) {
       el.addEventListener("click", function () {
         featSet(el.getAttribute("data-feat-key"), el.getAttribute("data-feat-to") === "on");
@@ -4379,6 +4413,256 @@
         }
       });
     });
+  }
+
+  /* ---------- THE DEVELOPMENT RECORD - 10 Sep ----------
+     The third kind of per-development fact, beside modules and settings: the res_properties
+     columns themselves. Read from the same property-config call (each development carries
+     `record`), written through POST /staff/property, which is admin-only - and so is this
+     tab, so the two agree.
+
+     TWO TIERS, DRAWN BY THE SERVER, NOT HERE. The hold window, the sales address, the
+     WhatsApp number and the notify webhook have no CMS source and are editable on any
+     development. Everything else is rewritten from Webflow at 02:00 on a CMS-backed one, so
+     it is shown read-only there with a line saying where to change it; on a native
+     development it is editable. The server refuses per field either way - this only avoids
+     offering what it would refuse.
+
+     ONE SAVE, ONE REASON. Edits are held in a draft and sent together, because the server
+     reports per field and a Save per field would be a dozen events for one decision. The
+     switches - selling, Payfast live, the new flow - are the fields that change what the
+     public site does, so changing any of them asks for the slug typed back, the same guard
+     the variant move uses. */
+  var REC_FIELDS = [
+    { key: "hold_minutes", label: "Hold window", kind: "int", tier: 1,
+      desc: "How long a buyer has, in minutes, from the first form submit to paying. The countdown on the reserve flow reads this." },
+    { key: "sales_email", label: "Sales address", kind: "text", tier: 1,
+      desc: "Where reservation notifications for this development go." },
+    { key: "whatsapp_from", label: "WhatsApp number", kind: "text", tier: 1,
+      desc: "The number buyer messages are sent from." },
+    { key: "notify_webhook", label: "Notify webhook", kind: "text", tier: 1,
+      desc: "An optional URL called with each reservation event." },
+    { key: "name", label: "Name", kind: "text", tier: 2,
+      desc: "How the development is named everywhere it is listed." },
+    { key: "reservation_fee_cents", label: "Reservation fee", kind: "rands", tier: 2,
+      desc: "The fixed amount Payfast charges to hold a home. NOT the price." },
+    { key: "is_selling", label: "Selling", kind: "bool", tier: 2, guarded: true,
+      desc: "Whether the reserve flow accepts new reservations on this development." },
+    { key: "uses_new_flow", label: "New reserve flow", kind: "bool", tier: 2, guarded: true,
+      desc: "Whether reservations go through the Xano flow rather than the legacy Make one." },
+    { key: "is_payfast_live", label: "Payfast live", kind: "bool", tier: 2, guarded: true,
+      desc: "Real money. Off means the Payfast sandbox." }
+  ];
+
+  var REC = { draft: {}, reason: "", confirm: "", busy: false, err: "", report: null };
+
+  function recReset() {
+    REC.draft = {}; REC.reason = ""; REC.confirm = ""; REC.busy = false; REC.err = ""; REC.report = null;
+  }
+
+  /* The value as the input shows it: cents become rands, null becomes empty. */
+  function recShown(f, rec) {
+    var v = rec ? rec[f.key] : null;
+    if (f.kind === "bool") { return v === true; }
+    if (v === null || v === undefined) { return ""; }
+    if (f.kind === "rands") { return String(Number(v) / 100); }
+    return String(v);
+  }
+
+  function recValue(f, rec) {
+    return Object.prototype.hasOwnProperty.call(REC.draft, f.key) ? REC.draft[f.key] : recShown(f, rec);
+  }
+
+  function recDirty(f, rec) {
+    if (!Object.prototype.hasOwnProperty.call(REC.draft, f.key)) { return false; }
+    var was = recShown(f, rec), now = REC.draft[f.key];
+    if (f.kind === "bool") { return was !== now; }
+    return String(was).trim() !== String(now).trim();
+  }
+
+  function recEditable(f, rec) {
+    if (!rec) { return false; }
+    return f.tier === 1 || rec.source === "native";
+  }
+
+  function recHtml(dev) {
+    var rec = dev.record || null;
+    if (!rec) {
+      return '<div class="card pad feat-group"><h2>Development record</h2>' +
+        '<div class="inv-owed">The record did not come with this development. Reload, and if ' +
+        "it is still missing the property-config endpoint is not returning it.</div></div>";
+    }
+    var native = rec.source === "native";
+    var dirtyAny = false, guardedDirty = false;
+    var rows = REC_FIELDS.map(function (f) {
+      var can = recEditable(f, rec);
+      var val = recValue(f, rec);
+      var dirty = recDirty(f, rec);
+      if (dirty) { dirtyAny = true; if (f.guarded) { guardedDirty = true; } }
+      var ctrl;
+      if (!can) {
+        ctrl = '<span class="rec-ro" data-rec-ro="' + esc(f.key) + '">' +
+          (f.kind === "bool" ? (val ? "on" : "off") : (val === "" ? "—" : esc(f.kind === "rands" ? "R " + val : val))) +
+          "</span>";
+      } else if (f.kind === "bool") {
+        ctrl = '<button type="button" class="feat-toggle' + (val ? " is-on" : "") + '"' +
+          (REC.busy ? " disabled" : "") + ' data-rec-toggle="' + esc(f.key) + '" role="switch" aria-checked="' +
+          (val ? "true" : "false") + '"><span class="feat-knob"></span></button>';
+      } else {
+        ctrl = (f.kind === "rands" ? '<span class="rec-ro">R</span> ' : "") +
+          '<input class="rec-in' + (f.kind === "int" || f.kind === "rands" ? " is-short" : "") +
+          (dirty ? " is-dirty" : "") + '" type="' + (f.kind === "int" || f.kind === "rands" ? "number" : "text") +
+          '"' + (f.kind === "int" ? ' step="1" min="1" max="1440"' : (f.kind === "rands" ? ' step="1" min="0"' : "")) +
+          ' value="' + esc(val) + '" data-rec-key="' + esc(f.key) + '"' + (REC.busy ? " disabled" : "") +
+          ' aria-label="' + esc(f.label) + '">' +
+          (f.kind === "int" ? ' <span class="rec-ro">min</span>' : "");
+      }
+      return '<div class="feat-row is-setting" data-rec-row="' + esc(f.key) + '">' +
+        '<div class="feat-text"><div class="feat-name">' + esc(f.label) +
+          (dirty ? ' <span class="feat-flag">changed</span>' : "") +
+          (!can ? ' <span class="feat-flag is-default">from Webflow</span>' : "") + "</div>" +
+        '<div class="feat-desc">' + esc(f.desc) + "</div></div>" +
+        '<div class="feat-controls">' + ctrl + "</div></div>";
+    }).join("");
+
+    var report = "";
+    if (REC.report && REC.report.length) {
+      report = '<ul class="rec-report" id="recReport">' + REC.report.map(function (x) {
+        var f = null;
+        for (var i = 0; i < REC_FIELDS.length; i++) { if (REC_FIELDS[i].key === x.field) { f = REC_FIELDS[i]; } }
+        var lab = f ? f.label : x.field;
+        if (x.outcome === "applied") {
+          return '<li class="is-applied">' + esc(lab) + ": saved" +
+            (x.was !== undefined ? " (" + esc(String(x.was === null ? "—" : x.was)) + " → " +
+             esc(String(x.now === null ? "—" : x.now)) + ")" : "") + "</li>";
+        }
+        if (x.outcome === "unchanged") { return "<li>" + esc(lab) + ": unchanged</li>"; }
+        return '<li class="is-refused">' + esc(lab) + ": refused — " + esc(x.why || "") + "</li>";
+      }).join("") + "</ul>";
+    }
+
+    var foot = '<div class="rec-foot">' +
+      '<div class="nr-field"><label for="recReason">Why</label>' +
+        '<input id="recReason" type="text" value="' + esc(REC.reason) + '" placeholder="Hold window to 30 min for the longer intake"' +
+        (REC.busy ? " disabled" : "") + "></div>" +
+      (guardedDirty
+        ? '<div class="nr-field"><label for="recConfirm">Type <code>' + esc(dev.property_slug) +
+          "</code> to confirm a switch</label>" +
+          '<input id="recConfirm" type="text" value="' + esc(REC.confirm) + '" autocomplete="off"' +
+          (REC.busy ? " disabled" : "") + "></div>"
+        : "") +
+      '<span class="spacer"></span>' +
+      '<button type="button" id="recDiscard"' + (dirtyAny && !REC.busy ? "" : " disabled") + ">Discard</button>" +
+      '<button type="button" class="primary" id="recSave"' + (dirtyAny && !REC.busy ? "" : " disabled") + ">" +
+        (REC.busy ? "Saving…" : "Save record") + "</button>" +
+      "</div>";
+
+    return '<div class="card pad feat-group" id="recCard"><h2>Development record</h2>' +
+      '<div class="inv-owed">' +
+      (native
+        ? "<strong>Made in Xano.</strong> Every field below is edited here and nothing overwrites it overnight."
+        : "<strong>Kept in step with the Webflow CMS.</strong> The first four fields have no CMS source " +
+          "and are set here. The rest are rewritten from Webflow at 02:00, so they are read-only " +
+          "here — change them in Webflow and run the catalogue resync.") +
+      "</div>" +
+      rows +
+      '<div class="err" id="recErr">' + esc(REC.err) + "</div>" +
+      report + foot + "</div>";
+  }
+
+  function recWire() {
+    var root2 = $("viewDev");
+    if (!root2) { return; }
+    [].forEach.call(root2.querySelectorAll("[data-rec-key]"), function (el) {
+      el.addEventListener("input", function () {
+        REC.draft[el.getAttribute("data-rec-key")] = el.value;
+        REC.report = null;
+        recPaintDirty();
+      });
+    });
+    [].forEach.call(root2.querySelectorAll("[data-rec-toggle]"), function (el) {
+      el.addEventListener("click", function () {
+        var k = el.getAttribute("data-rec-toggle");
+        var f = null;
+        for (var i = 0; i < REC_FIELDS.length; i++) { if (REC_FIELDS[i].key === k) { f = REC_FIELDS[i]; } }
+        var dev = featFor(FEAT.slug);
+        var cur = recValue(f, dev ? dev.record : null);
+        REC.draft[k] = !cur;
+        REC.report = null;
+        renderFeat();
+      });
+    });
+    var rr = $("recReason");
+    if (rr) { rr.addEventListener("input", function () { REC.reason = rr.value; }); }
+    var rc = $("recConfirm");
+    if (rc) { rc.addEventListener("input", function () { REC.confirm = rc.value; }); }
+    var rd = $("recDiscard");
+    if (rd) { rd.addEventListener("click", function () { recReset(); renderFeat(); }); }
+    var rs = $("recSave");
+    if (rs) { rs.addEventListener("click", function () { recSave(); }); }
+  }
+
+  /* Typing must not re-render - the caret would go - but the Save button and the changed
+     flags have to follow the draft. Painted in place. */
+  function recPaintDirty() {
+    var dev = featFor(FEAT.slug);
+    var rec = dev ? dev.record : null;
+    var any = false;
+    REC_FIELDS.forEach(function (f) {
+      var dirty = recDirty(f, rec);
+      if (dirty) { any = true; }
+      var el = $("viewDev").querySelector('[data-rec-key="' + f.key + '"]');
+      if (el) { el.classList.toggle("is-dirty", dirty); }
+    });
+    var rs = $("recSave"); if (rs) { rs.disabled = !any || REC.busy; }
+    var rd = $("recDiscard"); if (rd) { rd.disabled = !any || REC.busy; }
+  }
+
+  function recSave() {
+    if (REC.busy) { return; }
+    var dev = featFor(FEAT.slug);
+    var rec = dev ? dev.record : null;
+    if (!rec) { return; }
+    var fields = {}, n = 0, guarded = false;
+    REC_FIELDS.forEach(function (f) {
+      if (!recDirty(f, rec) || !recEditable(f, rec)) { return; }
+      var v = REC.draft[f.key];
+      if (f.kind === "bool") { fields[f.key] = v === true; }
+      else if (f.kind === "rands") { fields[f.key] = v === "" ? "" : Math.round(Number(v) * 100); }
+      else if (f.kind === "int") { fields[f.key] = v === "" ? "" : Number(v); }
+      else { fields[f.key] = String(v).trim(); }
+      if (f.guarded) { guarded = true; }
+      n++;
+    });
+    if (!n) { return; }
+    if (!REC.reason.trim()) {
+      REC.err = "Say why. Every change to the record carries a reason.";
+      renderFeat();
+      var r = $("recReason"); if (r) { r.focus(); }
+      return;
+    }
+    /* THE SLUG, TYPED BACK, for the switches that change what the public site does. */
+    if (guarded && String(REC.confirm || "").trim().toLowerCase() !== String(dev.property_slug).toLowerCase()) {
+      REC.err = "Type the development's slug (" + dev.property_slug + ") to confirm. A switch " +
+        "here changes what buyers can do on the live site.";
+      renderFeat();
+      var c = $("recConfirm"); if (c) { c.focus(); }
+      return;
+    }
+    REC.busy = true; REC.err = "";
+    renderFeat();
+    api("/staff/property", {
+      method: "POST",
+      body: JSON.stringify({ property_slug: dev.property_slug, fields: fields, reason: REC.reason.trim() })
+    })
+      .then(function (res) {
+        REC.busy = false; REC.draft = {}; REC.reason = ""; REC.confirm = "";
+        REC.report = (res && res.fields) || [];
+        /* Reloaded rather than patched: the record shown must be the one in force. */
+        FEAT.loaded = false;
+        return loadFeatures();
+      })
+      .catch(function (e) { REC.busy = false; REC.err = e.message; renderFeat(); });
   }
 
   /* The editable columns, in the order the grid shows them. kind drives both the input and
@@ -4439,6 +4723,35 @@
     rates_monthly_cents: "Monthly rates"
   };
 
+  /* ADDING, RETIRING, RESTORING AND REMOVING A HOME - Phase C's last console piece, 10 Sep.
+     One state object, because the four are one conversation about the same row. The server
+     owns every rule (create_unit, delete_unit); this holds what a person has typed and what
+     the dry run answered.
+
+     ONLY ON A DEVELOPMENT THAT OWNS ITS STOCK. On a CMS-backed one the rows are a nightly
+     shadow: a home added here would be gone at 02:00 and a home retired here would be
+     reactivated by the importer's upsert. The server refuses the create; the console does
+     not offer either, and the read-only banner already says why.
+
+     THE DRY RUN IS THE PREVIEW. Add is a two-step - Check, then Add - and the Add button
+     stays disabled until the server has said what it would do. Anything typed after that
+     stales the preview, the same rule as the bulk editor. */
+  var UNIT = {
+    open: false, number: "", variantCode: "", name: "",
+    busy: false, err: "", preview: null,
+    removeId: "", removeConfirm: "", retiredErr: "", retiredBusy: ""
+  };
+
+  function invCanAdd() {
+    return !!(INV.data && INV.data.inventory_source === "xano" && canPhase());
+  }
+
+  function unitReset() {
+    UNIT.open = false; UNIT.number = ""; UNIT.variantCode = ""; UNIT.name = "";
+    UNIT.busy = false; UNIT.err = ""; UNIT.preview = null;
+    UNIT.removeId = ""; UNIT.removeConfirm = ""; UNIT.retiredErr = ""; UNIT.retiredBusy = "";
+  }
+
   /* The pipeline's property filter is the closest thing to a "development I am working
      on today", so opening Inventory lands on whatever is already selected there rather
      than on an arbitrary first row. */
@@ -4484,6 +4797,8 @@
          stock, and the code typed into it would confirm nothing. */
       TYP.editingType = ""; TYP.moving = "";
       TYP.moveTo = ""; TYP.moveWhy = ""; TYP.moveConfirm = "";
+      /* A half-typed new home names a variant of the development being left. */
+      unitReset();
       panelClose();
     }
     INV.editing = null;
@@ -6902,7 +7217,127 @@
         '<button type="button" class="primary" id="invSave"' +
         (INV.saving || !INV.editState ? " disabled" : "") + ">" +
         (INV.saving ? "Saving…" : "Save") + "</button>" +
-      "</div></div></td></tr>";
+      "</div>" +
+
+      /* RETIRE lives under the state editor because it is the other thing a person means
+         by "take this home off the list" - and the reason box above is shared, since the
+         server requires one for both. Only where the development owns its stock: on a CMS
+         copy the importer would reactivate the row overnight, and a retire that undoes
+         itself is worse than none. */
+      (invCanAdd() && u.unit_id
+        ? '<div class="inv-retire"><div class="inv-owed">' +
+          "<strong>Retire this home</strong> — it leaves the stock list and the counts, " +
+          "keeps its number and its history, and can be brought back from the retired list " +
+          "under the grid. Refused while a live reservation holds it.</div>" +
+          '<button type="button" class="danger" id="invRetire" data-unit-id="' +
+            esc(String(u.unit_id)) + '"' + (INV.saving ? " disabled" : "") + ">Retire home " +
+            esc(invPad(u.unit_number)) + "</button></div>"
+        : "") +
+      "</div></td></tr>";
+  }
+
+  /* The form above the grid. The variant list is the register the Types panel reads, loaded
+     on first open - a home is built to a variant, so the picker has to offer the real ones,
+     scoped to this development, active only. */
+  function invAddHtml() {
+    if (!invCanAdd()) { return ""; }
+    if (!UNIT.open) { return ""; }
+    var d = INV.data || {};
+    var vars = typMoveTargets(null).filter(function (v) { return !v.type_retired; });
+    var loading = TYP.loading || (!TYP.data && !TYP.err);
+    var pick;
+    if (loading) {
+      pick = '<select class="ph-in" id="invAddVar" disabled><option>Loading the variants…</option></select>';
+    } else if (!vars.length) {
+      pick = '<select class="ph-in" id="invAddVar" disabled><option>No active variant to build to</option></select>';
+    } else {
+      pick = '<select class="ph-in" id="invAddVar" aria-label="Built to which variant">' +
+        '<option value="">Built to…</option>' +
+        vars.map(function (v) {
+          return '<option value="' + esc(v.code) + '"' +
+            (v.code === UNIT.variantCode ? " selected" : "") + ">" +
+            esc(v.code) + (v.name ? " · " + esc(v.name) : "") +
+            " (" + esc(v.type_name || v.type_code) + ")</option>";
+        }).join("") + "</select>";
+    }
+    var p = UNIT.preview;
+    var preview = p
+      ? '<div class="inv-owed" id="invAddPreview">Will create <strong>' +
+        esc(p.name || ("Home " + p.unit_number)) + "</strong> — unit " +
+        esc(invPad(p.unit_number)) + ", built to " + esc(p.variant_code) +
+        ". It appears in the grid the moment it exists" +
+        (d.phases_on
+          ? ", with no phase yet — move it into one from the grid, or it is on the market at once."
+          : ", and with phases off here it is on the market at once.") +
+        " Its price and figures are entered in the grid afterwards. It cannot be reserved " +
+        "through the reserve flow yet — that link is Phase E.</div>"
+      : "";
+    return '<div class="card pad inv-add" id="invAdd">' +
+      "<h2>Add a home to " + esc(d.property_name || INV.slug) + "</h2>" +
+      '<div class="inv-owed">A home is built to a variant. This creates the row; its price, ' +
+        "areas and everything else are edited in the grid afterwards. Numbers are stored " +
+        "plain — 12, never 012.</div>" +
+      '<div class="ph-new">' +
+        '<input id="invAddNum" class="ph-in is-num" type="text" inputmode="numeric" placeholder="12" ' +
+          'aria-label="Unit number" value="' + esc(UNIT.number) + '">' +
+        pick +
+        '<input id="invAddName" class="ph-in" type="text" placeholder="Name (optional — defaults to Home 12)" ' +
+          'aria-label="Name" value="' + esc(UNIT.name) + '">' +
+        '<button type="button" id="invAddCheck"' + (UNIT.busy ? " disabled" : "") + ">" +
+          (UNIT.busy && !p ? "Checking…" : "Check") + "</button>" +
+        '<button type="button" class="primary" id="invAddGo"' +
+          (UNIT.busy || !p ? " disabled" : "") + ">" +
+          (UNIT.busy && p ? "Adding…" : "Add home") + "</button>" +
+        '<button type="button" id="invAddCancel">Cancel</button>' +
+      "</div>" +
+      preview +
+      '<div class="err" id="invAddErr">' + esc(UNIT.err) + "</div>" +
+      "</div>";
+  }
+
+  /* RETIRED HOMES, under the grid. The grid rightly does not list them - every reader
+     filters on is_active - so this is the only place restore can be offered. Remove asks
+     for the number typed back, the same guard the variant move uses: a dialog is dismissed
+     by the reflex that opened it, and typing the number is what catches the wrong row. */
+  function invRetiredHtml(d) {
+    var list = (d && d.retired) || [];
+    if (!list.length) { return ""; }
+    var can = canPhase();
+    var native = !!(d && d.inventory_source === "xano");
+    return '<div class="card pad inv-retired" id="invRetired"><h2>Retired homes · ' + list.length + "</h2>" +
+      '<div class="inv-owed">Off the stock list, number kept. <strong>Restore</strong> brings ' +
+      "one back exactly as it was. <strong>Remove</strong> deletes the row for good and is " +
+      "refused where anything still points at it — a recorded state, any reservation ever, " +
+      "or an importer that owns the row.</div>" +
+      list.map(function (r) {
+        var id = String(r.unit_id);
+        var confirming = UNIT.removeId === id;
+        var busy = UNIT.retiredBusy === id;
+        return '<div class="feat-row" data-retired-row="' + esc(id) + '">' +
+          '<div class="feat-text"><div class="feat-name">Home ' + esc(invPad(r.unit_number)) +
+            (r.name && r.name !== ("Home " + r.unit_number) ? " · " + esc(r.name) : "") + "</div>" +
+          '<div class="feat-desc">' + esc(r.variant_code || "no variant") +
+            (r.type_code ? " (" + esc(r.type_code) + ")" : "") +
+            " · source " + esc(r.source || "native") + "</div></div>" +
+          '<div class="feat-controls">' +
+          (can
+            ? (confirming
+                ? '<input class="ph-in" id="invRemoveConfirm" type="text" placeholder="type ' +
+                    esc(r.unit_number) + '" aria-label="Type the unit number to confirm" value="' +
+                    esc(UNIT.removeConfirm) + '">' +
+                  '<button type="button" class="danger" id="invRemoveGo"' + (busy ? " disabled" : "") +
+                    ">" + (busy ? "Removing…" : "Remove for good") + "</button>" +
+                  '<button type="button" id="invRemoveCancel">Keep</button>'
+                : '<button type="button" data-inv-restore="' + esc(id) + '"' + (busy ? " disabled" : "") +
+                    ">" + (busy ? "Restoring…" : "Restore") + "</button>" +
+                  (native && String(r.source || "native") === "native"
+                    ? '<button type="button" class="danger" data-inv-remove="' + esc(id) + '">Remove…</button>'
+                    : ""))
+            : "") +
+          "</div></div>";
+      }).join("") +
+      '<div class="err" id="invRetiredErr">' + esc(UNIT.retiredErr) + "</div>" +
+      "</div>";
   }
 
   function invCellHtml(u, col, editable, placeholder) {
@@ -7111,6 +7546,10 @@
         '" title="Fit more rows on screen">' + (INV.dense ? "Comfortable" : "Compact") + "</button>" +
       '<button type="button" id="invRefresh"' + (INV.loading ? " disabled" : "") + ">" +
         (INV.loading ? "Loading…" : "Refresh") + "</button>" +
+      (invCanAdd()
+        ? '<button type="button" id="invAddOpen" aria-expanded="' + (UNIT.open ? "true" : "false") +
+          '" title="Create a home on this development">' + (UNIT.open ? "Close" : "Add a home") + "</button>"
+        : "") +
       "</div>";
 
     if (INV.err) {
@@ -7306,7 +7745,7 @@
     /* Order: what you must know before reading a number, then the stock itself, then
        the explanations. An agent opens this screen to see homes, not paragraphs. */
     $("viewInv").innerHTML = topbar + stats + warn + lock + cmsAvail + panelBarHtml() +
-      bar + bulk + gerr + table + foot + noEngine + setup;
+      invAddHtml() + bar + bulk + gerr + table + invRetiredHtml(d) + foot + noEngine + setup;
     invWire();
     renderPanel();
   }
@@ -7553,6 +7992,203 @@
     [].forEach.call($("viewInv").querySelectorAll(".inv-edit"), function (el) {
       el.addEventListener("click", function (e) { e.stopPropagation(); });
     });
+
+    /* ---- homes: add, retire, restore, remove ---- */
+    var ao = $("invAddOpen");
+    if (ao) { ao.addEventListener("click", function () { unitToggle(); }); }
+    var ac = $("invAddCancel");
+    if (ac) { ac.addEventListener("click", function () { unitReset(); renderInv(); }); }
+    /* Typed values are mirrored on every keystroke without a re-render, so the caret stays
+       put - and anything typed after a Check stales the preview, so Add goes dark until the
+       server has looked at what is there now. */
+    ["invAddNum", "invAddName"].forEach(function (id) {
+      var el = $(id);
+      if (!el) { return; }
+      el.addEventListener("input", function () {
+        if (id === "invAddNum") { UNIT.number = el.value; } else { UNIT.name = el.value; }
+        unitStale();
+      });
+      el.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); unitCheck(); }
+      });
+    });
+    var av = $("invAddVar");
+    if (av) {
+      av.addEventListener("change", function () { UNIT.variantCode = av.value; unitStale(); });
+    }
+    var ak = $("invAddCheck");
+    if (ak) { ak.addEventListener("click", function () { unitCheck(); }); }
+    var ag = $("invAddGo");
+    if (ag) { ag.addEventListener("click", function () { unitCreate(); }); }
+
+    var rt = $("invRetire");
+    if (rt) {
+      rt.addEventListener("click", function (e) {
+        e.stopPropagation();
+        unitRetire(rt.getAttribute("data-unit-id"));
+      });
+    }
+    [].forEach.call($("viewInv").querySelectorAll("[data-inv-restore]"), function (el) {
+      el.addEventListener("click", function () { unitRestore(el.getAttribute("data-inv-restore")); });
+    });
+    [].forEach.call($("viewInv").querySelectorAll("[data-inv-remove]"), function (el) {
+      el.addEventListener("click", function () {
+        UNIT.removeId = el.getAttribute("data-inv-remove"); UNIT.removeConfirm = "";
+        UNIT.retiredErr = "";
+        renderInv();
+        var f = $("invRemoveConfirm"); if (f) { f.focus(); }
+      });
+    });
+    var rc = $("invRemoveConfirm");
+    if (rc) {
+      rc.addEventListener("input", function () { UNIT.removeConfirm = rc.value; });
+      rc.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); unitRemove(); }
+      });
+    }
+    var rg = $("invRemoveGo");
+    if (rg) { rg.addEventListener("click", function () { unitRemove(); }); }
+    var rx = $("invRemoveCancel");
+    if (rx) {
+      rx.addEventListener("click", function () {
+        UNIT.removeId = ""; UNIT.removeConfirm = ""; UNIT.retiredErr = ""; renderInv();
+      });
+    }
+  }
+
+  function unitToggle() {
+    if (UNIT.open) { unitReset(); renderInv(); return; }
+    UNIT.open = true; UNIT.err = ""; UNIT.preview = null;
+    /* The register is the Types panel's; loaded here on first open for the same reason it
+       is loaded there - a second call most days nobody needs. */
+    if (TYP.slug !== INV.slug || !TYP.data) { typLoad(INV.slug); }
+    renderInv();
+    var n = $("invAddNum"); if (n) { n.focus(); }
+  }
+
+  function unitStale() {
+    if (!UNIT.preview) { return; }
+    UNIT.preview = null;
+    var go = $("invAddGo"); if (go) { go.disabled = true; }
+    var pv = $("invAddPreview"); if (pv) { pv.parentNode.removeChild(pv); }
+  }
+
+  /* Checked here as well as on the server, so a person finds out before the round trip.
+     The server still decides - a padded number, a taken number, a retired variant and a
+     CMS development are all its refusals, and they come back into #invAddErr. */
+  function unitFormError() {
+    var num = String(UNIT.number || "").trim();
+    if (!num) { return "A home needs a number."; }
+    if (num.length > 1 && num.charAt(0) === "0" && num.indexOf(".") === -1) {
+      return "Numbers are stored plain — " + num.replace(/^0+/, "") + ", not " + num +
+        ". The padding used for display is a per-development setting.";
+    }
+    if (!UNIT.variantCode) { return "Choose what it is built to. A home is always built to a variant."; }
+    return "";
+  }
+
+  function unitBody(dry) {
+    var body = {
+      property_slug: INV.slug,
+      unit_number: String(UNIT.number || "").trim(),
+      variant_code: UNIT.variantCode
+    };
+    var nm = String(UNIT.name || "").trim();
+    if (nm) { body.name = nm; }
+    if (dry) { body.dry_run = true; }
+    return body;
+  }
+
+  function unitCheck() {
+    if (UNIT.busy) { return; }
+    var bad = unitFormError();
+    if (bad) { UNIT.err = bad; UNIT.preview = null; renderInv(); return; }
+    UNIT.busy = true; UNIT.err = ""; UNIT.preview = null;
+    renderInv();
+    api("/staff/units", { method: "POST", body: JSON.stringify(unitBody(true)) })
+      .then(function (r) { UNIT.preview = r || {}; })
+      .catch(function (e) { UNIT.err = e.message; })
+      .then(function () { UNIT.busy = false; renderInv(); });
+  }
+
+  function unitCreate() {
+    if (UNIT.busy || !UNIT.preview) { return; }
+    var bad = unitFormError();
+    if (bad) { UNIT.err = bad; renderInv(); return; }
+    UNIT.busy = true; UNIT.err = "";
+    renderInv();
+    api("/staff/units", { method: "POST", body: JSON.stringify(unitBody(false)) })
+      .then(function () {
+        unitReset();
+        /* The register's unit counts moved; it reloads on next open. */
+        TYP.data = null; TYP.slug = "";
+        /* Reloaded rather than patched in: the row's state, the counts and the register
+           are all the server's answer, and a local guess at any of them is a second authority. */
+        return invLoad(INV.slug, true);
+      })
+      .catch(function (e) { UNIT.busy = false; UNIT.err = e.message; renderInv(); });
+  }
+
+  function unitWrite(body) {
+    return api("/staff/units/delete", { method: "POST", body: JSON.stringify(body) });
+  }
+
+  function unitRetire(unitId) {
+    if (INV.saving) { return; }
+    if (!INV.editReason.trim()) {
+      INV.editErr = "Say why. Retiring takes a home off the list, so the record has to carry a reason.";
+      renderInv();
+      var r = $("invReason"); if (r) { r.focus(); }
+      return;
+    }
+    INV.saving = true; INV.editErr = "";
+    renderInv();
+    unitWrite({ unit_id: Number(unitId), reason: INV.editReason.trim() })
+      .then(function () {
+        INV.stateRow = ""; INV.editState = ""; INV.editReason = "";
+        INV.editRef = ""; INV.saving = false;
+        TYP.data = null; TYP.slug = "";
+        return invLoad(INV.slug, true);
+      })
+      .catch(function (e) { INV.saving = false; INV.editErr = e.message; renderInv(); });
+  }
+
+  function unitRestore(unitId) {
+    if (UNIT.retiredBusy) { return; }
+    UNIT.retiredBusy = String(unitId); UNIT.retiredErr = "";
+    renderInv();
+    unitWrite({ unit_id: Number(unitId), restore: true, reason: "restored from the sales console" })
+      .then(function () {
+        UNIT.retiredBusy = ""; TYP.data = null; TYP.slug = "";
+        return invLoad(INV.slug, true);
+      })
+      .catch(function (e) { UNIT.retiredBusy = ""; UNIT.retiredErr = e.message; renderInv(); });
+  }
+
+  function unitRemove() {
+    if (UNIT.retiredBusy || !UNIT.removeId) { return; }
+    var row = null, list = (INV.data && INV.data.retired) || [];
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].unit_id) === String(UNIT.removeId)) { row = list[i]; break; }
+    }
+    if (!row) { UNIT.removeId = ""; renderInv(); return; }
+    /* THE NUMBER, TYPED BACK. Every other check here would pass just as happily on the
+       retired home next to this one. */
+    if (String(UNIT.removeConfirm || "").trim() !== String(row.unit_number)) {
+      UNIT.retiredErr = "Type the home's number (" + row.unit_number + ") to remove it for good.";
+      renderInv();
+      var f = $("invRemoveConfirm"); if (f) { f.focus(); }
+      return;
+    }
+    UNIT.retiredBusy = String(UNIT.removeId); UNIT.retiredErr = "";
+    renderInv();
+    unitWrite({ unit_id: Number(UNIT.removeId), hard: true, reason: "removed from the sales console" })
+      .then(function () {
+        UNIT.retiredBusy = ""; UNIT.removeId = ""; UNIT.removeConfirm = "";
+        TYP.data = null; TYP.slug = "";
+        return invLoad(INV.slug, true);
+      })
+      .catch(function (e) { UNIT.retiredBusy = ""; UNIT.retiredErr = e.message; renderInv(); });
   }
 
   /* INV.editing is the focused CELL; INV.stateRow is the home whose availability editor
