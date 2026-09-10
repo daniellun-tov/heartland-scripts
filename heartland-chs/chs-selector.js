@@ -23,7 +23,9 @@
      chs_floors_count   chs_plan_caption   chs_plan_caption-floor/-note
      chs_plan_stage     chs_plan_image     chs_plan_hotspots  chs_plan_list
      chs_bed (+ is-chs-selected / is-chs-taken / is-chs-unreleased)
-     chs_bed_number     chs_legend  chs_legend_item  chs_legend_swatch
+     chs_bed_number     chs_bed_rate (+ is-chs-short, phones only)
+     chs_legend  chs_legend_item  chs_legend_swatch
+     chs_view  chs_view_label / chs_view_stage (+ is-chs-open on phones)
      chs_chip (+ is-chs-active / is-chs-empty)  chs_chip_count
      chs_filters_form/_group/_label
      chs_panel  chs_panel_bed  chs_panel_row  chs_panel_rate
@@ -46,7 +48,8 @@
     unreleased: 'is-chs-unreleased',
     activeTab:  'is-chs-active',
     shown:      'is-chs-shown',
-    hidden:     'is-chs-hidden'
+    hidden:     'is-chs-hidden',
+    open:       'is-chs-open'
     /* Chips with no matches are handled by Finsweet's own .is-list-emptyfacet
        class - styled as a combo on .chs_chip. Nothing to do here. */
   };
@@ -488,6 +491,13 @@
       el.style.width  = pos.width + '%';
       el.style.height = pos.height + '%';
 
+      // price on the plot - full on desktop, "R 5,4k" on phones; the
+      // stylesheet decides which of the two is visible per breakpoint
+      $$('[data-chs-bed-rate]', el).forEach(function (r) {
+        var v = r.getAttribute('data-chs-bed-rate') === 'short' ? shortRate(b.rate) : (b.rate || '');
+        if (r.textContent !== v) r.textContent = v;
+      });
+
       // state combo - remove all three, then add the one that applies
       el.classList.remove(STATE_CLASS.taken, STATE_CLASS.unreleased, STATE_CLASS.selected);
       var selectable = b.status === SELECTABLE;
@@ -527,6 +537,16 @@
       var box = planBox(el.getAttribute('data-chs-floorlabel'));
       if (box) el.style.top = box.top + '%';
     });
+  }
+
+  /* "R 5 400" -> "R 5,4k" for the phone-sized hotspots. Derived from the
+     display string so there is still one price source; comma decimal because
+     that is how rands are written here. Trailing ",0" drops ("R 5k").       */
+  function shortRate(rate) {
+    var n = parseInt(String(rate || '').replace(/\D/g, ''), 10);
+    if (!n) return '';
+    var k = (n / 1000).toFixed(1).replace(/\.0$/, '').replace('.', ',');
+    return 'R\u00a0' + k + 'k';
   }
 
   function label(b) {
@@ -826,6 +846,26 @@
       var bed  = item && bedFor(item);
       if (bed) { e.preventDefault(); select(bed.id); }
     });
+
+    // "Where it sits" collapses to its heading on phones. The stylesheet does
+    // the hiding at the mobile breakpoint; here we only flip the class and
+    // keep the ARIA state honest. On desktop the class is inert.
+    var vt = $('[data-chs="view-toggle"]'), vb = $('[data-chs="view-body"]');
+    if (vt && vb) {
+      vt.setAttribute('role', 'button');
+      vt.setAttribute('tabindex', '0');
+      vt.setAttribute('aria-expanded', 'false');
+      var flipView = function () {
+        var open = !vt.classList.contains(STATE_CLASS.open);
+        vt.classList.toggle(STATE_CLASS.open, open);
+        vb.classList.toggle(STATE_CLASS.open, open);
+        vt.setAttribute('aria-expanded', String(open));
+      };
+      vt.addEventListener('click', flipView);
+      vt.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flipView(); }
+      });
+    }
 
     // Both floors are always on screen now; clear any legacy inline hiding.
     $$('[data-chs-plan]').forEach(function (img) { img.style.display = ''; });
