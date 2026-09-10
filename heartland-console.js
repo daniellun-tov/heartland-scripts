@@ -4799,6 +4799,8 @@
       TYP.moveTo = ""; TYP.moveWhy = ""; TYP.moveConfirm = "";
       /* A half-typed new home names a variant of the development being left. */
       unitReset();
+      /* One development's images over another's types is the same mix-up. */
+      medReset();
       panelClose();
     }
     INV.editing = null;
@@ -4921,6 +4923,17 @@
           " of building them"
         : "none yet \u2014 a development needs at least one") +
       (orph ? " \u00b7 " + orph + " home" + (orph === 1 ? "" : "s") + " with no variant" : "") +
+      "</span></button>");
+
+    /* MEDIA SITS AFTER TYPES because it belongs to them: every render and floor plan is a
+       type's. The bar cannot count them without a read nobody has made yet, so the button
+       describes itself only once the panel has loaded. */
+    var mc = (MED.slug === INV.slug && MED.data && MED.data.counts) ? MED.data.counts : null;
+    btns.push('<button type="button" class="panel-btn" id="invMedOpen" aria-expanded="' +
+      (PANEL.kind === "media" ? "true" : "false") + '"><b>Renders</b><span>' +
+      (mc
+        ? mc.current + " image" + (mc.current === 1 ? "" : "s") + " across " + mc.types + " type" + (mc.types === 1 ? "" : "s")
+        : "renders and floor plans, per type") +
       "</span></button>");
 
     var n = d.fields || [];
@@ -6202,11 +6215,174 @@
 
   var PANEL = { kind: "" };
 
+  /* ---------- THE MEDIA PANEL - 10 Sep ----------
+     The renders and floorplans of each type, read from GET /staff/types/media - one table,
+     two keys: the resync fills it from Webflow keyed by wf_type_id, and stamps the Xano type
+     id on the way; the console writes for a type with NO Webflow row keyed by that id alone.
+     A type that has a Webflow row is shown read-only with a line saying so, because the
+     server refuses a write for it: its images are rewritten from Webflow at 02:00.
+
+     ADD IS BY URL. Hosting is the caller's business today - Webflow Assets or any https
+     host. Upload through Xano storage is the next piece, not this one.
+
+     RETIRED ROWS ARE LISTED AND MARKED, the register rule, with Restore beside them. */
+  var MED = { data: null, slug: "", loading: false, saving: "", err: "", open: "",
+              slot: "", url: "", label: "", variant: "" };
+
+  var MED_SLOTS = [
+    { v: "base-model",           t: "Your home",             k: "render" },
+    { v: "axo-render-1-image",   t: "Aerial view",           k: "render" },
+    { v: "axo-render-2-image",   t: "Aerial view 2",         k: "render" },
+    { v: "upgrade-1",            t: "With Upgrade 1",        k: "render" },
+    { v: "upgrade-2",            t: "With Upgrade 2",        k: "render" },
+    { v: "upgrade-3",            t: "With Upgrade 3",        k: "render" },
+    { v: "upgrade-1-2",          t: "With Upgrades 1 + 2",   k: "render" },
+    { v: "upgrade-2-3",          t: "With Upgrades 2 + 3",   k: "render" },
+    { v: "upgrade-1-3",          t: "With Upgrades 1 + 3",   k: "render" },
+    { v: "both-upgrades",        t: "With all upgrades",     k: "render" },
+    { v: "floor-render---tile",  t: "Tile flooring",         k: "render" },
+    { v: "floor-render---vinyl", t: "Vinyl flooring",        k: "render" },
+    { v: "floor-render---oak",   t: "Oak flooring",          k: "render" },
+    { v: "floorplan",            t: "Floor plan (PDF)",      k: "floorplan" }
+  ];
+
+  function medLoad(slug) {
+    if (!slug) { return; }
+    MED.slug = slug; MED.loading = true; MED.err = "";
+    renderInv();
+    return api("/staff/types/media?property=" + encodeURIComponent(slug))
+      .then(function (d) { MED.data = d; })
+      .catch(function (e) { MED.err = e.message; })
+      .then(function () { MED.loading = false; renderInv(); });
+  }
+
+  function medReset() {
+    MED.data = null; MED.slug = ""; MED.err = ""; MED.saving = "";
+    MED.open = ""; MED.slot = ""; MED.url = ""; MED.label = ""; MED.variant = "";
+  }
+
+  function mediaDrawerHtml() {
+    if (!MED.data) {
+      return (MED.err ? '<div class="err">' + esc(MED.err) + "</div>" : "") +
+        '<div class="inv-empty">' + (MED.loading ? "Loading…" : "Nothing loaded.") + "</div>";
+    }
+    var d = MED.data;
+    var can = typCan();
+    var c = d.counts || {};
+    var intro = '<div class="typ-tidy">' + c.current + " current image" + (c.current === 1 ? "" : "s") +
+      " across " + c.types + " type" + (c.types === 1 ? "" : "s") +
+      (c.native ? ", " + c.native + " set here" : "") +
+      ". A render is what a buyer is shown of their home; a floor plan is what they take to a builder. " +
+      "Which ones a buyer sees is decided by the server against their configuration, never here." +
+      "</div>";
+
+    var body = (d.types || []).map(function (t) {
+      var editable = can && t.editable === true;
+      var rows = (t.media || []).map(function (m) {
+        var busy = MED.saving === ("m:" + m.id);
+        return '<div class="typ-var med-row' + (m.is_current ? "" : " is-retired") + '" data-med-row="' + esc(String(m.id)) + '">' +
+          "<div><div class=\"typ-name\">" + esc(m.label) +
+            ' <span class="feat-flag' + (m.kind === "floorplan" ? "" : " is-default") + '">' + esc(m.kind) + "</span>" +
+            (m.variant ? ' <span class="feat-flag is-default">' + esc(m.variant) + "</span>" : "") +
+            (m.source === "native" ? ' <span class="feat-flag">set here</span>' : "") +
+            (m.is_current ? "" : ' <span class="feat-flag is-default">retired</span>') + "</div>" +
+          '<div class="typ-off"><a href="' + esc(m.url) + '" target="_blank" rel="noopener">' + esc(m.slot) + "</a></div></div>" +
+          (editable && m.source === "native"
+            ? '<div class="typ-actions">' +
+              (m.is_current
+                ? '<button type="button" class="ph-btn is-quiet" data-med-retire="' + esc(String(m.id)) +
+                  '" data-med-type="' + esc(String(t.id)) + '" data-med-slot="' + esc(m.slot) + '"' +
+                  (busy ? " disabled" : "") + ">" + (busy ? "Retiring…" : "Retire") + "</button>"
+                : '<button type="button" class="ph-btn" data-med-restore="' + esc(String(m.id)) +
+                  '" data-med-type="' + esc(String(t.id)) + '" data-med-slot="' + esc(m.slot) + '"' +
+                  (busy ? " disabled" : "") + ">" + (busy ? "Restoring…" : "Restore") + "</button>") +
+              "</div>"
+            : "") +
+          "</div>";
+      }).join("");
+
+      var add = "";
+      if (editable) {
+        var open = MED.open === String(t.id);
+        add = open
+          ? '<div class="ph-new med-add" data-med-form="' + esc(String(t.id)) + '">' +
+            '<select id="medSlot" class="ph-in" aria-label="Which image">' +
+              '<option value="">Which image…</option>' +
+              MED_SLOTS.map(function (s) {
+                return '<option value="' + esc(s.v) + '"' + (MED.slot === s.v ? " selected" : "") + ">" +
+                  esc(s.t) + "</option>";
+              }).join("") +
+              '<option value="__custom"' + (MED.slot === "__custom" ? " selected" : "") + '>Something else…</option>' +
+            "</select>" +
+            (MED.slot === "__custom"
+              ? '<input id="medSlotCustom" class="ph-in is-code" type="text" placeholder="slot-name" ' +
+                'aria-label="Slot name" value="' + esc(MED.label) + '">'
+              : "") +
+            '<input id="medUrl" class="ph-in" type="url" placeholder="https://… (Webflow Assets or any https host)" ' +
+              'aria-label="Image url" value="' + esc(MED.url) + '">' +
+            '<button type="button" class="ph-btn primary" id="medAdd" data-med-type="' + esc(String(t.id)) + '"' +
+              (MED.saving === ("add:" + t.id) ? " disabled" : "") + ">" +
+              (MED.saving === ("add:" + t.id) ? "Adding…" : "Add") + "</button>" +
+            '<button type="button" class="ph-btn is-quiet" id="medAddCancel">Cancel</button>' +
+            "</div>"
+          : '<div class="typ-actions"><button type="button" class="ph-btn" data-med-open="' + esc(String(t.id)) +
+            '">Add an image</button></div>';
+      }
+
+      return '<div class="typ-type' + (t.is_active ? "" : " is-retired") + '" data-med-typ="' + esc(String(t.id)) + '">' +
+        '<div class="typ-head"><div><div class="typ-name">' + esc(t.code) +
+          (t.name && t.name !== t.code ? " · " + esc(t.name) : "") +
+          (t.is_active ? "" : ' <span class="feat-flag is-default">retired</span>') + "</div>" +
+          '<div class="typ-off">' + t.current_count + " current" +
+            (t.media_count > t.current_count ? ", " + (t.media_count - t.current_count) + " retired" : "") +
+            (t.has_webflow_row ? " · from Webflow — change them there and run the media resync" : "") +
+          "</div></div></div>" +
+        (rows || '<div class="typ-off">No images yet.</div>') +
+        add +
+        "</div>";
+    }).join("");
+
+    return (MED.err ? '<div class="err">' + esc(MED.err) + "</div>" : "") + intro + body;
+  }
+
+  function medWrite(busyKey, body) {
+    if (MED.saving) { return; }
+    MED.saving = busyKey; MED.err = "";
+    renderInv();
+    api("/staff/types/media", { method: "POST", body: JSON.stringify(body) })
+      .then(function () {
+        MED.open = ""; MED.slot = ""; MED.url = ""; MED.label = ""; MED.variant = "";
+        return medLoad(MED.slug);
+      })
+      .catch(function (e) { MED.err = e.message; })
+      .then(function () { MED.saving = ""; renderInv(); });
+  }
+
+  function medAdd(typeId) {
+    if (MED.saving) { return; }
+    var slot = MED.slot === "__custom" ? String(MED.label || "").trim().toLowerCase() : MED.slot;
+    var url = String(MED.url || "").trim();
+    /* Checked here as well as on the server, so a person finds out before the round trip. */
+    if (!slot) { MED.err = "Say which image this is."; renderInv(); return; }
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(slot)) {
+      MED.err = "A slot is lower-case letters, digits and hyphens."; renderInv(); return;
+    }
+    if (!/^https:\/\/\S+$/.test(url)) {
+      MED.err = "The url must be https and carry no spaces — it ends up in a src on a page holding a live member session.";
+      renderInv(); return;
+    }
+    medWrite("add:" + typeId, {
+      unit_type_id: Number(typeId), slot: slot, url: url,
+      reason: "set from the sales console"
+    });
+  }
+
   function openPanel(kind) {
     S.open = null;
     PANEL.kind = kind;
     if (kind === "fields" && (FLD.slug !== INV.slug || !FLD.data)) { fldLoad(INV.slug); }
     if (kind === "types" && (TYP.slug !== INV.slug || !TYP.data)) { typLoad(INV.slug); }
+    if (kind === "media" && (MED.slug !== INV.slug || !MED.data)) { medLoad(INV.slug); }
     renderInv();
   }
 
@@ -6223,9 +6399,9 @@
     var kind = PANEL.kind;
     var d = INV.data || {};
     var title = kind === "phases" ? "Phases"
-      : (kind === "types" ? "Types and variants" : "Fields");
+      : (kind === "types" ? "Types and variants" : (kind === "media" ? "Renders and floor plans" : "Fields"));
     var body = kind === "phases" ? phasesDrawerHtml()
-      : (kind === "types" ? typesDrawerHtml() : fieldsDrawerHtml());
+      : (kind === "types" ? typesDrawerHtml() : (kind === "media" ? mediaDrawerHtml() : fieldsDrawerHtml()));
     $("drawer").innerHTML =
       "<header><div><h1>" + title + "</h1>" +
         '<div class="muted">' + esc(d.property_name || INV.slug) + "</div></div>" +
@@ -6240,6 +6416,47 @@
 
   function panelWire() {
     var root = $("drawer");
+
+    /* ---- media ---- */
+    [].forEach.call(root.querySelectorAll("[data-med-open]"), function (el) {
+      el.addEventListener("click", function () {
+        MED.open = el.getAttribute("data-med-open"); MED.slot = ""; MED.url = ""; MED.label = ""; MED.err = "";
+        renderInv();
+        var f = $("medSlot"); if (f) { f.focus(); }
+      });
+    });
+    var mac = $("medAddCancel");
+    if (mac) { mac.addEventListener("click", function () { MED.open = ""; MED.err = ""; renderInv(); }); }
+    var ms = $("medSlot");
+    if (ms) { ms.addEventListener("change", function () { MED.slot = ms.value; MED.label = ""; renderInv(); }); }
+    var msc = $("medSlotCustom");
+    if (msc) { msc.addEventListener("input", function () { MED.label = msc.value; }); }
+    var mu = $("medUrl");
+    if (mu) {
+      mu.addEventListener("input", function () { MED.url = mu.value; });
+      mu.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); var b = $("medAdd"); if (b) { medAdd(b.getAttribute("data-med-type")); } }
+      });
+    }
+    var ma = $("medAdd");
+    if (ma) { ma.addEventListener("click", function () { medAdd(ma.getAttribute("data-med-type")); }); }
+    [].forEach.call(root.querySelectorAll("[data-med-retire]"), function (el) {
+      el.addEventListener("click", function () {
+        medWrite("m:" + el.getAttribute("data-med-retire"), {
+          unit_type_id: Number(el.getAttribute("data-med-type")), slot: el.getAttribute("data-med-slot"),
+          retire: true, reason: "retired from the sales console"
+        });
+      });
+    });
+    [].forEach.call(root.querySelectorAll("[data-med-restore]"), function (el) {
+      el.addEventListener("click", function () {
+        medWrite("m:" + el.getAttribute("data-med-restore"), {
+          unit_type_id: Number(el.getAttribute("data-med-type")), slot: el.getAttribute("data-med-slot"),
+          restore: true, reason: "restored from the sales console"
+        });
+      });
+    });
+
     var pa = $("invPhaseAdd");
     if (pa) { pa.addEventListener("click", invPhaseAdd); }
     var pn = $("invPhaseName");
@@ -7772,6 +7989,8 @@
     if (to) { to.addEventListener("click", function () { openPanel("types"); }); }
     var fo = $("invFldOpen");
     if (fo) { fo.addEventListener("click", function () { openPanel("fields"); }); }
+    var mo = $("invMedOpen");
+    if (mo) { mo.addEventListener("click", function () { openPanel("media"); }); }
 
     var pm = $("invPhaseMove");
     if (pm) {

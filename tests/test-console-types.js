@@ -75,10 +75,11 @@ const drawer = (p) => txt(p, "#drawer");
     ok("it says how many types and how many ways of building them",
       /2 types/.test(label) && /3 ways/.test(label), label);
     /* Order is not decoration: a phase decides WHEN stock goes out, a type decides what the
-       stock IS, a field decides what gets recorded about it. */
+       stock IS, a field decides what gets recorded about it. Renders (10 Sep) are the pictures
+       OF a type, so they sit against Types. */
     const bar = await all(p, ".panel-bar .panel-btn b");
-    ok("it sits between Phases and Fields",
-      bar.join(",") === "Phases,Types,Fields", bar);
+    ok("it sits between Phases and Fields, with Renders against it",
+      bar.join(",") === "Phases,Types,Renders,Fields", bar);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
