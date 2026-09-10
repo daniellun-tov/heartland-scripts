@@ -26,7 +26,7 @@
      chs_bed_number     chs_bed_rate (+ is-chs-short, phones only)
      chs_legend  chs_legend_item  chs_legend_swatch
      chs_view  chs_view_label / chs_view_stage (+ is-chs-open on phones)
-     chs_chip (+ is-chs-active / is-chs-empty)  chs_chip_count
+     chs_chip (+ is-chs-active / is-chs-empty / is-chs-unreleased)  chs_chip_count
      chs_filters_form/_group/_label
      chs_panel  chs_panel_bed  chs_panel_row  chs_panel_rate
      chs_snapshot  chs_snapshot_canvas  chs_snapshot_meta
@@ -435,7 +435,15 @@
         return true;
       }).length;
 
-      if (out.textContent.trim() !== String(n)) out.textContent = String(n);
+      // A chip whose whole apartment is still Phase 2 is "coming", not "0
+      // left" - those read very differently to a student. Flag the chip and
+      // leave the count blank; the Designer decides how "coming" looks.
+      var chip = out.parentElement;
+      var mine = inv.filter(function (b) { return b[field] === value; });
+      var coming = mine.length > 0 && mine.every(function (b) { return b.status === UNRELEASED; });
+      chip.classList.toggle(STATE_CLASS.unreleased, coming);
+      var text = coming ? '' : String(n);
+      if (out.textContent.trim() !== text) out.textContent = text;
     });
   }
 
