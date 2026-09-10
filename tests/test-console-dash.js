@@ -107,10 +107,18 @@ const gear = async p => {
 
 (async () => {
   const browser = await chromium.launch();
+  /* THE CLOCK IS PINNED. The fixture dates its confirmations a fixed number of days back
+     from "now", and the dashboard buckets them by CALENDAR month - so which month a row
+     lands in, and whether any month holds exactly one, moved with the date the suite
+     ran. On 10 Sep no month held one and the "fifth of the axis" assertion went red for
+     no reason of the console's. Date.now() in the page is fixed at 05 Sep 2026 10:00 SAST
+     (timers still run); the assertions below that name "this month" use the same NOW. */
+  const NOW = new Date("2026-09-05T10:00:00+02:00");
   const open = async (mode, query) => {
     const ctx = await browser.newContext({ colorScheme: mode || "light", viewport: { width: 1360, height: 1000 } });
     const p = await ctx.newPage();
     p.__errs = []; p.on("pageerror", e => p.__errs.push(String(e)));
+    await p.clock.setFixedTime(NOW);
     await p.goto(FX + "/dash.html" + (query || ""));
     await p.waitForTimeout(400);
     return { ctx, p };
@@ -294,7 +302,7 @@ const gear = async p => {
       s.cols.every(c => c.tip && /reservation/.test(c.tip)), s.cols.map(c => c.tip));
     // Newest at the right. Slicing the wrong end of the spine would show the oldest
     // twelve months and quietly hide this month's sales.
-    const thisMonth = new Date().toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
+    const thisMonth = NOW.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
     ok("the last column is the current month",
       s.cols[s.cols.length - 1].tip.indexOf(thisMonth) === 0, [s.cols[s.cols.length - 1].tip, thisMonth]);
     await ctx.close();
@@ -306,10 +314,10 @@ const gear = async p => {
     console.log("5b. long history");
     const s = await S(p);
     ok("capped at twelve columns", s.cols.length === 12, s.cols.length);
-    const thisMonth = new Date().toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
+    const thisMonth = NOW.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
     ok("and the twelfth is this month, not a month from last year",
       s.cols[11].tip.indexOf(thisMonth) === 0, s.cols[11].tip);
-    const oldest = new Date();
+    const oldest = new Date(NOW.getTime());
     oldest.setMonth(oldest.getMonth() - 11);
     ok("the first column is eleven months back",
       s.cols[0].tip.indexOf(oldest.toLocaleDateString("en-ZA", { month: "long", year: "numeric" })) === 0,
