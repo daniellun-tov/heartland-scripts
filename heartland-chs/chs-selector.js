@@ -708,6 +708,55 @@
     if (el) el.textContent = val || '';
   }
 
+  /* ---------- hand-off to the lease application ---------------------------
+     After the reserve form posts (Webflow and Make untouched), the student
+     goes on to the lease application with everything they have already
+     told us, so that form opens filled in. Reads the reserve form's own
+     inputs - the hidden ones fillForm() wrote and the four the student
+     typed - so there is one source of truth. The destination lives on the
+     form as data-chs-lease="/chs-lease-application"; no attribute, no
+     hand-off, which is also the off switch.                                */
+  function leaseUrl(form) {
+    var path = form.getAttribute('data-chs-lease');
+    if (!path) return '';
+    var v = function (n) { var i = form.querySelector('[name="' + n + '"]'); return i ? String(i.value || '').trim() : ''; };
+    var p = new URLSearchParams();
+    var set = function (k, val) { if (val) p.set(k, val); };
+    set('student-full-name',      (v('first-name') + ' ' + v('last-name')).trim());
+    set('student-email',          v('email'));
+    set('student-contact-number', v('contact-number'));
+    set('apartment',              v('apartment'));
+    set('bed-number',             v('bed-number'));
+    set('room-type',              v('room-type'));
+    set('student-gender',         v('gender'));
+    set('bed-price',              v('rate').replace(/\D/g, ''));
+    set('bed-item-id',            v('bed-item-id'));
+    set('bed-link',               v('bed-link'));
+    var q = p.toString();
+    return q ? path + '?' + q : path;
+  }
+
+  function armHandoff(form) {
+    if (!form || !form.getAttribute('data-chs-lease') || form.__chsHandoff) return;
+    form.__chsHandoff = true;
+    form.addEventListener('submit', function () {
+      var url = leaseUrl(form);
+      if (!url) return;
+      // Webflow reads the redirect it cached at init, not the attribute -
+      // update both, and watch the success message as a belt-and-braces.
+      form.setAttribute('data-redirect', url);
+      try { var wf = window.jQuery && window.jQuery.data(form, 'w-form'); if (wf) wf.redirect = url; } catch (e) {}
+      var wrap = form.closest ? form.closest('.w-form') : null;
+      var done = wrap && wrap.querySelector('.w-form-done');
+      if (done && window.MutationObserver && !form.__chsDoneWatch) {
+        form.__chsDoneWatch = new MutationObserver(function () {
+          if (done.offsetParent !== null) window.location.assign(url);
+        });
+        form.__chsDoneWatch.observe(done, { attributes: true, attributeFilter: ['style', 'class'] });
+      }
+    }, true);
+  }
+
   /* ---------- form prefill ----------------------------------------------- */
   function fillForm(bed) {
     var form = $('[data-chs="reserve-form"]');
@@ -874,6 +923,8 @@
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flipView(); }
       });
     }
+
+    armHandoff($('[data-chs="reserve-form"]'));
 
     // Both floors are always on screen now; clear any legacy inline hiding.
     $$('[data-chs-plan]').forEach(function (img) { img.style.display = ''; });
