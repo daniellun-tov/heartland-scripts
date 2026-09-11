@@ -576,7 +576,7 @@
     var n = parseInt(String(rate || '').replace(/\D/g, ''), 10);
     if (!n) return '';
     var k = (n / 1000).toFixed(1).replace(/\.0$/, '').replace('.', ',');
-    return 'R\u00a0' + k + 'k';
+    return 'R ' + k + 'k';
   }
 
   function label(b) {
