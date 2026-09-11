@@ -9,6 +9,10 @@
      - makes a whole option row clickable, not just the radio dot
      - keeps "Step x of y" in sync with the progress bar (data-skip-to on the
        private-payer branch makes Formly's own counter read 5 of 6)
+     - scrolls to the top of the steps column whenever the step changes.
+       Formly's data-scroll-top scrolls to the form itself, which on a phone
+       is the "Your selection" card above the steps, so the form is not on
+       that attribute any more; this owns the scroll instead
      - on the live domain only: shows "Submitting..." while an external
        redirect runs and hands the form back if nothing happens in time
 
@@ -88,6 +92,33 @@
     setTimeout(sync, 300);
   }
 
+  // Scroll to the steps column (not the form top) when Formly changes step.
+  // Watches the steps' style/class so Next, Back, Enter and logic jumps all
+  // count, and a failed validation (step unchanged) does not scroll away
+  // from the field Formly flagged.
+  function stepScroll(form) {
+    var column = form.querySelector('.chs-application_steps-column') || form;
+    var steps = $$('[data-form="step"]', form);
+    if (!steps.length || !window.MutationObserver) return;
+    function visible() {
+      for (var i = 0; i < steps.length; i++) if (steps[i].offsetParent !== null) return steps[i];
+      return null;
+    }
+    var last = visible(), pending = null;
+    new MutationObserver(function () {
+      if (pending) return;
+      pending = setTimeout(function () {
+        pending = null;
+        var now = visible();
+        if (!now || now === last) return;
+        var was = last; last = now;
+        if (!was) return;                                   // first render, not a step change
+        var top = column.getBoundingClientRect().top + (window.pageYOffset || 0) - 16;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      }, 60);
+    }).observe(column, { attributes: true, subtree: true, attributeFilter: ['style', 'class'] });
+  }
+
   function liveSubmit(form) {
     if (/\.webflow\.io$/i.test(window.location.hostname)) return;   // staging shows Webflow's own message
     var btn  = form.querySelector('[data-form="submit-btn"]');
@@ -132,6 +163,7 @@
     if (signed && !signed.value) signed.value = new Date().toISOString().slice(0, 10);
     rowClicks(form);
     stepCounter();
+    stepScroll(form);
     liveSubmit(form);
   }
 
