@@ -470,6 +470,27 @@
     box.classList.toggle(STATE_CLASS.shown, clash);
   }
 
+  // Until the first booking, "0 Reserved" only says the place is empty, so
+  // the third tile reads "Phase 1 / 20 beds" instead. The words live on the
+  // element (data-chs-zero-number, data-chs-zero-text with {n} = released
+  // beds), with these defaults. The tile's own label is kept on
+  // data-chs-label and put back the moment something is reserved.
+  function paintReservedTile(el, reserved, total) {
+    var label = el.parentElement && el.parentElement.querySelector('.counter-text');
+    if (!label) return false;
+    if (!label.hasAttribute('data-chs-label')) label.setAttribute('data-chs-label', label.textContent.trim());
+    if (reserved > 0) {
+      var own = label.getAttribute('data-chs-label');
+      if (label.textContent.trim() !== own) label.textContent = own;
+      return false;
+    }
+    var num = el.getAttribute('data-chs-zero-number') || 'Phase 1';
+    var txt = (el.getAttribute('data-chs-zero-text') || '{n} beds').replace('{n}', String(total));
+    if (el.textContent.trim() !== num) el.textContent = num;
+    if (label.textContent.trim() !== txt) label.textContent = txt;
+    return true;
+  }
+
   function paintTotals() {
     var released = inventory()
       .map(function (b) { return b.status; })
@@ -481,6 +502,7 @@
       var el = document.getElementById(key);
       if (!el) return;
       var n = released.filter(COUNTER[key]).length;
+      if (key === 'totals_TotalBedsReservedWrapper' && paintReservedTile(el, n, released.length)) return;
       if (el.textContent.trim() !== String(n)) el.textContent = String(n);
     });
   }
