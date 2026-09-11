@@ -426,25 +426,57 @@ window.Wized = window.Wized || [];
       window.lenis?.start();
     }
 
-    function bindControls() {
+    /* One writer for the colour mode: the toggle buttons, the canvas class
+       and the legend all follow it. */
+    function setColourBy(mode) {
+      state.colourBy = mode;
       const canvas = document.querySelector('.site-plan_map-canvas');
-      if (canvas) canvas.classList.add('is-colour-' + state.colourBy);
+      if (canvas) {
+        canvas.classList.toggle('is-colour-type', mode === 'type');
+        canvas.classList.toggle('is-colour-status', mode === 'status');
+      }
+      document.querySelectorAll('[data-colourby]').forEach((b) =>
+        b.classList.toggle('is-active', b.getAttribute('data-colourby') === mode)
+      );
+      syncLegend();
+    }
 
-      document.querySelectorAll('[data-colourby]').forEach((btn) => {
-        btn.classList.toggle('is-active', btn.getAttribute('data-colourby') === state.colourBy);
+    /* Sales phase. Before launch (site_settings.sales_open false - the site
+       footer mirrors it as html.sales-open) availability is not public: the
+       plan colours by type only and the toggle, status chips, status pills
+       and reserve buttons are hidden by the [data-sales-ui] CSS. Once sales
+       open the default colour mode is availability again. */
+    function salesOpen() {
+      return document.documentElement.classList.contains('sales-open');
+    }
 
-        btn.addEventListener('click', () => {
-          state.colourBy = btn.getAttribute('data-colourby');
-          if (canvas) {
-            canvas.classList.toggle('is-colour-type', state.colourBy === 'type');
-            canvas.classList.toggle('is-colour-status', state.colourBy === 'status');
-          }
-          document.querySelectorAll('[data-colourby]').forEach((b) => b.classList.toggle('is-active', b === btn));
-          syncLegend();
-        });
+    function bindControls() {
+      setColourBy(salesOpen() ? 'status' : 'type');
+      document.addEventListener('sv:sales-phase', (e) => {
+        setColourBy(e.detail && e.detail.open ? 'status' : 'type');
       });
 
-      syncLegend();
+      /* Pre-launch stand-in for "Reserve this unit": closes the panel so the
+         anchor can scroll to the register-interest form, and starts the
+         message with the unit they were looking at. */
+      document.addEventListener('click', (e) => {
+        const link = e.target.closest && e.target.closest('[data-close-detail]');
+        if (!link) return;
+        let u = null;
+        try { u = Wized.data.v.selectedUnit; } catch (_) {}
+        closeUnit();
+        const msg = document.querySelector('#contact textarea');
+        if (u && msg && !msg.value.trim()) {
+          msg.value = 'I am interested in Unit ' + u.unit_number + ' (Type ' + u.type_code + '). Please let me know when sales open.';
+        }
+      });
+
+      document.querySelectorAll('[data-colourby]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (!salesOpen()) return;   /* toggle is hidden pre-launch; belt and braces */
+          setColourBy(btn.getAttribute('data-colourby'));
+        });
+      });
 
       document.querySelectorAll('[data-filter]').forEach((el) =>
         el.addEventListener('click', () => {
