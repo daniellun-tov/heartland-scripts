@@ -49,10 +49,18 @@
     activeTab:  'is-chs-active',
     shown:      'is-chs-shown',
     hidden:     'is-chs-hidden',
-    open:       'is-chs-open'
-    /* Chips with no matches are handled by Finsweet's own .is-list-emptyfacet
-       class - styled as a combo on .chs_chip. Nothing to do here. */
+    open:       'is-chs-open',
+    /* Finsweet's own empty-facet class, styled as a combo on .chs_chip
+       (dimmed, pointer-events none). Finsweet only maintains it while it
+       owns the facet counts, and it does not here - paintFacets() took those
+       over - so the script sets it, on the apartment chips only. */
+    emptyFacet: 'is-list-emptyfacet'
   };
+
+  // The one filter whose chips get disabled when they would show nothing.
+  // Deliberately not the gender chips: gender is how a student gets back out
+  // of an empty result, so disabling those would strand them.
+  var DISABLE_FIELD = 'apartment';
 
   var SELECTABLE  = 'Available';
   var UNRELEASED  = 'Unreleased';
@@ -442,6 +450,15 @@
       var mine = inv.filter(function (b) { return b[field] === value; });
       var coming = mine.length > 0 && mine.every(function (b) { return b.status === UNRELEASED; });
       chip.classList.toggle(STATE_CLASS.unreleased, coming);
+
+      // A chip that can only lead to an empty plan is not worth a tap. The
+      // checked one is left alone: the mismatch overlay already explains it,
+      // and dimming the student's own choice reads as a fault. Anything that
+      // is not an apartment chip is actively cleared, in case Finsweet ever
+      // starts maintaining this class again.
+      var dead = field === DISABLE_FIELD && !coming && n === 0 && !input.checked;
+      chip.classList.toggle(STATE_CLASS.emptyFacet, dead);
+
       var text = coming ? '' : String(n);
       if (out.textContent.trim() !== text) out.textContent = text;
     });
