@@ -758,9 +758,67 @@
     return q ? path + '?' + q : path;
   }
 
+  // The student never sees Webflow's "thank you" state: the form stays on
+  // screen with the button reading "Submitting..." (dots cycling) until the
+  // lease page takes over. Webflow itself swaps the button text and hides the
+  // form on success, so both are reasserted the moment they change. Only a
+  // failed post, or nothing happening for HANDOFF_TIMEOUT_MS, hands the button
+  // back.
+  var HANDOFF_TIMEOUT_MS = 15000;
+
+  function submittingState(form) {
+    var btn = form.querySelector('[type="submit"]');
+    if (!btn) return { stop: function () {} };
+    var isInput = btn.tagName === 'INPUT';
+    var read = function () { return isInput ? btn.value : btn.textContent; };
+    var write = function (t) { if (read() !== t) { if (isInput) btn.value = t; else btn.textContent = t; } };
+    var original = read(), dots = 0, alive = true;
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    var tick = function () {
+      if (!alive) return;
+      btn.disabled = true;                                  // Webflow re-enables it on its own
+      write('Submitting' + new Array((dots % 3) + 2).join('.'));
+      dots++;
+    };
+    tick();
+    var timer = setInterval(tick, 350);
+    return {
+      stop: function () {
+        if (!alive) return;
+        alive = false; clearInterval(timer);
+        btn.disabled = false; btn.removeAttribute('aria-busy');
+        write(original);
+      }
+    };
+  }
+
   function armHandoff(form) {
     if (!form || !form.getAttribute('data-chs-lease') || form.__chsHandoff) return;
     form.__chsHandoff = true;
+    var wrap = form.closest ? form.closest('.w-form') : null;
+    var done = wrap && wrap.querySelector('.w-form-done');
+    var fail = wrap && wrap.querySelector('.w-form-fail');
+    var state = null, timeout = null, leaving = false, target = '';
+    // Webflow's own "wait" text, so its swap and ours read the same.
+    var submit = form.querySelector('[type="submit"]');
+    if (submit && !submit.getAttribute('data-wait')) submit.setAttribute('data-wait', 'Submitting...');
+
+    function release() {
+      clearTimeout(timeout); timeout = null;
+      if (state) { state.stop(); state = null; }
+    }
+    function leave() {
+      var url = target;
+      if (leaving || !url) return;
+      leaving = true;
+      // Webflow has just hidden the form and shown its thank-you block - undo
+      // that before the frame paints, then go.
+      if (done) done.style.display = 'none';
+      form.style.display = '';
+      window.location.assign(url);
+    }
+
     form.addEventListener('submit', function () {
       var url = leaseUrl(form);
       if (!url) return;
@@ -768,13 +826,23 @@
       // update both, and watch the success message as a belt-and-braces.
       form.setAttribute('data-redirect', url);
       try { var wf = window.jQuery && window.jQuery.data(form, 'w-form'); if (wf) wf.redirect = url; } catch (e) {}
-      var wrap = form.closest ? form.closest('.w-form') : null;
-      var done = wrap && wrap.querySelector('.w-form-done');
-      if (done && window.MutationObserver && !form.__chsDoneWatch) {
+      target = url;
+      release();
+      state = submittingState(form);
+      timeout = setTimeout(release, HANDOFF_TIMEOUT_MS);
+      if (!window.MutationObserver) return;
+      if (done && !form.__chsDoneWatch) {
         form.__chsDoneWatch = new MutationObserver(function () {
-          if (done.offsetParent !== null) window.location.assign(url);
+          if (done.offsetParent !== null || form.style.display === 'none') leave();
         });
         form.__chsDoneWatch.observe(done, { attributes: true, attributeFilter: ['style', 'class'] });
+        form.__chsDoneWatch.observe(form, { attributes: true, attributeFilter: ['style'] });
+      }
+      if (fail && !form.__chsFailWatch) {
+        form.__chsFailWatch = new MutationObserver(function () {
+          if (fail.offsetParent !== null) release();
+        });
+        form.__chsFailWatch.observe(fail, { attributes: true, attributeFilter: ['style', 'class'] });
       }
     }, true);
   }
