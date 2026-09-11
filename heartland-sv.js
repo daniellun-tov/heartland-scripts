@@ -456,15 +456,20 @@ window.Wized = window.Wized || [];
         setColourBy(e.detail && e.detail.open ? 'status' : 'type');
       });
 
-      /* Pre-launch stand-in for "Reserve this unit": closes the panel so the
-         anchor can scroll to the register-interest form, and starts the
-         message with the unit they were looking at. */
+      /* Everything that closes the panel carries data-close-detail: the X
+         button and, pre-launch, the "Register your interest" stand-in for
+         "Reserve this unit" (data-prelaunch-ui). Delegated, because the
+         register button sits before the X in the DOM and a one-off
+         querySelector binding would pick it instead of the X. The register
+         button also starts the contact message with the unit they were
+         looking at; the X does not. */
       document.addEventListener('click', (e) => {
         const link = e.target.closest && e.target.closest('[data-close-detail]');
         if (!link) return;
         let u = null;
         try { u = Wized.data.v.selectedUnit; } catch (_) {}
         closeUnit();
+        if (!link.hasAttribute('data-prelaunch-ui')) return;
         const msg = document.querySelector('#contact textarea');
         if (u && msg && !msg.value.trim()) {
           msg.value = 'I am interested in Unit ' + u.unit_number + ' (Type ' + u.type_code + '). Please let me know when sales open.';
@@ -520,7 +525,6 @@ window.Wized = window.Wized || [];
         apply();
       });
 
-      document.querySelector('[data-close-detail]')?.addEventListener('click', closeUnit);
       document.querySelector('.site-plan_detail-overlay')?.addEventListener('click', closeUnit);
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && isOpen()) closeUnit();
