@@ -1480,7 +1480,9 @@ let audioContext;
   function boot() {
     var box = document.createElement('div');
     box.className = 'fp-lightbox';
-    box.innerHTML = '<button class="fp-lightbox_close" aria-label="Close">&#10005;</button><img alt="Floor plan">';
+    /* the .fp-zoom wrapper is the tap-to-zoom viewer (module below) */
+    box.innerHTML = '<button class="fp-lightbox_close" aria-label="Close">&#10005;</button>' +
+      '<div class="fp-zoom" data-lenis-prevent><img alt="Floor plan"></div>';
     document.body.appendChild(box);
     var img = box.querySelector('img');
 
@@ -1496,7 +1498,10 @@ let audioContext;
     }
 
     box.addEventListener('click', function (e) {
-      if (e.target === box || e.target.closest('.fp-lightbox_close')) close();
+      /* the backdrop, the letterbox around the plan, or the close button.
+         A tap on the plan itself is the zoom module's (it stops propagation
+         when it acts, so a zoomed-in plan never closes by accident). */
+      if (e.target === box || e.target.classList.contains('fp-zoom') || e.target.closest('.fp-lightbox_close')) close();
     });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && box.classList.contains('is-open')) close();
@@ -1512,6 +1517,101 @@ let audioContext;
       var pic = hit.matches('img') ? hit : hit.querySelector('img');
       if (pic) open(pic.currentSrc || pic.src, pic.alt);
     }, true);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+/* ============================================================
+   Floor plan viewer: fill + tap zoom
+
+   Two places show a plan full-screen - the unit-details lightbox above and
+   the unit types "View Floor Plan" modal (Webflow's custom-modal popup) - and
+   both get the same viewer: the plan fills whatever room it has (the modal is
+   a full-screen sheet below 992px, see the page head CSS), one tap zooms in
+   on the spot that was tapped, one tap zooms out.
+
+   Zooming is layout, not transform: the .fp-zoom wrapper turns into a plain
+   scroll container and the image is laid out at the zoomed size, so panning
+   is the browser's own touch scrolling (momentum and all) and needs no
+   gesture code. A pan never produces a click, so dragging around a zoomed
+   plan cannot zoom it back out. Both viewers reset when they close or when
+   the plan changes.
+   ============================================================ */
+(function () {
+  var MIN = 2, MAX = 3;                /* zoom to the plan's real pixels, within this band */
+  var MODAL = '.popup[custom-modal-element="unit-floorplan"] .modal-content';
+
+  function wrap(img) {
+    if (!img) return null;
+    if (img.parentNode.classList.contains('fp-zoom')) return img.parentNode;
+    var w = document.createElement('div');
+    w.className = 'fp-zoom';
+    w.setAttribute('data-lenis-prevent', '');
+    img.parentNode.insertBefore(w, img);
+    w.appendChild(img);
+    return w;
+  }
+
+  function zoomOut(w) {
+    var img = w.querySelector('img');
+    w.classList.remove('is-zoomed');
+    if (img) { img.style.width = ''; img.style.marginTop = ''; }
+    w.scrollLeft = 0;
+    w.scrollTop = 0;
+  }
+
+  function zoomIn(w, img, x, y) {
+    var r = img.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var fx = (x - r.left) / r.width;    /* where they tapped, as a fraction of the plan */
+    var fy = (y - r.top) / r.height;
+    var scale = img.naturalWidth ? img.naturalWidth / r.width : MIN;
+    scale = Math.max(MIN, Math.min(MAX, scale));
+    var W = r.width * scale, H = r.height * scale;
+    w.classList.add('is-zoomed');
+    img.style.width = W + 'px';
+    var cw = w.clientWidth, ch = w.clientHeight;
+    /* a plan shorter than the viewer stays vertically centred */
+    img.style.marginTop = H < ch ? ((ch - H) / 2) + 'px' : '';
+    /* and the tapped spot lands in the middle of the viewer */
+    w.scrollLeft = Math.max(0, fx * W - cw / 2);
+    w.scrollTop = Math.max(0, fy * H - ch / 2);
+  }
+
+  /* reset when the viewer closes (lightbox: is-open, modal: is-active) or
+     when the plan itself changes (a new unit, another type) */
+  function watch(w, root) {
+    var img = w.querySelector('img');
+    new MutationObserver(function () {
+      if (!root.classList.contains('is-open') && !root.classList.contains('is-active')) zoomOut(w);
+    }).observe(root, { attributes: true, attributeFilter: ['class'] });
+    if (img) new MutationObserver(function () { zoomOut(w); }).observe(img, { attributes: true, attributeFilter: ['src'] });
+  }
+
+  document.addEventListener('click', function (e) {
+    var w = e.target.closest('.fp-zoom');
+    if (!w) return;
+    var img = w.querySelector('img');
+    if (w.classList.contains('is-zoomed')) {
+      e.preventDefault();
+      e.stopPropagation();
+      zoomOut(w);
+    } else if (img && e.target === img) {
+      e.preventDefault();
+      e.stopPropagation();
+      zoomIn(w, img, e.clientX, e.clientY);
+    }
+    /* a tap on the letterbox around an unzoomed plan is left to the viewer
+       (the lightbox closes on it) */
+  }, true);
+
+  function boot() {
+    var lb = document.querySelector('.fp-lightbox .fp-zoom');
+    if (lb) watch(lb, lb.closest('.fp-lightbox'));
+    var modal = document.querySelector(MODAL);
+    var img = modal && modal.querySelector('img');
+    if (img) watch(wrap(img), modal.closest('.popup'));
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
@@ -2082,7 +2182,21 @@ let audioContext;
        the arrows set a slideIndex variable nothing reads, and dragging did nothing.
        Swiper 11 is already loaded site-wide, so just mount it. */
     function mountSwiper() {
-      if (slider.swiper || typeof window.Swiper !== 'function') return;
+      if (typeof window.Swiper !== 'function') return;
+      if (slider.swiper) {
+        if (slider.swiper.__sv) return;
+        /* The site-wide footer initialiser mounts anything carrying
+           data-swiper-container="true" with the generic config baked into
+           data-swiper-config: loop + autoplay + touchStartPreventDefault, and no
+           observer, so it counts the slides before Wized renders them (one),
+           kills the taps, and autoplays. That is the "slider stopped working
+           again" state. Take it over: tear its instance down and mount ours. */
+        try { slider.swiper.destroy(true, true); } catch (e) {}
+        slider.swiper = null;
+      }
+      /* and make sure a re-run of that initialiser skips this element */
+      slider.removeAttribute('data-swiper-container');
+      slider.removeAttribute('data-swiper-config');
       new window.Swiper(slider, {
         slidesPerView: 1,
         speed: 400,
@@ -2101,6 +2215,7 @@ let audioContext;
           nextEl: slider.querySelector('[data-swiper-nav="next"]')
         }
       });
+      slider.swiper.__sv = true;   /* never autoplays, on any device */
 
       /* Second, independent path to the lightbox. Swiper's own tap event fires
          for mouse and touch alike, and deliberately does NOT fire when the
