@@ -117,7 +117,7 @@ window.Wized = window.Wized || [];
     let units = [];
     let booted = false;
 
-    const state = { colourBy: 'status', sort: 'price' };
+    const state = { colourBy: 'type', sort: 'price' };
     Object.keys(FACETS).forEach((f) => (state[f] = new Set()));
     Object.keys(RANGES).forEach((f) => (state[f] = new Set()));
 
