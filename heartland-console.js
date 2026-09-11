@@ -933,6 +933,45 @@
     "  .gp-unit { font-weight:600; min-width:44px; flex:0 0 auto; }",
     "  .gp-as { font-size:.6875rem; color:var(--ink-muted); flex:0 0 auto; }",
     "  .gp-why { color:var(--ink-2); }",
+    "  /* ── the pipeline grid (leads) ────────────────────── */",
+    "  .gcell.txt.is-editing input { text-align:left; }",
+    "  .gcell.long { max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }",
+    "  .gcell.is-editing.is-long textarea {",
+    "    width:100%; min-width:260px; border:0; border-radius:0; padding:7px 10px; font:inherit;",
+    "    box-shadow:inset 0 0 0 2px var(--accent); background:var(--surface); resize:vertical; display:block;",
+    "  }",
+    "  #plGrid tbody tr:hover td.gnum { background:var(--surface-2); }",
+    "  #plGrid td.gnum { white-space:nowrap; }",
+    "  .pl-row.is-ro td { color:var(--ink-2); }",
+    "  .pl-scopes { display:inline-flex; border:1px solid var(--rule); border-radius:var(--radius-sm); overflow:hidden; align-self:flex-end; }",
+    "  .pl-scope { font:inherit; font-size:.8125rem; padding:7px 12px; border:0; background:var(--surface); color:var(--ink-2); cursor:pointer; }",
+    "  .pl-scope + .pl-scope { border-left:1px solid var(--rule); }",
+    "  .pl-scope.is-on { background:var(--brand-soft); color:var(--ink); font-weight:600; }",
+    "  .pl-mine, .pl-unassigned { font-size:.625rem; text-transform:uppercase; letter-spacing:.06em; padding:1px 6px; border-radius:10px; margin-left:4px; }",
+    "  .pl-mine { background:var(--brand-soft); color:var(--accent); }",
+    "  .pl-unassigned { background:color-mix(in srgb, var(--warning) 18%, transparent); color:var(--ink); }",
+    "  .pl-lost { align-self:flex-end; padding-bottom:8px; white-space:nowrap; }",
+    "  .pl-state { text-transform:capitalize; }",
+    "  .inv-stat.is-warn b { color:var(--warning); }",
+    "  .linkish { font:inherit; color:var(--accent); background:none; border:0; padding:0; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }",
+    "  .gbar select, .gbar input[type=text] { font:inherit; font-size:.8125rem; padding:6px 8px; border:1px solid var(--rule); border-radius:var(--radius-sm); background:var(--surface); color:var(--ink); }",
+    "  /* ── sales teams ──────────────────────────────────── */",
+    "  .tm-wrap { margin-top:16px; }",
+    "  .tm-team { margin-top:12px; }",
+    "  .tm-team.is-off h2 { color:var(--ink-muted); }",
+    "  .tm-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }",
+    "  .tm-body h3 { font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-muted); margin:14px 0 6px; }",
+    "  .team-member { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:8px 0; border-bottom:1px solid var(--rule); font-size:.875rem; }",
+    "  .team-member:last-of-type { border-bottom:0; }",
+    "  .team-member.is-off .tm-name { color:var(--ink-muted); }",
+    "  .tm-name { flex:1 1 200px; }",
+    "  .tm-cap { display:inline-flex; align-items:center; gap:6px; font-size:.8125rem; color:var(--ink-2); }",
+    "  .tm-cap input { width:56px; font:inherit; padding:4px 6px; border:1px solid var(--rule); border-radius:var(--radius-sm); background:var(--surface); color:var(--ink); }",
+    "  .tm-add { margin-top:8px; }",
+    "  .tm-add select, .inv-chips select { font:inherit; font-size:.8125rem; padding:5px 8px; border:1px solid var(--rule); border-radius:var(--radius-sm); background:var(--surface); color:var(--ink); }",
+    "  .inv-chip.is-off { opacity:.55; }",
+    "  .chip-x { font:inherit; border:0; background:none; color:var(--ink-muted); cursor:pointer; padding:0 2px; }",
+    "  .chip-x:hover { color:var(--ink); }",
     "  .gp-why b { color:var(--ink); font-weight:600; }",
     "  .gpreview code {",
     "    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.75rem;",
@@ -1399,7 +1438,8 @@
     "    <div class=\"side-group\">",
     "      <button id=\"tabDash\" aria-selected=\"true\">Dashboard</button>",
     "      <button id=\"tabToday\" aria-selected=\"false\">Today<span class=\"count\" id=\"todayCount\">0</span></button>",
-    "      <button id=\"tabPipe\" aria-selected=\"false\">Pipeline<span class=\"count\" id=\"pipeCount\">0</span></button>",
+    "      <button id=\"tabLeads\" aria-selected=\"false\">Pipeline<span class=\"count\" id=\"leadsCount\">0</span></button>",
+    "      <button id=\"tabPipe\" aria-selected=\"false\">Deals<span class=\"count\" id=\"pipeCount\">0</span></button>",
     "      <button id=\"tabInv\" aria-selected=\"false\">Inventory</button>",
     "    </div>",
     "    <div class=\"side-group\" id=\"sideAdmin\" hidden>",
@@ -1428,7 +1468,9 @@
     "       refuses them, which is the check that matters. -->",
     "  <section id=\"viewTeam\" class=\"hide\"></section>",
     "",
-    "  <!-- Pipeline -->",
+    "  <!-- Pipeline: leads, the grid -->",
+    "  <section id=\"viewLeads\" class=\"hide\"></section>",
+    "  <!-- Deals: reservations -->",
     "  <section id=\"viewPipe\" class=\"hide\">",
     "    <div class=\"filters\">",
     "      <div class=\"f grow\">",
@@ -4665,6 +4707,534 @@
       .catch(function (e) { REC.busy = false; REC.err = e.message; renderFeat(); });
   }
 
+  /* =====================================================================================
+     THE GRID CORE - 11 Sep 2026.
+     One spreadsheet-grade grid, used twice: the inventory (homes) and the pipeline (leads).
+     Extracted from the inventory grid the day the pipeline needed the same thing - the
+     alternative was a second copy of pending edits, selection, cursor, copy-out, paste-in,
+     fill-down and sorting, and two copies drift in BEHAVIOUR, which is the failure that
+     cannot be tested away. Everything the two grids do differently is in the config:
+
+       state         the owner's state object; the core keeps pending, sel, anchor, cur,
+                     editing, sort, sortDir and saveErr on it
+       cols()        the columns, {key, label, kind, editable?, options?, unit?}
+       allRows()     every loaded row;   visibleRows()  the filtered rows, unsorted
+       keyOf(row)    the row's stable key (a string);  keyLabel(key)  how it is shown
+       keyHeader     the first column's header, which is how a pasted block is recognised
+                     as a round trip and routed by key rather than by position
+       keyLookup(s)  optional: a pasted key -> stored key (the inventory tolerates "01" / 1)
+       raw(row, col) the stored value;  toDisplay / fromDisplay  the two conversions
+       editable()    {on, why} for the grid;  colEditable(col, editable)  per column
+       render()      redraw;  view()  the element that holds the grid;  inputId
+       sortValue(row, key) optional override for keys the columns do not cover
+       naturalCompare(a, b) the order with no sort chosen
+       cellClass(row, col, shown) optional extra classes for a cell
+       gridId, pickAttr, sortAttr  the DOM hooks wire() binds
+
+     EVERYTHING IS KEYED BY THE ROW KEY, NEVER BY POSITION, so a re-sort or a filter under an
+     unsaved edit moves the row and keeps the edit on it. */
+  function makeGrid(cfg) {
+    var st = cfg.state;
+    if (!st.pending) { st.pending = {}; }
+    if (!st.sel) { st.sel = {}; }
+    if (st.sort === undefined) { st.sort = ""; }
+    if (st.sortDir === undefined) { st.sortDir = 1; }
+
+    function colByKey(key) {
+      var col = null;
+      cfg.cols().forEach(function (c) { if (c.key === key) { col = c; } });
+      return col;
+    }
+    function rowByKey(key) {
+      var rows = cfg.allRows(), i;
+      for (i = 0; i < rows.length; i++) { if (String(cfg.keyOf(rows[i])) === String(key)) { return rows[i]; } }
+      return null;
+    }
+
+    /* ---- pending edits ---- */
+    function cellValue(row, col) {
+      var p = st.pending[cfg.keyOf(row)];
+      if (p && Object.prototype.hasOwnProperty.call(p, col.key)) { return p[col.key]; }
+      return cfg.toDisplay(col, cfg.raw(row, col));
+    }
+    function isDirty(key, field) {
+      var p = st.pending[key];
+      return !!(p && Object.prototype.hasOwnProperty.call(p, field));
+    }
+    function pendingCount() {
+      var n = 0, k;
+      for (k in st.pending) {
+        if (Object.prototype.hasOwnProperty.call(st.pending, k)) { n += Object.keys(st.pending[k]).length; }
+      }
+      return n;
+    }
+    /* Typing a value back to what it already was CLEARS the pending edit rather than
+       recording a no-op, so the dirty count means what it says. */
+    function setPending(key, field, display) {
+      var col = colByKey(field);
+      var row = rowByKey(key);
+      if (!col || !row) { return; }
+      var stored = cfg.toDisplay(col, cfg.raw(row, col));
+      var typed = String(display === null || display === undefined ? "" : display);
+      if (col.kind !== "long") { typed = typed.trim(); }
+      if (!st.pending[key]) { st.pending[key] = {}; }
+      if (typed === stored) { delete st.pending[key][field]; }
+      else { st.pending[key][field] = typed; }
+      if (!Object.keys(st.pending[key]).length) { delete st.pending[key]; }
+    }
+    function changeList() {
+      var out = [], key;
+      for (key in st.pending) {
+        if (!Object.prototype.hasOwnProperty.call(st.pending, key)) { continue; }
+        var fields = {}, f;
+        for (f in st.pending[key]) {
+          if (!Object.prototype.hasOwnProperty.call(st.pending[key], f)) { continue; }
+          fields[f] = cfg.fromDisplay(colByKey(f), st.pending[key][f]);
+        }
+        out.push({ key: key, fields: fields });
+      }
+      return out;
+    }
+
+    /* ---- selection ---- */
+    function visible() { return sortRows(cfg.visibleRows().slice()).map(function (r) { return String(cfg.keyOf(r)); }); }
+    function selectRow(key, e) {
+      var vis = visible();
+      if (e && e.shiftKey && st.anchor) {
+        var a = vis.indexOf(String(st.anchor)), b = vis.indexOf(String(key));
+        if (a !== -1 && b !== -1) {
+          var lo = Math.min(a, b), hi = Math.max(a, b);
+          st.sel = {};
+          for (var i = lo; i <= hi; i++) { st.sel[vis[i]] = true; }
+          cfg.render();
+          return;
+        }
+      }
+      /* A checkbox TOGGLES; it does not replace the selection. */
+      if (st.sel[key]) { delete st.sel[key]; } else { st.sel[key] = true; }
+      st.anchor = key;
+      cfg.render();
+    }
+    function selectAll(on) {
+      st.sel = {};
+      if (on) { visible().forEach(function (k) { st.sel[k] = true; }); }
+      cfg.render();
+    }
+    function selCount() { return Object.keys(st.sel).length; }
+    function selectedRows() {
+      var rows = sortRows(cfg.visibleRows().slice());
+      if (selCount()) { rows = rows.filter(function (r) { return st.sel[String(cfg.keyOf(r))]; }); }
+      return rows;
+    }
+
+    /* ---- the focused cell ---- */
+    function move(dRow, dCol) {
+      var vis = visible();
+      if (!vis.length) { return; }
+      var mcols = cfg.cols();
+      if (!st.cur) { st.cur = { row: vis[0], col: mcols[0].key }; cfg.render(); return; }
+      var r = vis.indexOf(String(st.cur.row));
+      var c = 0, i;
+      for (i = 0; i < mcols.length; i++) { if (mcols[i].key === st.cur.col) { c = i; } }
+      if (r === -1) { r = 0; }
+      r += dRow; c += dCol;
+      if (c >= mcols.length) { c = 0; r += 1; }
+      if (c < 0) { c = mcols.length - 1; r -= 1; }
+      if (r < 0) { r = 0; }
+      if (r >= vis.length) { r = vis.length - 1; }
+      st.cur = { row: vis[r], col: mcols[c].key };
+      st.editing = null;
+      cfg.render();
+      focusCur();
+    }
+    function focusCur() {
+      if (!st.cur) { return; }
+      var v = cfg.view();
+      if (!v) { return; }
+      var el = v.querySelector('[data-cell="' + st.cur.row + "|" + st.cur.col + '"]');
+      if (el) { el.focus(); }
+    }
+    function beginEdit(key, field, seed) {
+      var editable = cfg.editable();
+      if (!editable.on) { return; }
+      var col = colByKey(field);
+      if (!col || !cfg.colEditable(col, editable)) { return; }
+      /* A row can be closed while the grid is open - somebody else's lead, say. */
+      var row = rowByKey(key);
+      if (cfg.rowEditable && row && !cfg.rowEditable(row)) { return; }
+      st.cur = { row: key, col: field };
+      st.editing = { row: key, col: field, seed: seed };
+      cfg.render();
+      var input = $(cfg.inputId);
+      if (input) {
+        input.focus();
+        if (input.tagName === "SELECT") { return; }
+        if (seed === undefined) { input.select(); }
+        else { try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) {} }
+      }
+    }
+    function commitEdit(mv) {
+      if (!st.editing) { return; }
+      var input = $(cfg.inputId);
+      if (input) { setPending(st.editing.row, st.editing.col, input.value); }
+      st.editing = null;
+      if (mv === "down") { move(1, 0); }
+      else if (mv === "right") { move(0, 1); }
+      else { cfg.render(); focusCur(); }
+    }
+
+    /* ---- copy out ---- */
+    function tsv(rows) {
+      var tcols = cfg.cols();
+      var head = [cfg.keyHeader].concat(tcols.map(function (c) { return c.label; }));
+      var lines = [head.join("\t")];
+      rows.forEach(function (r) {
+        var cells = [cfg.keyLabel(cfg.keyOf(r))];
+        tcols.forEach(function (c) {
+          /* A newline inside a cell would split the row on the way back. Sheets and Excel
+             both accept a quoted cell, and read it back as one cell with its line breaks. */
+          var v = String(cellValue(r, c));
+          if (v.indexOf("\n") !== -1 || v.indexOf("\t") !== -1 || v.indexOf('"') !== -1) {
+            v = '"' + v.replace(/"/g, '""') + '"';
+          }
+          cells.push(v);
+        });
+        lines.push(cells.join("\t"));
+      });
+      return lines.join("\n");
+    }
+    function copy() {
+      var rows = selectedRows();
+      if (!rows.length) { return; }
+      var text = tsv(rows);
+      var done = function () {
+        st.saveErr = rows.length + " row" + (rows.length === 1 ? "" : "s") +
+          " copied. Paste into a spreadsheet, edit, and paste the block back — the header row " +
+          "comes back safely, and only the columns you changed will register as changes.";
+        cfg.render();
+      };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, function () { copyFallback(text, done); });
+          return;
+        }
+      } catch (e) {}
+      copyFallback(text, done);
+    }
+    function copyFallback(text, done) {
+      try {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "readonly");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        cfg.view().appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.parentNode.removeChild(ta);
+        done();
+      } catch (e) {
+        st.saveErr = "Could not reach the clipboard. Copying is blocked in this browser or " +
+          "this context; the grid is unchanged.";
+        cfg.render();
+      }
+    }
+
+    /* ---- fill down, and paste ---- */
+    function fillDown() {
+      if (!cfg.editable().on || !st.cur) { return; }
+      var vis = visible();
+      var start = vis.indexOf(String(st.cur.row));
+      if (start === -1) { return; }
+      var col = colByKey(st.cur.col);
+      var seedRow = rowByKey(st.cur.row);
+      if (!col || !seedRow) { return; }
+      var seed = cellValue(seedRow, col);
+      var targets = selCount() ? vis.filter(function (k) { return st.sel[k]; }) : vis.slice(start);
+      targets.forEach(function (k) { setPending(k, col.key, seed); });
+      cfg.render();
+    }
+
+    /* Splits tab-separated text into rows of cells, honouring quoted cells - which is how a
+       note with a line break in it survives the trip through a spreadsheet. */
+    function parseTsv(text) {
+      var rows = [], row = [], cell = "", i, ch, q = false;
+      var s = String(text).replace(/\r/g, "");
+      for (i = 0; i < s.length; i++) {
+        ch = s.charAt(i);
+        if (q) {
+          if (ch === '"') {
+            if (s.charAt(i + 1) === '"') { cell += '"'; i++; }
+            else { q = false; }
+          } else { cell += ch; }
+        } else if (ch === '"' && cell === "") { q = true; }
+        else if (ch === "\t") { row.push(cell); cell = ""; }
+        else if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+        else { cell += ch; }
+      }
+      row.push(cell); rows.push(row);
+      while (rows.length && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === "") { rows.pop(); }
+      return rows;
+    }
+
+    function paste(text) {
+      if (!cfg.editable().on || !st.cur) { return; }
+      var lines = parseTsv(text);
+      if (!lines.length) { return; }
+      var headCells = lines[0].map(function (c) { return c.trim().toLowerCase(); });
+      var byLabel = {};
+      cfg.cols().forEach(function (c) { byLabel[c.label.toLowerCase()] = c; });
+
+      /* A block carrying OUR header row is a round trip, routed by key; a bare block lands
+         positionally from the focused cell, as every spreadsheet does. */
+      var isRoundTrip = headCells[0] === cfg.keyHeader.toLowerCase() && lines.length > 1;
+      if (isRoundTrip) { return pasteByKey(lines, headCells, byLabel); }
+
+      var skippedHeader = false;
+      if (byLabel[headCells[0]] && lines.length > 1) { lines.shift(); skippedHeader = true; }
+
+      var vis = visible();
+      var r0 = vis.indexOf(String(st.cur.row));
+      var c0 = 0;
+      var pcols = cfg.cols();
+      pcols.forEach(function (c, i) { if (c.key === st.cur.col) { c0 = i; } });
+      if (r0 === -1) { return; }
+
+      var filled = 0, skipped = 0;
+      lines.forEach(function (cells, li) {
+        var key = vis[r0 + li];
+        if (!key) { skipped += cells.length; return; }
+        cells.forEach(function (cell, ci) {
+          var col = pcols[c0 + ci];
+          if (!col) { skipped += 1; return; }
+          setPending(key, col.key, cell);
+          filled += 1;
+        });
+      });
+      var note = skippedHeader ? "Header row ignored. " : "";
+      st.saveErr = skipped
+        ? (note + filled + " cell(s) filled. " + skipped + " had nowhere to go — the paste ran " +
+           "past the last visible row or the last column, and those values were not taken.")
+        : (skippedHeader ? note + filled + " cell(s) filled." : "");
+      cfg.render();
+    }
+
+    function pasteByKey(lines, headCells, byLabel) {
+      var cols = headCells.map(function (h, i) { return i === 0 ? null : (byLabel[h] || null); });
+      var unknown = [];
+      headCells.forEach(function (h, i) { if (i > 0 && !byLabel[h] && h) { unknown.push(h); } });
+
+      var known = {};
+      cfg.allRows().forEach(function (r) {
+        var k = String(cfg.keyOf(r));
+        known[k] = k;
+        known[String(cfg.keyLabel(k))] = k;
+      });
+
+      var filled = 0, rows = 0, missing = [];
+      for (var i = 1; i < lines.length; i++) {
+        var cells = lines[i];
+        var asked = String(cells[0] || "").trim();
+        if (!asked) { continue; }
+        var target = known[asked];
+        if (target === undefined && cfg.keyLookup) { target = cfg.keyLookup(asked, known); }
+        if (target === undefined) { missing.push(asked); continue; }
+        rows += 1;
+        for (var c = 1; c < cells.length; c++) {
+          var col = cols[c];
+          if (!col) { continue; }
+          setPending(target, col.key, cells[c]);
+          filled += 1;
+        }
+      }
+      var bits = [];
+      bits.push(rows + " row" + (rows === 1 ? "" : "s") + " matched by " + cfg.keyHeader.toLowerCase() + (cfg.keyHeader === "Unit" ? " number" : ""));
+      if (missing.length) {
+        bits.push(missing.length + " " + (cfg.notFoundText || "not found here") + " (" +
+          missing.slice(0, 6).join(", ") + (missing.length > 6 ? "…" : "") + ")");
+      }
+      if (unknown.length) {
+        bits.push(unknown.length + " column" + (unknown.length === 1 ? "" : "s") +
+          " ignored — not editable here (" + unknown.join(", ") + ")");
+      }
+      st.saveErr = (missing.length || unknown.length) ? bits.join(". ") + "." : "";
+      cfg.render();
+    }
+
+    /* ---- sorting ---- */
+    function sortValue(row, key) {
+      if (cfg.sortValue) {
+        var v0 = cfg.sortValue(row, key);
+        if (v0 !== undefined) { return v0; }
+      }
+      var col = colByKey(key);
+      if (!col) { return ""; }
+      var raw = cellValue(row, col);
+      if (raw === "" || raw === null || raw === undefined) { return null; }
+      var v = Number(raw);
+      return (isNaN(v) || col.kind === "text" || col.kind === "long" || col.kind === "enum") ? String(raw) : v;
+    }
+    function sortRows(rows) {
+      if (!st.sort) { return rows.sort(cfg.naturalCompare); }
+      var key = st.sort, dir = st.sortDir;
+      return rows.sort(function (a, b) {
+        var av = sortValue(a, key), bv = sortValue(b, key);
+        var ae = (av === null || av === "");
+        var be = (bv === null || bv === "");
+        if (ae !== be) { return ae ? 1 : -1; }
+        if (ae && be) { return 0; }
+        if (typeof av === "number" && typeof bv === "number") { return (av - bv) * dir; }
+        return String(av).localeCompare(String(bv)) * dir;
+      });
+    }
+    function sortBy(key) {
+      if (st.sort !== key) { st.sort = key; st.sortDir = 1; }
+      else if (st.sortDir === 1) { st.sortDir = -1; }
+      else { st.sort = ""; st.sortDir = 1; }
+      cfg.render();
+    }
+    function sortMark(key) {
+      if (st.sort !== key) { return ""; }
+      return '<span class="gsort">' + (st.sortDir === 1 ? "↑" : "↓") + "</span>";
+    }
+
+    /* ---- one cell ---- */
+    function cellHtml(row, col, editable, extraClass) {
+      var key = String(cfg.keyOf(row));
+      var val = cellValue(row, col);
+      var dirty = isDirty(key, col.key);
+      var focused = st.cur && String(st.cur.row) === key && st.cur.col === col.key;
+      var isEditing = st.editing && String(st.editing.row) === key && st.editing.col === col.key;
+      var live = cfg.colEditable(col, editable) && !(cfg.rowEditable && !cfg.rowEditable(row));
+
+      if (isEditing) {
+        var seeded = (st.editing.seed === undefined) ? val : st.editing.seed;
+        if (col.kind === "enum" && col.options && col.options.length) {
+          return '<td class="gcell is-editing"><select id="' + cfg.inputId + '">' +
+            (col.required ? "" : '<option value=""' + (seeded === "" ? " selected" : "") + ">—</option>") +
+            col.options.map(function (o) {
+              var ov = (typeof o === "object") ? o.value : o;
+              var ol = (typeof o === "object") ? o.label : o;
+              return '<option value="' + esc(ov) + '"' +
+                (String(seeded) === String(ov) ? " selected" : "") + ">" + esc(ol) + "</option>";
+            }).join("") + "</select></td>";
+        }
+        if (col.kind === "long") {
+          return '<td class="gcell is-editing is-long"><textarea id="' + cfg.inputId + '" rows="4">' +
+            esc(seeded) + "</textarea></td>";
+        }
+        return '<td class="gcell is-editing"><input id="' + cfg.inputId + '" type="text" value="' +
+          esc(seeded) + '"></td>';
+      }
+
+      var shown = val === "" ? "" : val;
+      if (shown !== "" && col.kind === "cents" && !isNaN(Number(shown))) {
+        shown = Number(shown).toLocaleString("en-ZA", { maximumFractionDigits: 2 });
+      }
+      if (col.kind === "enum" && col.options && col.options.length && shown !== "") {
+        col.options.forEach(function (o) {
+          if (typeof o === "object" && String(o.value) === String(shown)) { shown = o.label; }
+        });
+      }
+      var numeric = (col.kind === "cents" || col.kind === "area" || col.kind === "pct" || col.kind === "num");
+      var extra = (cfg.cellClass ? cfg.cellClass(row, col, shown) : "") || "";
+      return '<td class="gcell' + (numeric ? " num" : " txt") + (col.kind === "long" ? " long" : "") +
+        (dirty ? " is-dirty" : "") + (focused ? " is-cur" : "") + (live ? " is-live" : "") +
+        (extra ? " " + extra : "") + (extraClass ? " " + extraClass : "") +
+        '" data-cell="' + esc(key) + "|" + esc(col.key) + '"' +
+        (live ? ' tabindex="-1"' : "") + (col.kind === "long" && shown ? ' title="' + esc(shown) + '"' : "") + ">" +
+        (shown === "" ? '<span class="muted">—</span>' : esc(shown)) +
+        (shown !== "" && col.unit ? ' <span class="gunit">' + esc(col.unit) + "</span>" : "") +
+        "</td>";
+    }
+
+    /* ---- wiring, after every render ---- */
+    function wire() {
+      var v = cfg.view();
+      if (!v) { return; }
+      [].forEach.call(v.querySelectorAll("[" + cfg.sortAttr + "]"), function (el) {
+        el.addEventListener("click", function () { sortBy(el.getAttribute(cfg.sortAttr)); });
+      });
+      var all = cfg.pickAllId ? $(cfg.pickAllId) : null;
+      if (all) { all.addEventListener("change", function () { selectAll(all.checked); }); }
+      [].forEach.call(v.querySelectorAll("[" + cfg.pickAttr + "]"), function (el) {
+        el.addEventListener("click", function (e) {
+          e.stopPropagation();
+          selectRow(el.getAttribute(cfg.pickAttr), e);
+        });
+      });
+      [].forEach.call(v.querySelectorAll("[data-cell]"), function (el) {
+        var parts = el.getAttribute("data-cell").split("|");
+        /* One click focuses, a second opens the editor - the spreadsheet contract, decided
+           in the click handler and nowhere else. */
+        el.addEventListener("click", function () {
+          var isCur = st.cur && String(st.cur.row) === parts[0] && st.cur.col === parts[1];
+          if (isCur && !st.editing) { beginEdit(parts[0], parts[1]); return; }
+          st.cur = { row: parts[0], col: parts[1] };
+          st.editing = null;
+          cfg.render();
+          focusCur();
+        });
+        el.addEventListener("dblclick", function () { beginEdit(parts[0], parts[1]); });
+      });
+
+      var input = $(cfg.inputId);
+      if (input) {
+        var long = input.tagName === "TEXTAREA";
+        input.addEventListener("keydown", function (e) {
+          /* stopPropagation, not just preventDefault - the input sits inside the grid. In a
+             long-text cell Enter is a line break and Ctrl+Enter commits. */
+          if (e.key === "Enter" && (!long || e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); commitEdit("down"); }
+          else if (e.key === "Tab") { e.preventDefault(); e.stopPropagation(); commitEdit("right"); }
+          else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); st.editing = null; cfg.render(); focusCur(); }
+          else { e.stopPropagation(); }
+        });
+        input.addEventListener("blur", function () { if (st.editing) { commitEdit(null); } });
+      }
+
+      var grid = $(cfg.gridId);
+      if (grid) {
+        grid.addEventListener("keydown", function (e) {
+          if (st.editing) { return; }
+          var k = e.key;
+          if (k === "ArrowDown") { e.preventDefault(); move(1, 0); }
+          else if (k === "ArrowUp") { e.preventDefault(); move(-1, 0); }
+          else if (k === "ArrowRight") { e.preventDefault(); move(0, 1); }
+          else if (k === "ArrowLeft") { e.preventDefault(); move(0, -1); }
+          else if (k === "Tab") { e.preventDefault(); move(0, e.shiftKey ? -1 : 1); }
+          else if (k === "Enter" || k === "F2") { if (st.cur) { e.preventDefault(); beginEdit(st.cur.row, st.cur.col); } }
+          else if ((k === "d" || k === "D") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); fillDown(); }
+          else if ((k === "c" || k === "C") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); copy(); }
+          else if ((k === "a" || k === "A") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); selectAll(true); }
+          else if (k === "Delete" || k === "Backspace") {
+            if (st.cur && cfg.editable().on) { e.preventDefault(); setPending(st.cur.row, st.cur.col, ""); cfg.render(); focusCur(); }
+          }
+          else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            if (st.cur) { e.preventDefault(); beginEdit(st.cur.row, st.cur.col, k); }
+          }
+        });
+        grid.addEventListener("paste", function (e) {
+          if (st.editing || !st.cur) { return; }
+          var t = (e.clipboardData || window.clipboardData);
+          if (!t) { return; }
+          e.preventDefault();
+          paste(t.getData("text/plain") || "");
+        });
+      }
+    }
+
+    return {
+      colByKey: colByKey, rowByKey: rowByKey,
+      cellValue: cellValue, isDirty: isDirty, pendingCount: pendingCount, setPending: setPending,
+      changeList: changeList,
+      visible: visible, selectRow: selectRow, selectAll: selectAll, selCount: selCount, selectedRows: selectedRows,
+      move: move, focusCur: focusCur, beginEdit: beginEdit, commitEdit: commitEdit,
+      tsv: tsv, copy: copy, copyFallback: copyFallback, fillDown: fillDown, paste: paste, parseTsv: parseTsv,
+      sortValue: sortValue, sortRows: sortRows, sortBy: sortBy, sortMark: sortMark,
+      cellHtml: cellHtml, wire: wire
+    };
+  }
+
   /* The editable columns, in the order the grid shows them. kind drives both the input and
      how a pasted value is read - and it must agree with the server's allowlist in
      bulk_update_units, which is the thing that actually decides. */
@@ -4711,6 +5281,32 @@
   };
 
   var INV_STATES = ["available", "held", "sold", "unreleased", "unavailable"];
+
+  /* The inventory's grid - the core above, told what a home is. Keyed by unit number; the
+     stored number is what travels, the padded one is what shows. */
+  var INV_GRID = makeGrid({
+    state: INV,
+    cols: function () { return invCols(); },
+    allRows: function () { return (INV.data && INV.data.units) || []; },
+    visibleRows: function () { return invRowsUnsorted(); },
+    keyOf: function (u) { return u.unit_number; },
+    keyLabel: function (n) { return invPad(n); },
+    keyHeader: "Unit",
+    /* Excel will have eaten the leading zero on the way out, and it does not matter. */
+    keyLookup: function (asked, known) { return /^[0-9]+$/.test(asked) ? known[String(Number(asked))] : undefined; },
+    notFoundText: "not found on this development",
+    raw: function (u, col) { return invRaw(u, col); },
+    toDisplay: function (col, v) { return invToDisplay(col, v); },
+    fromDisplay: function (col, raw) { return invFromDisplay(col, raw); },
+    editable: function () { return invEditable(); },
+    colEditable: function (col, editable) { return invColEditable(col, editable); },
+    render: function () { renderInv(); },
+    view: function () { return $("viewInv"); },
+    inputId: "invCellInput", gridId: "invGrid", pickAttr: "data-inv-pick", pickAllId: "invPickAll", sortAttr: "data-sort",
+    sortValue: function (u, key) { return invSortValue(u, key); },
+    naturalCompare: function (a, b) { return invNaturalCompare(a, b); }
+  });
+
 
   var INV_OWED_LABEL = {
     price_cents: "Price",
@@ -6818,373 +7414,41 @@
     return isNaN(m) ? raw : m;
   }
 
-  /* The value a cell should show: the pending edit if there is one, else the stored value. */
-  function invCellValue(u, col) {
-    var p = INV.pending[u.unit_number];
-    if (p && Object.prototype.hasOwnProperty.call(p, col.key)) { return p[col.key]; }
-    return invToDisplay(col, invRaw(u, col));
-  }
-
-  function invIsDirty(unitNumber, field) {
-    var p = INV.pending[unitNumber];
-    return !!(p && Object.prototype.hasOwnProperty.call(p, field));
-  }
-
-  function invPendingCount() {
-    var n = 0, k;
-    for (k in INV.pending) {
-      if (Object.prototype.hasOwnProperty.call(INV.pending, k)) {
-        n += Object.keys(INV.pending[k]).length;
-      }
-    }
-    return n;
-  }
-
-  function invSetPending(unitNumber, field, display) {
-    var col = null, i;
-    var cols = invCols();
-    for (i = 0; i < cols.length; i++) { if (cols[i].key === field) { col = cols[i]; } }
-    if (!col) { return; }
-
-    var row = null, us = (INV.data && INV.data.units) || [];
-    for (i = 0; i < us.length; i++) { if (us[i].unit_number === unitNumber) { row = us[i]; } }
-    if (!row) { return; }
-
-    /* Typing a value back to what it already was should CLEAR the pending edit, not record
-       a no-op. Otherwise the dirty count keeps climbing while nothing has actually changed,
-       and Save sends rows the server will only answer "unchanged" to. */
-    var stored = invToDisplay(col, invRaw(row, col));
-    var typed = String(display === null || display === undefined ? "" : display).trim();
-
-    if (!INV.pending[unitNumber]) { INV.pending[unitNumber] = {}; }
-    if (typed === stored) { delete INV.pending[unitNumber][field]; }
-    else { INV.pending[unitNumber][field] = typed; }
-
-    if (!Object.keys(INV.pending[unitNumber]).length) { delete INV.pending[unitNumber]; }
-  }
+  /* Pending edits, keyed by unit number, are the grid core's - see makeGrid. */
+  function invCellValue(u, col) { return INV_GRID.cellValue(u, col); }
+  function invIsDirty(unitNumber, field) { return INV_GRID.isDirty(unitNumber, field); }
+  function invPendingCount() { return INV_GRID.pendingCount(); }
+  function invSetPending(unitNumber, field, display) { INV_GRID.setPending(unitNumber, field, display); }
 
   function invDiscard() {
     INV.pending = {}; INV.bulk = null; INV.saveErr = ""; INV.editing = null;
     renderInv();
   }
 
-  /* ---- selection ---- */
+  /* ---- selection: the grid core's ---- */
+  function invVisible() { return INV_GRID.visible(); }
+  function invSelectRow(unitNumber, e) { INV_GRID.selectRow(unitNumber, e); }
+  function invSelectAll(on) { INV_GRID.selectAll(on); }
+  function invSelCount() { return INV_GRID.selCount(); }
 
-  function invVisible() { return invRows().map(function (u) { return u.unit_number; }); }
+  /* ---- the focused cell: the grid core's ---- */
+  function invMove(dRow, dCol) { INV_GRID.move(dRow, dCol); }
+  function invFocusCur() { INV_GRID.focusCur(); }
+  function invBeginEdit(unitNumber, field, seed) { INV_GRID.beginEdit(unitNumber, field, seed); }
+  function invCommitEdit(move) { INV_GRID.commitEdit(move); }
 
-  function invSelectRow(unitNumber, e) {
-    var vis = invVisible();
-    if (e && e.shiftKey && INV.anchor) {
-      var a = vis.indexOf(INV.anchor), b = vis.indexOf(unitNumber);
-      if (a !== -1 && b !== -1) {
-        var lo = Math.min(a, b), hi = Math.max(a, b);
-        INV.sel = {};
-        for (var i = lo; i <= hi; i++) { INV.sel[vis[i]] = true; }
-        renderInv();
-        return;
-      }
-    }
-    /* A CHECKBOX TOGGLES. It does not replace the selection, because that is not what a
-       checkbox means anywhere else - a person ticking four boxes expects four ticks, not the
-       last one. Shift still extends a range from the anchor, which is the only behaviour a
-       plain toggle cannot express. */
-    if (INV.sel[unitNumber]) { delete INV.sel[unitNumber]; } else { INV.sel[unitNumber] = true; }
-    INV.anchor = unitNumber;
-    renderInv();
-  }
-
-  function invSelectAll(on) {
-    INV.sel = {};
-    if (on) { invVisible().forEach(function (n) { INV.sel[n] = true; }); }
-    renderInv();
-  }
-
-  function invSelCount() { return Object.keys(INV.sel).length; }
-
-  /* ---- the focused cell ---- */
-
-  function invMove(dRow, dCol) {
-    var vis = invVisible();
-    if (!vis.length) { return; }
-    var mcols = invCols();
-    if (!INV.cur) { INV.cur = { row: vis[0], col: mcols[0].key }; renderInv(); return; }
-
-    var r = vis.indexOf(INV.cur.row);
-    var c = 0, i;
-    for (i = 0; i < mcols.length; i++) { if (mcols[i].key === INV.cur.col) { c = i; } }
-    if (r === -1) { r = 0; }
-
-    r += dRow; c += dCol;
-    /* Tabbing off the end of a row wraps to the next one, the way a spreadsheet does. */
-    if (c >= mcols.length) { c = 0; r += 1; }
-    if (c < 0) { c = mcols.length - 1; r -= 1; }
-    if (r < 0) { r = 0; }
-    if (r >= vis.length) { r = vis.length - 1; }
-
-    INV.cur = { row: vis[r], col: mcols[c].key };
-    INV.editing = null;
-    renderInv();
-    invFocusCur();
-  }
-
-  function invFocusCur() {
-    if (!INV.cur) { return; }
-    var sel = '[data-cell="' + INV.cur.row + "|" + INV.cur.col + '"]';
-    var el = $("viewInv").querySelector(sel);
-    if (el) { el.focus(); }
-  }
-
-  function invBeginEdit(unitNumber, field, seed) {
-    var editable = invEditable();
-    if (!editable.on) { return; }
-    /* And this particular column has to be open too. Checked here rather than only at the
-       click, because fill-down and paste reach the same edit by another route. */
-    var col = null;
-    invCols().forEach(function (c) { if (c.key === field) { col = c; } });
-    if (!col || !invColEditable(col, editable)) { return; }
-    INV.cur = { row: unitNumber, col: field };
-    INV.editing = { row: unitNumber, col: field, seed: seed };
-    renderInv();
-    var input = $("invCellInput");
-    if (input) {
-      input.focus();
-      /* A picker has neither select() nor a selection range - it is already showing its
-         options, which is the whole point of using one for an enum. */
-      if (input.tagName === "SELECT") { return; }
-      if (seed === undefined) { input.select(); }
-      else { input.setSelectionRange(input.value.length, input.value.length); }
-    }
-  }
-
-  function invCommitEdit(move) {
-    if (!INV.editing) { return; }
-    var input = $("invCellInput");
-    if (input) { invSetPending(INV.editing.row, INV.editing.col, input.value); }
-    INV.editing = null;
-    if (move === "down") { invMove(1, 0); }
-    else if (move === "right") { invMove(0, 1); }
-    else { renderInv(); invFocusCur(); }
-  }
-
-  /* ---- copy out ----
-     THE OTHER HALF OF THE LOOP. Paste in already worked; without copy out, getting the data
-     into a spreadsheet meant Download CSV, which exports reservations rather than stock. Tab
-     separated with a header row is what Excel, Numbers and Sheets all read on paste without
-     an import dialog, and it is exactly what invPaste reads back.
-
-     THE UNIT NUMBER GOES OUT AS ITS LABEL, PADDED. That is what a person expects to see in
-     the column, and it costs nothing: the paste path finds the row by position, and the
-     server is only ever sent the stored number. */
-  function invTsv(rows) {
-    var tcols = invCols();
-    var head = ["Unit"].concat(tcols.map(function (c) { return c.label; }));
-    var lines = [head.join("\t")];
-    rows.forEach(function (u) {
-      var cells = [invPad(u.unit_number)];
-      tcols.forEach(function (c) { cells.push(invCellValue(u, c)); });
-      lines.push(cells.join("\t"));
-    });
-    return lines.join("\n");
-  }
-
-  function invCopy() {
-    var rows = invRows();
-    /* The selection when there is one, otherwise everything on screen - the same rule
-       Ctrl+D follows, so the two do not need learning separately. */
-    if (invSelCount()) { rows = rows.filter(function (u) { return INV.sel[u.unit_number]; }); }
-    if (!rows.length) { return; }
-
-    var text = invTsv(rows);
-    var done = function () {
-      INV.saveErr = rows.length + " row" + (rows.length === 1 ? "" : "s") +
-        " copied. Paste into a spreadsheet, edit, and paste the block back — the header row " +
-        "comes back safely, and only the columns you changed will register as changes.";
-      renderInv();
-    };
-
-    /* navigator.clipboard needs a secure context and a permission; the textarea fallback
-       needs neither and is what makes this work in a Designer preview. */
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, function () { invCopyFallback(text, done); });
-        return;
-      }
-    } catch (e) {}
-    invCopyFallback(text, done);
-  }
-
-  function invCopyFallback(text, done) {
-    try {
-      var ta = document.createElement("textarea");
-      ta.value = text;
-      ta.setAttribute("readonly", "readonly");
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      /* Into the shadow root, not the document - the console lives in one, and a node
-         appended to the page body cannot be selected from inside it. */
-      $("viewInv").appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      ta.parentNode.removeChild(ta);
-      done();
-    } catch (e) {
-      INV.saveErr = "Could not reach the clipboard. Copying is blocked in this browser or " +
-        "this context; the grid is unchanged.";
-      renderInv();
-    }
-  }
-
-  /* ---- fill down, and paste ---- */
-
-  function invFillDown() {
-    if (!invEditable().on || !INV.cur) { return; }
-    var vis = invVisible();
-    var start = vis.indexOf(INV.cur.row);
-    if (start === -1) { return; }
-
-    var us = (INV.data && INV.data.units) || [];
-    var byNum = {}; us.forEach(function (u) { byNum[u.unit_number] = u; });
-    var col = null;
-    invCols().forEach(function (c) { if (c.key === INV.cur.col) { col = c; } });
-    if (!col) { return; }
-
-    var seed = invCellValue(byNum[INV.cur.row], col);
-    /* Into the selection where there is one, otherwise to the bottom of the visible rows -
-       the two things Ctrl+D means in a spreadsheet, depending on what is highlighted. */
-    var targets = invSelCount() ? vis.filter(function (n) { return INV.sel[n]; })
-                                : vis.slice(start);
-    targets.forEach(function (n) { if (byNum[n]) { invSetPending(n, col.key, seed); } });
-    renderInv();
-  }
-
-  /* Excel copies as tab-separated rows. Pasting into a cell fills right and down from it,
-     which is what every spreadsheet does and what makes "copy a column out, fix it, paste
-     it back" work at all. */
-  function invPaste(text) {
-    if (!invEditable().on || !INV.cur) { return; }
-    var lines = String(text).replace(/\r/g, "").split("\n");
-    while (lines.length && lines[lines.length - 1] === "") { lines.pop(); }
-    if (!lines.length) { return; }
-
-    /* TWO KINDS OF PASTE, AND THE DIFFERENCE MATTERS MORE THAN IT LOOKS.
-       A bare block - a column of numbers out of a spreadsheet - lands POSITIONALLY, from the
-       focused cell down and right. That is what every spreadsheet does and what people
-       expect.
-       A block that carries OUR header row is a round trip, and it is routed BY UNIT NUMBER
-       instead. Positional would be quietly wrong there: sort the grid or change a filter
-       between the copy and the paste, and forty edits land on the wrong forty homes with
-       nothing to show for it. A block that names its rows should be matched on the name. */
-    var headCells = lines[0].split("\t").map(function (c) { return c.trim().toLowerCase(); });
-    var byLabel = {};
-    invCols().forEach(function (c) { byLabel[c.label.toLowerCase()] = c; });
-
-    var isRoundTrip = headCells[0] === "unit" && lines.length > 1;
-    if (isRoundTrip) {
-      return invPasteByUnit(lines, headCells, byLabel);
-    }
-
-    /* A header row on its own - somebody copied one column with its title - is dropped
-       rather than pasted into a cell. */
-    var skippedHeader = false;
-    if (byLabel[headCells[0]] && lines.length > 1) { lines.shift(); skippedHeader = true; }
-
-    var vis = invVisible();
-    var r0 = vis.indexOf(INV.cur.row);
-    var c0 = 0;
-    var pcols = invCols();
-    pcols.forEach(function (c, i) { if (c.key === INV.cur.col) { c0 = i; } });
-    if (r0 === -1) { return; }
-
-    var filled = 0, skipped = 0;
-    lines.forEach(function (line, li) {
-      var cells = line.split("\t");
-      var rowNum = vis[r0 + li];
-      if (!rowNum) { skipped += cells.length; return; }
-      cells.forEach(function (cell, ci) {
-        var col = pcols[c0 + ci];
-        if (!col) { skipped += 1; return; }
-        invSetPending(rowNum, col.key, cell);
-        filled += 1;
-      });
-    });
-
-    var note = skippedHeader ? "Header row ignored. " : "";
-    /* Said out loud rather than silently truncated: a paste that ran off the bottom of the
-       filter is the moment somebody thinks their data went in and it did not. */
-    INV.saveErr = skipped
-      ? (note + filled + " cell(s) filled. " + skipped + " had nowhere to go — the paste ran " +
-         "past the last visible row or the last column, and those values were not taken.")
-      : (skippedHeader ? note + filled + " cell(s) filled." : "");
-    renderInv();
-  }
-
-  /* The round trip. Rows are found by number, columns by header name, so neither the order
-     of the rows nor the order of the columns has to survive the trip through Excel. */
-  function invPasteByUnit(lines, headCells, byLabel) {
-    var cols = headCells.map(function (h, i) { return i === 0 ? null : (byLabel[h] || null); });
-    var unknown = [];
-    headCells.forEach(function (h, i) {
-      if (i > 0 && !byLabel[h] && h) { unknown.push(h); }
-    });
-
-    /* Matched against BOTH spellings: the label a person sees and the number that is stored.
-       Excel will have eaten the leading zero on the way out, and it does not matter. */
-    var known = {};
-    ((INV.data && INV.data.units) || []).forEach(function (u) {
-      known[String(u.unit_number)] = u.unit_number;
-      known[invPad(u.unit_number)] = u.unit_number;
-    });
-
-    var filled = 0, rows = 0, missing = [];
-    for (var i = 1; i < lines.length; i++) {
-      var cells = lines[i].split("\t");
-      var asked = String(cells[0] || "").trim();
-      if (!asked) { continue; }
-      var target = known[asked];
-      if (target === undefined && /^[0-9]+$/.test(asked)) { target = known[String(Number(asked))]; }
-      if (target === undefined) { missing.push(asked); continue; }
-
-      rows += 1;
-      for (var c = 1; c < cells.length; c++) {
-        var col = cols[c];
-        if (!col) { continue; }
-        invSetPending(target, col.key, cells[c]);
-        filled += 1;
-      }
-    }
-
-    var bits = [];
-    bits.push(rows + " row" + (rows === 1 ? "" : "s") + " matched by unit number");
-    if (missing.length) {
-      bits.push(missing.length + " not found on this development (" +
-        missing.slice(0, 6).join(", ") + (missing.length > 6 ? "…" : "") + ")");
-    }
-    if (unknown.length) {
-      bits.push(unknown.length + " column" + (unknown.length === 1 ? "" : "s") +
-        " ignored — not editable here (" + unknown.join(", ") + ")");
-    }
-    /* Only worth saying when something did NOT go in. A clean round trip should be quiet. */
-    INV.saveErr = (missing.length || unknown.length) ? bits.join(". ") + "." : "";
-    renderInv();
-  }
+  /* ---- copy out, fill down, paste: the grid core's ---- */
+  function invTsv(rows) { return INV_GRID.tsv(rows); }
+  function invCopy() { INV_GRID.copy(); }
+  function invCopyFallback(text, done) { INV_GRID.copyFallback(text, done); }
+  function invFillDown() { INV_GRID.fillDown(); }
+  function invPaste(text) { INV_GRID.paste(text); }
 
   /* ---- saving ---- */
 
   function invChangeList() {
-    var out = [], num;
-    for (num in INV.pending) {
-      if (!Object.prototype.hasOwnProperty.call(INV.pending, num)) { continue; }
-      var fields = {}, f;
-      for (f in INV.pending[num]) {
-        if (!Object.prototype.hasOwnProperty.call(INV.pending[num], f)) { continue; }
-        var col = null;
-        invCols().forEach(function (c) { if (c.key === f) { col = c; } });
-        fields[f] = invFromDisplay(col, INV.pending[num][f]);
-      }
-      /* The STORED number, never the padded label - the server matches exactly now. */
-      out.push({ unit_number: num, fields: fields });
-    }
-    return out;
+    /* The STORED number, never the padded label - the server matches exactly now. */
+    return INV_GRID.changeList().map(function (c) { return { unit_number: c.key, fields: c.fields }; });
   }
 
   function invPreview() {
@@ -7231,11 +7495,11 @@
       .catch(function (e) { INV.saving = false; INV.saveErr = e.message; renderInv(); });
   }
 
-  function invRows() {
+  function invRowsUnsorted() {
     var d = INV.data;
     if (!d || !d.units) { return []; }
     var q = INV.q.trim().toLowerCase();
-    var kept = d.units.filter(function (u) {
+    return d.units.filter(function (u) {
       if (INV.state && u.state !== INV.state) { return false; }
       if (INV.type && (u.type_code || "") !== INV.type) { return false; }
       if (!q) { return true; }
@@ -7244,17 +7508,15 @@
                  (u.reservation && u.reservation.reference)].join(" ").toLowerCase();
       return hay.indexOf(q) !== -1;
     });
-    return invSortRows(kept.slice());
   }
 
-  /* SORTING IS A VIEW, AND NOTHING IS KEYED TO IT. Pending edits, the selection and the
-     focused cell all address a home by its number, so re-sorting under an unsaved edit moves
-     the row and keeps the edit on it. That was the reason for keying by number in the first
-     place, and this is where it pays.
+  function invRows() { return invSortRows(invRowsUnsorted().slice()); }
 
-     A THIRD CLICK RETURNS TO UNIT ORDER rather than cycling back to ascending. There is a
-     natural order here and it should always be one click away - "put it back" is a thing
-     people want and usually cannot have. */
+  /* SORTING IS A VIEW, AND NOTHING IS KEYED TO IT - the grid core's rule. The inventory adds
+     three keys the columns do not carry: the unit number (numeric where it can be), the type,
+     the state, and the phase, which sorts by RELEASE ORDER rather than by name - "Phase 10"
+     after "Phase 9" is what a person means. Anything else is the core's business, and this
+     returns undefined so it takes over. */
   function invSortValue(u, key) {
     if (key === "unit_number") {
       var n = Number(u.unit_number);
@@ -7262,60 +7524,26 @@
     }
     if (key === "type_code") { return u.type_code || ""; }
     if (key === "state") { return u.state || ""; }
-    /* Phases sort by RELEASE ORDER, not by name. "Phase 10" after "Phase 9" is what a person
-       means, and an alphabetical sort would put it after "Phase 1". A home in no phase sinks
-       like any other empty. */
     if (key === "phase") {
       var ph = u.phase || (u.phase_id ? invPhaseById(u.phase_id) : null);
       return ph ? Number(ph.sort_order || 0) : null;
     }
-    var col = null;
-    invCols().forEach(function (c) { if (c.key === key) { col = c; } });
-    if (!col) { return ""; }
-    /* The PENDING value, not the stored one - a column sorted while it is being edited
-       should sort by what is on screen. */
-    var raw = invCellValue(u, col);
-    if (raw === "" || raw === null || raw === undefined) { return null; }
-    var v = Number(raw);
-    return isNaN(v) ? String(raw) : v;
+    return undefined;
   }
 
-  function invSortRows(rows) {
-    if (!INV.sort) {
-      return rows.sort(function (a, b) {
-        var an = Number(a.unit_number), bn = Number(b.unit_number);
-        var aNum = !isNaN(an) && String(a.unit_number).trim() !== "";
-        var bNum = !isNaN(bn) && String(b.unit_number).trim() !== "";
-        if (aNum && bNum) { return an - bn; }
-        if (aNum !== bNum) { return aNum ? -1 : 1; }
-        return String(a.unit_number || "").localeCompare(String(b.unit_number || ""));
-      });
-    }
-    var key = INV.sort, dir = INV.sortDir;
-    return rows.sort(function (a, b) {
-      var av = invSortValue(a, key), bv = invSortValue(b, key);
-      /* Empty always sinks, whichever way the column is pointing. A column of blanks at the
-         top when you sort descending tells you nothing about the numbers you asked to see. */
-      var ae = (av === null || av === "");
-      var be = (bv === null || bv === "");
-      if (ae !== be) { return ae ? 1 : -1; }
-      if (ae && be) { return 0; }
-      if (typeof av === "number" && typeof bv === "number") { return (av - bv) * dir; }
-      return String(av).localeCompare(String(bv)) * dir;
-    });
+  /* The natural order: unit number, numerically where it is a number. */
+  function invNaturalCompare(a, b) {
+    var an = Number(a.unit_number), bn = Number(b.unit_number);
+    var aNum = !isNaN(an) && String(a.unit_number).trim() !== "";
+    var bNum = !isNaN(bn) && String(b.unit_number).trim() !== "";
+    if (aNum && bNum) { return an - bn; }
+    if (aNum !== bNum) { return aNum ? -1 : 1; }
+    return String(a.unit_number || "").localeCompare(String(b.unit_number || ""));
   }
 
-  function invSortBy(key) {
-    if (INV.sort !== key) { INV.sort = key; INV.sortDir = 1; }
-    else if (INV.sortDir === 1) { INV.sortDir = -1; }
-    else { INV.sort = ""; INV.sortDir = 1; }
-    renderInv();
-  }
-
-  function invSortMark(key) {
-    if (INV.sort !== key) { return ""; }
-    return '<span class="gsort">' + (INV.sortDir === 1 ? "\u2191" : "\u2193") + "</span>";
-  }
+  function invSortRows(rows) { return INV_GRID.sortRows(rows); }
+  function invSortBy(key) { INV_GRID.sortBy(key); }
+  function invSortMark(key) { return INV_GRID.sortMark(key); }
 
   function invTypes() {
     var d = INV.data, seen = {}, out = [];
@@ -7558,51 +7786,9 @@
   }
 
   function invCellHtml(u, col, editable, placeholder) {
-    var val = invCellValue(u, col);
-    var dirty = invIsDirty(u.unit_number, col.key);
-    var focused = INV.cur && INV.cur.row === u.unit_number && INV.cur.col === col.key;
-    var isEditing = INV.editing && INV.editing.row === u.unit_number && INV.editing.col === col.key;
-    /* A column can be closed to editing while the grid as a whole is open - a value that
-       belongs to the type rather than the home, or one the development adopted read-only. */
-    var live = invColEditable(col, editable);
-
-    if (isEditing) {
-      var seeded = (INV.editing.seed === undefined) ? val : INV.editing.seed;
-      /* AN ENUM GETS ITS OPTIONS AND NOTHING ELSE CAN BE TYPED. A free text box here is how
-         a near-miss gets saved and then matches no filter - the same reason the settings
-         panel refuses to render one. */
-      if (col.kind === "enum" && col.options && col.options.length) {
-        return '<td class="gcell is-editing"><select id="invCellInput">' +
-          '<option value=""' + (seeded === "" ? " selected" : "") + ">—</option>" +
-          col.options.map(function (o) {
-            return '<option value="' + esc(o) + '"' +
-              (String(seeded) === String(o) ? " selected" : "") + ">" + esc(o) + "</option>";
-          }).join("") + "</select></td>";
-      }
-      return '<td class="gcell is-editing"><input id="invCellInput" type="text" value="' +
-        esc(seeded) + '"></td>';
-    }
-
-    var shown = val === "" ? "" : val;
-    /* Money is shown grouped so a column of prices can be read down. The raw value is what
-       an edit starts from, so grouping never reaches the server. */
-    if (shown !== "" && col.kind === "cents" && !isNaN(Number(shown))) {
-      shown = Number(shown).toLocaleString("en-ZA", { maximumFractionDigits: 2 });
-    }
-    var ph = (col.key === "price_cents" && placeholder && shown !== "");
-    /* Numbers align right so a column can be read down; words do not, because a ragged left
-       edge is harder to scan than a ragged right one. */
-    var numeric = (col.kind === "cents" || col.kind === "area" || col.kind === "pct" ||
-                   col.kind === "num");
-
-    return '<td class="gcell' + (numeric ? " num" : " txt") + (dirty ? " is-dirty" : "") +
-      (focused ? " is-cur" : "") +
-      (live ? " is-live" : "") + (ph ? " inv-ph" : "") +
-      '" data-cell="' + esc(u.unit_number) + "|" + esc(col.key) + '"' +
-      (live ? ' tabindex="-1"' : "") + ">" +
-      (shown === "" ? '<span class="muted">—</span>' : esc(shown)) +
-      (shown !== "" && col.unit ? ' <span class="gunit">' + esc(col.unit) + "</span>" : "") +
-      "</td>";
+    /* A placeholder price must not look like a quotable one; the class is per row. */
+    var ph = (col.key === "price_cents" && placeholder && invCellValue(u, col) !== "");
+    return INV_GRID.cellHtml(u, col, editable, ph ? "inv-ph" : "");
   }
 
   function invRowHtml(u, placeholder) {
@@ -8056,96 +8242,7 @@
       });
     }
 
-    [].forEach.call($("viewInv").querySelectorAll("[data-sort]"), function (el) {
-      el.addEventListener("click", function () { invSortBy(el.getAttribute("data-sort")); });
-    });
-
-    var all = $("invPickAll");
-    if (all) { all.addEventListener("change", function () { invSelectAll(all.checked); }); }
-
-    [].forEach.call($("viewInv").querySelectorAll("[data-inv-pick]"), function (el) {
-      el.addEventListener("click", function (e) {
-        e.stopPropagation();
-        invSelectRow(el.getAttribute("data-inv-pick"), e);
-      });
-    });
-
-    [].forEach.call($("viewInv").querySelectorAll("[data-cell]"), function (el) {
-      var parts = el.getAttribute("data-cell").split("|");
-      /* One click focuses, a second opens the editor - the spreadsheet contract. Both
-         decisions live in the CLICK handler and nowhere else: an earlier version set the
-         focused cell on mousedown, which made the very first click open the editor in a real
-         browser (mousedown had already made the cell current by the time click ran) while
-         doing nothing at all under a synthetic .click(). One handler, one rule. */
-      el.addEventListener("click", function () {
-        var isCur = INV.cur && INV.cur.row === parts[0] && INV.cur.col === parts[1];
-        if (isCur && !INV.editing) { invBeginEdit(parts[0], parts[1]); return; }
-        INV.cur = { row: parts[0], col: parts[1] };
-        INV.editing = null;
-        renderInv();
-        invFocusCur();
-      });
-      el.addEventListener("dblclick", function () { invBeginEdit(parts[0], parts[1]); });
-    });
-
-    var input = $("invCellInput");
-    if (input) {
-      input.addEventListener("keydown", function (e) {
-        /* stopPropagation, not just preventDefault. The input sits INSIDE #invGrid, so
-           without it Enter commits here and then bubbles to the grid handler - which, by
-           then, sees INV.editing already null and helpfully opens the editor again on the
-           row Enter just moved to. The edit landed correctly and the grid looked stuck. */
-        if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); invCommitEdit("down"); }
-        else if (e.key === "Tab") { e.preventDefault(); e.stopPropagation(); invCommitEdit("right"); }
-        else if (e.key === "Escape") {
-          e.preventDefault(); e.stopPropagation();
-          INV.editing = null; renderInv(); invFocusCur();
-        }
-        else { e.stopPropagation(); }
-      });
-      input.addEventListener("blur", function () { if (INV.editing) { invCommitEdit(null); } });
-    }
-
-    var grid = $("invGrid");
-    if (grid) {
-      grid.addEventListener("keydown", function (e) {
-        if (INV.editing) { return; }
-        var k = e.key;
-        if (k === "ArrowDown") { e.preventDefault(); invMove(1, 0); }
-        else if (k === "ArrowUp") { e.preventDefault(); invMove(-1, 0); }
-        else if (k === "ArrowRight") { e.preventDefault(); invMove(0, 1); }
-        else if (k === "ArrowLeft") { e.preventDefault(); invMove(0, -1); }
-        else if (k === "Tab") { e.preventDefault(); invMove(0, e.shiftKey ? -1 : 1); }
-        else if (k === "Enter" || k === "F2") {
-          if (INV.cur) { e.preventDefault(); invBeginEdit(INV.cur.row, INV.cur.col); }
-        }
-        else if ((k === "d" || k === "D") && (e.metaKey || e.ctrlKey)) {
-          e.preventDefault(); invFillDown();
-        }
-        else if ((k === "c" || k === "C") && (e.metaKey || e.ctrlKey)) {
-          e.preventDefault(); invCopy();
-        }
-        else if ((k === "a" || k === "A") && (e.metaKey || e.ctrlKey)) {
-          e.preventDefault(); invSelectAll(true);
-        }
-        else if (k === "Delete" || k === "Backspace") {
-          if (INV.cur && invEditable().on) { e.preventDefault(); invSetPending(INV.cur.row, INV.cur.col, ""); renderInv(); invFocusCur(); }
-        }
-        /* A printable key starts an edit seeded with that character, so typing over a cell
-           replaces it the way it does in a spreadsheet rather than being swallowed. */
-        else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
-          if (INV.cur) { e.preventDefault(); invBeginEdit(INV.cur.row, INV.cur.col, k); }
-        }
-      });
-
-      grid.addEventListener("paste", function (e) {
-        if (INV.editing || !INV.cur) { return; }
-        var t = (e.clipboardData || window.clipboardData);
-        if (!t) { return; }
-        e.preventDefault();
-        invPaste(t.getData("text/plain") || "");
-      });
-    }
+    INV_GRID.wire();
 
     if ($("invCopy")) { $("invCopy").addEventListener("click", invCopy); }
     if ($("invClearSel")) {
@@ -8467,6 +8564,898 @@
       });
   }
 
+  /* =====================================================================================
+     THE PIPELINE - LEADS. 11 Sep 2026.
+     Daniel: "the pipeline needs to be even more usable than the inventory. It should be
+     filtered to their assigned leads by default. It should be portable and like a
+     spreadsheet. A notes column for long text and can paste or copy between google sheets
+     and this. sortable. can do bulk actions."
+
+     ONE ROW PER LEAD - an enquiry or a reservation attempt - read from GET /staff/pipeline,
+     which joins the reservation on and says per row whether the caller may edit it. The grid
+     is the same core the inventory uses (makeGrid), so copy, paste, fill-down, sort and the
+     review-before-save flow behave identically on both screens. What differs is the columns:
+     a long-text NOTES column, a STATUS picker, an AGENT picker for managers, and the
+     reservation's facts read-only beside them.
+
+     SCOPE IS THE SERVER'S. Mine by default; Team on request; Everyone for a manager or admin.
+     The rows a person may not edit are drawn and not editable, and the server refuses them
+     anyway - the grid stops offering what will be refused, it never decides.
+
+     BULK ACTIONS ARE PENDING EDITS. Set status, assign, add a note on twenty ticked rows
+     write twenty pending cells; Review runs the writer with dry_run and shows every row's
+     outcome; Save commits with a reason. One path for a typed cell, a pasted block and a
+     bulk action, so there is one thing to get right. */
+  var PL_STATUS = [
+    { value: "new", label: "New" }, { value: "contacted", label: "Contacted" },
+    { value: "qualified", label: "Qualified" }, { value: "lost", label: "Lost" }
+  ];
+
+  var PL = {
+    scope: "mine", property: "", includeLost: false, q: "", status: "",
+    data: null, loading: false, err: "",
+    pending: {}, sel: {}, anchor: "", cur: null, editing: null, sort: "", sortDir: 1,
+    saveErr: "", bulk: null, bulkReason: "", bulkErr: "", saving: false,
+    dense: false, noteOpen: false, noteText: "",
+    add: null, addBusy: false, addErr: "", addOk: ""
+  };
+  try { PL.dense = localStorage.getItem("hl_pl_dense") === "1"; } catch (e) {}
+
+  /* THE COLUMNS. kind drives the editor and the paste conversion; editable is the column's
+     own answer, on top of the row's and the grid's. The agent column is an enum of the people
+     who could take the lead - the server's list, per development - and only a manager or an
+     admin may type into it. */
+  var PL_COLS_FIXED = [
+    { key: "first_name",         label: "First name",   kind: "text", w: 110, editable: true },
+    { key: "last_name",          label: "Last name",    kind: "text", w: 110, editable: true },
+    { key: "email",              label: "Email",        kind: "text", w: 190, editable: true },
+    { key: "phone",              label: "Phone",        kind: "text", w: 120, editable: true },
+    { key: "property_name",      label: "Development",  kind: "ro",   w: 120 },
+    { key: "source",             label: "Source",       kind: "ro",   w: 90 },
+    { key: "status",             label: "Status",       kind: "enum", w: 110, editable: true, options: PL_STATUS, required: true },
+    { key: "state",              label: "Stage",        kind: "ro",   w: 90 },
+    { key: "assigned_staff_id",  label: "Agent",        kind: "enum", w: 150, editable: true, assign: true, options: [] },
+    { key: "assigned_team_name", label: "Team",         kind: "ro",   w: 110 },
+    { key: "res_reference",      label: "Reservation",  kind: "ro",   w: 130, deal: true },
+    { key: "res_unit_name",      label: "Home",         kind: "ro",   w: 90 },
+    { key: "res_deal",           label: "Deal stage",   kind: "ro",   w: 130 },
+    { key: "res_due",            label: "Deadline",     kind: "ro",   w: 100 },
+    { key: "notes",              label: "Notes",        kind: "long", w: 280, editable: true },
+    { key: "lost_reason",        label: "Lost because", kind: "text", w: 140, editable: true },
+    { key: "message",            label: "Message",      kind: "long", w: 220 },
+    { key: "utm_source",         label: "UTM source",   kind: "ro",   w: 100 },
+    { key: "created_at",         label: "Created",      kind: "date", w: 100 },
+    { key: "last_activity_at",   label: "Last activity", kind: "date", w: 110 }
+  ];
+
+  function plCanAssign() { return !!(PL.data && PL.data.scope && PL.data.scope.can_assign === 1); }
+
+  function plCols() {
+    var agents = (PL.data && PL.data.agents) || [];
+    return PL_COLS_FIXED.map(function (c) {
+      if (!c.assign) { return c; }
+      var col = {};
+      for (var k in c) { if (Object.prototype.hasOwnProperty.call(c, k)) { col[k] = c[k]; } }
+      col.options = agents.map(function (a) { return { value: String(a.id), label: a.name }; });
+      return col;
+    });
+  }
+
+  function plMs(v) {
+    if (v === null || v === undefined || v === "") { return 0; }
+    if (typeof v === "number") { return isFinite(v) ? v : 0; }
+    var n = Number(v);
+    if (!isNaN(n) && n > 0) { return n; }
+    var p = Date.parse(String(v));
+    return isNaN(p) ? 0 : p;
+  }
+
+  function plRaw(l, col) {
+    if (col.key === "assigned_staff_id") {
+      return (l.assigned_staff_id === null || l.assigned_staff_id === undefined) ? "" : String(l.assigned_staff_id);
+    }
+    if (col.key === "res_deal") {
+      if (!l.res_deal_stage) { return ""; }
+      return label(l.res_deal_stage) + (l.res_deal_sub_stage ? " · " + label(l.res_deal_sub_stage) : "");
+    }
+    if (col.key === "res_due") {
+      if (!l.res_deal_stage_due_at) { return ""; }
+      if (l.res_overdue) { return "overdue " + Math.abs(Number(l.res_days_left || 0)) + "d"; }
+      return String(l.res_days_left) + "d left";
+    }
+    if (col.key === "state") { return l.state === "won" ? "Won" : label(l.state || ""); }
+    if (col.key === "source") { return label(l.source || ""); }
+    return l[col.key];
+  }
+
+  function plToDisplay(col, v) {
+    if (v === null || v === undefined || v === "") { return ""; }
+    if (col.kind === "date") { return day(plMs(v)); }
+    return String(v);
+  }
+
+  function plFromDisplay(col, raw) {
+    var s = String(raw === null || raw === undefined ? "" : raw);
+    if (col.kind === "long") { return s; }
+    s = s.trim();
+    if (col.key === "status") { return s.toLowerCase(); }
+    if (col.key === "assigned_staff_id") {
+      if (!s) { return null; }
+      var n = Number(s);
+      /* A name pasted from a spreadsheet is looked up; an id is taken as it is. */
+      if (isNaN(n)) {
+        var found = null;
+        ((PL.data && PL.data.agents) || []).forEach(function (a) {
+          if (String(a.name).toLowerCase() === s.toLowerCase()) { found = a.id; }
+        });
+        return found === null ? s : found;
+      }
+      return n;
+    }
+    return s;
+  }
+
+  function plEditable() {
+    if (!PL.data) { return { on: false, why: "loading" }; }
+    return { on: true, why: "" };
+  }
+  function plColEditable(col, editable) {
+    if (!editable.on) { return false; }
+    if (col.editable !== true) { return false; }
+    if (col.assign && !plCanAssign()) { return false; }
+    return true;
+  }
+  function plRowEditable(l) { return l.editable === true; }
+
+  function plSortValue(l, key) {
+    if (key === "id") { return Number(l.id); }
+    if (key === "assigned_staff_id") { return l.assigned_staff_name || null; }
+    if (key === "created_at" || key === "last_activity_at") {
+      var t = plMs(l[key]);
+      return t || null;
+    }
+    if (key === "res_due") { return l.res_deal_stage_due_at ? Number(l.res_days_left) : null; }
+    return undefined;
+  }
+
+  /* Newest first - the row that just arrived is the one somebody opened the tab for. */
+  function plNaturalCompare(a, b) { return Number(b.id) - Number(a.id); }
+
+  function plRowsUnsorted() {
+    var d = PL.data;
+    if (!d || !d.items) { return []; }
+    var q = PL.q.trim().toLowerCase();
+    return d.items.filter(function (l) {
+      if (PL.status && l.status !== PL.status) { return false; }
+      if (!q) { return true; }
+      var hay = [l.reference, l.first_name, l.last_name, l.email, l.phone, l.notes, l.message,
+                 l.res_reference, l.res_unit_name, l.assigned_staff_name, l.property_name]
+        .join(" ").toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+  }
+  function plRows() { return PL_GRID.sortRows(plRowsUnsorted().slice()); }
+
+  var PL_GRID = makeGrid({
+    state: PL,
+    cols: function () { return plCols(); },
+    allRows: function () { return (PL.data && PL.data.items) || []; },
+    visibleRows: function () { return plRowsUnsorted(); },
+    keyOf: function (l) { return String(l.id); },
+    keyLabel: function (id) {
+      var row = null;
+      ((PL.data && PL.data.items) || []).forEach(function (l) { if (String(l.id) === String(id)) { row = l; } });
+      return row && row.reference ? row.reference : String(id);
+    },
+    keyHeader: "Lead",
+    notFoundText: "not in this pipeline",
+    raw: plRaw, toDisplay: plToDisplay, fromDisplay: plFromDisplay,
+    editable: plEditable, colEditable: plColEditable, rowEditable: plRowEditable,
+    render: function () { renderLeads(); },
+    view: function () { return $("viewLeads"); },
+    inputId: "plCellInput", gridId: "plGrid", pickAttr: "data-pl-pick", pickAllId: "plPickAll", sortAttr: "data-pl-sort",
+    sortValue: plSortValue,
+    naturalCompare: plNaturalCompare
+  });
+
+  function plLoad(keep) {
+    PL.loading = true; PL.err = "";
+    if (!keep) { PL.pending = {}; PL.sel = {}; PL.cur = null; PL.editing = null; PL.bulk = null; }
+    renderLeads();
+    var qs = "?scope=" + encodeURIComponent(PL.scope) +
+      (PL.property ? "&property=" + encodeURIComponent(PL.property) : "") +
+      (PL.includeLost ? "&include_lost=true" : "");
+    return api("/staff/pipeline" + qs)
+      .then(function (d) {
+        PL.data = d;
+        /* The server may have narrowed the scope - a salesperson asking for everyone. */
+        if (d && d.scope && d.scope.scope_applied) { PL.scope = d.scope.scope_applied; }
+        var lc = $("leadsCount");
+        if (lc) { lc.textContent = (d && d.counts && d.counts.visible) || 0; }
+      })
+      .catch(function (e) { PL.err = e.message; })
+      .then(function () { PL.loading = false; renderLeads(); });
+  }
+
+  /* ---- bulk actions: pending edits on the selection ---- */
+  function plApplyToSelection(field, value) {
+    var rows = PL_GRID.selectedRows();
+    rows.forEach(function (l) {
+      if (!plRowEditable(l)) { return; }
+      PL_GRID.setPending(String(l.id), field, value);
+    });
+    renderLeads();
+  }
+  function plAppendNote(text) {
+    var t = String(text || "").trim();
+    if (!t) { return; }
+    var stamp = new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "short" });
+    var col = PL_GRID.colByKey("notes");
+    PL_GRID.selectedRows().forEach(function (l) {
+      if (!plRowEditable(l)) { return; }
+      var cur = PL_GRID.cellValue(l, col);
+      PL_GRID.setPending(String(l.id), "notes", (cur ? cur + "\n" : "") + stamp + ": " + t);
+    });
+    PL.noteOpen = false; PL.noteText = "";
+    renderLeads();
+  }
+
+  function plChangeList() {
+    return PL_GRID.changeList().map(function (c) {
+      var fields = c.fields;
+      if (Object.prototype.hasOwnProperty.call(fields, "assigned_staff_id") && fields.assigned_staff_id === null) {
+        delete fields.assigned_staff_id;
+        fields.unassign = true;
+      }
+      return { id: Number(c.key), fields: fields };
+    });
+  }
+
+  function plPreview() {
+    var items = plChangeList();
+    if (!items.length) { return; }
+    PL.saving = true; PL.saveErr = ""; PL.bulk = null;
+    renderLeads();
+    api("/staff/pipeline/bulk", { method: "POST", body: JSON.stringify({ items: items, reason: "preview", dry_run: true }) })
+      .then(function (d) { PL.bulk = d; })
+      .catch(function (e) { PL.saveErr = e.message; })
+      .then(function () { PL.saving = false; renderLeads(); });
+  }
+
+  function plCommit(reason) {
+    var items = plChangeList();
+    if (!items.length) { return; }
+    PL.saving = true; PL.saveErr = "";
+    renderLeads();
+    api("/staff/pipeline/bulk", { method: "POST", body: JSON.stringify({ items: items, reason: reason }) })
+      .then(function (d) {
+        /* Only what the server ACCEPTED is cleared; a refused row keeps its edit. */
+        (d.rows || []).forEach(function (r) {
+          if (r.outcome === "applied" || r.outcome === "unchanged") { delete PL.pending[String(r.id)]; }
+        });
+        PL.bulk = d;
+        PL.saving = false;
+        return plLoad(true);
+      })
+      .catch(function (e) { PL.saving = false; PL.saveErr = e.message; renderLeads(); });
+  }
+
+  /* ---- a lead typed in by hand ---- */
+  function plAddDefaults() {
+    return { property_slug: PL.property || ((S.data && S.data.properties && S.data.properties[0]) ? S.data.properties[0].slug : ""),
+             first_name: "", last_name: "", email: "", phone: "", message: "", assigned_staff_id: "" };
+  }
+  function plAddSubmit() {
+    var v = PL.add;
+    if (!v) { return; }
+    if (!v.property_slug) { PL.addErr = "Pick a development."; renderLeads(); return; }
+    if (!String(v.email).trim() && String(v.phone).replace(/[^0-9]/g, "").length < 7) {
+      PL.addErr = "A lead needs an email address or a phone number."; renderLeads(); return;
+    }
+    PL.addBusy = true; PL.addErr = ""; PL.addOk = "";
+    renderLeads();
+    var body = { property_slug: v.property_slug, first_name: v.first_name, last_name: v.last_name,
+                 email: v.email, phone: v.phone, message: v.message };
+    if (v.assigned_staff_id) { body.assigned_staff_id = Number(v.assigned_staff_id); }
+    api("/staff/leads", { method: "POST", body: JSON.stringify(body) })
+      .then(function (d) {
+        var who = d && d.lead && d.lead.assigned_staff_id ? " · assigned" : " · nobody assigned yet";
+        PL.addOk = (d.action === "repeat" ? "Already in the pipeline as " : "Added as ") + (d.reference || "") + who + ".";
+        PL.add = null;
+        return plLoad(true);
+      })
+      .catch(function (e) { PL.addErr = e.message; })
+      .then(function () { PL.addBusy = false; renderLeads(); });
+  }
+
+  function plAddHtml() {
+    var v = PL.add;
+    var props = (S.data && S.data.properties) || [];
+    var agents = ((PL.data && PL.data.agents) || []).filter(function (a) {
+      return !v.property_slug || (a.slugs || []).indexOf(v.property_slug) !== -1;
+    });
+    return '<div class="card pad pl-add" id="plAdd">' +
+      "<h2>Add a lead</h2>" +
+      '<div class="inv-owed">A phone call, a walk-in, a name off the show-house register. ' +
+      (plCanAssign() ? "Pick who gets it, or leave it to the rotation." : "It is yours - you are its first contact.") + "</div>" +
+      '<div class="team-form">' +
+      '<div class="nr-field"><label for="plAddProp">Development</label><select id="plAddProp">' +
+        props.map(function (p) {
+          return '<option value="' + esc(p.slug) + '"' + (p.slug === v.property_slug ? " selected" : "") + ">" + esc(p.name) + "</option>";
+        }).join("") + "</select></div>" +
+      '<div class="nr-row">' +
+        '<div class="nr-field"><label for="plAddFirst">First name</label><input id="plAddFirst" type="text" value="' + esc(v.first_name) + '"></div>' +
+        '<div class="nr-field"><label for="plAddLast">Last name</label><input id="plAddLast" type="text" value="' + esc(v.last_name) + '"></div>' +
+      "</div>" +
+      '<div class="nr-row">' +
+        '<div class="nr-field"><label for="plAddEmail">Email</label><input id="plAddEmail" type="email" value="' + esc(v.email) + '"></div>' +
+        '<div class="nr-field"><label for="plAddPhone">Phone</label><input id="plAddPhone" type="text" value="' + esc(v.phone) + '"></div>' +
+      "</div>" +
+      '<div class="nr-field"><label for="plAddMsg">What they said</label><textarea id="plAddMsg" rows="2">' + esc(v.message) + "</textarea></div>" +
+      (plCanAssign()
+        ? '<div class="nr-field"><label for="plAddAgent">Agent</label><select id="plAddAgent">' +
+          '<option value="">Let the rotation decide</option>' +
+          agents.map(function (a) {
+            return '<option value="' + esc(String(a.id)) + '"' + (String(a.id) === String(v.assigned_staff_id) ? " selected" : "") + ">" + esc(a.name) + "</option>";
+          }).join("") + "</select></div>"
+        : "") +
+      "</div>" +
+      '<div class="err" id="plAddErr">' + esc(PL.addErr) + "</div>" +
+      '<div class="inv-edit-actions">' +
+        '<button type="button" id="plAddCancel">Cancel</button><span class="spacer"></span>' +
+        '<button type="button" class="primary" id="plAddGo"' + (PL.addBusy ? " disabled" : "") + ">" +
+        (PL.addBusy ? "Adding…" : "Add lead") + "</button>" +
+      "</div></div>";
+  }
+
+  function plBulkHtml(d) {
+    var c = d.summary || {};
+    var done = !d.dry_run;
+    var rows = d.rows || [];
+    var refused = rows.filter(function (r) { return r.outcome === "refused"; });
+    var LABEL = { status: "Status", notes: "Notes", first_name: "First name", last_name: "Last name",
+                  email: "Email", phone: "Phone", assigned_staff_id: "Agent", lost_reason: "Lost because" };
+    var agentName = function (id) {
+      if (id === null || id === undefined) { return "nobody"; }
+      var n = String(id);
+      ((PL.data && PL.data.agents) || []).forEach(function (a) { if (String(a.id) === String(id)) { n = a.name; } });
+      return n;
+    };
+    var val = function (f, v) {
+      if (f === "assigned_staff_id") { return agentName(v); }
+      if (v === null || v === undefined || v === "") { return "—"; }
+      var s = String(v);
+      return s.length > 60 ? s.slice(0, 57) + "…" : s;
+    };
+    return '<div class="card pad gpreview">' +
+      "<h2>" + (done ? "What was saved" : "What this will change") + "</h2>" +
+      '<div class="gpreview-counts">' +
+        '<span class="gp ok">' + (c.applied || 0) + (done ? " applied" : " to change") + "</span>" +
+        (c.unchanged ? '<span class="gp">' + c.unchanged + " already matched</span>" : "") +
+        (c.refused ? '<span class="gp bad">' + c.refused + " refused</span>" : "") +
+      "</div>" +
+      '<div class="gpreview-list">' +
+        rows.map(function (r) {
+          var head = '<span class="gp-unit">' + esc(r.reference || ("#" + r.id)) + "</span>";
+          if (r.outcome === "refused") {
+            return '<div class="gp-row is-bad">' + head + '<span class="gp-why">' + esc(r.reason) + "</span></div>";
+          }
+          if (r.outcome === "unchanged") {
+            return '<div class="gp-row is-quiet">' + head + '<span class="gp-why">nothing changed</span></div>';
+          }
+          var ch = r.changes || {};
+          return '<div class="gp-row">' + head + '<span class="gp-why">' +
+            Object.keys(ch).map(function (f) {
+              return "<b>" + esc(LABEL[f] || f) + "</b> " + esc(val(f, ch[f].was)) + " → " + esc(val(f, ch[f].now));
+            }).join(" · ") + "</span></div>";
+        }).join("") +
+      "</div>" +
+      (done
+        ? '<div class="inv-owed" style="margin-top:12px">' +
+          (refused.length ? "The refused rows above kept their edits so they can be fixed and saved again." : "All saved.") +
+          "</div>" +
+          '<div class="inv-edit-actions"><span class="spacer"></span><button type="button" id="plBulkDone">Close</button></div>'
+        : '<div class="nr-field" style="margin-top:14px"><label for="plBulkReason">Why</label>' +
+          '<input id="plBulkReason" type="text" value="' + esc(PL.bulkReason || "") + '" placeholder="Called everyone from the Saturday show day"></div>' +
+          '<div class="err" id="plBulkErr">' + esc(PL.bulkErr || "") + "</div>" +
+          '<div class="inv-edit-actions">' +
+            '<button type="button" id="plBulkCancel">Back</button><span class="spacer"></span>' +
+            '<button type="button" class="primary" id="plBulkGo"' + (PL.saving || !(c.applied || 0) ? " disabled" : "") + ">" +
+            (PL.saving ? "Saving…" : "Save " + (c.applied || 0) + " lead" + ((c.applied || 0) === 1 ? "" : "s")) + "</button>" +
+          "</div>") +
+    "</div>";
+  }
+
+  function plRowHtml(l) {
+    var editable = plEditable();
+    var picked = !!PL.sel[String(l.id)];
+    var cols = plCols();
+    return '<tr class="grow pl-row is-' + esc(l.state || "new") + (picked ? " is-picked" : "") + (l.editable ? "" : " is-ro") + '">' +
+      '<td class="gpick"><input type="checkbox" data-pl-pick="' + esc(String(l.id)) + '"' + (picked ? " checked" : "") +
+        ' aria-label="Select lead ' + esc(l.reference) + '"></td>' +
+      '<td class="gnum"><strong>' + esc(l.reference || ("#" + l.id)) + "</strong>" +
+        (l.mine ? ' <span class="pl-mine" title="Assigned to you">you</span>' : "") +
+        (!l.assigned_staff_id ? ' <span class="pl-unassigned" title="' + esc(l.unassigned_reason || "Nobody assigned") + '">unassigned</span>' : "") +
+        (l.res_dead ? ' <span class="testtag" title="The reservation ended: ' + esc(l.res_status) + '">' + esc(l.res_status) + "</span>" : "") +
+      "</td>" +
+      cols.map(function (c) {
+        if (c.deal) {
+          return '<td class="gcell txt">' + (l.res_reference
+            ? '<button type="button" class="linkish" data-pl-deal="' + esc(l.reservation_uuid) + '" data-pl-ref="' + esc(l.res_reference) + '">' +
+              esc(l.res_reference) + "</button>" + (l.res_status ? '<div class="inv-who">' + esc(label(l.res_status)) + "</div>" : "")
+            : '<span class="muted">—</span>') + "</td>";
+        }
+        return PL_GRID.cellHtml(l, c, editable, c.key === "state" ? "pl-state" : "");
+      }).join("") +
+    "</tr>";
+  }
+
+  function renderLeads() {
+    var v = $("viewLeads");
+    if (!v) { return; }
+    var d = PL.data;
+    var props = (S.data && S.data.properties) || [];
+    var scope = (d && d.scope) || {};
+    var role = String((S.staff && S.staff.role) || "sales").toLowerCase();
+    var wide = role === "manager" || role === "admin";
+    var counts = (d && d.counts) || {};
+
+    var scopeBtn = function (k, text) {
+      return '<button type="button" class="pl-scope' + (PL.scope === k ? " is-on" : "") + '" data-pl-scope="' + k + '" aria-pressed="' +
+        (PL.scope === k ? "true" : "false") + '">' + text + "</button>";
+    };
+    var topbar =
+      '<div class="inv-bar">' +
+      '<div class="pl-scopes" role="group" aria-label="Whose leads">' +
+        scopeBtn("mine", "Mine") + scopeBtn("team", "My team") + (wide ? scopeBtn("all", "Everyone") : "") +
+      "</div>" +
+      '<div class="f"><label for="plProp">Development</label><select id="plProp">' +
+        '<option value="">All</option>' +
+        props.map(function (p) {
+          return '<option value="' + esc(p.slug) + '"' + (p.slug === PL.property ? " selected" : "") + ">" + esc(p.name) + "</option>";
+        }).join("") + "</select></div>" +
+      '<div class="f"><label for="plStatus">Status</label><select id="plStatus">' +
+        '<option value="">All</option>' +
+        PL_STATUS.map(function (s) {
+          return '<option value="' + s.value + '"' + (PL.status === s.value ? " selected" : "") + ">" + s.label + "</option>";
+        }).join("") + "</select></div>" +
+      '<div class="f grow"><label for="plQ">Search</label>' +
+        '<input id="plQ" type="text" placeholder="Name, email, phone, reference, notes" value="' + esc(PL.q) + '"></div>' +
+      '<label class="team-check pl-lost"><input id="plLost" type="checkbox"' + (PL.includeLost ? " checked" : "") + "> Show lost</label>" +
+      '<span class="spacer"></span>' +
+      '<button type="button" id="plDense" aria-pressed="' + (PL.dense ? "true" : "false") + '">' + (PL.dense ? "Comfortable" : "Compact") + "</button>" +
+      '<button type="button" id="plRefresh"' + (PL.loading ? " disabled" : "") + ">" + (PL.loading ? "Loading…" : "Refresh") + "</button>" +
+      '<button type="button" id="plAddOpen" aria-expanded="' + (PL.add ? "true" : "false") + '">' + (PL.add ? "Close" : "Add a lead") + "</button>" +
+      "</div>";
+
+    if (PL.err) {
+      v.innerHTML = topbar + '<div class="card pad"><div class="err">' + esc(PL.err) + "</div></div>";
+      leadsWire();
+      return;
+    }
+    if (!d) {
+      v.innerHTML = topbar + '<div class="card"><div class="inv-empty">' + (PL.loading ? "Loading…" : "Nothing loaded.") + "</div></div>";
+      leadsWire();
+      return;
+    }
+
+    var stats = '<div class="inv-stats pl-stats">' +
+      '<div class="inv-stat"><b>' + (counts.visible || 0) + "</b><span>" +
+        (PL.scope === "mine" ? "yours" : PL.scope === "team" ? "on your team" : "in all") + "</span></div>" +
+      ["new", "contacted", "qualified", "reserving", "won"].map(function (k) {
+        var n = (counts.by_state || {})[k] || 0;
+        if (!n && k !== "new") { return ""; }
+        return '<div class="inv-stat' + (k === "won" ? " is-avail" : k === "reserving" ? " is-held" : "") + '"><b>' + n + "</b><span>" + esc(k) + "</span></div>";
+      }).join("") +
+      (counts.unassigned ? '<div class="inv-stat is-warn"><b>' + counts.unassigned + "</b><span>unassigned</span></div>" : "") +
+      "</div>";
+
+    var rows = plRows();
+    var editable = plEditable();
+    var cols = plCols();
+    var allPicked = rows.length > 0 && rows.every(function (l) { return PL.sel[String(l.id)]; });
+
+    var table = rows.length
+      ? '<div class="card tablewrap pl-wrap' + (PL.dense ? " is-dense" : "") + '" id="plGrid">' +
+        "<table><thead><tr>" +
+        '<th class="gpick"><input type="checkbox" id="plPickAll"' + (allPicked ? " checked" : "") + ' aria-label="Select every visible lead"></th>' +
+        '<th class="gnum"><button type="button" class="gsortbtn" data-pl-sort="id">Lead' + PL_GRID.sortMark("id") + "</button></th>" +
+        cols.map(function (c) {
+          return '<th class="txt" style="min-width:' + c.w + 'px">' +
+            '<button type="button" class="gsortbtn" data-pl-sort="' + esc(c.key) + '">' + esc(c.label) + PL_GRID.sortMark(c.key) + "</button></th>";
+        }).join("") +
+        "</tr></thead><tbody>" + rows.map(plRowHtml).join("") + "</tbody></table></div>"
+      : '<div class="card"><div class="inv-empty">' +
+        (d.items && d.items.length ? "No lead matches those filters."
+          : (PL.scope === "mine" ? "Nothing assigned to you yet." : "No leads here yet.")) + "</div></div>";
+
+    var pending = PL_GRID.pendingCount();
+    var picked = PL_GRID.selCount();
+    var agents = d.agents || [];
+    var bar = (pending || picked)
+      ? '<div class="gbar">' +
+        (picked ? '<span class="gbar-n">' + picked + " selected</span>" : "") +
+        (pending ? '<span class="gbar-n is-dirty">' + pending + " unsaved change" + (pending === 1 ? "" : "s") + "</span>" : "") +
+        '<span class="spacer"></span>' +
+        (picked
+          ? '<select id="plBulkStatus" aria-label="Set the status of the selected leads"><option value="">Set status…</option>' +
+            PL_STATUS.map(function (s) { return '<option value="' + s.value + '">' + s.label + "</option>"; }).join("") + "</select>" +
+            (plCanAssign()
+              ? '<select id="plBulkAssign" aria-label="Assign the selected leads"><option value="">Assign to…</option>' +
+                agents.map(function (a) { return '<option value="' + esc(String(a.id)) + '">' + esc(a.name) + "</option>"; }).join("") +
+                '<option value="__none">Nobody</option></select>'
+              : "") +
+            (PL.noteOpen
+              ? '<input id="plNoteText" type="text" placeholder="Note to add to each" value="' + esc(PL.noteText) + '">' +
+                '<button type="button" id="plNoteGo">Add note</button>'
+              : '<button type="button" id="plNoteOpen">Add a note</button>')
+          : "") +
+        '<button type="button" id="plCopy">Copy' + (picked ? " " + picked + " row" + (picked === 1 ? "" : "s") : " all") + "</button>" +
+        (picked ? '<button type="button" id="plClearSel">Clear selection</button>' : "") +
+        (pending ? '<button type="button" id="plDiscard">Discard</button>' : "") +
+        (pending ? '<button type="button" class="primary" id="plReview"' + (PL.saving ? " disabled" : "") + ">" +
+                   (PL.saving ? "Checking…" : "Review " + pending + " change" + (pending === 1 ? "" : "s")) + "</button>" : "") +
+        "</div>"
+      : "";
+
+    var note = PL.scope === "mine" && scope.scope_requested === "all" && scope.scope_applied !== "all"
+      ? '<div class="inv-owed">Everyone is a manager view; showing your team instead.</div>' : "";
+
+    v.innerHTML = topbar + stats + note +
+      (PL.addOk ? '<div class="ok" style="margin-bottom:10px">' + esc(PL.addOk) + "</div>" : "") +
+      (PL.add ? plAddHtml() : "") +
+      (PL.saveErr ? '<div class="inv-owed" id="plMsg" style="margin-bottom:10px">' + esc(PL.saveErr) + "</div>" : "") +
+      (PL.bulk ? plBulkHtml(PL.bulk) : "") +
+      bar + table;
+    leadsWire();
+  }
+
+  function leadsWire() {
+    var v = $("viewLeads");
+    if (!v) { return; }
+    [].forEach.call(v.querySelectorAll("[data-pl-scope]"), function (el) {
+      el.addEventListener("click", function () {
+        var k = el.getAttribute("data-pl-scope");
+        if (k === PL.scope) { return; }
+        PL.scope = k; plLoad();
+      });
+    });
+    var p = $("plProp");
+    if (p) { p.addEventListener("change", function () { PL.property = p.value; plLoad(); }); }
+    var st = $("plStatus");
+    if (st) { st.addEventListener("change", function () { PL.status = st.value; renderLeads(); }); }
+    var lost = $("plLost");
+    if (lost) { lost.addEventListener("change", function () { PL.includeLost = lost.checked; plLoad(); }); }
+    var q = $("plQ");
+    if (q) {
+      q.addEventListener("input", function () {
+        PL.q = q.value;
+        var at = q.selectionStart;
+        renderLeads();
+        var again = $("plQ");
+        if (again) { again.focus(); try { again.setSelectionRange(at, at); } catch (e) {} }
+      });
+    }
+    var dense = $("plDense");
+    if (dense) {
+      dense.addEventListener("click", function () {
+        PL.dense = !PL.dense;
+        try { localStorage.setItem("hl_pl_dense", PL.dense ? "1" : "0"); } catch (e) {}
+        renderLeads();
+      });
+    }
+    var r = $("plRefresh");
+    if (r) { r.addEventListener("click", function () { plLoad(true); }); }
+    var ao = $("plAddOpen");
+    if (ao) { ao.addEventListener("click", function () { PL.add = PL.add ? null : plAddDefaults(); PL.addErr = ""; PL.addOk = ""; renderLeads(); }); }
+    var ac = $("plAddCancel");
+    if (ac) { ac.addEventListener("click", function () { PL.add = null; PL.addErr = ""; renderLeads(); }); }
+    var readAdd = function () {
+      if (!PL.add) { return; }
+      var g = function (id) { var el = $(id); return el ? el.value : ""; };
+      PL.add = { property_slug: g("plAddProp"), first_name: g("plAddFirst"), last_name: g("plAddLast"),
+                 email: g("plAddEmail"), phone: g("plAddPhone"), message: g("plAddMsg"), assigned_staff_id: g("plAddAgent") };
+    };
+    ["plAddFirst", "plAddLast", "plAddEmail", "plAddPhone", "plAddMsg"].forEach(function (id) {
+      var el = $(id); if (el) { el.addEventListener("input", readAdd); }
+    });
+    var ap = $("plAddProp");
+    if (ap) { ap.addEventListener("change", function () { readAdd(); renderLeads(); }); }
+    var ag = $("plAddAgent");
+    if (ag) { ag.addEventListener("change", readAdd); }
+    var go = $("plAddGo");
+    if (go) { go.addEventListener("click", function () { readAdd(); plAddSubmit(); }); }
+
+    [].forEach.call(v.querySelectorAll("[data-pl-deal]"), function (el) {
+      el.addEventListener("click", function (e) {
+        e.stopPropagation();
+        invOpenDeal(el.getAttribute("data-pl-deal"), el.getAttribute("data-pl-ref"));
+      });
+    });
+
+    var bs = $("plBulkStatus");
+    if (bs) { bs.addEventListener("change", function () { if (bs.value) { plApplyToSelection("status", bs.value); } }); }
+    var ba = $("plBulkAssign");
+    if (ba) { ba.addEventListener("change", function () { if (ba.value) { plApplyToSelection("assigned_staff_id", ba.value === "__none" ? "" : ba.value); } }); }
+    var no = $("plNoteOpen");
+    if (no) { no.addEventListener("click", function () { PL.noteOpen = true; renderLeads(); var t = $("plNoteText"); if (t) { t.focus(); } }); }
+    var nt = $("plNoteText");
+    if (nt) {
+      nt.addEventListener("input", function () { PL.noteText = nt.value; });
+      nt.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); plAppendNote(nt.value); } });
+    }
+    var ng = $("plNoteGo");
+    if (ng) { ng.addEventListener("click", function () { plAppendNote(PL.noteText); }); }
+
+    if ($("plCopy")) { $("plCopy").addEventListener("click", function () { PL_GRID.copy(); }); }
+    if ($("plClearSel")) { $("plClearSel").addEventListener("click", function () { PL.sel = {}; renderLeads(); }); }
+    if ($("plDiscard")) { $("plDiscard").addEventListener("click", function () { PL.pending = {}; PL.bulk = null; PL.saveErr = ""; PL.editing = null; renderLeads(); }); }
+    if ($("plReview")) { $("plReview").addEventListener("click", plPreview); }
+    if ($("plBulkCancel")) { $("plBulkCancel").addEventListener("click", function () { PL.bulk = null; PL.bulkErr = ""; renderLeads(); }); }
+    if ($("plBulkDone")) { $("plBulkDone").addEventListener("click", function () { PL.bulk = null; PL.bulkErr = ""; renderLeads(); }); }
+    var br = $("plBulkReason");
+    if (br) { br.addEventListener("input", function () { PL.bulkReason = br.value; }); }
+    if ($("plBulkGo")) {
+      $("plBulkGo").addEventListener("click", function () {
+        var why = String(PL.bulkReason || "").trim();
+        if (why.length < 4) { PL.bulkErr = "Say why - it lands on every lead this touches."; renderLeads(); return; }
+        PL.bulkErr = "";
+        plCommit(why);
+      });
+    }
+
+    PL_GRID.wire();
+  }
+
+  /* =====================================================================================
+     SALES TEAMS - 11 Sep 2026. A team is an agency, Heartland included as team 1; a person
+     can be on several; each membership carries its own cap and its own turn in the
+     rotation; a team sells the developments it is attached to. All of it is one writer,
+     POST /staff/teams, and one reader, GET /staff/teams - this is the screen over them.
+     Retired rows are listed and marked, never hidden, so a retired member can be brought
+     back. Nothing is ever deleted. */
+  var TEAMS = { data: null, loading: false, err: "", ok: "", busy: "", open: null,
+                nt: null, addMember: {}, addDev: {} };
+
+  function loadTeams() {
+    if (TEAMS.loading) { return Promise.resolve(); }
+    TEAMS.loading = true; TEAMS.err = "";
+    renderTeam();
+    return api("/staff/teams")
+      .then(function (d) { TEAMS.data = d; })
+      .catch(function (e) { TEAMS.err = e.message; })
+      .then(function () { TEAMS.loading = false; renderTeam(); });
+  }
+
+  function teamsWrite(body, busyKey, okText) {
+    TEAMS.busy = busyKey; TEAMS.err = ""; TEAMS.ok = "";
+    renderTeam();
+    return api("/staff/teams", { method: "POST", body: JSON.stringify(body) })
+      .then(function () { TEAMS.ok = okText || "Saved."; TEAMS.busy = ""; return loadTeams(); })
+      .catch(function (e) { TEAMS.err = e.message; TEAMS.busy = ""; renderTeam(); });
+  }
+
+  function teamsMemberHtml(t, m) {
+    var busy = TEAMS.busy === ("m:" + m.membership_id);
+    return '<div class="team-member' + (m.is_active ? "" : " is-off") + '" data-tm-row="' + esc(String(m.membership_id)) + '">' +
+      '<div class="tm-name">' + esc(m.name) +
+        (!m.staff_active ? ' <span class="feat-flag is-default">account off</span>' : "") +
+        (!m.is_active ? ' <span class="feat-flag is-default">retired</span>' : "") +
+        '<div class="inv-who">' + esc(m.role) + " · " + m.open_leads + " open lead" + (m.open_leads === 1 ? "" : "s") +
+        (m.last_assigned_at ? " · last given one " + day(plMs(m.last_assigned_at)) : " · never given one") + "</div></div>" +
+      (m.is_active
+        ? '<label class="team-check tm-recv"><input type="checkbox" data-tm-recv="' + esc(String(m.membership_id)) + '"' +
+            (m.receives_leads ? " checked" : "") + (busy ? " disabled" : "") + "> Gets leads</label>" +
+          '<label class="tm-cap">Cap <input type="text" inputmode="numeric" data-tm-cap="' + esc(String(m.membership_id)) + '" value="' +
+            (m.lead_cap === null || m.lead_cap === undefined ? "" : esc(String(m.lead_cap))) + '" placeholder="none"' + (busy ? " disabled" : "") + "></label>" +
+          '<button type="button" class="ph-btn is-quiet" data-tm-retire="' + esc(String(m.membership_id)) + '"' + (busy ? " disabled" : "") + ">" + (busy ? "…" : "Remove") + "</button>"
+        : '<button type="button" class="ph-btn" data-tm-restore="' + esc(String(m.membership_id)) + '"' + (busy ? " disabled" : "") + ">Bring back</button>") +
+    "</div>";
+  }
+
+  function teamsCardHtml(t) {
+    var d = TEAMS.data || {};
+    var open = TEAMS.open === t.id;
+    var onTeam = {};
+    t.members.forEach(function (m) { onTeam[String(m.staff_id)] = m; });
+    var addable = (d.staff || []).filter(function (s) { return s.is_active && !(onTeam[String(s.id)] && onTeam[String(s.id)].is_active); });
+    var attached = {};
+    t.developments.forEach(function (x) { attached[x.property_slug] = x; });
+    var attachable = (d.properties || []).filter(function (p) { return !(attached[p.slug] && attached[p.slug].is_active); });
+    var busyT = TEAMS.busy === ("t:" + t.id);
+    return '<div class="card pad tm-team' + (t.is_active ? "" : " is-off") + '" data-tm-team="' + esc(String(t.id)) + '">' +
+      '<div class="tm-head">' +
+        "<div><h2>" + esc(t.name) +
+          (t.is_internal ? ' <span class="feat-flag">Heartland</span>' : "") +
+          (!t.is_active ? ' <span class="feat-flag is-default">retired</span>' : "") + "</h2>" +
+          '<div class="inv-who">' + esc(t.slug) + " · " + t.counts.members + " member" + (t.counts.members === 1 ? "" : "s") +
+          " · " + t.counts.developments + " development" + (t.counts.developments === 1 ? "" : "s") + "</div></div>" +
+        '<button type="button" class="ph-btn is-quiet" data-tm-open="' + esc(String(t.id)) + '" aria-expanded="' + (open ? "true" : "false") + '">' + (open ? "Close" : "Manage") + "</button>" +
+      "</div>" +
+      (open
+        ? '<div class="tm-body">' +
+          "<h3>Sells</h3>" +
+          '<div class="inv-chips">' +
+            t.developments.map(function (x) {
+              return '<span class="inv-chip' + (x.is_active ? "" : " is-off") + '">' + esc(x.property_name) +
+                (x.is_active
+                  ? ' <button type="button" class="chip-x" data-tm-detach="' + esc(String(t.id)) + '|' + esc(x.property_slug) + '" title="Detach">×</button>'
+                  : ' <button type="button" class="chip-x" data-tm-attach="' + esc(String(t.id)) + '|' + esc(x.property_slug) + '" title="Attach again">+</button>') +
+                "</span>";
+            }).join("") +
+            (attachable.length
+              ? '<select data-tm-attach-pick="' + esc(String(t.id)) + '" aria-label="Attach a development"><option value="">Attach a development…</option>' +
+                attachable.map(function (p) { return '<option value="' + esc(p.slug) + '">' + esc(p.name) + "</option>"; }).join("") + "</select>"
+              : "") +
+          "</div>" +
+          '<div class="inv-owed">Leads for a development go round the people on every team attached to it. A team attached to nothing receives no leads.</div>' +
+          "<h3>People</h3>" +
+          (t.members.length ? t.members.map(function (m) { return teamsMemberHtml(t, m); }).join("") : '<div class="inv-empty">Nobody on this team yet.</div>') +
+          (addable.length
+            ? '<div class="tm-add"><select data-tm-add-pick="' + esc(String(t.id)) + '" aria-label="Add a person"><option value="">Add a person…</option>' +
+              addable.map(function (s) { return '<option value="' + esc(String(s.id)) + '">' + esc(s.name) + " (" + esc(s.role) + ")</option>"; }).join("") + "</select></div>"
+            : "") +
+          '<div class="inv-owed">A cap is the most open leads the rotation will give someone through this team before skipping them; blank means no limit. Someone who does not get leads can still see the team’s pipeline.</div>' +
+          '<div class="inv-edit-actions">' +
+            (t.is_active
+              ? '<button type="button" class="ph-btn is-quiet" data-tm-team-off="' + esc(String(t.id)) + '"' + (busyT ? " disabled" : "") + ">Retire this team</button>"
+              : '<button type="button" class="ph-btn" data-tm-team-on="' + esc(String(t.id)) + '"' + (busyT ? " disabled" : "") + ">Reactivate this team</button>") +
+          "</div>" +
+          "</div>"
+        : "") +
+    "</div>";
+  }
+
+  function teamsHtml() {
+    var d = TEAMS.data;
+    var nt = TEAMS.nt;
+    var body;
+    if (TEAMS.loading && !d) { body = '<div class="muted" style="font-size:.8125rem">Loading…</div>'; }
+    else if (!d) { body = ""; }
+    else {
+      body = d.teams.map(teamsCardHtml).join("") +
+        (nt
+          ? '<div class="card pad" id="tmNew"><h2>New team</h2>' +
+            '<div class="team-form">' +
+            '<div class="nr-field"><label for="tmNewName">Name</label><input id="tmNewName" type="text" value="' + esc(nt.name) + '" placeholder="Pam Golding Stellenbosch"></div>' +
+            '<div class="nr-field"><label for="tmNewSlug">Handle</label><input id="tmNewSlug" type="text" class="is-code" value="' + esc(nt.slug) + '" placeholder="pam-golding">' +
+              '<div class="nr-hint">Lower-case letters, digits and hyphens. It names the team on every event.</div></div>' +
+            '<label class="team-check"><input id="tmNewInternal" type="checkbox"' + (nt.internal ? " checked" : "") + "> Heartland’s own team, not an outside agency</label>" +
+            "</div>" +
+            '<div class="inv-edit-actions"><button type="button" id="tmNewCancel">Cancel</button><span class="spacer"></span>' +
+            '<button type="button" class="primary" id="tmNewGo"' + (TEAMS.busy === "new" ? " disabled" : "") + ">" + (TEAMS.busy === "new" ? "Creating…" : "Create team") + "</button></div>" +
+            "</div>"
+          : '<div class="inv-edit-actions"><span class="spacer"></span><button type="button" id="tmNewOpen">New team</button></div>');
+    }
+    return '<div class="card pad tm-wrap"><h2>Sales teams</h2>' +
+      '<div class="team-intro">Who sells what, and who gets the leads. A person can be on more than one team; leads go round the team in turn, skipping anyone at their cap.</div>' +
+      '<div class="err" id="tmsErr">' + esc(TEAMS.err) + '</div><div class="ok" id="tmsOk">' + esc(TEAMS.ok) + "</div>" +
+      body + "</div>";
+  }
+
+  function teamsWire() {
+    var v = $("viewTeam");
+    if (!v) { return; }
+    var each = function (attr, fn) {
+      [].forEach.call(v.querySelectorAll("[" + attr + "]"), function (el) { fn(el, el.getAttribute(attr)); });
+    };
+    each("data-tm-open", function (el, id) {
+      el.addEventListener("click", function () { TEAMS.open = TEAMS.open === Number(id) ? null : Number(id); TEAMS.ok = ""; renderTeam(); });
+    });
+    each("data-tm-detach", function (el, key) {
+      el.addEventListener("click", function () {
+        var p = key.split("|");
+        teamsWrite({ kind: "development", team_id: Number(p[0]), property_slug: p[1], is_active: false }, "d:" + key, "Detached.");
+      });
+    });
+    each("data-tm-attach", function (el, key) {
+      el.addEventListener("click", function () {
+        var p = key.split("|");
+        teamsWrite({ kind: "development", team_id: Number(p[0]), property_slug: p[1], is_active: true }, "d:" + key, "Attached.");
+      });
+    });
+    each("data-tm-attach-pick", function (el, id) {
+      el.addEventListener("change", function () {
+        if (!el.value) { return; }
+        teamsWrite({ kind: "development", team_id: Number(id), property_slug: el.value, is_active: true }, "d:" + id, "Attached.");
+      });
+    });
+    each("data-tm-add-pick", function (el, id) {
+      el.addEventListener("change", function () {
+        if (!el.value) { return; }
+        teamsWrite({ kind: "member", team_id: Number(id), member_staff_id: Number(el.value), receives_leads: true, is_active: true }, "m:new", "Added to the team.");
+      });
+    });
+    var memberOf = function (mid) {
+      var found = null;
+      ((TEAMS.data && TEAMS.data.teams) || []).forEach(function (t) {
+        t.members.forEach(function (m) { if (String(m.membership_id) === String(mid)) { found = { t: t, m: m }; } });
+      });
+      return found;
+    };
+    each("data-tm-recv", function (el, mid) {
+      el.addEventListener("change", function () {
+        var x = memberOf(mid); if (!x) { return; }
+        teamsWrite({ kind: "member", team_id: x.t.id, member_staff_id: x.m.staff_id, receives_leads: el.checked }, "m:" + mid,
+          el.checked ? "Back in the rotation." : "Out of the rotation - they still see the pipeline.");
+      });
+    });
+    each("data-tm-cap", function (el, mid) {
+      var commit = function () {
+        var x = memberOf(mid); if (!x) { return; }
+        var raw = String(el.value).trim();
+        var was = (x.m.lead_cap === null || x.m.lead_cap === undefined) ? "" : String(x.m.lead_cap);
+        if (raw === was) { return; }
+        if (raw === "") { teamsWrite({ kind: "member", team_id: x.t.id, member_staff_id: x.m.staff_id, clear_cap: true }, "m:" + mid, "No cap."); return; }
+        if (!/^[0-9]+$/.test(raw)) { TEAMS.err = "A cap is a whole number of open leads."; renderTeam(); return; }
+        teamsWrite({ kind: "member", team_id: x.t.id, member_staff_id: x.m.staff_id, lead_cap: Number(raw) }, "m:" + mid, "Cap set.");
+      };
+      el.addEventListener("change", commit);
+      el.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); commit(); } });
+    });
+    each("data-tm-retire", function (el, mid) {
+      el.addEventListener("click", function () {
+        var x = memberOf(mid); if (!x) { return; }
+        teamsWrite({ kind: "member", team_id: x.t.id, member_staff_id: x.m.staff_id, is_active: false }, "m:" + mid, "Removed - their leads stay theirs until reassigned.");
+      });
+    });
+    each("data-tm-restore", function (el, mid) {
+      el.addEventListener("click", function () {
+        var x = memberOf(mid); if (!x) { return; }
+        teamsWrite({ kind: "member", team_id: x.t.id, member_staff_id: x.m.staff_id, is_active: true }, "m:" + mid, "Back on the team.");
+      });
+    });
+    each("data-tm-team-off", function (el, id) {
+      el.addEventListener("click", function () {
+        var t = null; ((TEAMS.data && TEAMS.data.teams) || []).forEach(function (x) { if (x.id === Number(id)) { t = x; } });
+        if (!t) { return; }
+        teamsWrite({ kind: "team", slug: t.slug, is_active: false }, "t:" + id, "Retired. It receives no leads; its members lose team scope.");
+      });
+    });
+    each("data-tm-team-on", function (el, id) {
+      el.addEventListener("click", function () {
+        var t = null; ((TEAMS.data && TEAMS.data.teams) || []).forEach(function (x) { if (x.id === Number(id)) { t = x; } });
+        if (!t) { return; }
+        teamsWrite({ kind: "team", slug: t.slug, is_active: true }, "t:" + id, "Reactivated.");
+      });
+    });
+    var no = $("tmNewOpen");
+    if (no) { no.addEventListener("click", function () { TEAMS.nt = { name: "", slug: "", internal: false }; TEAMS.err = ""; TEAMS.ok = ""; renderTeam(); }); }
+    var nc = $("tmNewCancel");
+    if (nc) { nc.addEventListener("click", function () { TEAMS.nt = null; renderTeam(); }); }
+    var readNew = function () {
+      if (!TEAMS.nt) { return; }
+      TEAMS.nt = { name: $("tmNewName") ? $("tmNewName").value : "", slug: $("tmNewSlug") ? $("tmNewSlug").value : "",
+                   internal: $("tmNewInternal") ? $("tmNewInternal").checked : false };
+    };
+    var nn = $("tmNewName");
+    if (nn) {
+      nn.addEventListener("input", function () {
+        var slugEl = $("tmNewSlug");
+        /* The handle follows the name until somebody types one of their own. */
+        if (slugEl && (!TEAMS.nt.slug || TEAMS.nt.slugAuto)) {
+          slugEl.value = nn.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+          readNew(); TEAMS.nt.slugAuto = true;
+        } else { readNew(); }
+      });
+    }
+    var ns = $("tmNewSlug");
+    if (ns) { ns.addEventListener("input", function () { readNew(); TEAMS.nt.slugAuto = false; }); }
+    var ni = $("tmNewInternal");
+    if (ni) { ni.addEventListener("change", readNew); }
+    var ng = $("tmNewGo");
+    if (ng) {
+      ng.addEventListener("click", function () {
+        readNew();
+        var nt = TEAMS.nt;
+        if (!nt.name.trim()) { TEAMS.err = "A team needs a name."; renderTeam(); return; }
+        if (!/^[a-z0-9][a-z0-9-]*$/.test(nt.slug)) { TEAMS.err = "The handle is lower-case letters, digits and hyphens."; renderTeam(); return; }
+        teamsWrite({ kind: "team", slug: nt.slug, name: nt.name.trim(), is_internal: nt.internal, is_active: true }, "new", "Team created. Attach a development and add people.")
+          .then(function () { TEAMS.nt = null; renderTeam(); });
+      });
+    }
+  }
+
   var TEAM = { rows: [], me: null, loaded: false, loading: false, busy: false, err: "", ok: "", editing: "", v: null };
 
   function teamDefaults() {
@@ -8566,8 +9555,9 @@
           '<button type="button" class="primary" id="tmGo"' + (TEAM.busy ? " disabled" : "") + ">" +
           (TEAM.busy ? "Saving…" : (editing ? "Save changes" : "Create account")) + "</button>" +
         "</div>" +
-      "</div></div>";
+      "</div></div>" + teamsHtml();
 
+    teamsWire();
     [].forEach.call($("viewTeam").querySelectorAll("[data-team]"), function (el) {
       var pick = function () { teamEdit(el.getAttribute("data-team")); };
       el.addEventListener("click", pick);
@@ -8925,6 +9915,7 @@
   var TABS = [
     { k: "dash",  btn: "tabDash",  view: "viewDash" },
     { k: "today", btn: "tabToday", view: "viewToday" },
+    { k: "leads", btn: "tabLeads", view: "viewLeads" },
     { k: "pipe",  btn: "tabPipe",  view: "viewPipe" },
     { k: "inv",   btn: "tabInv",   view: "viewInv" },
     { k: "dev",   btn: "tabDev",   view: "viewDev" },
@@ -8935,6 +9926,10 @@
     /* Fetched on first view rather than with the pipeline: most sessions never open it,
        and it is a second request against a rate-limited API. */
     if (which === "team" && !TEAM.loaded && !TEAM.loading) { loadTeam(); }
+    if (which === "team" && !TEAMS.data && !TEAMS.loading) { loadTeams(); }
+    /* Loaded on first view and re-read on every return - a lead can arrive while the tab
+       sat behind another, and the count in the sidebar should be the count on screen. */
+    if (which === "leads") { if (!PL.data && !PL.loading) { plLoad(); } else if (!PL.loading) { plLoad(true); } }
     if (which === "inv" && !INV.slug) { invPickDefault(); }
     /* Repainted on every return, not only on first view: what a development is ALLOWED to
        do can have changed on the Developments tab while this one sat behind it, and a stale

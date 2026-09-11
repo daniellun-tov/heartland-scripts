@@ -468,6 +468,235 @@
       return jsonOf('{"changed":true}');
     }
 
+    /* ---------- LEADS, THE PIPELINE, AND SALES TEAMS - 11 Sep ---------- */
+    /* Tested BEFORE /staff/team, whose indexOf would swallow /staff/teams. The stubs mirror
+       list_pipeline, bulk_update_leads, create_lead and set_team: scope by role, per-row
+       outcomes, refusals in the server's words. */
+    var WIDE = (window.__ROLE === "manager" || window.__ROLE === "admin");
+    window.__LEADS = window.__LEADS || [
+      { id: 701, reference: "LD-STE-001", property_slug: "stellenbosch", property_name: "Stellenbosch Village", source: "enquiry",
+        status: "new", first_name: "Thabo", last_name: "Nkosi", email: "thabo@example.com", phone: "+27 82 111 0001",
+        message: "Is Home 4 still available?", notes: "", utm_source: "google", utm_campaign: "", origin_host: "heartland.co.za",
+        assigned_staff_id: 5, assigned_staff_name: "Anneke Grobler", assigned_team_id: 1, assigned_team_name: "Heartland",
+        assignment_method: "rotation", unassigned_reason: "", lost_reason: "", reservation_uuid: "", res_reference: "", res_status: "",
+        res_dead: false, res_unit_name: "", res_deal_stage: "", res_deal_sub_stage: "", res_deal_stage_due_at: null, res_days_left: null,
+        res_overdue: false, res_total_cents: 0, created_at: Date.now() - 3600000, assigned_at: Date.now() - 3500000, last_activity_at: Date.now() - 3500000 },
+      { id: 702, reference: "LD-STE-002", property_slug: "stellenbosch", property_name: "Stellenbosch Village", source: "manual",
+        status: "contacted", first_name: "Lerato", last_name: "Dlamini", email: "lerato@example.com", phone: "+27 82 111 0002",
+        message: "", notes: "Called Tuesday, wants a corner plot", utm_source: "", utm_campaign: "", origin_host: "",
+        assigned_staff_id: 6, assigned_staff_name: "Danette", assigned_team_id: 1, assigned_team_name: "Heartland",
+        assignment_method: "manual", unassigned_reason: "", lost_reason: "", reservation_uuid: "", res_reference: "", res_status: "",
+        res_dead: false, res_unit_name: "", res_deal_stage: "", res_deal_sub_stage: "", res_deal_stage_due_at: null, res_days_left: null,
+        res_overdue: false, res_total_cents: 0, created_at: Date.now() - 2 * 86400000, assigned_at: Date.now() - 2 * 86400000, last_activity_at: Date.now() - 86400000 },
+      { id: 703, reference: "LD-SAN-001", property_slug: "sanford", property_name: "Sanford Heart", source: "enquiry",
+        status: "new", first_name: "Pieter", last_name: "van Wyk", email: "pieter@example.com", phone: "",
+        message: "Brochure please", notes: "", utm_source: "facebook", utm_campaign: "spring", origin_host: "heartland.co.za",
+        assigned_staff_id: null, assigned_staff_name: "", assigned_team_id: null, assigned_team_name: "",
+        assignment_method: "none", unassigned_reason: "no_team", lost_reason: "", reservation_uuid: "", res_reference: "", res_status: "",
+        res_dead: false, res_unit_name: "", res_deal_stage: "", res_deal_sub_stage: "", res_deal_stage_due_at: null, res_days_left: null,
+        res_overdue: false, res_total_cents: 0, created_at: Date.now() - 600000, assigned_at: null, last_activity_at: Date.now() - 600000 },
+      { id: 704, reference: "LD-STE-003", property_slug: "stellenbosch", property_name: "Stellenbosch Village", source: "reserve-flow",
+        status: "qualified", first_name: "Naledi", last_name: "Mokoena", email: "naledi@example.com", phone: "+27 82 111 0004",
+        message: "", notes: "Bond pre-approved", utm_source: "", utm_campaign: "", origin_host: "heartland.co.za",
+        assigned_staff_id: 5, assigned_staff_name: "Anneke Grobler", assigned_team_id: 1, assigned_team_name: "Heartland",
+        assignment_method: "rotation", unassigned_reason: "", lost_reason: "", reservation_uuid: window.__FIXTURE.items[0].uuid,
+        res_reference: window.__FIXTURE.items[0].reference, res_status: "awaiting_payment", res_dead: false, res_unit_name: "Home 7",
+        res_deal_stage: "", res_deal_sub_stage: "", res_deal_stage_due_at: null, res_days_left: null, res_overdue: false, res_total_cents: 359500000,
+        created_at: Date.now() - 5 * 86400000, assigned_at: Date.now() - 5 * 86400000, last_activity_at: Date.now() - 7200000 },
+      { id: 705, reference: "LD-STE-004", property_slug: "stellenbosch", property_name: "Stellenbosch Village", source: "enquiry",
+        status: "lost", first_name: "Old", last_name: "Lead", email: "old@example.com", phone: "",
+        message: "", notes: "", utm_source: "", utm_campaign: "", origin_host: "",
+        assigned_staff_id: 5, assigned_staff_name: "Anneke Grobler", assigned_team_id: 1, assigned_team_name: "Heartland",
+        assignment_method: "rotation", unassigned_reason: "", lost_reason: "Bought elsewhere", reservation_uuid: "", res_reference: "", res_status: "",
+        res_dead: false, res_unit_name: "", res_deal_stage: "", res_deal_stage_due_at: null, res_days_left: null, res_overdue: false, res_total_cents: 0,
+        created_at: Date.now() - 20 * 86400000, assigned_at: null, last_activity_at: Date.now() - 10 * 86400000 }
+    ];
+    window.__AGENTS = window.__AGENTS || [
+      { id: 5, name: "Anneke Grobler", role: window.__ROLE, teams: [{ id: 1, slug: "heartland", name: "Heartland", receives_leads: true, lead_cap: 5 }], slugs: ["stellenbosch"] },
+      { id: 6, name: "Danette", role: "manager", teams: [{ id: 1, slug: "heartland", name: "Heartland", receives_leads: true, lead_cap: null }], slugs: ["stellenbosch"] }
+    ];
+    window.__TEAMS = window.__TEAMS || {
+      teams: [
+        { id: 1, slug: "heartland", name: "Heartland", is_internal: true, is_active: true, notes: "",
+          members: [
+            { membership_id: 11, staff_id: 5, name: "Anneke Grobler", email: "anneke@heartland.co.za", role: window.__ROLE, staff_active: true, receives_leads: true, lead_cap: 5, open_leads: 2, last_assigned_at: Date.now() - 3500000, is_active: true },
+            { membership_id: 12, staff_id: 6, name: "Danette", email: "danette@heartland.co.za", role: "manager", staff_active: true, receives_leads: true, lead_cap: null, open_leads: 1, last_assigned_at: null, is_active: true },
+            { membership_id: 13, staff_id: 8, name: "Eugene", email: "eugene@heartland.co.za", role: "manager", staff_active: true, receives_leads: false, lead_cap: null, open_leads: 0, last_assigned_at: null, is_active: false }
+          ],
+          developments: [{ attachment_id: 21, property_slug: "stellenbosch", property_name: "Stellenbosch Village", is_active: true }],
+          counts: { members: 2, developments: 1 } }
+      ],
+      staff: [
+        { id: 5, name: "Anneke Grobler", email: "anneke@heartland.co.za", role: window.__ROLE, is_active: true },
+        { id: 6, name: "Danette", email: "danette@heartland.co.za", role: "manager", is_active: true },
+        { id: 7, name: "Johan", email: "johan@heartfelt.co.za", role: "manager", is_active: true },
+        { id: 8, name: "Eugene", email: "eugene@heartland.co.za", role: "manager", is_active: true }
+      ],
+      properties: [{ slug: "stellenbosch", name: "Stellenbosch Village" }, { slug: "sanford", name: "Sanford Heart" }, { slug: "polaris", name: "Polaris Heart" }],
+      counts: { teams: 1, active: 1 }
+    };
+    var LEAD_STATE = function (l) {
+      if (l.status === "lost") { return "lost"; }
+      if (l.res_reference) { return l.res_status === "confirmed" ? "won" : "reserving"; }
+      return l.status;
+    };
+    var LEAD_SCOPE = function (want) {
+      var applied = want || "mine";
+      if (applied === "all" && !WIDE) { applied = "team"; }
+      return { staff_id: 5, name: "Anneke Grobler", role: window.__ROLE, scope_requested: want || "mine", scope_applied: applied,
+               all: applied === "all" ? 1 : 0, staff_ids: applied === "mine" ? [5] : [5, 6], unassigned_on_slugs: applied === "team" ? ["stellenbosch"] : [],
+               team_ids: [1], teams: [{ id: 1, slug: "heartland", name: "Heartland" }], can_assign: WIDE ? 1 : 0, writes_any: WIDE ? 1 : 0 };
+    };
+    if (method !== "POST" && u.indexOf("/staff/pipeline") !== -1) {
+      window.__PL_CALLS = (window.__PL_CALLS || 0) + 1;
+      var want = (/scope=([a-z]+)/.exec(u) || [0, "mine"])[1];
+      var wantProp = (/property=([a-z]+)/.exec(u) || [0, ""])[1];
+      var wantLost = /include_lost=true/.test(u);
+      var sc = LEAD_SCOPE(want);
+      var counts = { total: window.__LEADS.length, visible: 0, mine: 0, unassigned: 0, by_state: {} };
+      var items = window.__LEADS.filter(function (l) {
+        var vis = sc.all === 1 || (l.assigned_staff_id !== null && sc.staff_ids.indexOf(l.assigned_staff_id) !== -1) ||
+                  (l.assigned_staff_id === null && sc.unassigned_on_slugs.indexOf(l.property_slug) !== -1);
+        if (!vis) { return false; }
+        var state = LEAD_STATE(l);
+        if (!wantLost && state === "lost") { return false; }
+        if (wantProp && l.property_slug !== wantProp) { return false; }
+        return true;
+      }).map(function (l) {
+        var state = LEAD_STATE(l);
+        var mine = l.assigned_staff_id === 5;
+        counts.visible++; if (mine) { counts.mine++; } if (l.assigned_staff_id === null) { counts.unassigned++; }
+        counts.by_state[state] = (counts.by_state[state] || 0) + 1;
+        var row = {}; for (var k in l) { if (l.hasOwnProperty(k)) { row[k] = l[k]; } }
+        row.name = (l.first_name + " " + l.last_name).trim(); row.state = state; row.mine = mine; row.editable = WIDE || mine;
+        return row;
+      });
+      return typOk({ scope: sc, counts: counts, matched: items.length, items: items, agents: window.__AGENTS,
+                     teams: [{ id: 1, slug: "heartland", name: "Heartland", is_internal: true, is_active: true }],
+                     properties: window.__FIXTURE.properties, statuses: ["new", "contacted", "qualified", "lost"], server_time: Date.now() });
+    }
+    if (method === "POST" && u.indexOf("/staff/pipeline/bulk") !== -1) {
+      var pb = JSON.parse((opts && opts.body) || "{}");
+      window.__PL_POSTED = pb;
+      window.__PL_POSTS = (window.__PL_POSTS || []).concat([pb]);
+      if (window.__PL_FAILS) { return typRefuse(String(window.__PL_FAILS)); }
+      var STATUSES = ["new", "contacted", "qualified", "lost"];
+      var ALLOWED = ["status", "lost_reason", "notes", "first_name", "last_name", "email", "phone", "assigned_staff_id", "unassign"];
+      var summary = { applied: 0, unchanged: 0, refused: 0 };
+      var rows = (pb.items || []).map(function (it) {
+        var l = null; window.__LEADS.forEach(function (x) { if (x.id === Number(it.id)) { l = x; } });
+        var out = { id: it.id, reference: l ? l.reference : "", outcome: "refused", reason: "", changes: {} };
+        if (!l) { out.reason = "No lead with that id."; return out; }
+        var f = it.fields || {};
+        var unknown = Object.keys(f).filter(function (k) { return ALLOWED.indexOf(k) === -1; });
+        if (unknown.length) { out.reason = "Not editable here: " + unknown.join(", ") + "."; return out; }
+        if (!WIDE && l.assigned_staff_id !== 5) { out.reason = "That lead is not assigned to you."; return out; }
+        var next = {}; for (var k2 in l) { if (l.hasOwnProperty(k2)) { next[k2] = l[k2]; } }
+        var ch = {};
+        if (f.hasOwnProperty("status")) {
+          var st = String(f.status).toLowerCase();
+          if (STATUSES.indexOf(st) === -1) { out.reason = "status is new, contacted, qualified or lost."; return out; }
+          if (st !== l.status) { ch.status = { was: l.status, now: st }; next.status = st; }
+        }
+        ["lost_reason", "notes", "first_name", "last_name", "phone"].forEach(function (k3) {
+          if (!f.hasOwnProperty(k3)) { return; }
+          var v = String(f[k3]); if (k3 !== "notes") { v = v.trim(); }
+          if (v !== String(l[k3] || "")) { ch[k3] = { was: l[k3] || "", now: v }; next[k3] = v; }
+        });
+        if (f.hasOwnProperty("email")) {
+          var em = String(f.email).trim().toLowerCase();
+          if (em && !/^[^ @]+@[^ @]+[.][^ @]+$/.test(em)) { out.reason = "That does not look like an email address."; return out; }
+          if (em !== l.email) { ch.email = { was: l.email, now: em }; next.email = em; }
+        }
+        if (f.unassign === true) {
+          if (!WIDE) { out.reason = "Only a manager or an admin can unassign a lead."; return out; }
+          if (l.assigned_staff_id !== null) { ch.assigned_staff_id = { was: l.assigned_staff_id, now: null }; next.assigned_staff_id = null; next.assigned_staff_name = ""; next.assignment_method = "none"; }
+        } else if (f.hasOwnProperty("assigned_staff_id") && f.assigned_staff_id) {
+          if (!WIDE) { out.reason = "Only a manager or an admin can assign a lead."; return out; }
+          var ag = null; window.__AGENTS.forEach(function (a) { if (a.id === Number(f.assigned_staff_id)) { ag = a; } });
+          if (!ag) { out.reason = "That person is not on a team that sells this development. Add them to the team first."; return out; }
+          if (l.assigned_staff_id !== ag.id) { ch.assigned_staff_id = { was: l.assigned_staff_id, now: ag.id }; next.assigned_staff_id = ag.id; next.assigned_staff_name = ag.name; next.assignment_method = "manual"; next.assigned_team_id = 1; next.assigned_team_name = "Heartland"; }
+        }
+        if (!Object.keys(ch).length) { out.outcome = "unchanged"; return out; }
+        out.outcome = "applied"; out.changes = ch;
+        if (pb.dry_run !== true) { for (var k4 in next) { if (next.hasOwnProperty(k4)) { l[k4] = next[k4]; } } l.last_activity_at = Date.now(); }
+        return out;
+      });
+      rows.forEach(function (r) { summary[r.outcome]++; });
+      return typOk({ summary: summary, rows: rows, dry_run: pb.dry_run === true });
+    }
+    if (method === "POST" && u.indexOf("/staff/leads") !== -1) {
+      var lb = JSON.parse((opts && opts.body) || "{}");
+      window.__LEAD_ADDED = lb;
+      if (window.__LEAD_FAILS) { return typRefuse(String(window.__LEAD_FAILS)); }
+      var dup = null;
+      window.__LEADS.forEach(function (x) { if (x.property_slug === lb.property_slug && x.status !== "lost" && x.email && x.email === String(lb.email || "").toLowerCase()) { dup = x; } });
+      if (dup) { return typOk({ action: "repeat", lead_id: dup.id, reference: dup.reference, lead: dup }); }
+      var who = WIDE ? (lb.assigned_staff_id ? Number(lb.assigned_staff_id) : 6) : 5;
+      var whoName = who === 5 ? "Anneke Grobler" : (who === 6 ? "Danette" : "Someone");
+      var nl = { id: 706, reference: "LD-" + String(lb.property_slug).slice(0, 3).toUpperCase() + "-009", property_slug: lb.property_slug,
+        property_name: lb.property_slug === "sanford" ? "Sanford Heart" : "Stellenbosch Village", source: "manual", status: "new",
+        first_name: lb.first_name || "", last_name: lb.last_name || "", email: String(lb.email || "").toLowerCase(), phone: lb.phone || "",
+        message: lb.message || "", notes: "", utm_source: "", utm_campaign: "", origin_host: "", assigned_staff_id: who, assigned_staff_name: whoName,
+        assigned_team_id: 1, assigned_team_name: "Heartland", assignment_method: (WIDE && !lb.assigned_staff_id) ? "rotation" : "manual",
+        unassigned_reason: "", lost_reason: "", reservation_uuid: "", res_reference: "", res_status: "", res_dead: false, res_unit_name: "",
+        res_deal_stage: "", res_deal_sub_stage: "", res_deal_stage_due_at: null, res_days_left: null, res_overdue: false, res_total_cents: 0,
+        created_at: Date.now(), assigned_at: Date.now(), last_activity_at: Date.now() };
+      window.__LEADS.push(nl);
+      return typOk({ action: "create", lead_id: nl.id, reference: nl.reference, lead: nl, allocation: { action: "assigned", staff_id: who } });
+    }
+    if (u.indexOf("/staff/teams") !== -1) {
+      if (method === "POST") {
+        var tb = JSON.parse((opts && opts.body) || "{}");
+        window.__TEAMS_POSTED = tb;
+        window.__TEAMS_POSTS = (window.__TEAMS_POSTS || []).concat([tb]);
+        if (window.__TEAMS_FAILS) { return typRefuse(String(window.__TEAMS_FAILS)); }
+        if (!WIDE) { return Promise.resolve({ ok: false, status: 403, text: function () { return Promise.resolve('{"message":"Only a manager or an admin can change teams."}'); } }); }
+        var T = window.__TEAMS;
+        var team = null; T.teams.forEach(function (t) { if (t.id === Number(tb.team_id) || (tb.slug && t.slug === tb.slug)) { team = t; } });
+        if (tb.kind === "team") {
+          if (!team) {
+            team = { id: 2, slug: tb.slug, name: tb.name, is_internal: tb.is_internal === true, is_active: tb.is_active !== false, notes: "", members: [], developments: [], counts: { members: 0, developments: 0 } };
+            T.teams.push(team);
+            return typOk({ kind: "team", key: tb.slug, row_id: 2, team_id: null, team_slug: tb.slug, action: "create", row: team });
+          }
+          if (tb.hasOwnProperty("is_active")) { team.is_active = tb.is_active === true; }
+          if (tb.name) { team.name = tb.name; }
+          return typOk({ kind: "team", key: team.slug, row_id: team.id, team_id: team.id, team_slug: team.slug, action: "update", row: team });
+        }
+        if (!team) { return Promise.resolve({ ok: false, status: 400, text: function () { return Promise.resolve('{"message":"No team with that id."}'); } }); }
+        if (tb.kind === "member") {
+          var m = null; team.members.forEach(function (x) { if (x.staff_id === Number(tb.member_staff_id)) { m = x; } });
+          if (!m) {
+            var sRow = null; T.staff.forEach(function (x) { if (x.id === Number(tb.member_staff_id)) { sRow = x; } });
+            if (!sRow) { return typRefuse("No staff account with that id."); }
+            m = { membership_id: 20 + team.members.length, staff_id: sRow.id, name: sRow.name, email: sRow.email, role: sRow.role, staff_active: true, receives_leads: true, lead_cap: null, open_leads: 0, last_assigned_at: null, is_active: true };
+            team.members.push(m);
+          }
+          if (tb.hasOwnProperty("receives_leads")) { m.receives_leads = tb.receives_leads === true; }
+          if (tb.clear_cap === true) { m.lead_cap = null; } else if (tb.hasOwnProperty("lead_cap") && tb.lead_cap !== null) { m.lead_cap = Number(tb.lead_cap); }
+          if (tb.hasOwnProperty("is_active")) { m.is_active = tb.is_active === true; }
+          team.counts.members = team.members.filter(function (x) { return x.is_active; }).length;
+          return typOk({ kind: "member", key: team.id + ":" + m.staff_id, row_id: m.membership_id, team_id: team.id, team_slug: team.slug, action: "update", row: { key: team.id + ":" + m.staff_id, team_id: team.id, staff_id: m.staff_id, receives_leads: m.receives_leads, lead_cap: m.lead_cap, is_active: m.is_active } });
+        }
+        if (tb.kind === "development") {
+          var dv = null; team.developments.forEach(function (x) { if (x.property_slug === tb.property_slug) { dv = x; } });
+          if (!dv) {
+            var pRow = null; T.properties.forEach(function (x) { if (x.slug === tb.property_slug) { pRow = x; } });
+            if (!pRow) { return typRefuse("No development with that slug."); }
+            dv = { attachment_id: 30 + team.developments.length, property_slug: pRow.slug, property_name: pRow.name, is_active: true };
+            team.developments.push(dv);
+          }
+          if (tb.hasOwnProperty("is_active")) { dv.is_active = tb.is_active === true; }
+          team.counts.developments = team.developments.filter(function (x) { return x.is_active; }).length;
+          return typOk({ kind: "development", key: team.id + ":" + dv.property_slug, row_id: dv.attachment_id, team_id: team.id, team_slug: team.slug, action: "update", row: { key: team.id + ":" + dv.property_slug, team_id: team.id, property_slug: dv.property_slug, is_active: dv.is_active } });
+        }
+        return typRefuse("kind is team, member or development.");
+      }
+      window.__TEAMS_CALLS = (window.__TEAMS_CALLS || 0) + 1;
+      return typOk(window.__TEAMS);
+    }
+
     if (u.indexOf("/staff/team") !== -1) {
       if (method === "POST") {
         window.__TEAM_POSTED = JSON.parse((opts && opts.body) || "{}");
