@@ -747,7 +747,7 @@
     set('student-full-name',      (v('first-name') + ' ' + v('last-name')).trim());
     set('student-email',          v('email'));
     set('student-contact-number', v('contact-number'));
-    set('apartment',              v('apartment'));
+    set('unit-number',            v('unit-number'));   // the form field is unit-number (as on Glenwood)
     set('bed-number',             v('bed-number'));
     set('room-type',              v('room-type'));
     set('student-gender',         v('gender'));
@@ -856,7 +856,7 @@
       'bed-item-id': bed.id,               // Make finds the CMS record on this
       'bed-name':    bed.name,
       'bed-number':  bed.num,
-      'apartment':   bed.apartment,
+      'unit-number': bed.apartment,        // form field name matches Glenwood's
       'room':        bed.room,
       'room-type':   bed.roomType,
       'floor':       floorMeta(bed.floor).label,

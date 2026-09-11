@@ -20,7 +20,7 @@
 (function () {
   'use strict';
 
-  var LOCKED = ['apartment', 'bed-number', 'room-type', 'student-gender', 'bed-price'];
+  var LOCKED = ['unit-number', 'bed-number', 'room-type', 'student-gender', 'bed-price'];
   var TIMEOUT_MS = 15000;
 
   function $(s, r) { return (r || document).querySelector(s); }
