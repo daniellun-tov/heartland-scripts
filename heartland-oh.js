@@ -1,0 +1,1987 @@
+/* ============================================================================
+   heartland-oh.js — Oak Hills Estate, unit selection v2
+   Source of truth for the /unit-selection-v2 page. Forked from
+   heartland-sv.js (Stellenbosch Village) on 2026-09-14 and adapted for a
+   development made of blocks (A–L) with several floors each.
+
+   What is different from the SV file
+   - Data comes from the "Oak Hills v2" Xano group (api:BHoGDH-q), already
+     flat: every unit carries its block, floor level, type specs and media.
+     boot() does no variant flattening.
+   - The map is block-level (Option B): one site-plan SVG whose footprint
+     paths carry id="block-a" … "block-l" (oh_buildings.plot_id). A block is
+     coloured by availability, dims when no visible unit is in it, and a click
+     toggles the Block filter. If a path with a UNIT's plot_id ever exists
+     (phase 2 nested plan) the same code treats it like an SV plot.
+   - Everything Wized-facing is prefixed v2_ (requests, variables, element
+     names) so nothing collides with the live page's wiring.
+   - The reserve flow places the Xano hold first, then hands over to BOL.
+   - Dropped: view badges, wetland strip, satellite reveal, audio unlock.
+   ============================================================================ */
+
+/* ============================================================
+   Site plan controller - filters, map, list, detail panel
+   ============================================================ */
+window.Wized = window.Wized || [];
+window.Wized.push((Wized) => {
+  const API_BASE = 'https://x7aj-untn-pq4t.n7e.xano.io/api:BHoGDH-q';
+  const REQ = 'v2_getUnits';
+
+  /* Facets are declarative. A new one needs an entry here plus chips in the
+     Designer carrying data-filter="<name>" data-value="<value>" - counts,
+     click handling, dimming and reset are all generic from there. */
+  const FACETS = {
+    status: { key: 'status_key' },
+    type: { key: 'type_code' },
+    beds: { key: 'bedrooms', cast: Number },
+    baths: { key: 'bathrooms', cast: Number },
+    block: { key: 'block_name' },
+    floor: { key: 'floor_level', cast: Number },
+    orientation: { key: 'orientation' },
+    parking: { key: 'parking_bay_type' },
+  };
+
+  const RANGES = {
+    price: {
+      key: 'price_value',
+      bands: {
+        'under-2': [0, 2e6],
+        '2-2.5': [2e6, 2.5e6],
+        '2.5-3': [2.5e6, 3e6],
+        '3-plus': [3e6, Infinity],
+      },
+    },
+    size: {
+      key: 'unit_size',
+      bands: {
+        'under-50': [0, 50],
+        '50-70': [50, 70],
+        '70-90': [70, 90],
+        '90-plus': [90, Infinity],
+      },
+    },
+  };
+
+  const TOGGLES = {
+    'parking-covered': { test: (u) => String(u.parking_bay_type || '').toLowerCase() === 'covered' },
+  };
+
+  const LEGEND_GROUPS = { availability: 'status', type: 'type' };
+
+  /* Units the list never shows. They stay on the map (a block still counts
+     them for its footprint) but never open a panel. */
+  const LIST_HIDE = new Set(['unreleased']);
+
+  let units = [];
+  let blocks = [];
+  let booted = false;
+
+  const state = { colourBy: 'status', sort: 'price' };
+  Object.keys(FACETS).forEach((f) => (state[f] = new Set()));
+  Object.keys(RANGES).forEach((f) => (state[f] = new Set()));
+  const toggles = {};
+  Object.keys(TOGGLES).forEach((t) => (toggles[t] = false));
+
+  const listeners = [];
+
+  const NBSP = ' ';
+  function formatPrice(p) {
+    const n = Number(p);
+    if (!isFinite(n) || n <= 0) return '';
+    return 'R' + NBSP + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+  }
+
+  const sortFn = {
+    price: (a, b) => (a.price_value || 0) - (b.price_value || 0),
+    'price-desc': (a, b) => (b.price_value || 0) - (a.price_value || 0),
+    size: (a, b) => (b.unit_size || 0) - (a.unit_size || 0),
+    block: (a, b) =>
+      (a.block_sort - b.block_sort) ||
+      (a.floor_level - b.floor_level) ||
+      String(a.unit_number).localeCompare(String(b.unit_number), undefined, { numeric: true }),
+    floor: (a, b) => (a.floor_level - b.floor_level) || (a.block_sort - b.block_sort),
+  };
+
+  function norm(cfg, v) {
+    if (cfg && cfg.cast) return cfg.cast(v);
+    return typeof v === 'string' ? v.trim().toLowerCase() : v;
+  }
+
+  function facetValues(u, cfg) {
+    let raw;
+    if (cfg.multi) {
+      raw = u[cfg.key];
+      if (typeof raw === 'string') raw = raw.split(',');
+      if (!Array.isArray(raw)) raw = raw == null ? [] : [raw];
+    } else if (cfg.keys) {
+      raw = [];
+      for (const k of cfg.keys) {
+        if (u[k] != null && u[k] !== '') { raw = [u[k]]; break; }
+      }
+    } else {
+      raw = [u[cfg.key]];
+    }
+    return raw
+      .map((v) => norm(cfg, v))
+      .filter((v) => v != null && v !== '' && !(typeof v === 'number' && isNaN(v)));
+  }
+
+  /* Public surface - the deep-link module, the tooltip and anything else
+     outside this closure talk to the controller through here. */
+  window.ohSitePlan = {
+    units: () => units,
+    blocks: () => blocks,
+    open(key) {
+      const k = String(key);
+      const u = units.find((x) => String(x.unit_number) === k || String(x.plot_id) === k || String(x.id) === k);
+      if (!u || LIST_HIDE.has(u.status_key)) return false;
+      openUnit(u);
+      return true;
+    },
+    close: () => closeUnit(),
+    toggle(facet, value, on) {
+      const set = state[facet];
+      if (!set) return false;
+      const cfg = FACETS[facet];
+      const v = norm(cfg, value);
+      const want = on === undefined ? !set.has(v) : !!on;
+      if (want) set.add(v); else set.delete(v);
+      document.querySelectorAll(`[data-filter="${facet}"][data-value]`).forEach((el) => {
+        if (norm(cfg, el.getAttribute('data-value')) === v) el.classList.toggle('is-active', want);
+      });
+      apply();
+      return want;
+    },
+    isActive: (facet, value) => !!(state[facet] && state[facet].has(norm(FACETS[facet], value))),
+    active: (facet) => (state[facet] ? Array.from(state[facet]) : []),
+    onChange(fn) { listeners.push(fn); fn(state); },
+  };
+
+  function boot(rawList) {
+    if (booted) return;
+    let list = rawList;
+    if (!list) {
+      const req = Wized.data.r[REQ];
+      if (!req || !Array.isArray(req.data)) return;
+      list = req.data;
+    }
+    booted = true;
+    console.log('[site-plan] booted with', list.length, 'units');
+
+    units = list.map((u) => {
+      const flat = { ...u };
+      flat.status_key = String(flat.status_key || flat.status || 'unreleased').toLowerCase();
+      flat.floor_level = Number(flat.floor_level) || 0;
+      flat.block_sort = Number(flat.block_sort) || 0;
+      // Honour the global price switch: only reformat when prices are on.
+      if (!flat.prices_hidden) flat.price_display = formatPrice(flat.price_value) || flat.price_display || '';
+      return flat;
+    });
+    if (!units.length) console.warn('[site-plan] v2_getUnits returned an empty array');
+
+    /* block summaries derive from the units - no second request needed */
+    const byBlock = new Map();
+    units.forEach((u) => {
+      const key = u.block_plot_id || ('block-' + String(u.block_name || '').toLowerCase());
+      if (!byBlock.has(key)) byBlock.set(key, { plot_id: key, name: u.block_name, sort: u.block_sort, units: [] });
+      byBlock.get(key).units.push(u);
+    });
+    blocks = Array.from(byBlock.values()).sort((a, b) => a.sort - b.sort);
+
+    initMap();
+    bindControls();
+    updateLegend();
+    apply();
+  }
+
+  console.log('[site-plan] controller loaded');
+  if (Wized.data.r[REQ] && Wized.data.r[REQ].hasRequested) boot();
+  Wized.on('requestend', (result) => {
+    if (result.name === REQ) boot();
+  });
+
+  // Self-heal: if no Wized event performs the request on this page, execute it
+  // ourselves; last resort = direct Xano fetch.
+  setTimeout(() => {
+    try {
+      const req = Wized.data.r[REQ];
+      if (!booted && (!req || !req.hasRequested)) {
+        console.warn('[site-plan] ' + REQ + ' never requested - executing directly');
+        Wized.requests.execute(REQ).then(() => boot()).catch((e) => console.error('[site-plan] execute failed', e));
+      }
+    } catch (e) {}
+  }, 1500);
+  setTimeout(() => {
+    if (booted) return;
+    console.warn('[site-plan] falling back to direct Xano fetch');
+    fetch(API_BASE + '/units')
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) boot(data); })
+      .catch((e) => console.error('[site-plan] fetch failed', e));
+  }, 5000);
+
+  /* ---- map ---- */
+  function blockAvailability(list) {
+    if (!list.length) return 'unreleased';
+    if (list.some((u) => u.status_key === 'available')) return 'available';
+    if (list.every((u) => u.status_key === 'unreleased')) return 'unreleased';
+    return 'sold-out';
+  }
+
+  function initMap() {
+    /* unit-level paths (phase 2) */
+    units.forEach((u) => {
+      const path = document.getElementById(u.plot_id);
+      if (!path) return;
+      path.setAttribute('data-status', u.status_key);
+      path.setAttribute('data-type', u.type_code);
+      path.classList.add('site-plan_plot');
+      if (!LIST_HIDE.has(u.status_key)) path.addEventListener('click', () => openUnit(u));
+    });
+
+    /* block-level footprints */
+    blocks.forEach((b) => {
+      const path = document.getElementById(b.plot_id);
+      if (!path) {
+        console.warn('[site-plan] no SVG path for block', b.plot_id);
+        return;
+      }
+      path.classList.add('site-plan_block');
+      path.setAttribute('data-block', b.name);
+      path.setAttribute('data-availability', blockAvailability(b.units));
+      path.setAttribute('data-available', b.units.filter((u) => u.status_key === 'available').length);
+      path.addEventListener('click', () => {
+        const on = window.ohSitePlan.toggle('block', b.name);
+        document.querySelectorAll('.site-plan_block.is-selected').forEach((p) => p.classList.remove('is-selected'));
+        if (on) path.classList.add('is-selected');
+        const list = document.querySelector('.site-plan_list');
+        if (on && list && window.matchMedia('(max-width: 991px)').matches) {
+          list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    document.querySelectorAll('.site-plan_map-svg [id^="block-"]').forEach((p) => {
+      if (!blocks.some((b) => b.plot_id === p.id)) console.warn('[site-plan] SVG block with no units:', p.id);
+    });
+  }
+
+  function updateLegend() {
+    document.querySelectorAll('[data-legend]').forEach((el) => {
+      const key = el.getAttribute('data-legend');
+      const isType = key.startsWith('type-');
+      const want = isType ? key.slice(5).toLowerCase() : key.toLowerCase();
+      el.textContent = units.filter((u) =>
+        isType ? String(u.type_code).toLowerCase() === want : u.status_key === want
+      ).length;
+    });
+    /* per-block counters, e.g. a label on the map: data-block-count="A" */
+    document.querySelectorAll('[data-block-count]').forEach((el) => {
+      const b = blocks.find((x) => String(x.name).toLowerCase() === el.getAttribute('data-block-count').toLowerCase());
+      el.textContent = b ? b.units.filter((u) => u.status_key === 'available').length : 0;
+    });
+  }
+
+  function syncLegend() {
+    document.documentElement.classList.add('legends-ready');
+    const want = LEGEND_GROUPS[state.colourBy] || state.colourBy;
+    document.querySelectorAll('[data-legend-group]').forEach((el) => {
+      const on = el.getAttribute('data-legend-group') === want;
+      el.classList.toggle('is-legend-hidden', !on);
+      el.setAttribute('aria-hidden', String(!on));
+    });
+  }
+
+  /* ---- matching ---- */
+  function matches(u, skip) {
+    for (const [facet, cfg] of Object.entries(FACETS)) {
+      if (facet === skip) continue;
+      const set = state[facet];
+      if (!set.size) continue;
+      if (!facetValues(u, cfg).some((v) => set.has(v))) return false;
+    }
+    for (const [facet, cfg] of Object.entries(RANGES)) {
+      if (facet === skip) continue;
+      const set = state[facet];
+      if (!set.size) continue;
+      const val = Number(u[cfg.key]);
+      const hit = [...set].some((k) => {
+        const band = cfg.bands[k];
+        return band && val >= band[0] && val < band[1];
+      });
+      if (!hit) return false;
+    }
+    for (const [name, cfg] of Object.entries(TOGGLES)) {
+      if (name === skip) continue;
+      if (toggles[name] && !cfg.test(u)) return false;
+    }
+    return true;
+  }
+
+  function writeCount(el, n) {
+    const c = el.querySelector('.unit-filter_count');
+    if (c) c.textContent = n;
+    el.classList.toggle('is-disabled', n === 0 && !el.classList.contains('is-active'));
+  }
+
+  function updateCounts() {
+    const countable = units.filter((u) => !LIST_HIDE.has(u.status_key));
+    document.querySelectorAll('[data-filter][data-value]').forEach((el) => {
+      const facet = el.getAttribute('data-filter');
+      const raw = el.getAttribute('data-value');
+      const pool = countable.filter((u) => matches(u, facet));
+      let n = 0;
+      if (FACETS[facet]) {
+        const cfg = FACETS[facet];
+        const want = norm(cfg, raw);
+        n = pool.filter((u) => facetValues(u, cfg).some((v) => v === want)).length;
+      } else if (RANGES[facet]) {
+        const band = RANGES[facet].bands[raw];
+        const k = RANGES[facet].key;
+        if (band) n = pool.filter((u) => Number(u[k]) >= band[0] && Number(u[k]) < band[1]).length;
+      }
+      writeCount(el, n);
+    });
+    document.querySelectorAll('[data-toggle]').forEach((el) => {
+      const name = el.getAttribute('data-toggle');
+      const cfg = TOGGLES[name];
+      if (!cfg) return;
+      writeCount(el, countable.filter((u) => matches(u, name) && cfg.test(u)).length);
+    });
+  }
+
+  function apply() {
+    const sorter = sortFn[state.sort] || sortFn.price;
+    const visible = units.filter((u) => matches(u)).sort(sorter);
+    const listed = visible.filter((u) => !LIST_HIDE.has(u.status_key));
+    const ids = new Set(visible.map((u) => u.plot_id));
+
+    Wized.data.v.v2_visibleUnits = listed;
+
+    /* unit paths, when they exist */
+    units.forEach((u) => {
+      const path = document.getElementById(u.plot_id);
+      if (path) path.classList.toggle('is-dimmed', !ids.has(u.plot_id));
+    });
+    /* block footprints: dim when nothing listed is inside; selected follows the Block facet */
+    blocks.forEach((b) => {
+      const path = document.getElementById(b.plot_id);
+      if (!path) return;
+      const inside = listed.filter((u) => (u.block_plot_id || '') === b.plot_id || u.block_name === b.name).length;
+      path.classList.toggle('is-dimmed', inside === 0);
+      path.classList.toggle('is-selected', state.block.has(norm(FACETS.block, b.name)));
+      path.setAttribute('data-matching', inside);
+    });
+
+    document.querySelectorAll('[data-count="results"]').forEach((el) => { el.textContent = listed.length; });
+
+    updateCounts();
+    listeners.forEach((fn) => { try { fn(state); } catch (e) {} });
+  }
+
+  /* ---- detail panel ---- */
+  const detailWrap = () => document.querySelector('.site-plan_detail-wrap');
+  const panelScroll = () => document.querySelector('.site-plan_detail-panel');
+  const isOpen = () => !!detailWrap()?.classList.contains('is-open');
+
+  function openUnit(u) {
+    document.querySelectorAll('.site-plan_plot.is-selected').forEach((p) => p.classList.remove('is-selected'));
+    document.getElementById(u.plot_id)?.classList.add('is-selected');
+
+    Wized.data.v.v2_selectedUnit = u;
+
+    const s = panelScroll();
+    if (s) s.scrollTop = 0;
+    detailWrap()?.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    window.lenis?.stop();
+    document.dispatchEvent(new CustomEvent('oh:unit-open', { detail: { unit: u } }));
+  }
+
+  function closeUnit() {
+    if (!isOpen()) return;
+    detailWrap()?.classList.remove('is-open');
+    document.querySelectorAll('.site-plan_plot.is-selected').forEach((p) => p.classList.remove('is-selected'));
+    document.body.style.overflow = '';
+    window.lenis?.start();
+    document.dispatchEvent(new CustomEvent('oh:unit-close'));
+  }
+
+  function setColourBy(mode) {
+    state.colourBy = mode;
+    const canvas = document.querySelector('.site-plan_map-canvas');
+    if (canvas) {
+      canvas.classList.toggle('is-colour-type', mode === 'type');
+      canvas.classList.toggle('is-colour-status', mode === 'status');
+    }
+    document.querySelectorAll('[data-colourby]').forEach((b) =>
+      b.classList.toggle('is-active', b.getAttribute('data-colourby') === mode)
+    );
+    syncLegend();
+  }
+
+  /* Sales phase: oh_site_settings.sales_open, mirrored by the page as
+     html.sales-open. Off = register-interest mode: availability UI hidden by
+     the [data-sales-ui] CSS, plan coloured by type only. */
+  function salesOpen() {
+    return document.documentElement.classList.contains('sales-open');
+  }
+
+  function bindControls() {
+    setColourBy(salesOpen() ? 'status' : 'type');
+    document.addEventListener('oh:sales-phase', (e) => {
+      setColourBy(e.detail && e.detail.open ? 'status' : 'type');
+    });
+
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest && e.target.closest('[data-close-detail]');
+      if (!link) return;
+      let u = null;
+      try { u = Wized.data.v.v2_selectedUnit; } catch (_) {}
+      closeUnit();
+      if (!link.hasAttribute('data-prelaunch-ui')) return;
+      const msg = document.querySelector('#contact textarea');
+      if (u && msg && !msg.value.trim()) {
+        msg.value = 'I am interested in Unit ' + u.unit_number + ' (Block ' + u.block_name + ', Type ' + u.type_code + '). Please let me know when sales open.';
+      }
+    });
+
+    document.querySelectorAll('[data-colourby]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (!salesOpen()) return;
+        setColourBy(btn.getAttribute('data-colourby'));
+      });
+    });
+
+    document.querySelectorAll('[data-filter]').forEach((el) =>
+      el.addEventListener('click', () => {
+        const facet = el.getAttribute('data-filter');
+        const set = state[facet];
+        if (!set) return console.warn('Unknown filter facet:', facet);
+        const key = norm(FACETS[facet], el.getAttribute('data-value'));
+        set.has(key) ? set.delete(key) : set.add(key);
+        el.classList.toggle('is-active', set.has(key));
+        apply();
+      }),
+    );
+
+    document.querySelectorAll('[data-toggle]').forEach((el) =>
+      el.addEventListener('click', () => {
+        const name = el.getAttribute('data-toggle');
+        if (!(name in TOGGLES)) return console.warn('Unknown toggle:', name);
+        toggles[name] = !toggles[name];
+        el.classList.toggle('is-active', toggles[name]);
+        apply();
+      }),
+    );
+
+    document.querySelectorAll('[data-sort]').forEach((el) => {
+      el.classList.toggle('is-active', el.getAttribute('data-sort') === state.sort);
+      el.addEventListener('click', () => {
+        state.sort = el.getAttribute('data-sort');
+        document.querySelectorAll('[data-sort]').forEach((s) => s.classList.toggle('is-active', s === el));
+        apply();
+      });
+    });
+
+    document.querySelector('[data-reset]')?.addEventListener('click', () => {
+      Object.keys(FACETS).forEach((f) => state[f].clear());
+      Object.keys(RANGES).forEach((f) => state[f].clear());
+      Object.keys(TOGGLES).forEach((t) => (toggles[t] = false));
+      document.querySelectorAll('[data-filter],[data-toggle]').forEach((el) => el.classList.remove('is-active'));
+      apply();
+    });
+
+    document.querySelector('.site-plan_detail-overlay')?.addEventListener('click', closeUnit);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isOpen()) closeUnit();
+    });
+
+    document.querySelector('.site-plan_list')?.addEventListener('click', (e) => {
+      const card = e.target.closest('[data-plot]');
+      if (!card) return;
+      const u = units.find((x) => x.plot_id === card.getAttribute('data-plot'));
+      if (u) openUnit(u);
+    });
+
+    const overlay = document.querySelector('.site-plan_detail-overlay');
+    overlay?.addEventListener('wheel', (e) => {
+      const s = panelScroll();
+      if (!s || !isOpen()) return;
+      e.preventDefault();
+      e.stopPropagation();
+      s.scrollTop += e.deltaY;
+    }, { passive: false });
+  }
+});
+
+/* ============================================================
+   Map tooltip - block footprints and (phase 2) unit plots
+   ============================================================ */
+window.Wized = window.Wized || [];
+window.Wized.push((Wized) => {
+  if (window.matchMedia('(hover: none)').matches) return;
+
+  const tip = document.querySelector('[data-tooltip="root"]');
+  const canvas = document.querySelector('.site-plan_map-canvas');
+  if (!tip || !canvas) return;
+  document.body.appendChild(tip);
+
+  const field = {
+    id: tip.querySelector('[data-tooltip="id"]'),
+    status: tip.querySelector('[data-tooltip="status"]'),
+    type: tip.querySelector('[data-tooltip="type"]'),
+    specs: tip.querySelector('[data-tooltip="specs"]'),
+    price: tip.querySelector('[data-tooltip="price"]'),
+  };
+  const PILL_CLASSES = ['is-available', 'is-reserved', 'is-sold', 'is-sold-out', 'is-unreleased', 'is-pending'];
+  const OFFSET = 14;
+  const EDGE = 8;
+  const set = (el, text) => { if (el) el.textContent = text; };
+  const pill = (cls) => {
+    if (!field.status) return;
+    field.status.classList.remove(...PILL_CLASSES);
+    field.status.classList.add('is-' + cls);
+  };
+  let active = null;
+
+  function fillUnit(u) {
+    set(field.id, 'Unit ' + u.unit_number);
+    set(field.status, u.status);
+    pill(u.status_key);
+    set(field.type, 'Type ' + u.type_code + ' · Block ' + u.block_name + ' · ' + u.floor_label + ' floor');
+    set(field.specs, [u.bedrooms + ' bed', u.bathrooms + ' bath', Math.round(u.unit_size) + ' m²'].join(' · '));
+    set(field.price, u.prices_hidden ? (u.price_display || 'Price on request') : (u.price_display || 'Price on request'));
+  }
+
+  function fillBlock(b) {
+    const avail = b.units.filter((u) => u.status_key === 'available');
+    const prices = avail.map((u) => Number(u.price_value) || 0).filter((p) => p > 0);
+    const types = Array.from(new Set(b.units.map((u) => u.type_code).filter(Boolean))).sort();
+    const floors = Math.max(0, ...b.units.map((u) => u.floor_level || 0));
+    const status = avail.length ? avail.length + ' available' : (b.units.every((u) => u.status_key === 'unreleased') ? 'Coming soon' : 'Sold out');
+    set(field.id, 'Block ' + b.name);
+    set(field.status, status);
+    pill(avail.length ? 'available' : (b.units.every((u) => u.status_key === 'unreleased') ? 'unreleased' : 'sold-out'));
+    set(field.type, (types.length ? 'Type ' + types.join(', ') : '') + (floors ? ' · ' + floors + ' floors' : ''));
+    set(field.specs, b.units.length + ' apartments');
+    const hidden = b.units.some((u) => u.prices_hidden);
+    set(field.price, hidden ? (b.units[0].price_display || '') : (prices.length ? 'From ' + formatPrice(Math.min(...prices)) : ''));
+  }
+
+  const NBSP = ' ';
+  function formatPrice(p) {
+    const n = Number(p);
+    if (!isFinite(n) || n <= 0) return '';
+    return 'R' + NBSP + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+  }
+
+  function place(e) {
+    const r = tip.getBoundingClientRect();
+    let x = e.clientX + OFFSET;
+    let y = e.clientY + OFFSET;
+    if (x + r.width > window.innerWidth - EDGE) x = e.clientX - r.width - OFFSET;
+    if (y + r.height > window.innerHeight - EDGE) y = e.clientY - r.height - OFFSET;
+    tip.style.left = Math.max(EDGE, x) + 'px';
+    tip.style.top = Math.max(EDGE, y) + 'px';
+  }
+  function hide() { active = null; tip.classList.remove('is-visible'); }
+
+  canvas.addEventListener('mouseover', (e) => {
+    const path = e.target.closest && e.target.closest('[id]');
+    if (!path || path === canvas) return hide();
+    if (path === active) return;
+    const sp = window.ohSitePlan;
+    if (!sp) return hide();
+    const u = sp.units().find((x) => x.plot_id === path.id && x.status_key !== 'unreleased');
+    const b = !u && sp.blocks().find((x) => x.plot_id === path.id);
+    if (!u && !b) return hide();
+    active = path;
+    if (u) fillUnit(u); else fillBlock(b);
+    place(e);
+    tip.classList.add('is-visible');
+  });
+  canvas.addEventListener('mousemove', (e) => { if (active) place(e); });
+  canvas.addEventListener('mouseleave', hide);
+  window.addEventListener('scroll', hide, { passive: true });
+});
+
+
+/* ============================================================
+   Mobile match count — mirrors the filters drawer's "N unit(s) match"
+   into the mobile toolbar, so the number is still readable once the
+   drawer is closed (map view shows no count otherwise).
+   ============================================================ */
+(function () {
+  if (window.__ohCount) return;
+  window.__ohCount = true;
+
+  function boot() {
+    var src = document.querySelector('.unit-filter_match');
+    /* the mobile toolbar sits under the fixed navbar, so the count goes in the
+       map meta strip - the first thing below the nav - and falls back to the
+       toolbar if that strip is not on the page */
+    var meta = document.querySelector('.unit-filter_mobile-map-meta');
+    var bar = meta || document.querySelector('.unit-filter_mobile-toolbar');
+    if (!bar || !src) return false;
+    if (document.querySelector('.unit-filter_mobile-match')) return true;
+
+    var el = document.createElement('div');
+    el.className = 'unit-filter_mobile-match';
+    el.setAttribute('aria-live', 'polite');
+    /* last in the meta strip: its top rows can sit under the fixed navbar,
+       the bottom of it never does */
+    if (meta) bar.appendChild(el);
+    else bar.insertBefore(el, bar.querySelector('.unit-filter_mobile-view-switch') || null);
+
+    function sync() {
+      /* the number only: .unit-filter_match may wrap the counter in a sentence */
+      var counter = src.matches('[data-count="results"]') ? src : src.querySelector('[data-count="results"]');
+      var n = ((counter || src).textContent || '').trim().match(/\d+/);
+      n = n ? n[0] : '';
+      el.textContent = n ? n + (n === '1' ? ' unit' : ' units') : '';
+      /* mirror into the other results counters, never into anything inside
+         src itself - that would re-trigger the observer forever */
+      document.querySelectorAll('[data-count="results"]').forEach(function (c) {
+        if (c !== src && !src.contains(c) && c.textContent.trim() !== n) c.textContent = n;
+      });
+    }
+    sync();
+    if (window.MutationObserver) new MutationObserver(sync).observe(src, { childList: true, characterData: true, subtree: true });
+    return true;
+  }
+
+  function ready() {
+    if (boot()) return;
+    var n = 0, iv = setInterval(function () { if (boot() || ++n > 40) clearInterval(iv); }, 250);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+  else ready();
+})();
+
+/* ============================================================
+   Site plan zoom — a +/-/reset button group over the map.
+   Zoom drives --oh-zoom on .site-plan_map-canvas, which scales the
+   canvas' LAYOUT width (see the CSS embed), so the map container
+   pans natively and the labels, badges and plot outlines keep their
+   real size instead of turning blurry. Drag-to-pan is enabled once
+   zoomed, with a movement threshold so plot clicks still work.
+   ============================================================ */
+(function () {
+  if (window.__ohZoom) return;
+  window.__ohZoom = true;
+
+  var STEP = 0.25, MAX = 3;
+  var SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">';
+  var ICON = {
+    out: SVG + '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.7-4.7M7.5 10.5h6"/></svg>',
+    "in": SVG + '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.7-4.7M7.5 10.5h6M10.5 7.5v6"/></svg>',
+    reset: SVG + '<path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4"/></svg>'
+  };
+
+  var canvas, box, wrap, ui, level, btnIn, btnOut, btnReset;
+  var zoom = 1, baseW = 0, booted = false;
+
+  function minZoom() {
+    if (!baseW || !box) return 1;
+    var fit = box.clientWidth / baseW;                 /* 1 when the map already fits */
+    if (fit >= 1) return 1;
+    return Math.max(0.5, Math.floor(fit / STEP) * STEP || 0.5);
+  }
+
+  function label() {
+    if (level) level.textContent = Math.round(zoom * 100) + '%';
+    if (btnIn) btnIn.disabled = zoom >= MAX - 0.001;
+    if (btnOut) btnOut.disabled = zoom <= minZoom() + 0.001;
+    if (btnReset) btnReset.disabled = Math.abs(zoom - 1) < 0.001;
+  }
+
+  /* the wetland strip under the plan (a sibling of the canvas) carries the
+     same width expression, so it gets the same --oh-zoom and pans with it */
+  function extension() { return document.querySelector('.site-plan_map-extension'); }
+  function setZoomVar(v) {
+    canvas.style.setProperty('--oh-zoom', v);
+    var ext = extension();
+    if (ext) ext.style.setProperty('--oh-zoom', v);
+  }
+
+  /* width the canvas would have at zoom 1 — measured once, unzoomed */
+  function measure() {
+    var z = canvas.style.getPropertyValue('--oh-zoom');
+    setZoomVar(1);
+    baseW = canvas.offsetWidth;
+    box.style.setProperty('--oh-map-box', Math.round(box.getBoundingClientRect().height) + 'px');
+    if (z) setZoomVar(z);
+  }
+
+  function set(next, quiet) {
+    next = Math.max(minZoom(), Math.min(MAX, Math.round(next * 100) / 100));
+    if (next === zoom) { label(); return; }
+    /* keep whatever is in the middle of the viewport in the middle */
+    var w = canvas.offsetWidth, h = canvas.offsetHeight;
+    var fx = w ? (box.scrollLeft + box.clientWidth / 2) / w : 0.5;
+    var fy = h ? (box.scrollTop + box.clientHeight / 2) / h : 0.5;
+    zoom = next;
+    setZoomVar(zoom);
+    box.classList.toggle('is-zoomed', zoom !== 1 || box.scrollWidth > box.clientWidth);
+    label();
+    requestAnimationFrame(function () {
+      box.scrollLeft = fx * canvas.offsetWidth - box.clientWidth / 2;
+      box.scrollTop = fy * canvas.offsetHeight - box.clientHeight / 2;
+      if (!quiet && ui) ui.setAttribute('data-zoom-value', zoom);
+    });
+  }
+
+  function build() {
+    ui = document.createElement('div');
+    ui.className = 'site-plan_zoom';
+    ui.setAttribute('role', 'group');
+    ui.setAttribute('aria-label', 'Map zoom');
+    ui.innerHTML =
+      '<button type="button" class="site-plan_zoom-btn" data-zoom="out" aria-label="Zoom out" title="Zoom out">' + ICON.out + '</button>' +
+      '<span class="site-plan_zoom-level" aria-live="polite">100%</span>' +
+      '<button type="button" class="site-plan_zoom-btn" data-zoom="in" aria-label="Zoom in" title="Zoom in">' + ICON['in'] + '</button>' +
+      '<button type="button" class="site-plan_zoom-btn" data-zoom="reset" aria-label="Reset zoom" title="Reset zoom">' + ICON.reset + '</button>';
+    wrap.appendChild(ui);
+    level = ui.querySelector('.site-plan_zoom-level');
+    btnOut = ui.querySelector('[data-zoom="out"]');
+    btnIn = ui.querySelector('[data-zoom="in"]');
+    btnReset = ui.querySelector('[data-zoom="reset"]');
+    ui.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-zoom]');
+      if (!b) return;
+      e.preventDefault(); e.stopPropagation();
+      var a = b.getAttribute('data-zoom');
+      set(a === 'in' ? zoom + STEP : a === 'out' ? zoom - STEP : 1);
+    });
+  }
+
+  /* drag to pan, once there is something to pan to */
+  function bindPan() {
+    var down = null, moved = false;
+    box.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || e.target.closest('.site-plan_zoom, .site-plan_badge')) return;
+      if (box.scrollWidth <= box.clientWidth && box.scrollHeight <= box.clientHeight) return;
+      down = { x: e.clientX, y: e.clientY, sl: box.scrollLeft, st: box.scrollTop };
+      moved = false;
+    });
+    box.addEventListener('pointermove', function (e) {
+      if (!down) return;
+      var dx = e.clientX - down.x, dy = e.clientY - down.y;
+      if (!moved && Math.abs(dx) + Math.abs(dy) < 6) return;
+      if (!moved) { moved = true; box.classList.add('is-panning'); }
+      box.scrollLeft = down.sl - dx;
+      box.scrollTop = down.st - dy;
+      e.preventDefault();
+    });
+    function end() { down = null; box.classList.remove('is-panning'); setTimeout(function () { moved = false; }, 0); }
+    box.addEventListener('pointerup', end);
+    box.addEventListener('pointercancel', end);
+    box.addEventListener('pointerleave', end);
+    /* a drag must not read as a click on a plot */
+    box.addEventListener('click', function (e) { if (moved) { e.stopPropagation(); e.preventDefault(); } }, true);
+  }
+
+  /* Below 992px the map is wider than the screen and pans, so view badges
+     pinned to the canvas edges sit off-screen until you scroll to them.
+     Dock the whole badge layer onto the (non-scrolling) map wrapper instead,
+     sized to the visible map box, so all six stay on the edges you can see.
+     Styles are inline so this needs no CSS change. */
+  function dock() {
+    var host = document.querySelector('[data-view-badges]');
+    if (!host || !box || !canvas || !wrap) return;
+    var mobile = window.matchMedia('(max-width: 991px)').matches;
+    if (mobile) {
+      if (host.parentNode !== wrap) wrap.appendChild(host);
+      var wr = wrap.getBoundingClientRect(), br = box.getBoundingClientRect();
+      host.style.cssText = 'position:absolute;left:0;right:0;bottom:auto;z-index:6;pointer-events:none;' +
+        'top:' + Math.round(br.top - wr.top) + 'px;height:' + Math.round(br.height) + 'px;';
+    } else if (host.parentNode !== canvas) {
+      canvas.appendChild(host);
+      host.style.cssText = '';
+    }
+  }
+
+  function boot() {
+    if (booted) return true;
+    canvas = document.querySelector('.site-plan_map-canvas');
+    box = document.querySelector('.unit-filter_map-container');
+    wrap = document.querySelector('.unit-filter_map');
+    if (!canvas || !box || !wrap) return false;
+    booted = true;
+    measure();
+    build();
+    bindPan();
+    label();
+    dock();
+    /* the badge host is filled in by the view badges module, which may land
+       after this one - keep re-docking while the page settles */
+    var n = 0, iv = setInterval(function () { dock(); if (++n > 20) clearInterval(iv); }, 400);
+    if (window.ResizeObserver) new ResizeObserver(dock).observe(box);
+    var t;
+    window.addEventListener('resize', function () {
+      clearTimeout(t);
+      t = setTimeout(function () {
+        var z = zoom; zoom = 1; setZoomVar(1);
+        measure();
+        zoom = 1; set(Math.max(minZoom(), Math.min(MAX, z)), true); label();
+        dock();
+      }, 200);
+    });
+    return true;
+  }
+
+  function ready() {
+    if (boot()) return;
+    var n = 0, iv = setInterval(function () { if (boot() || ++n > 40) clearInterval(iv); }, 250);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+  else ready();
+})();
+
+
+/* ============================================================
+   Reservation flow - Xano hold, then BOL / REDi
+
+   Order matters: the 30-minute hold is placed in Xano FIRST (the existing
+   v1 endpoint units/{id}/hold - it is the one thing v2 still calls on the
+   old API group, on purpose, because holds and SIMS live there until
+   cutover). Only once the hold is confirmed does the buyer go to BOL. A
+   409-style refusal ("being reserved by someone else", "no longer
+   available") stops the flow with the message from Xano and never opens
+   BOL. The v1 page did these two in parallel via a Wized submit action;
+   here it is one explicit chain, no Wized involvement.
+
+   Form: #wf-form-reserve-unit-v2 with first_name, last_name, email,
+   contact_number and hidden unit_id / unit_number (bound by Wized from
+   v2_selectedUnit, or filled here from the controller as a fallback).
+   ============================================================ */
+(function () {
+  const HOLD_ENDPOINT = 'https://x7aj-untn-pq4t.n7e.xano.io/api:5xvncF1S/units/{id}/hold';
+  const API_ENDPOINT = 'https://bol-server-prod0.red-i.co.za/api/reservationSession/start?manualRedirect=true';
+  // const API_ENDPOINT = 'https://bol-server-test0.red-i.co.za/api/reservationSession/start?manualRedirect=true';
+  const ACCOUNT_CODE = 'evening-shade-properties-109';
+  const DEVELOPMENT_CODE = 'oakhills-estate';
+  const FORM_ID = 'wf-form-reserve-unit-v2';
+
+  function genOrderRef() {
+    const now = new Date();
+    const date = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `WF-${date}-${Date.now()}-${rand}`;
+  }
+
+  function get(form, name) {
+    const el = form.querySelector(`[name="${name}"]`);
+    return el ? String(el.value || '').trim() : '';
+  }
+
+  function formatPhone(phone) {
+    if (!phone) return '';
+    phone = phone.replace(/[\s\-\(\)]/g, '');
+    if (!phone.startsWith('+27') && !phone.startsWith('27')) {
+      if (phone.startsWith('0')) phone = phone.substring(1);
+      phone = '+27' + phone;
+    } else if (phone.startsWith('27') && !phone.startsWith('+')) {
+      phone = '+' + phone;
+    }
+    return phone;
+  }
+
+  function showMsg(form, msg, isError) {
+    let box = form.querySelector('.reservation-status');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'reservation-status';
+      box.style.marginTop = '8px';
+      box.style.fontSize = '0.95rem';
+      form.appendChild(box);
+    }
+    box.textContent = msg;
+    box.style.color = isError ? 'crimson' : 'inherit';
+  }
+
+  function selectedUnit() {
+    try {
+      const v = window.Wized && window.Wized.data && window.Wized.data.v;
+      if (v && v.v2_selectedUnit) return v.v2_selectedUnit;
+    } catch (_) {}
+    return null;
+  }
+
+  function collect(form) {
+    const u = selectedUnit() || {};
+    const lead = {
+      first_name: get(form, 'first_name'),
+      last_name: get(form, 'last_name'),
+      email: get(form, 'email'),
+      contact_number: get(form, 'contact_number'),
+    };
+    const unitId = get(form, 'unit_id') || (u.id != null ? String(u.id) : '');
+    const unitNumber = get(form, 'unit_number') || (u.unit_number != null ? String(u.unit_number) : '');
+
+    if (!lead.first_name || !lead.last_name || !lead.email || !lead.contact_number) {
+      throw new Error('Please fill in all required fields before submitting.');
+    }
+    if (!unitId || !unitNumber) {
+      throw new Error('Please select a unit first.');
+    }
+    return { lead, unitId, unitNumber };
+  }
+
+  async function placeHold(unitId, lead) {
+    const res = await fetch(HOLD_ENDPOINT.replace('{id}', encodeURIComponent(unitId)), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        units_id: Number(unitId),
+        lead_first_name: lead.first_name,
+        lead_last_name: lead.last_name,
+        lead_email: lead.email,
+        lead_contact_number: lead.contact_number,
+      }),
+    });
+    let data = null;
+    try { data = await res.json(); } catch (_) {}
+    if (!res.ok) {
+      throw new Error((data && (data.message || data.error)) || 'This unit could not be held. Please try again.');
+    }
+    return data;
+  }
+
+  async function startBol(unitNumber, lead) {
+    const payload = {
+      redirect: window.location.origin,
+      units: [{ account: ACCOUNT_CODE, development: DEVELOPMENT_CODE, unit: unitNumber, selectedPlan: '' }],
+      orderReference: genOrderRef(),
+      buyerDetails: {
+        people: [{
+          id: 1,
+          firstName: lead.first_name,
+          lastName: lead.last_name,
+          email: lead.email,
+          mobileNumber: formatPhone(lead.contact_number),
+        }],
+      },
+    };
+    const res = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      let msg = `Reservation failed (${res.status})`;
+      try { const err = await res.json(); msg = err.message || err.error || msg; } catch (_) {}
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    const redirectUrl = data.redirectUrl || data.url || data.reservationUrl;
+    if (!redirectUrl) throw new Error('No redirect URL received from server');
+    /* same tab: window.open is blocked by Safari and in-app browsers */
+    window.location.href = redirectUrl;
+  }
+
+  function bind() {
+    const form = document.getElementById(FORM_ID);
+    if (!form) return;
+    if (form.__ohReserve) return;
+    form.__ohReserve = true;
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const btn = form.querySelector('input[type="submit"], button[type="submit"]');
+      const originalLabel = btn && (btn.value || btn.textContent);
+      const setLabel = (t) => { if (!btn) return; if ('value' in btn) btn.value = t; else btn.textContent = t; };
+
+      try {
+        if (btn) { btn.disabled = true; setLabel('Reserving...'); }
+        const { lead, unitId, unitNumber } = collect(form);
+
+        showMsg(form, 'Holding your unit...');
+        await placeHold(unitId, lead);
+        document.dispatchEvent(new CustomEvent('oh:hold-placed', { detail: { unitId } }));
+
+        showMsg(form, 'Taking you to the secure reservation page...');
+        await startBol(unitNumber, lead);
+      } catch (err) {
+        console.error('[reserve]', err);
+        showMsg(form, err.message || 'Something went wrong.', true);
+        if (btn) { btn.disabled = false; setLabel(originalLabel); }
+      }
+    }, true);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
+  /* the form may be inside the panel Wized renders later */
+  document.addEventListener('oh:unit-open', bind);
+})();
+
+
+/* ============================================================
+   Tablet/Mobile: map/list view switch + filter drawer + active-count badge
+   ============================================================ */
+(function () {
+    function boot() {
+      var component = document.querySelector('.unit-filter_component');
+      if (!component) return;
+      var filters = component.querySelector('.unit-filter_filters');
+      var backdrop = document.querySelector('.unit-filter_backdrop');
+      var viewLinks = [].slice.call(document.querySelectorAll('[data-view]'));
+
+      // ---- map/list view switch ----
+      function setView(v) {
+        component.classList.toggle('is-view-list', v === 'list');
+        viewLinks.forEach(function (l) {
+          l.classList.toggle('is-current', l.getAttribute('data-view') === v);
+        });
+      }
+      viewLinks.forEach(function (l) {
+        l.addEventListener('click', function (e) {
+          e.preventDefault();
+          setView(l.getAttribute('data-view'));
+        });
+      });
+      // default to map view on load
+      setView('map');
+
+      // ---- filter drawer ----
+      function openDrawer() {
+        if (filters) filters.classList.add('is-open');
+        if (backdrop) backdrop.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeDrawer() {
+        if (filters) filters.classList.remove('is-open');
+        if (backdrop) backdrop.classList.remove('is-open');
+        document.body.style.overflow = '';
+      }
+      document.querySelectorAll('[data-drawer="open"]').forEach(function (b) {
+        b.addEventListener('click', function (e) {
+          e.preventDefault();
+          openDrawer();
+        });
+      });
+      document.querySelectorAll('[data-drawer="close"]').forEach(function (b) {
+        b.addEventListener('click', function (e) {
+          e.preventDefault();
+          closeDrawer();
+        });
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeDrawer();
+      });
+
+      // ---- filters active-count badge (mirrors chip is-active state) ----
+      var badge = document.querySelector('[data-active-count]');
+      function updateBadge() {
+        if (!badge) return;
+        var n = document.querySelectorAll('.unit-filter_chip.is-active, [data-toggle].is-active').length;
+        badge.textContent = n;
+        badge.style.display = n ? '' : 'none';
+      }
+      updateBadge();
+      // recompute after any chip / reset click (fires after the main controller's own handler)
+      document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-filter], [data-toggle], [data-reset]')) {
+          setTimeout(updateBadge, 0);
+        }
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+  })();
+
+/* ============================================================
+   More filters disclosure + Lenis opt-out for the drawer
+   ============================================================ */
+(function () {
+  function boot() {
+    var drawer = document.querySelector('.unit-filter_filters');
+    var list = document.querySelector('.unit-filter_more-list');
+    var wrap = document.querySelector('.unit-filter_more-button');
+
+    /* Lenis hijacks wheel/touch globally - this opts the drawer out so it
+       scrolls natively while the page behind stays locked. */
+    if (drawer && !drawer.hasAttribute('data-lenis-prevent')) {
+      drawer.setAttribute('data-lenis-prevent', '');
+    }
+
+    /* Page scroll lock tied to drawer state (no lenis.stop - that would also
+       block touch scrolling inside the drawer). */
+    if (drawer && !drawer.__ohxLock) {
+      drawer.__ohxLock = true;
+      var sync = function () {
+        var open = drawer.classList.contains('is-open');
+        document.documentElement.style.overflow = open ? 'hidden' : '';
+        document.body.style.overflow = open ? 'hidden' : '';
+      };
+      new MutationObserver(sync).observe(drawer, { attributes: true, attributeFilter: ['class'] });
+      sync();
+    }
+
+    if (!list || !wrap || list.__ohxMore) return;
+    list.__ohxMore = true;
+
+    function clearInline() {
+      list.style.removeProperty('height');
+      list.style.removeProperty('display');
+      list.style.removeProperty('opacity');
+    }
+
+    function setLabel(isOpen) {
+      var next = isOpen ? 'Fewer Filters' : 'More Filters';
+      var nodes = wrap.querySelectorAll('*');
+      for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        if (el.children.length) continue;
+        var t = (el.textContent || '').trim();
+        if (t === 'More Filters' || t === 'Fewer Filters') el.textContent = next;
+      }
+    }
+
+    clearInline();
+    list.classList.add('svx-more-collapsed');
+    setLabel(false);
+
+    wrap.addEventListener('click', function (e) {
+      e.preventDefault();
+      clearInline();
+      var willOpen = list.classList.contains('svx-more-collapsed');
+      list.classList.toggle('svx-more-collapsed', !willOpen);
+      list.classList.toggle('svx-more-open', willOpen);
+      setLabel(willOpen);
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+/* ============================================================
+   Floorplan lightbox
+   ============================================================ */
+(function () {
+  function boot() {
+    var box = document.createElement('div');
+    box.className = 'fp-lightbox';
+    /* the .fp-zoom wrapper is the tap-to-zoom viewer (module below) */
+    box.innerHTML = '<button class="fp-lightbox_close" aria-label="Close">&#10005;</button>' +
+      '<div class="fp-zoom" data-lenis-prevent><img alt="Floor plan"></div>';
+    document.body.appendChild(box);
+    var img = box.querySelector('img');
+
+    function open(src, alt) {
+      if (!src) return;
+      img.src = src;
+      img.alt = alt || 'Floor plan';
+      box.classList.add('is-open');
+    }
+    function close() {
+      box.classList.remove('is-open');
+      img.removeAttribute('src');
+    }
+
+    box.addEventListener('click', function (e) {
+      /* the backdrop, the letterbox around the plan, or the close button.
+         A tap on the plan itself is the zoom module's (it stops propagation
+         when it acts, so a zoomed-in plan never closes by accident). */
+      if (e.target === box || e.target.classList.contains('fp-zoom') || e.target.closest('.fp-lightbox_close')) close();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && box.classList.contains('is-open')) close();
+    });
+
+    /* Capture phase: takes over before Webflow's own lightbox handler, which
+       still references the static placeholder asset rather than the Wized src. */
+    document.addEventListener('click', function (e) {
+      var hit = e.target.closest('.unit-details_floorplan-lightbox, .unit-details_floorplan-image');
+      if (!hit) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var pic = hit.matches('img') ? hit : hit.querySelector('img');
+      if (pic) open(pic.currentSrc || pic.src, pic.alt);
+    }, true);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+/* ============================================================
+   Floor plan viewer: fill + tap zoom
+
+   Two places show a plan full-screen - the unit-details lightbox above and
+   the unit types "View Floor Plan" modal (Webflow's custom-modal popup) - and
+   both get the same viewer: the plan fills whatever room it has (the modal is
+   a full-screen sheet below 992px, see the page head CSS), one tap zooms in
+   on the spot that was tapped, one tap zooms out.
+
+   Zooming is layout, not transform: the .fp-zoom wrapper turns into a plain
+   scroll container and the image is laid out at the zoomed size, so panning
+   is the browser's own touch scrolling (momentum and all) and needs no
+   gesture code. A pan never produces a click, so dragging around a zoomed
+   plan cannot zoom it back out. Both viewers reset when they close or when
+   the plan changes.
+   ============================================================ */
+(function () {
+  var MIN = 2, MAX = 3;                /* zoom to the plan's real pixels, within this band */
+  var MODAL = '.popup[custom-modal-element="unit-floorplan"] .modal-content';
+
+  function wrap(img) {
+    if (!img) return null;
+    if (img.parentNode.classList.contains('fp-zoom')) return img.parentNode;
+    var w = document.createElement('div');
+    w.className = 'fp-zoom';
+    w.setAttribute('data-lenis-prevent', '');
+    img.parentNode.insertBefore(w, img);
+    w.appendChild(img);
+    return w;
+  }
+
+  function zoomOut(w) {
+    var img = w.querySelector('img');
+    w.classList.remove('is-zoomed');
+    if (img) { img.style.width = ''; img.style.marginTop = ''; }
+    w.scrollLeft = 0;
+    w.scrollTop = 0;
+  }
+
+  function zoomIn(w, img, x, y) {
+    var r = img.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var fx = (x - r.left) / r.width;    /* where they tapped, as a fraction of the plan */
+    var fy = (y - r.top) / r.height;
+    var scale = img.naturalWidth ? img.naturalWidth / r.width : MIN;
+    scale = Math.max(MIN, Math.min(MAX, scale));
+    var W = r.width * scale, H = r.height * scale;
+    w.classList.add('is-zoomed');
+    img.style.width = W + 'px';
+    var cw = w.clientWidth, ch = w.clientHeight;
+    /* a plan shorter than the viewer stays vertically centred */
+    img.style.marginTop = H < ch ? ((ch - H) / 2) + 'px' : '';
+    /* and the tapped spot lands in the middle of the viewer */
+    w.scrollLeft = Math.max(0, fx * W - cw / 2);
+    w.scrollTop = Math.max(0, fy * H - ch / 2);
+  }
+
+  /* reset when the viewer closes (lightbox: is-open, modal: is-active) or
+     when the plan itself changes (a new unit, another type) */
+  function watch(w, root) {
+    var img = w.querySelector('img');
+    new MutationObserver(function () {
+      if (!root.classList.contains('is-open') && !root.classList.contains('is-active')) zoomOut(w);
+    }).observe(root, { attributes: true, attributeFilter: ['class'] });
+    if (img) new MutationObserver(function () { zoomOut(w); }).observe(img, { attributes: true, attributeFilter: ['src'] });
+  }
+
+  document.addEventListener('click', function (e) {
+    var w = e.target.closest('.fp-zoom');
+    if (!w) return;
+    var img = w.querySelector('img');
+    if (w.classList.contains('is-zoomed')) {
+      e.preventDefault();
+      e.stopPropagation();
+      zoomOut(w);
+    } else if (img && e.target === img) {
+      e.preventDefault();
+      e.stopPropagation();
+      zoomIn(w, img, e.clientX, e.clientY);
+    }
+    /* a tap on the letterbox around an unzoomed plan is left to the viewer
+       (the lightbox closes on it) */
+  }, true);
+
+  function boot() {
+    var lb = document.querySelector('.fp-lightbox .fp-zoom');
+    if (lb) watch(lb, lb.closest('.fp-lightbox'));
+    var modal = document.querySelector(MODAL);
+    var img = modal && modal.querySelector('img');
+    if (img) watch(wrap(img), modal.closest('.popup'));
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+
+/* ============================================================
+   Deep links + WhatsApp sharing
+
+   Two things are shareable and they work the same way: a URL param that
+   reopens what the sender was looking at, and a WhatsApp button that wraps
+   that link in a sentence. So they share one module, one link builder and
+   one click handler rather than a copy each.
+
+     [wized="v2_shareWhatsapp"]  a unit          ?unit=<unit number>
+     [wized="v2_shareFloorplan"] a type's plan   ?type=<type code>&floorplan=1
+
+   Only ?unit= is written to the address bar as you browse, and only while
+   the detail panel is open. ?type= is built at share time instead: a type is
+   always selected, so syncing it would stamp a param on the landing URL of
+   every visit - including the ad traffic that arrives on / - for no gain.
+   ============================================================ */
+(function(){
+  var UNIT = 'unit', TYPE = 'type', FLOORPLAN = 'floorplan';
+  var ESTATE = 'Oakhills Estate, Stellenbosch';
+  window.Wized = window.Wized || [];
+  window.Wized.push(function(Wized){
+
+    function units(){ try { return (Wized.data.r.v2_getUnits && Wized.data.r.v2_getUnits.data) || []; } catch(e){ return []; } }
+    function selected(){ try { return Wized.data.v.v2_selectedUnit || null; } catch(e){ return null; } }
+    function selectedType(){ try { return Wized.data.v.v2_selectedType || null; } catch(e){ return null; } }
+    function unitKey(u){ return u ? String(u.unit_number != null ? u.unit_number : u.plot_id) : null; }
+    function param(name){ return new URL(window.location.href).searchParams.get(name); }
+
+    /* poll for something that only exists once Wized has rendered; the unit
+       list and the type tabs both arrive well after DOMContentLoaded */
+    function waitFor(test, done, tries){
+      var n = 0, max = tries || 60;
+      var t = setInterval(function(){
+        var got = test();
+        if (got || ++n > max) { clearInterval(t); if (got) done(got); }
+      }, 200);
+    }
+
+    /* ---- 1. URL param sync: ?unit=<unit_number> follows the selection ---- */
+    function setParam(u){
+      var url = new URL(window.location.href);
+      var key = unitKey(u);
+      if (key) { url.searchParams.set(UNIT, key); } else { url.searchParams.delete(UNIT); }
+      window.history.replaceState({}, '', url.toString());
+    }
+    var wrap = document.querySelector('.site-plan_detail-wrap');
+    if (wrap) {
+      new MutationObserver(function(){
+        setParam(wrap.classList.contains('is-open') ? selected() : null);
+      }).observe(wrap, { attributes:true, attributeFilter:['class'] });
+    }
+    /* selecting another unit while the panel is already open */
+    document.addEventListener('click', function(e){
+      if (e.target.closest('.site-plan_plot, [data-plot]')) {
+        setTimeout(function(){ if (wrap && wrap.classList.contains('is-open')) setParam(selected()); }, 0);
+      }
+    });
+
+    /* ---- 2. Deep links ---- */
+    /* ?unit=... re-opens that unit's detail panel */
+    var wantUnit = param(UNIT);
+    if (wantUnit) {
+      waitFor(function(){
+        var sp = window.ohSitePlan;
+        return (sp && sp.units().length) ? sp : null;
+      }, function(sp){ sp.open(wantUnit); });
+    }
+
+    /* ?type=A selects that tab in the unit types section and scrolls to it;
+       &floorplan=1 then opens the floor plan modal through the section's own
+       "View Floor Plan" button, so the site's modal script stays the only
+       thing that knows how to open it. */
+    var wantType = param(TYPE);
+    if (wantType) {
+      var code = String(wantType).trim().toLowerCase();
+      waitFor(function(){
+        var tabs = document.querySelectorAll('[wized="v2_unitTypeTabLink"]');
+        if (!tabs.length) return null;
+        return Array.prototype.filter.call(tabs, function(el){
+          var t = (el.textContent || '').trim().toLowerCase();
+          return t === code || t === 'type ' + code;
+        })[0] || null;
+      }, function(tab){
+        if (!tab.classList.contains('is-active')) tab.click();
+        var section = document.getElementById('unit-types');
+        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (param(FLOORPLAN) !== '1') return;
+        /* wait for the pane to rebind to the newly selected type */
+        setTimeout(function(){
+          var open = document.querySelector('.unit-types_actions [custom-modal="open"][custom-modal-element="unit-floorplan"]');
+          if (open) open.click();
+        }, 700);
+      });
+    }
+
+    /* ---- 3. Share on WhatsApp ---- */
+    /* each entry adds its own params to the outgoing URL and returns the
+       sentence that goes in front of it */
+    var SHARE = {
+      v2_shareWhatsapp: function(url){
+        var u = selected();
+        var key = unitKey(u);
+        /* the sender may have arrived on a shared floor-plan link; don't pass
+           its params on, or the recipient gets a modal over the unit panel */
+        url.searchParams.delete(TYPE);
+        url.searchParams.delete(FLOORPLAN);
+        url.hash = '';
+        if (key) url.searchParams.set(UNIT, key);
+        var what = u
+          ? 'Unit ' + (u.unit_number != null ? u.unit_number : '') + (u.type_code ? ' (Type ' + u.type_code + ', Block ' + u.block_name + ')' : '')
+          : 'this home';
+        return 'Take a look at ' + what + ' at ' + ESTATE + ': ';
+      },
+      v2_shareFloorplan: function(url){
+        var t = selectedType();
+        var code = t && t.type_code ? String(t.type_code) : null;
+        url.searchParams.delete(UNIT);
+        if (code) { url.searchParams.set(TYPE, code); url.searchParams.set(FLOORPLAN, '1'); }
+        url.hash = 'unit-types';
+        var specs = [];
+        if (t && t.bedrooms) specs.push(t.bedrooms + ' bed');
+        if (t && t.bathrooms) specs.push(t.bathrooms + ' bath');
+        if (t && t.total_area) specs.push(t.total_area + ' m²');
+        return 'The floor plan for ' + (code ? 'Type ' + code : 'this home') +
+          (specs.length ? ' (' + specs.join(', ') + ')' : '') + ' at ' + ESTATE + ': ';
+      }
+    };
+    function hit(e){
+      if (!e.target.closest) return null;
+      for (var k in SHARE) {
+        if (e.target.closest('[wized="' + k + '"]')) return k;
+      }
+      return null;
+    }
+    document.addEventListener('click', function(e){
+      var kind = hit(e);
+      if (!kind) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var url = new URL(window.location.href);
+      var msg = SHARE[kind](url);
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg + url.toString()), '_blank', 'noopener');
+    }, true);
+    /* both share controls are divs with role="button" - a div doesn't fire a
+       click from the keyboard, so honour the role rather than leaving it a
+       promise the element can't keep */
+    document.addEventListener('keydown', function(e){
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      var kind = hit(e);
+      if (!kind) return;
+      e.preventDefault();
+      e.target.closest('[wized="' + kind + '"]').click();
+    });
+  });
+})();
+
+
+/* ============================================================
+   Unit detail panel - sticky sub-nav (+ scrollspy)
+   ============================================================ */
+
+(function () {
+  'use strict';
+
+  function initSubnav() {
+    var panel = document.querySelector('.site-plan_detail-panel');
+    var nav = document.querySelector('.unit-details_scroll-nav');
+    if (!panel || !nav) return;
+
+    var wrap = document.querySelector('.site-plan_detail-wrap');
+    var links = [].slice.call(nav.querySelectorAll('a'));
+
+    function scroller() {
+      if (panel.scrollHeight > panel.clientHeight + 5) return panel;
+      return (wrap && wrap.scrollHeight > wrap.clientHeight + 5) ? wrap : panel;
+    }
+
+    function sectionFor(link) {
+      var href = link.getAttribute('href') || '';
+      var id = href.indexOf('#') !== -1 ? href.split('#').pop() : '';
+      return id ? document.getElementById(id) : null;
+    }
+
+    links.forEach(function (l) {
+      l.addEventListener('click', function (e) {
+        var s = sectionFor(l);
+        if (!s) return;
+        e.preventDefault();
+        var sc = scroller();
+        var top = s.getBoundingClientRect().top
+                - sc.getBoundingClientRect().top
+                + sc.scrollTop
+                - (nav.offsetHeight + 8);
+        sc.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
+      });
+    });
+
+    function spy() {
+      var navB = nav.getBoundingClientRect().bottom + 12;
+      var currentIdx = 0;
+      links.forEach(function (l, i) {
+        var s = sectionFor(l);
+        if (s && s.getBoundingClientRect().top <= navB) currentIdx = i;
+      });
+      links.forEach(function (l, i) { l.classList.toggle('is-active', i === currentIdx); });
+    }
+
+    panel.addEventListener('scroll', spy, { passive: true });
+    if (wrap) wrap.addEventListener('scroll', spy, { passive: true });
+    spy();
+
+    if (wrap) {
+      new MutationObserver(function () {
+        if (wrap.classList.contains('is-open')) setTimeout(spy, 50);
+      }).observe(wrap, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSubnav);
+  } else {
+    initSubnav();
+  }
+})();
+
+
+/* ============================================================
+   Galleries - detail panel + unit types slider, one shared lightbox
+   ============================================================ */
+
+(function () {
+  'use strict';
+
+  /* ==========================================================
+     Shared media handling for the Oak Hills galleries.
+
+     Two consumers, one lightbox:
+       1. the unit detail panel gallery (site plan -> unit)
+       2. the unit types slider on the home page
+
+     Items may arrive from Xano as plain URL strings or as objects
+     ({url|src|path|href, type|mime, kind, poster, caption}). YouTube is
+     detected from the URL, so a wrong or missing `kind` cannot break it.
+     ========================================================== */
+
+  var PLAY_SVG = '<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  var BADGE_SVG = '<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  var EXPAND_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 15v5h-5M15 4h5v5M9 20H4v-5"/></svg>';
+
+  /* watch?v= | youtu.be | embed | shorts -> video id */
+  function ytId(url) {
+    var m = String(url || '').match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([\w-]{11})/);
+    return m ? m[1] : '';
+  }
+
+  function norm(it) {
+    var url = '', type = '';
+    if (typeof it === 'string') {
+      url = it;
+    } else if (it && typeof it === 'object') {
+      url = it.url || it.src || it.path || it.href || '';
+      type = it.type || it.mime || '';
+    }
+    if (!url) return null;
+
+    var yt = ytId(url);
+    if (yt) return {
+      url: url,
+      kind: 'youtube',
+      embed: 'https://www.youtube-nocookie.com/embed/' + yt + '?rel=0&playsinline=1',
+      poster: (it && it.poster) || 'https://i.ytimg.com/vi/' + yt + '/maxresdefault.jpg',
+      poster2: 'https://i.ytimg.com/vi/' + yt + '/hqdefault.jpg',
+      caption: (it && it.caption) || ''
+    };
+    if (/youtube/i.test(type) || (it && it.kind === 'youtube')) return null;
+
+    var isVid = /^video\//i.test(type) || /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url);
+    return { url: url, kind: isVid ? 'video' : 'image', poster: (it && it.poster) || '', caption: (it && it.caption) || '' };
+  }
+
+  /* Order preserved - callers that index into the source array depend on it. */
+  function normList(raw) {
+    if (raw == null) return [];
+    if (typeof raw === 'string') {
+      try {
+        var p = JSON.parse(raw);
+        raw = Array.isArray(p) ? p : [raw];
+      } catch (e) {
+        raw = [raw];
+      }
+    }
+    if (!Array.isArray(raw)) raw = [raw];
+    return raw.map(norm).filter(Boolean);
+  }
+
+  /* first frame of an mp4, without loading the whole file */
+  function stillOf(url) {
+    return url + (url.indexOf('#') === -1 ? '#t=0.1' : '');
+  }
+
+  /* A still frame for any kind, so nothing ever points an <img> at a video URL. */
+  function stillNode(it, className) {
+    if (it.kind === 'video') {
+      var v = document.createElement('video');
+      v.src = stillOf(it.url);
+      v.muted = true;
+      v.playsInline = true;
+      v.preload = 'metadata';
+      v.className = className;
+      return v;
+    }
+    var im = document.createElement('img');
+    im.className = className;
+    im.alt = '';
+    if (it.kind === 'youtube') {
+      /* maxres exists only for HD uploads - fall back to the always-there frame */
+      im.onerror = function () { if (it.poster2 && im.src !== it.poster2) im.src = it.poster2; };
+      im.src = it.poster;
+    } else {
+      im.src = it.url;
+    }
+    return im;
+  }
+
+  /* ==========================================================
+     Shared lightbox. Playback always happens here - never inline -
+     so the panel and the slider behave the same for every media kind.
+     ========================================================== */
+
+  var lb, lbStage, lbCounter;
+  var items = [];
+  var index = 0;
+  var onIndex = null;
+
+  function build() {
+    if (lb) return;
+    lb = document.createElement('div');
+    lb.className = 'ud-lightbox';
+    lb.innerHTML =
+      '<button class="ud-lb-btn ud-lb-close" aria-label="Close">&#10005;</button>' +
+      '<button class="ud-lb-btn ud-lb-prev" aria-label="Previous">&lsaquo;</button>' +
+      '<div class="ud-lightbox_stage" data-lb="stage"></div>' +
+      '<button class="ud-lb-btn ud-lb-next" aria-label="Next">&rsaquo;</button>' +
+      '<div class="ud-lb-counter" data-lb="counter"></div>';
+    document.body.appendChild(lb);
+
+    lbStage = lb.querySelector('[data-lb="stage"]');
+    lbCounter = lb.querySelector('[data-lb="counter"]');
+
+    lb.querySelector('.ud-lb-close').addEventListener('click', close);
+    lb.querySelector('.ud-lb-prev').addEventListener('click', function () { step(-1); });
+    lb.querySelector('.ud-lb-next').addEventListener('click', function () { step(1); });
+    lb.addEventListener('click', function (e) { if (e.target === lb) close(); });
+
+    document.addEventListener('keydown', function (e) {
+      if (!isOpen()) return;
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+    });
+  }
+
+  function isOpen() {
+    return !!lb && lb.classList.contains('is-open');
+  }
+
+  function render() {
+    var it = items[index];
+    if (!it) return;
+    lbStage.innerHTML = '';
+
+    var node;
+    if (it.kind === 'youtube') {
+      node = document.createElement('iframe');
+      node.src = it.embed + '&autoplay=1';
+      node.style.cssText = 'width:min(92vw,1180px);aspect-ratio:16/9;max-height:82vh;border:0;border-radius:8px;background:#000';
+      node.setAttribute('allow', 'autoplay; encrypted-media; fullscreen');
+      node.setAttribute('allowfullscreen', '');
+      node.setAttribute('title', it.caption || 'Video');
+    } else if (it.kind === 'video') {
+      node = document.createElement('video');
+      node.src = it.url;
+      node.controls = true;
+      node.autoplay = true;
+      node.playsInline = true;
+    } else {
+      node = document.createElement('img');
+      node.src = it.url;
+      node.alt = '';
+    }
+    lbStage.appendChild(node);
+
+    lbCounter.textContent = (index + 1) + ' / ' + items.length;
+    var single = items.length < 2;
+    lb.querySelector('.ud-lb-prev').style.display = single ? 'none' : '';
+    lb.querySelector('.ud-lb-next').style.display = single ? 'none' : '';
+  }
+
+  function open(list, i, sync) {
+    if (!list || !list.length) return;
+    build();
+    items = list;
+    index = Math.max(0, Math.min(i || 0, list.length - 1));
+    onIndex = sync || null;
+    lb.classList.add('is-open');
+    render();
+  }
+
+  function close() {
+    if (!lb) return;
+    lb.classList.remove('is-open');
+    lbStage.innerHTML = '';   /* destroys the iframe / video, stopping playback */
+  }
+
+  function step(d) {
+    if (!items.length) return;
+    index = (index + d + items.length) % items.length;
+    render();
+    if (onIndex) onIndex(index);
+  }
+
+  /* ==========================================================
+     Consumer 1 - unit detail panel gallery
+     ========================================================== */
+
+  function initPanel(Wized) {
+    var wrap = document.querySelector('.site-plan_detail-wrap');
+    var stage = document.querySelector('[data-gallery="stage"]');
+    var thumbs = document.querySelector('[data-gallery="thumbs"]');
+    if (!wrap || !stage || !thumbs) return;
+
+    var media = [];
+    var current = 0;
+
+    /* A still image reads better as the opening frame than a video poster. */
+    function itemsFor(u) {
+      if (!u) return [];
+      var raw = (u.media == null || (Array.isArray(u.media) && !u.media.length))
+        ? (u.card_image ? [u.card_image] : [])
+        : u.media;
+      var out = normList(raw);
+      if (out.length && out[0].kind !== 'image') {
+        var i = out.findIndex(function (m) { return m.kind === 'image'; });
+        if (i > 0) out.unshift(out.splice(i, 1)[0]);
+      }
+      return out;
+    }
+
+    function renderStage() {
+      var it = media[current];
+      stage.innerHTML = '';
+      if (!it) return;
+
+      stage.appendChild(stillNode(it, 'ud-media'));
+
+      /* both video kinds get a play affordance; the stage itself always opens
+         the lightbox, which is where playback happens */
+      if (it.kind !== 'image') {
+        var play = document.createElement('div');
+        play.className = 'ud-playbtn';
+        play.innerHTML = PLAY_SVG;
+        stage.appendChild(play);
+      }
+
+      var exp = document.createElement('div');
+      exp.className = 'ud-expand';
+      exp.innerHTML = EXPAND_SVG;
+      stage.appendChild(exp);
+    }
+
+    function renderThumbs() {
+      thumbs.innerHTML = '';
+      media.forEach(function (it, i) {
+        var t = document.createElement('div');
+        t.className = 'unit-details_thumbnail' + (i === current ? ' is-current' : '');
+        t.setAttribute('data-thumb', i);
+
+        var node = stillNode(it, '');
+        node.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+        if (it.kind === 'youtube') node.src = it.poster2 || it.poster;   /* small frame is plenty */
+        t.appendChild(node);
+
+        if (it.kind !== 'image') {
+          var b = document.createElement('div');
+          b.className = 'unit-details_thumb-badge';
+          b.innerHTML = BADGE_SVG;
+          t.appendChild(b);
+        }
+        thumbs.appendChild(t);
+      });
+      thumbs.style.display = media.length > 1 ? '' : 'none';
+    }
+
+    function markThumbs() {
+      thumbs.querySelectorAll('[data-thumb]').forEach(function (t) {
+        t.classList.toggle('is-current', Number(t.getAttribute('data-thumb')) === current);
+      });
+    }
+
+    function show(i) {
+      current = i;
+      renderStage();
+      markThumbs();
+    }
+
+    function openHere() {
+      open(media, current, show);
+    }
+
+    thumbs.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-thumb]');
+      if (t) show(Number(t.getAttribute('data-thumb')));
+    });
+
+    stage.addEventListener('click', openHere);
+    stage.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHere(); }
+      else if (!media.length) return;
+      else if (e.key === 'ArrowRight') show((current + 1) % media.length);
+      else if (e.key === 'ArrowLeft') show((current - 1 + media.length) % media.length);
+    });
+
+    function selected() {
+      return (Wized.data && Wized.data.v) ? Wized.data.v.v2_selectedUnit : null;
+    }
+
+    function load(u) {
+      media = itemsFor(u);
+      current = 0;
+      renderStage();
+      renderThumbs();
+    }
+
+    new MutationObserver(function () {
+      if (wrap.classList.contains('is-open')) {
+        load(selected());
+      } else {
+        close();
+        var v = stage.querySelector('video');
+        if (v) { try { v.pause(); } catch (e) {} }
+      }
+    }).observe(wrap, { attributes: true, attributeFilter: ['class'] });
+
+    if (wrap.classList.contains('is-open')) load(selected());
+  }
+
+  /* ==========================================================
+     Consumer 2 - unit types slider
+
+     The slide's contents are rendered by Wized (unitTypeSlideImage /
+     unitTypeSlideYoutube / unitTypeSlideVideo). This only adds the lightbox:
+     a click anywhere on the slide opens the selected type's full media set
+     at the current slide, and playback happens there.
+     ========================================================== */
+
+  function initTypeSlider(Wized) {
+    var slider = document.querySelector('[wized="v2_unitTypeSlider"]');
+    if (!slider) return;
+
+    /* The markup is Swiper-shaped (.swiper > .swiper-wrapper > .swiper-slide) but
+       nothing ever started a Swiper on it: the site-wide initialiser only picks up
+       [data-swiper-container="true"]. So every slide rendered stacked in the track,
+       the arrows set a slideIndex variable nothing reads, and dragging did nothing.
+       Swiper 11 is already loaded site-wide, so just mount it. */
+    function mountSwiper() {
+      if (typeof window.Swiper !== 'function') return;
+      if (slider.swiper) {
+        if (slider.swiper.__oh) return;
+        /* The site-wide footer initialiser mounts anything carrying
+           data-swiper-container="true" with the generic config baked into
+           data-swiper-config: loop + autoplay + touchStartPreventDefault, and no
+           observer, so it counts the slides before Wized renders them (one),
+           kills the taps, and autoplays. That is the "slider stopped working
+           again" state. Take it over: tear its instance down and mount ours. */
+        try { slider.swiper.destroy(true, true); } catch (e) {}
+        slider.swiper = null;
+      }
+      /* and make sure a re-run of that initialiser skips this element */
+      slider.removeAttribute('data-swiper-container');
+      slider.removeAttribute('data-swiper-config');
+      new window.Swiper(slider, {
+        slidesPerView: 1,
+        speed: 400,
+        grabCursor: true,
+        rewind: true,              /* wraps around WITHOUT cloning the Wized-bound slides */
+        observer: true,            /* the slides are a render list - they change on tab switch */
+        observeParents: true,
+        observeSlideChildren: true,
+        /* Swiper calls preventDefault on touchstart by default, which cancels the
+           click that a tap would otherwise produce - that is why tapping a slide
+           did nothing on mobile while clicking worked on desktop. */
+        touchStartPreventDefault: false,
+        keyboard: { enabled: true, onlyInViewport: true },
+        navigation: {
+          prevEl: slider.querySelector('[data-swiper-nav="prev"]'),
+          nextEl: slider.querySelector('[data-swiper-nav="next"]')
+        }
+      });
+      slider.swiper.__oh = true;   /* never autoplays, on any device */
+
+      /* Second, independent path to the lightbox. Swiper's own tap event fires
+         for mouse and touch alike, and deliberately does NOT fire when the
+         gesture turned out to be a swipe. openHere() is idempotent, so it does
+         not matter if this and the delegated click below both land. */
+      slider.swiper.on('tap', function (s, e) { openHere(e); });
+    }
+
+    /* No Swiper stylesheet is loaded on this page, so the track needs the two
+       rules Swiper cannot do without. Scoped to this slider only. */
+    if (!document.getElementById('ut-swiper-css')) {
+      var st = document.createElement('style');
+      st.id = 'ut-swiper-css';
+      st.textContent =
+        '[wized="v2_unitTypeSlider"]{overflow:hidden}' +
+        '[wized="v2_unitTypeSlider"]>.swiper-wrapper{display:flex;flex-direction:row}' +
+        '[wized="v2_unitTypeSlider"] .swiper-slide{flex-shrink:0}';
+      document.head.appendChild(st);
+    }
+
+    mountSwiper();
+    if (!slider.swiper) {
+      /* Swiper's script is async and the slides arrive with the render list */
+      var tries = 0;
+      var timer = setInterval(function () {
+        mountSwiper();
+        if (slider.swiper || ++tries > 40) clearInterval(timer);
+      }, 250);
+    }
+
+    function media() {
+      try {
+        var t = Wized.data.v.v2_selectedType;
+        return normList(t && t.media);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    /* Slide order matches the media array (no loop, so no cloned slides). */
+    function indexOf(el) {
+      var all = slider.querySelectorAll('[wized="v2_unitTypeSlide"]');
+      return Array.prototype.indexOf.call(all, el);
+    }
+
+    function current() {
+      if (slider.swiper) return slider.swiper.activeIndex;
+      try { return Number(Wized.data.v.v2_slideIndex) || 0; } catch (e) { return 0; }
+    }
+
+    function openHere(e) {
+      if (isOpen()) return;   /* already showing - a second trigger must be a no-op */
+      /* Nav buttons sit outside the slides, so they are excluded by this test.
+         Swiper suppresses the click that ends a drag (preventClicks). */
+      var el = e.target.closest && e.target.closest('[wized="v2_unitTypeSlide"]');
+      if (!el) return;
+      /* stop the site-wide [data-youtube-facade] handler mounting an inline player */
+      e.preventDefault();
+      e.stopPropagation();
+      var i = indexOf(el);
+      open(media(), i < 0 ? current() : i, function (n) {
+        /* leave the slider on whatever they stopped at */
+        if (slider.swiper) slider.swiper.slideTo(n);
+        try { Wized.data.v.v2_slideIndex = n; } catch (err) {}
+      });
+    }
+
+    slider.addEventListener('click', openHere);
+    slider.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') openHere(e);
+    });
+  }
+
+  window.Wized = window.Wized || [];
+  window.Wized.push(function (Wized) {
+    initPanel(Wized);
+    initTypeSlider(Wized);
+  });
+})();
+
