@@ -971,6 +971,24 @@ window.Wized.push((Wized) => {
    contact_number and hidden unit_id / unit_number (bound by Wized from
    v2_selectedUnit, or filled here from the controller as a fallback).
    ============================================================ */
+/* Hand a form to Webflow's own submit handler (Webflow Forms → LeadConnector),
+   the same path the home-page Register Interest form takes. Our capture-phase
+   handlers see __ohNative and step aside for that one event. A synthetic submit
+   event has no default action, so if Webflow's handler is missing nothing
+   navigates. Optional doneText replaces the wrapper's success message. */
+window.ohNativeSubmit = function (form, doneText) {
+  if (!form) return false;
+  try {
+    const wrap = form.closest('.w-form');
+    const done = wrap && wrap.querySelector('.w-form-done');
+    if (done && doneText) { const inner = done.querySelector('div') || done; inner.textContent = doneText; }
+    form.__ohNative = true;
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    return true;
+  } catch (e) { console.warn('[native-submit]', e); return false; }
+  finally { form.__ohNative = false; }
+};
+
 (function () {
   const HOLD_ENDPOINT = 'https://x7aj-untn-pq4t.n7e.xano.io/api:5xvncF1S/units/{id}/hold';
   const API_ENDPOINT = 'https://bol-server-prod0.red-i.co.za/api/reservationSession/start?manualRedirect=true';
@@ -1103,6 +1121,7 @@ window.Wized.push((Wized) => {
     form.__ohReserve = true;
 
     form.addEventListener('submit', async function (e) {
+      if (form.__ohNative) return; /* Webflow's turn */
       e.preventDefault();
       e.stopImmediatePropagation();
       const btn = form.querySelector('input[type="submit"], button[type="submit"]');
@@ -1112,6 +1131,8 @@ window.Wized.push((Wized) => {
       try {
         if (btn) { btn.disabled = true; setLabel('Reserving...'); }
         const { lead, unitId, unitNumber } = collect(form);
+        /* Webflow Forms copy (feeds LeadConnector), in parallel with the hold - as v1 did */
+        window.ohNativeSubmit(form, 'Taking you to the secure reservation page...');
 
         showMsg(form, 'Holding your unit...');
         await placeHold(unitId, lead);
@@ -1201,6 +1222,7 @@ window.Wized.push((Wized) => {
     if (!form || form.__ohNotify) return;
     form.__ohNotify = true;
     form.addEventListener('submit', async (e) => {
+      if (form.__ohNative) return; /* Webflow's turn */
       e.preventDefault();
       e.stopImmediatePropagation();
       const btn = form.querySelector('input[type="submit"], button[type="submit"]');
@@ -1225,10 +1247,13 @@ window.Wized.push((Wized) => {
         const res = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         let data = null; try { data = await res.json(); } catch (_) {}
         if (!res.ok) throw new Error((data && data.message) || 'We could not save that. Please try again.');
+        const doneText = 'Thank you — you are on the list for unit ' + payload.unit_number + '. We will be in touch the moment it is released.';
+        /* Webflow Forms copy (feeds LeadConnector, unit_number/unit_id included); Webflow then shows its success block */
+        const native = window.ohNativeSubmit(form, doneText);
         form.querySelectorAll('[data-notify="fields"]').forEach((el) => { el.style.display = 'none'; });
         const done = form.querySelector('[data-notify="done"]');
-        if (done) { done.style.display = 'block'; const n = done.querySelector('[data-notify="done-unit"]'); if (n) n.textContent = payload.unit_number; }
-        else showMsg(form, 'Thanks — we will let you know the moment unit ' + payload.unit_number + ' is released.');
+        if (done && !native) { done.style.display = 'block'; const n = done.querySelector('[data-notify="done-unit"]'); if (n) n.textContent = payload.unit_number; }
+        else if (!done && !native) showMsg(form, doneText);
         setLabel('Registered');
         document.dispatchEvent(new CustomEvent('oh:interest-registered', { detail: { unit: u, lead: payload } }));
       } catch (err) {
