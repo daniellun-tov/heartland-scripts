@@ -661,7 +661,7 @@ window.Wized.push((Wized) => {
 
   function fillUnit(u) {
     set(field.id, 'Unit ' + u.unit_number);
-    set(field.status, u.status);
+    set(field.status, u.status_key === 'unreleased' ? 'Coming soon' : u.status);
     pill(u.status_key);
     set(field.type, 'Type ' + u.type_code + ' · Block ' + u.block_name + ' · ' + u.floor_label + ' floor');
     set(field.specs, [u.bedrooms + ' bed', u.bathrooms + ' bath', Math.round(u.unit_size) + ' m²'].join(' · '));
@@ -1227,7 +1227,7 @@ window.Wized.push((Wized) => {
         if (!res.ok) throw new Error((data && data.message) || 'We could not save that. Please try again.');
         form.querySelectorAll('[data-notify="fields"]').forEach((el) => { el.style.display = 'none'; });
         const done = form.querySelector('[data-notify="done"]');
-        if (done) { done.style.display = ''; const n = done.querySelector('[data-notify="done-unit"]'); if (n) n.textContent = payload.unit_number; }
+        if (done) { done.style.display = 'block'; const n = done.querySelector('[data-notify="done-unit"]'); if (n) n.textContent = payload.unit_number; }
         else showMsg(form, 'Thanks — we will let you know the moment unit ' + payload.unit_number + ' is released.');
         setLabel('Registered');
         document.dispatchEvent(new CustomEvent('oh:interest-registered', { detail: { unit: u, lead: payload } }));
