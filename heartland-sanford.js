@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelector('.unit-collection-list-wrapper').addEventListener('change', function (e) {
     if (e.target.matches('input[type="radio"][data-class="unit"]')) {
@@ -38,6 +39,9 @@ function docReady(fn) {
 }
 
 const docReadyEvent = new Event('docreadyEvent');
+
+var HL_SANFORD_CONFIG = window.HL_SANFORD_CONFIG || { addonsAffectTotal: false };
+window.HL_SANFORD_CONFIG = HL_SANFORD_CONFIG;
 
 let totalNumberOfAddons = 3;
 let numberOfFloors = 6;
@@ -102,6 +106,8 @@ $(document).ready(function () {
   setTimeout(function () {
     isInitializingAddonList = false;
   }, 0);
+
+  updateSelectedHomeUI();  
 });
 
 $('.add-on-card').each(function (index, elem) {
@@ -611,14 +617,14 @@ $("input[data-total-contribute='true']").click(function () {
         upgradeEls.forEach(function (el) {
           if (el) el.style.display = 'none';
         });
-        if (linkWrap) linkWrap.innerHTML = '<a href="#enquire-now" class="text-color-polaris-blue" onclick="openEnquireTab()">Enquire Now</a>';
+        if (linkWrap) linkWrap.innerHTML = '<a href="#enquire-now" style="color:var(--sanford-primary)" onclick="openEnquireTab()">Enquire Now</a>';
       } else {
         if (totalCostLabel) totalCostLabel.textContent = 'R ' + numberWithSpaces($(this).data('price'));
         if (unitPriceLabel) unitPriceLabel.textContent = 'R ' + numberWithSpaces($(this).data('price'));
         upgradeEls.forEach(function (el) {
           if (el) el.style.display = 'flex';
         });
-        // if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" class="text-color-polaris-blue">Change Unit</a><div class="text-block-16">|</div><a href="#reserve-home" class="text-color-polaris-blue">Enquire Now</a>';
+        // if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" style="color:var(--sanford-primary)">Change Unit</a><div class="text-block-16">|</div><a href="#reserve-home" style="color:var(--sanford-primary)">Enquire Now</a>';
       }
 
       unitIDInput.val($(this).data('unit-id'));
@@ -686,9 +692,102 @@ $("input[data-total-contribute='true']").click(function () {
   }
   
   updateTotalPrice();
+  updateSelectedHomeUI();
   updateBondDisplay()
 });
 
+function updateTotalPrice() {
+  if (isBatchTogglingAddons) return;
+ 
+  // Add-ons excluded from the total: publish the unit price, sum nothing.
+  if (!HL_SANFORD_CONFIG.addonsAffectTotal) {
+    totalUnitCost = parseFloat(String(unitCostValues.unit || 0).replace(/[^\d.-]/g, '')) || 0;
+    totalAddonsCost = 0;
+ 
+    var unitOnly = 'R ' + numberWithSpaces(totalUnitCost);
+ 
+    $('#total_addons_cost').html('R 0');
+    $('.totalUpgradesTypeHiddenInput').each(function (i, o) {
+      $(o).val('R 0');
+    });
+    totalUnitCostDiv.each(function (i, o) {
+      $(o).html(unitOnly);
+    });
+    totalCostHiddenInput.val(unitOnly);
+    $('.totalCostHiddenInput').each(function (i, o) {
+      $(o).val(unitOnly);
+    });
+    return;
+  }
+ 
+  // ---- original behaviour below, unchanged ----
+  totalUnitCost = 0;
+  totalAddonsCost = 0;
+  for (var key in unitCostValues) totalUnitCost += parseFloat(unitCostValues[key]) || 0;
+  totalAddonsCost = Object.keys(unitCostValues)
+    .filter(function (k) {
+      return !['bondPrice', 'addOn', 'unit'].includes(k);
+    })
+    .reduce(function (s, k) {
+      return s + (parseFloat(unitCostValues[k]) || 0);
+    }, 0);
+  $('#total_addons_cost').html('R ' + numberWithSpaces(totalAddonsCost));
+  $('.totalUpgradesTypeHiddenInput').each(function (i, o) {
+    $(o).val('R ' + numberWithSpaces(totalAddonsCost));
+  });
+  totalUnitCostDiv.each(function (i, o) {
+    $(o).html('R ' + numberWithSpaces(totalUnitCost));
+  });
+  totalCostHiddenInput.val('R ' + numberWithSpaces(totalUnitCost));
+  $('.totalCostHiddenInput').each(function (i, o) {
+    $(o).val('R ' + numberWithSpaces(totalUnitCost));
+  });
+ 
+  // updateBondDisplay();
+}
+
+function updateSelectedHomeUI() {
+  var $wrap = $('[data-selected-home="wrap"]');
+  var $radio = $("input[data-total-contribute='true'][data-class='unit']:checked");
+ 
+  // Nothing chosen yet — hide the block, clear the cart label.
+  if (!$radio.length) {
+    $wrap.css('display', 'none');
+    $('#cart-unit-type-label').text('');
+    return;
+  }
+ 
+  var $tile = $radio.closest('label');
+ 
+  // Display name, three sources, most robust first:
+  //  1. data-display-name on the radio — add it in the embed (see notes below)
+  //     and it wins automatically; nothing else needs to change.
+  //  2. the tile's own CMS-bound title, which is the same Display Name field.
+  //  3. derived from the unit name: "Sanford Heart 02" -> "Home 2".
+  var name = $radio.attr('data-display-name');
+  if (!name) name = ($tile.find('.selection-title').first().text() || '').trim();
+  if (!name) {
+    var m = ($radio.attr('data-unit-number') || '').match(/(\d+)\s*$/);
+    name = m ? 'Home ' + parseInt(m[1], 10) : ($radio.attr('data-unit-number') || '');
+  }
+ 
+  // Unit type: "Sanford Heart A" -> "Type A".
+  var letter = ((($radio.attr('data-unit-type-name') || '').match(/([A-Za-z])\s*$/)) || [])[1];
+  var typeLabel = letter ? 'Type ' + letter.toUpperCase() : '';
+ 
+  $('[data-selected-home="name"]').text(name);
+  $('[data-selected-home="type"]').text(typeLabel);
+  $('[data-selected-home="price"]').text(formatZAR($radio.attr('data-price')));
+ 
+  // Explicit flex, not .show() — jQuery's show() would restore display:block
+  // and flatten the row. The class ships as display:none.
+  $wrap.css('display', 'flex');
+ 
+  $('#cart-unit-type-label').text(typeLabel);
+}
+
+/*
+// Old version that includes addons and upgrades all the time.
 function updateTotalPrice() {
   if (isBatchTogglingAddons) return;
   totalUnitCost = 0;
@@ -714,7 +813,8 @@ function updateTotalPrice() {
   });
 
   // updateBondDisplay();
-}
+} 
+*/
 
 function selectionTypeChanged(elem, config, onLoad) {
   var price = $(elem).attr(config.priceAttr);
@@ -837,7 +937,11 @@ function priceOrZero(n) {
 function numberWithSpaces(n) {
   return Math.floor(Number(n) || 0)
     .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ' '); // was ','  — U+00A0 no-break space
+}
+
+function formatZAR(n) {
+  return 'R ' + numberWithSpaces(n); // R + U+00A0
 }
 
 function setImg(id, src) {
@@ -991,14 +1095,14 @@ $('.fp-dot-wrap').click(function () {
     upgradeEls.forEach(function (el) {
       if (el) el.style.display = 'none';
     });
-    // if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" class="text-color-polaris-blue">Change Unit</a><div class="text-block-16">|</div><a id="enquire-now-link" href="#reservation" class="text-color-polaris-blue">Rent Now</a>';
+    // if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" style="color:var(--sanford-primary)">Change Unit</a><div class="text-block-16">|</div><a id="enquire-now-link" href="#reservation" style="color:var(--sanford-primary)">Rent Now</a>';
   } else {
     if (totalCostLabel) totalCostLabel.textContent = 'R ' + numberWithSpaces(price);
     if (unitPriceLabel) unitPriceLabel.textContent = 'R ' + numberWithSpaces(price);
     upgradeEls.forEach(function (el) {
       if (el) el.style.display = 'flex';
     });
-    // if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" class="text-color-polaris-blue">Change Unit</a><div class="text-block-16">|</div><a id="reserve-now-link" href="#reservation" class="text-color-polaris-blue">Reserve Now</a>';
+    // if (linkWrap) linkWrap.innerHTML = '<a href="#unit-selector" style="color:var(--sanford-primary)">Change Unit</a><div class="text-block-16">|</div><a id="reserve-now-link" href="#reservation" style="color:var(--sanford-primary)">Reserve Now</a>';
   }
 });
 
@@ -1274,7 +1378,7 @@ updateUnitTotals();
 })();
 
 
-// ─── BOND CALCULATOR — Polaris Heart ───────────────────────────────────────
+// ─── BOND CALCULATOR — Sanford Heart ───────────────────────────────────────
 // CMS-driven variables. In Webflow, swap hardcoded values with CMS field embeds,
 // e.g. {{wf {"path":"interest-rate","type":"Number"} }}
 // ──────────────────────────────────────────────────────────────────────────
