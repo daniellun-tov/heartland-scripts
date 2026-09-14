@@ -54,10 +54,10 @@ window.Wized.push((Wized) => {
     size: {
       key: 'unit_size',
       bands: {
-        'under-50': [0, 50],
+        'under-40': [0, 40],
+        '40-50': [40, 50],
         '50-70': [50, 70],
-        '70-90': [70, 90],
-        '90-plus': [90, Infinity],
+        '70-plus': [70, Infinity],
       },
     },
   };
@@ -1154,6 +1154,7 @@ window.Wized.push((Wized) => {
       var willOpen = list.classList.contains('svx-more-collapsed');
       list.classList.toggle('svx-more-collapsed', !willOpen);
       list.classList.toggle('svx-more-open', willOpen);
+      wrap.classList.toggle('is-open', willOpen);
       setLabel(willOpen);
     });
   }
@@ -1228,7 +1229,7 @@ window.Wized.push((Wized) => {
    ============================================================ */
 (function () {
   var MIN = 2, MAX = 3;                /* zoom to the plan's real pixels, within this band */
-  var MODAL = '.popup[custom-modal-element="unit-floorplan"] .modal-content';
+  var MODAL = '.popup[defijn-modal-element="unit-floorplan"] .modal-content, .popup[custom-modal-element="unit-floorplan"] .modal-content';
 
   function wrap(img) {
     if (!img) return null;
@@ -1395,7 +1396,7 @@ window.Wized.push((Wized) => {
         if (param(FLOORPLAN) !== '1') return;
         /* wait for the pane to rebind to the newly selected type */
         setTimeout(function(){
-          var open = document.querySelector('.unit-types_actions [custom-modal="open"][custom-modal-element="unit-floorplan"]');
+          var open = document.querySelector('.unit-types_actions [defijn-modal="open"][defijn-modal-element="unit-floorplan"], .unit-types_actions [custom-modal="open"][custom-modal-element="unit-floorplan"]');
           if (open) open.click();
         }, 700);
       });
