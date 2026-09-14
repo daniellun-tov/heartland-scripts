@@ -8,11 +8,17 @@
    - Data comes from the "Oak Hills v2" Xano group (api:BHoGDH-q), already
      flat: every unit carries its block, floor level, type specs and media.
      boot() does no variant flattening.
-   - The map is block-level (Option B): one site-plan SVG whose footprint
-     paths carry id="block-a" … "block-l" (oh_buildings.plot_id). A block is
-     coloured by availability, dims when no visible unit is in it, and a click
-     toggles the Block filter. If a path with a UNIT's plot_id ever exists
-     (phase 2 nested plan) the same code treats it like an SV plot.
+   - The map is one top-down SVG with a layer per floor:
+       <g data-floor="1"> … <g data-floor="4">, each holding the unit shapes
+       for that level with id = oh_units.plot_id ("unit-1-101"). Only the
+       current level is shown; a floor switcher (Designer element
+       [data-floor-switch], or one the script builds in .unit-filter_map)
+       changes level AND sets the Floor filter so the list follows. Opening
+       a unit from the list or a deep link moves the view without filtering.
+     Optional block footprints (id="block-a" … "block-l", oh_buildings.plot_id)
+     sit under the layers: coloured by availability, dimmed when nothing
+     visible is inside, click toggles the Block filter. Without any
+     [data-floor] group the plan is flat and works as before.
    - Everything Wized-facing is prefixed v2_ (requests, variables, element
      names) so nothing collides with the live page's wiring.
    - The reserve flow places the Xano hold first, then hands over to BOL.
@@ -75,6 +81,12 @@ window.Wized.push((Wized) => {
   let units = [];
   let blocks = [];
   let booted = false;
+
+  /* Floor layers. The SVG carries one <g data-floor="N"> per level with the
+     unit shapes (id = plot_id) inside; only the current level is shown.
+     A plan without [data-floor] groups behaves as before (flat). */
+  let floorView = null;
+  let floorLevels = [];
 
   const state = { colourBy: 'status', sort: 'price' };
   Object.keys(FACETS).forEach((f) => (state[f] = new Set()));
@@ -154,6 +166,10 @@ window.Wized.push((Wized) => {
     },
     isActive: (facet, value) => !!(state[facet] && state[facet].has(norm(FACETS[facet], value))),
     active: (facet) => (state[facet] ? Array.from(state[facet]) : []),
+    floors: () => floorLevels.slice(),
+    floor: () => floorView,
+    /* setFloor(level) also filters the list to that level; pass false to move the view only */
+    setFloor: (level, syncFacet) => setFloor(Number(level), syncFacet !== false),
     onChange(fn) { listeners.push(fn); fn(state); },
   };
 
@@ -263,6 +279,94 @@ window.Wized.push((Wized) => {
 
     document.querySelectorAll('.site-plan_map-svg [id^="block-"]').forEach((p) => {
       if (!blocks.some((b) => b.plot_id === p.id)) console.warn('[site-plan] SVG block with no units:', p.id);
+    });
+
+    initFloors();
+  }
+
+  /* ---- floor layers ---- */
+  const floorGroups = () => Array.from(document.querySelectorAll('.site-plan_map-svg [data-floor]'));
+  const floorLabel = (level) => {
+    const u = units.find((x) => x.floor_level === level && x.floor_label);
+    return u ? u.floor_label : String(level);
+  };
+
+  function initFloors() {
+    const groups = floorGroups();
+    if (!groups.length) return;
+    const drawn = new Set(groups.map((g) => Number(g.getAttribute('data-floor'))));
+    floorLevels = Array.from(new Set(units.map((u) => u.floor_level))).sort((a, b) => a - b);
+    floorLevels.forEach((l) => { if (!drawn.has(l)) console.warn('[site-plan] no <g data-floor="' + l + '"> in the SVG'); });
+    document.querySelector('.site-plan_map-canvas')?.classList.add('has-floors');
+
+    /* switcher: use the Designer's [data-floor-switch] if present, else build one in the map wrap */
+    let host = document.querySelector('[data-floor-switch]');
+    if (!host) {
+      host = document.createElement('div');
+      host.className = 'site-plan_floor-switch';
+      host.setAttribute('data-floor-switch', '');
+      const wrap = document.querySelector('.unit-filter_map') || document.querySelector('.site-plan_map-canvas')?.parentNode;
+      wrap?.appendChild(host);
+    }
+    host.setAttribute('role', 'group');
+    host.setAttribute('aria-label', 'Floor');
+    if (!host.querySelector('[data-floor-btn]')) {
+      host.innerHTML = floorLevels.map((l) =>
+        '<button type="button" class="site-plan_floor-btn" data-floor-btn="' + l + '">' +
+        '<span class="site-plan_floor-label">' + floorLabel(l) + '</span>' +
+        '<span class="site-plan_floor-count" data-floor-count="' + l + '"></span></button>'
+      ).join('');
+    }
+    host.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-floor-btn]');
+      if (btn) setFloor(Number(btn.getAttribute('data-floor-btn')), true);
+    });
+
+    const first = floorLevels.find((l) => drawn.has(l));
+    setFloor(first != null ? first : floorLevels[0], false);
+  }
+
+  /* Show one level. With syncFacet the Floor facet becomes exactly that level
+     so the list follows the plan; without it only the drawing changes (deep
+     links, opening a unit from the list). */
+  function setFloor(level, syncFacet) {
+    if (!floorLevels.length || !isFinite(level)) return;
+    floorView = level;
+    floorGroups().forEach((g) => {
+      const on = Number(g.getAttribute('data-floor')) === level;
+      g.classList.toggle('is-current', on);
+      g.setAttribute('aria-hidden', String(!on));
+    });
+    document.querySelector('.site-plan_map-canvas')?.setAttribute('data-floor-view', level);
+    document.querySelectorAll('[data-floor-btn]').forEach((b) =>
+      b.classList.toggle('is-active', Number(b.getAttribute('data-floor-btn')) === level)
+    );
+    document.dispatchEvent(new CustomEvent('oh:floor-change', { detail: { level, label: floorLabel(level) } }));
+    if (syncFacet) {
+      const set = state.floor;
+      const already = set.size === 1 && set.has(level);
+      if (!already) {
+        set.clear();
+        set.add(level);
+        document.querySelectorAll('[data-filter="floor"][data-value]').forEach((el) =>
+          el.classList.toggle('is-active', norm(FACETS.floor, el.getAttribute('data-value')) === level)
+        );
+        apply();
+      }
+    }
+  }
+
+  /* called from apply(): the plan follows a single-level Floor facet, and the
+     switcher shows how many units on each level match the other filters */
+  function syncFloors() {
+    if (!floorLevels.length) return;
+    if (state.floor.size === 1) {
+      const only = Array.from(state.floor)[0];
+      if (only !== floorView && floorLevels.includes(only)) setFloor(only, false);
+    }
+    document.querySelectorAll('[data-floor-count]').forEach((el) => {
+      const l = Number(el.getAttribute('data-floor-count'));
+      el.textContent = units.filter((u) => u.floor_level === l && !LIST_HIDE.has(u.status_key) && matches(u, 'floor')).length;
     });
   }
 
@@ -376,6 +480,7 @@ window.Wized.push((Wized) => {
     document.querySelectorAll('[data-count="results"]').forEach((el) => { el.textContent = listed.length; });
 
     updateCounts();
+    syncFloors();
     listeners.forEach((fn) => { try { fn(state); } catch (e) {} });
   }
 
@@ -385,6 +490,7 @@ window.Wized.push((Wized) => {
   const isOpen = () => !!detailWrap()?.classList.contains('is-open');
 
   function openUnit(u) {
+    if (floorLevels.length && u.floor_level !== floorView) setFloor(u.floor_level, false);
     document.querySelectorAll('.site-plan_plot.is-selected').forEach((p) => p.classList.remove('is-selected'));
     document.getElementById(u.plot_id)?.classList.add('is-selected');
 
