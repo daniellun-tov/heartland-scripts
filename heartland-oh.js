@@ -168,6 +168,13 @@ window.Wized.push((Wized) => {
     active: (facet) => (state[facet] ? Array.from(state[facet]) : []),
     floors: () => floorLevels.slice(),
     floor: () => floorView,
+    notify(key) {
+      const k = String(key);
+      const u = units.find((x) => String(x.unit_number) === k || String(x.plot_id) === k || String(x.id) === k);
+      if (!u || !window.ohNotify) return false;
+      window.ohNotify.open(u);
+      return true;
+    },
     /* setFloor(level) also filters the list to that level; pass false to move the view only */
     setFloor: (level, syncFacet) => setFloor(Number(level), syncFacet !== false),
     onChange(fn) { listeners.push(fn); fn(state); },
@@ -253,6 +260,7 @@ window.Wized.push((Wized) => {
       path.setAttribute('data-type', u.type_code);
       path.classList.add('site-plan_plot');
       if (!LIST_HIDE.has(u.status_key)) path.addEventListener('click', () => openUnit(u));
+      else path.addEventListener('click', () => { if (window.ohNotify) window.ohNotify.open(u); });
     });
 
     /* block-level footprints */
@@ -657,7 +665,8 @@ window.Wized.push((Wized) => {
     pill(u.status_key);
     set(field.type, 'Type ' + u.type_code + ' · Block ' + u.block_name + ' · ' + u.floor_label + ' floor');
     set(field.specs, [u.bedrooms + ' bed', u.bathrooms + ' bath', Math.round(u.unit_size) + ' m²'].join(' · '));
-    set(field.price, u.prices_hidden ? (u.price_display || 'Price on request') : (u.price_display || 'Price on request'));
+    if (u.status_key === 'unreleased') set(field.price, 'Coming soon · tap to register interest');
+    else set(field.price, u.prices_hidden ? (u.price_display || 'Price on request') : (u.price_display || 'Price on request'));
   }
 
   function fillBlock(b) {
@@ -699,7 +708,7 @@ window.Wized.push((Wized) => {
     if (path === active) return;
     const sp = window.ohSitePlan;
     if (!sp) return hide();
-    const u = sp.units().find((x) => x.plot_id === path.id && x.status_key !== 'unreleased');
+    const u = sp.units().find((x) => x.plot_id === path.id);
     const b = !u && sp.blocks().find((x) => x.plot_id === path.id);
     if (!u && !b) return hide();
     active = path;
@@ -1122,6 +1131,117 @@ window.Wized.push((Wized) => {
   else bind();
   /* the form may be inside the panel Wized renders later */
   document.addEventListener('oh:unit-open', bind);
+})();
+
+
+/* ============================================================
+   Notify me — register interest in a unit that is not released yet
+   ------------------------------------------------------------
+   Unreleased units never open the detail panel; clicking one on the plan
+   opens the "notify-unit-v2" popup instead (the site's defijn-modal
+   pattern, triggered through a hidden [data-notify-trigger] element so
+   the modal library does the opening/closing). The summary rows are bound
+   by Wized from v2_notifyUnit; the hidden unit_id/unit_number inputs are
+   filled here as well so the submit works without Wized.
+   Form: #wf-form-notify-unit-v2 → POST Oak Hills v2 /interest.
+   ============================================================ */
+(function () {
+  const ENDPOINT = 'https://x7aj-untn-pq4t.n7e.xano.io/api:BHoGDH-q/interest';
+  const FORM_ID = 'wf-form-notify-unit-v2';
+  const TRIGGER = '[data-notify-trigger]';
+  let current = null;
+
+  function setVar(u) {
+    try { if (window.Wized && window.Wized.data && window.Wized.data.v) window.Wized.data.v.v2_notifyUnit = u; } catch (_) {}
+  }
+  function fillFallbacks(u) {
+    const form = document.getElementById(FORM_ID);
+    if (!form) return;
+    const set = (n, v) => { const el = form.querySelector('[name="' + n + '"]'); if (el) el.value = v == null ? '' : String(v); };
+    set('unit_id', u.id);
+    set('unit_number', u.unit_number);
+    const label = form.closest('.popup') && form.closest('.popup').querySelector('[data-notify="unit"]');
+    if (label) label.textContent = 'Unit ' + u.unit_number + ' · Block ' + u.block_name + ' · ' + (u.floor_label || '') + ' floor';
+  }
+  function reset(form) {
+    const box = form.querySelector('.reservation-status');
+    if (box) box.remove();
+    const btn = form.querySelector('input[type="submit"], button[type="submit"]');
+    if (btn) { btn.disabled = false; if (btn.__ohLabel) { if ('value' in btn) btn.value = btn.__ohLabel; else btn.textContent = btn.__ohLabel; } }
+    form.querySelectorAll('[data-notify="fields"]').forEach((el) => { el.style.display = ''; });
+    form.querySelectorAll('[data-notify="done"]').forEach((el) => { el.style.display = 'none'; });
+  }
+  function open(u) {
+    current = u;
+    setVar(u);
+    fillFallbacks(u);
+    const form = document.getElementById(FORM_ID);
+    if (form) reset(form);
+    const trigger = document.querySelector(TRIGGER);
+    if (trigger) trigger.click();
+    else console.warn('[notify] no ' + TRIGGER + ' element on the page');
+    document.dispatchEvent(new CustomEvent('oh:notify-open', { detail: { unit: u } }));
+  }
+
+  function showMsg(form, msg, isError) {
+    let box = form.querySelector('.reservation-status');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'reservation-status';
+      box.style.marginTop = '8px';
+      form.appendChild(box);
+    }
+    box.textContent = msg;
+    box.style.color = isError ? 'crimson' : 'inherit';
+  }
+  const get = (form, n) => { const el = form.querySelector('[name="' + n + '"]'); return el ? String(el.value || '').trim() : ''; };
+
+  function bind() {
+    const form = document.getElementById(FORM_ID);
+    if (!form || form.__ohNotify) return;
+    form.__ohNotify = true;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const btn = form.querySelector('input[type="submit"], button[type="submit"]');
+      if (btn && !btn.__ohLabel) btn.__ohLabel = btn.value || btn.textContent;
+      const setLabel = (t) => { if (!btn) return; if ('value' in btn) btn.value = t; else btn.textContent = t; };
+      const u = current || {};
+      const payload = {
+        unit_id: Number(get(form, 'unit_id') || u.id || 0) || null,
+        unit_number: get(form, 'unit_number') || u.unit_number || '',
+        first_name: get(form, 'first_name'),
+        last_name: get(form, 'last_name'),
+        email: get(form, 'email'),
+        contact_number: get(form, 'contact_number'),
+        message: get(form, 'message'),
+        source: 'unit-selection-v2',
+        page_url: location.href.split('#')[0],
+      };
+      if (!payload.first_name || !payload.last_name || !payload.email) return showMsg(form, 'Please fill in your name and email.', true);
+      if (!payload.unit_number) return showMsg(form, 'Please pick a unit on the plan first.', true);
+      try {
+        if (btn) { btn.disabled = true; setLabel('Sending...'); }
+        const res = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        let data = null; try { data = await res.json(); } catch (_) {}
+        if (!res.ok) throw new Error((data && data.message) || 'We could not save that. Please try again.');
+        form.querySelectorAll('[data-notify="fields"]').forEach((el) => { el.style.display = 'none'; });
+        const done = form.querySelector('[data-notify="done"]');
+        if (done) { done.style.display = ''; const n = done.querySelector('[data-notify="done-unit"]'); if (n) n.textContent = payload.unit_number; }
+        else showMsg(form, 'Thanks — we will let you know the moment unit ' + payload.unit_number + ' is released.');
+        setLabel('Registered');
+        document.dispatchEvent(new CustomEvent('oh:interest-registered', { detail: { unit: u, lead: payload } }));
+      } catch (err) {
+        console.error('[notify]', err);
+        showMsg(form, err.message || 'Something went wrong.', true);
+        if (btn) { btn.disabled = false; setLabel(btn.__ohLabel); }
+      }
+    }, true);
+  }
+
+  window.ohNotify = { open, current: () => current };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
 })();
 
 
