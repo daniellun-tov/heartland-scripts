@@ -74,9 +74,11 @@ window.Wized.push((Wized) => {
 
   const LEGEND_GROUPS = { availability: 'status', type: 'type' };
 
-  /* Units the list never shows. They stay on the map (a block still counts
-     them for its footprint) but never open a panel. */
-  const LIST_HIDE = new Set(['unreleased']);
+  /* Units the list never shows and that never open the detail panel. They
+     stay on the map in their status colour with a tooltip (a block still
+     counts them for its footprint): reserved/sold/pending are shown but not
+     selectable, unreleased ("coming soon") opens the notify-me form instead. */
+  const LIST_HIDE = new Set(['unreleased', 'reserved', 'sold', 'pending', 'sold-out']);
 
   let units = [];
   let blocks = [];
@@ -260,7 +262,8 @@ window.Wized.push((Wized) => {
       path.setAttribute('data-type', u.type_code);
       path.classList.add('site-plan_plot');
       if (!LIST_HIDE.has(u.status_key)) path.addEventListener('click', () => openUnit(u));
-      else path.addEventListener('click', () => { if (window.ohNotify) window.ohNotify.open(u); });
+      else if (u.status_key === 'unreleased') path.addEventListener('click', () => { if (window.ohNotify) window.ohNotify.open(u); });
+      else path.classList.add('is-static'); /* reserved / sold: visible, tooltip, no click */
     });
 
     /* block-level footprints */
@@ -659,17 +662,21 @@ window.Wized.push((Wized) => {
   };
   let active = null;
 
+  const rows = (on) => [field.type, field.specs, field.price].forEach((el) => { if (el) el.hidden = !on; });
   function fillUnit(u) {
+    const soon = u.status_key === 'unreleased';
     set(field.id, 'Unit ' + u.unit_number);
-    set(field.status, u.status_key === 'unreleased' ? 'Coming soon' : u.status);
+    set(field.status, soon ? 'Coming soon' : u.status);
     pill(u.status_key);
+    rows(!soon);
+    if (soon) return;
     set(field.type, 'Type ' + u.type_code + ' · Block ' + u.block_name + ' · ' + u.floor_label + ' floor');
     set(field.specs, [u.bedrooms + ' bed', u.bathrooms + ' bath', Math.round(u.unit_size) + ' m²'].join(' · '));
-    if (u.status_key === 'unreleased') set(field.price, 'Coming soon · tap to register interest');
-    else set(field.price, u.prices_hidden ? (u.price_display || 'Price on request') : (u.price_display || 'Price on request'));
+    set(field.price, u.prices_hidden ? (u.price_display || 'Price on request') : (u.price_display || 'Price on request'));
   }
 
   function fillBlock(b) {
+    rows(true);
     const avail = b.units.filter((u) => u.status_key === 'available');
     const prices = avail.map((u) => Number(u.price_value) || 0).filter((p) => p > 0);
     const types = Array.from(new Set(b.units.map((u) => u.type_code).filter(Boolean))).sort();
@@ -976,17 +983,29 @@ window.Wized.push((Wized) => {
    handlers see __ohNative and step aside for that one event. A synthetic submit
    event has no default action, so if Webflow's handler is missing nothing
    navigates. Optional doneText replaces the wrapper's success message. */
-window.ohNativeSubmit = function (form, doneText) {
+window.ohNativeSubmit = async function (form, doneText) {
   if (!form) return false;
   try {
     const wrap = form.closest('.w-form');
     const done = wrap && wrap.querySelector('.w-form-done');
     if (done && doneText) { const inner = done.querySelector('div') || done; inner.textContent = doneText; }
+    /* Turnstile: Webflow renders the widget only once the form is on screen
+       (forms in popups get it when the popup opens) and posts without a
+       token if asked too early, which Webflow rejects with a 422. Give the
+       token up to 8s to arrive. */
+    if (form.hasAttribute('data-turnstile-sitekey') && window.jQuery) {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 8000) {
+        const d = window.jQuery.data(form, '.w-form');
+        if (d && d.turnstileToken) break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
     form.__ohNative = true;
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    try { form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); }
+    finally { form.__ohNative = false; }
     return true;
   } catch (e) { console.warn('[native-submit]', e); return false; }
-  finally { form.__ohNative = false; }
 };
 
 (function () {
@@ -1131,12 +1150,15 @@ window.ohNativeSubmit = function (form, doneText) {
       try {
         if (btn) { btn.disabled = true; setLabel('Reserving...'); }
         const { lead, unitId, unitNumber } = collect(form);
-        /* Webflow Forms copy (feeds LeadConnector), in parallel with the hold - as v1 did */
-        window.ohNativeSubmit(form, 'Taking you to the secure reservation page...');
 
         showMsg(form, 'Holding your unit...');
         await placeHold(unitId, lead);
         document.dispatchEvent(new CustomEvent('oh:hold-placed', { detail: { unitId } }));
+        /* Webflow Forms copy (feeds LeadConnector, unit fields included). After the
+           hold so a refused hold still shows its error on a visible form; Webflow
+           then swaps the form for its success block while BOL starts. */
+        await window.ohNativeSubmit(form, 'Taking you to the secure reservation page...');
+        await new Promise((r) => setTimeout(r, 400));
 
         showMsg(form, 'Taking you to the secure reservation page...');
         await startBol(unitNumber, lead);
@@ -1249,7 +1271,7 @@ window.ohNativeSubmit = function (form, doneText) {
         if (!res.ok) throw new Error((data && data.message) || 'We could not save that. Please try again.');
         const doneText = 'Thank you — you are on the list for unit ' + payload.unit_number + '. We will be in touch the moment it is released.';
         /* Webflow Forms copy (feeds LeadConnector, unit_number/unit_id included); Webflow then shows its success block */
-        const native = window.ohNativeSubmit(form, doneText);
+        const native = await window.ohNativeSubmit(form, doneText);
         form.querySelectorAll('[data-notify="fields"]').forEach((el) => { el.style.display = 'none'; });
         const done = form.querySelector('[data-notify="done"]');
         if (done && !native) { done.style.display = 'block'; const n = done.querySelector('[data-notify="done-unit"]'); if (n) n.textContent = payload.unit_number; }
