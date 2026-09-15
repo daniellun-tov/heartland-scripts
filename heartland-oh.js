@@ -485,7 +485,13 @@ window.Wized.push((Wized) => {
     el.setAttribute('data-unit', u.plot_id);
     el.classList.add('site-plan_plot');
     if (!LIST_HIDE.has(u.status_key)) el.addEventListener('click', () => openUnit(u));
-    else if (u.status_key === 'unreleased') el.addEventListener('click', () => { if (window.ohNotify) window.ohNotify.open(u); });
+    else if (u.status_key === 'unreleased')
+      el.addEventListener('click', () => {
+        /* mobile: a small bottom sheet first, so the map and the tapped plot
+           stay visible and the form is one more tap. Desktop opens it straight. */
+        if (window.ohSoonSheet && window.ohSoonSheet.shouldUse()) window.ohSoonSheet.open(u);
+        else if (window.ohNotify) window.ohNotify.open(u);
+      });
     else el.classList.add('is-static'); /* reserved / sold: visible, tooltip, no click */
     if (!unitShapes.has(u.plot_id)) unitShapes.set(u.plot_id, []);
     unitShapes.get(u.plot_id).push(el);
@@ -1535,6 +1541,120 @@ window.Wized.push((Wized) => {
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
   else ready();
+})();
+
+/* ============================================================
+   Coming-soon peek sheet (mobile only)
+   ------------------------------------------------------------
+   On a phone, tapping a coming-soon plot used to throw the full notify-me
+   popup over the whole screen — you lost the map and could not see what
+   you had just tapped. Instead a small sheet rises from the bottom with
+   the unit number, its type line and the Coming soon pill, the tapped
+   plot stays outlined behind it, and "Notify me" is one more tap. On
+   desktop nothing changes: the popup opens straight away.
+
+   The sheet is the only owner of its own state; the plan's click handler
+   asks shouldUse() and the notify module is untouched.
+   ============================================================ */
+(function () {
+  if (window.__ohSoonSheet) return;
+  window.__ohSoonSheet = true;
+
+  var MOBILE = '(max-width: 991px)';
+  var sheet = null, current = null;
+
+  function shouldUse() {
+    return window.matchMedia(MOBILE).matches;
+  }
+
+  function build() {
+    if (sheet) return sheet;
+    sheet = document.createElement('div');
+    sheet.className = 'site-plan_soon-sheet';
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-label', 'Coming soon apartment');
+    sheet.setAttribute('aria-hidden', 'true');
+    sheet.innerHTML =
+      '<button type="button" class="site-plan_soon-close" aria-label="Close">×</button>' +
+      '<span class="site-plan_soon-pill">Coming soon</span>' +
+      '<div class="site-plan_soon-title"></div>' +
+      '<div class="site-plan_soon-meta"></div>' +
+      '<button type="button" class="site-plan_soon-btn">Notify me</button>';
+    sheet.querySelector('.site-plan_soon-close').addEventListener('click', close);
+    sheet.querySelector('.site-plan_soon-btn').addEventListener('click', function () {
+      var u = current;
+      close();
+      if (u && window.ohNotify) window.ohNotify.open(u);
+    });
+    /* a tap inside the sheet is never a tap on the map behind it */
+    sheet.addEventListener('click', function (e) { e.stopPropagation(); });
+    (document.querySelector('.unit-filter_component') || document.body).appendChild(sheet);
+    return sheet;
+  }
+
+  /* the plot behind the sheet keeps an outline, so it is obvious which one
+     this is about */
+  function mark(u) {
+    document.querySelectorAll('.site-plan_plot.is-soon-peek').forEach(function (p) { p.classList.remove('is-soon-peek'); });
+    if (!u) return;
+    document.querySelectorAll('[data-unit="' + u.plot_id + '"]').forEach(function (p) { p.classList.add('is-soon-peek'); });
+  }
+
+  /* the zoom control sits at the map's bottom-right, which is where the
+     sheet lands - lift it by the sheet's height while it is up */
+  function lift(on) {
+    var map = document.querySelector('.unit-filter_map');
+    if (!map) return;
+    if (on && sheet) map.style.setProperty('--oh-sheet-h', Math.round(sheet.getBoundingClientRect().height) + 'px');
+    else map.style.removeProperty('--oh-sheet-h');
+    map.classList.toggle('has-soon-sheet', !!on);
+  }
+
+  function open(u) {
+    if (!u) return false;
+    build();
+    current = u;
+    sheet.querySelector('.site-plan_soon-title').textContent = 'Unit ' + u.unit_number;
+    var meta = ['Type ' + (u.type_code || ''), u.block_name ? 'Block ' + u.block_name : '', u.floor_label ? u.floor_label + ' level' : '']
+      .filter(function (s) { return s && s !== 'Type '; }).join(' · ');
+    sheet.querySelector('.site-plan_soon-meta').textContent = meta;
+    sheet.setAttribute('aria-hidden', 'false');
+    /* let the element land before the transition so it always animates */
+    requestAnimationFrame(function () {
+      sheet.classList.add('is-open');
+      lift(true);
+    });
+    mark(u);
+    document.dispatchEvent(new CustomEvent('oh:soon-peek', { detail: { unit: u } }));
+    return true;
+  }
+
+  function close() {
+    if (!sheet || !sheet.classList.contains('is-open')) return;
+    sheet.classList.remove('is-open');
+    sheet.setAttribute('aria-hidden', 'true');
+    current = null;
+    mark(null);
+    lift(false);
+  }
+
+  /* dismiss: a tap anywhere else, Escape, opening a unit, switching view,
+     opening the filters drawer, or growing past the mobile breakpoint */
+  document.addEventListener('click', function (e) {
+    if (!sheet || !sheet.classList.contains('is-open')) return;
+    if (sheet.contains(e.target)) return;
+    /* a tap on another coming-soon plot re-opens it through the plan's own
+       handler, which runs after this one - only close on everything else */
+    var plot = e.target.closest && e.target.closest('.site-plan_plot[data-status="unreleased"]');
+    if (plot) return;
+    close();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  document.addEventListener('oh:unit-open', close);
+  document.addEventListener('oh:notify-open', close);
+  window.matchMedia(MOBILE).addEventListener('change', function (e) { if (!e.matches) close(); });
+
+  window.ohSoonSheet = { open: open, close: close, shouldUse: shouldUse, current: function () { return current; } };
 })();
 
 /* ============================================================

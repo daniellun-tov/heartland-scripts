@@ -375,6 +375,23 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 .site-plan_tooltip-views{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.5rem}
 .site-plan_tooltip-views[hidden]{display:none}
 
+/* ---- coming-soon peek sheet (mobile) ----
+   Rises over the bottom of the map when a coming-soon plot is tapped, so the
+   plan and the tapped plot stay in view and the notify form is one more tap.
+   Desktop never builds it (the plan's handler opens the popup directly), but
+   the display:none below is the belt to that brace. */
+.site-plan_soon-sheet{position:fixed;left:0;right:0;bottom:0;z-index:2147482900;display:none;padding:1rem 1rem 1.15rem;background:#fff;border-top:1px solid var(--oh-line);border-radius:1rem 1rem 0 0;box-shadow:0 -12px 34px rgba(21,23,20,.18);transform:translateY(110%);transition:transform .28s cubic-bezier(.22,1,.36,1)}
+.site-plan_soon-sheet.is-open{transform:none}
+.site-plan_soon-close{position:absolute;top:.6rem;right:.6rem;display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border:0;border-radius:999px;background:var(--oh-sand);color:var(--oh-ink);font-size:1.1rem;line-height:1;cursor:pointer}
+.site-plan_soon-pill{display:inline-flex;align-items:center;padding:.2rem .6rem;border-radius:999px;background:var(--oh-unreleased);color:var(--oh-ink);font-size:.6875rem;font-weight:600;letter-spacing:.02em}
+.site-plan_soon-title{margin-top:.5rem;font-size:1.0625rem;font-weight:600;color:var(--oh-ink)}
+.site-plan_soon-meta{margin-top:.15rem;font-size:.8125rem;color:rgba(44,43,39,.62)}
+.site-plan_soon-btn{margin-top:.85rem;width:100%;padding:.75rem 1rem;border:0;border-radius:999px;background:var(--oh-accent);color:#fff;font:inherit;font-size:.9375rem;font-weight:600;cursor:pointer}
+.site-plan_soon-btn:active{opacity:.9}
+/* the plot behind the sheet keeps an outline so it is clear what was tapped */
+.site-plan_map-svg .site-plan_plot.is-soon-peek{stroke:var(--oh-ink);stroke-width:2.4px;stroke-opacity:.9;fill-opacity:1}
+@media (prefers-reduced-motion:reduce){.site-plan_soon-sheet{transition:none}}
+
 /* ---- tablet & mobile: brand bar, Plan|List toolbar, one pane, footer ---- */
 @media (max-width:991px){
   .unit-filter_component{grid-template-columns:1fr;grid-template-rows:auto auto minmax(0,1fr) auto;grid-template-areas:"brand" "mtoolbar" "main" "footer"}
@@ -436,4 +453,11 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .site-plan_viewmark svg{width:.95rem;height:.95rem}
   .site-plan_viewmark[data-placement="south"]{bottom:3.25rem}
   .site-plan_viewmark-tip{max-width:min(17rem,calc(100vw - 2rem))}
+}
+
+/* the sheet only exists on the mobile layout, and the zoom bar sits exactly
+   where it lands - lift it by the sheet's measured height while it is up */
+@media (max-width:991px){
+  .site-plan_soon-sheet{display:block}
+  .unit-filter_map.has-soon-sheet .site-plan_zoom{transform:translateY(calc(-1 * var(--oh-sheet-h, 0px)));transition:transform .28s cubic-bezier(.22,1,.36,1)}
 }
