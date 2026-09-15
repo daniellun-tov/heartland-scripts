@@ -1163,7 +1163,9 @@ window.Wized.push((Wized) => {
     if (full) txt = full.textContent;
     else {
       var spans = [].slice.call(chip.querySelectorAll('span')).filter(function (sp) {
-        return !sp.classList.contains('unit-filter_count') && !sp.classList.contains('unit-filter_soon') && !sp.classList.contains('oh-lbl-short');
+        return !sp.classList.contains('unit-filter_count') && !sp.classList.contains('unit-filter_soon') &&
+               !sp.classList.contains('oh-lbl-short') && !sp.classList.contains('unit-filter_chip-icon') &&
+               (sp.textContent || '').trim() !== '';
       });
       txt = spans.length ? spans[0].textContent : chip.textContent;
     }
@@ -1386,7 +1388,9 @@ window.Wized.push((Wized) => {
       tip.className = 'site-plan_viewmark-tip';
       document.body.appendChild(tip);
     }
-    var n = units().filter(function (u) { return u.status_key !== 'unreleased' && tags(u).indexOf(v.key) !== -1; }).length;
+    /* the number the click will actually leave on the list, so the card and the
+       chip count agree */
+    var n = units().filter(function (u) { return u.is_available && tags(u).indexOf(v.key) !== -1; }).length;
     var dist = Number(v.distance_km) || 0;
     var sub = [v.direction, dist ? (dist < 1 ? Math.round(dist * 1000) + ' m' : dist + ' km') : ''].filter(Boolean).join(' · ');
     tip.innerHTML =
@@ -1397,7 +1401,7 @@ window.Wized.push((Wized) => {
     tip.querySelector('.site-plan_viewmark-tip_head span').textContent = v.label;
     if (sub) tip.querySelector('.site-plan_viewmark-tip_dir').textContent = sub;
     tip.querySelector('.site-plan_viewmark-tip_body').textContent = v.description || '';
-    if (n) tip.querySelector('.site-plan_viewmark-tip_count').textContent = n + (n === 1 ? ' apartment' : ' apartments') + ' with this view';
+    if (n) tip.querySelector('.site-plan_viewmark-tip_count').textContent = n + (n === 1 ? ' apartment' : ' apartments') + ' available with this view';
     tip.querySelector('.site-plan_viewmark-tip_hint').textContent = isOn(v.key) ? 'Click to clear this filter' : 'Click to filter to these apartments';
 
     tip.style.left = '0px';
