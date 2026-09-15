@@ -331,14 +331,14 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
    (toolbar top-right, level switch top-left on desktop / bottom-left on
    mobile, zoom bottom-right). */
 .site-plan_viewmarks{position:absolute;inset:0;z-index:5;pointer-events:none}
-.site-plan_viewmark{position:absolute;pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;padding:0;border:1px solid var(--oh-line);border-radius:999px;background:rgba(255,255,255,.92);color:var(--oh-ink);cursor:pointer;box-shadow:0 2px 10px rgba(21,23,20,.12);transition:background .18s ease,color .18s ease,transform .18s ease,box-shadow .18s ease}
+.site-plan_viewmark{position:absolute;pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;padding:0;border:1px solid rgba(95,77,63,.28);border-radius:999px;background:#fff;color:var(--oh-ink);cursor:pointer;box-shadow:0 2px 10px rgba(21,23,20,.14);transition:background .18s ease,color .18s ease,transform .18s ease,box-shadow .18s ease}
 .site-plan_viewmark svg{width:1.05rem;height:1.05rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .site-plan_viewmark:hover,.site-plan_viewmark:focus-visible{transform:scale(1.08);box-shadow:0 4px 16px rgba(21,23,20,.2);outline:none}
 .site-plan_viewmark.is-active{background:var(--oh-ink);border-color:var(--oh-ink);color:#fff}
 .site-plan_viewmark.is-muted{opacity:.4;cursor:default}
 .site-plan_viewmark.is-muted:hover,.site-plan_viewmark.is-muted:focus-visible{transform:none;box-shadow:0 2px 10px rgba(21,23,20,.12)}
 .site-plan_viewmark-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
-.site-plan_viewmark[data-placement="north"]{top:.75rem;left:50%;transform:translateX(-50%)}
+.site-plan_viewmark[data-placement="north"]{top:var(--oh-marks-top,.75rem);left:50%;transform:translateX(-50%)}
 .site-plan_viewmark[data-placement="north"]:hover,.site-plan_viewmark[data-placement="north"]:focus-visible{transform:translateX(-50%) scale(1.08)}
 .site-plan_viewmark[data-placement="south"]{bottom:.75rem;left:50%;transform:translateX(-50%)}
 .site-plan_viewmark[data-placement="south"]:hover,.site-plan_viewmark[data-placement="south"]:focus-visible{transform:translateX(-50%) scale(1.08)}
@@ -434,7 +434,6 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 @media (max-width:991px){
   .site-plan_viewmark{width:1.75rem;height:1.75rem}
   .site-plan_viewmark svg{width:.95rem;height:.95rem}
-  .site-plan_viewmark[data-placement="north"]{top:var(--oh-marks-top,4rem)}
   .site-plan_viewmark[data-placement="south"]{bottom:3.25rem}
   .site-plan_viewmark-tip{max-width:min(17rem,calc(100vw - 2rem))}
 }
