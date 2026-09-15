@@ -43,6 +43,11 @@
   document.querySelectorAll('.unit-filter_group-title-1, [data-sort="floor"]').forEach(function (el) {
     if (el.textContent.trim() === 'Floor') el.textContent = 'Level';
   });
+  /* desktop: filters | plan | list - the list leaves .unit-filter_main so the
+     component grid can give it its own column */
+  var comp = document.querySelector('.unit-filter_component');
+  var listWrap = document.querySelector('.site-plan_list-wrap');
+  if (comp && listWrap && listWrap.parentNode !== comp) comp.appendChild(listWrap);
   var cb = document.querySelector('.site-plan_colourby');
   if (cb && !cb.querySelector('.site-plan_switch-label')) {
     var l = document.createElement('span');
@@ -945,18 +950,21 @@ window.Wized.push((Wized) => {
 })();
 
 /* ============================================================
-   Site plan zoom — a +/-/reset button group over the map.
-   Zoom drives --oh-zoom on .site-plan_map-canvas, which scales the
-   canvas' LAYOUT width (see the CSS embed), so the map container
-   pans natively and the labels, badges and plot outlines keep their
-   real size instead of turning blurry. Drag-to-pan is enabled once
-   zoomed, with a movement threshold so plot clicks still work.
+   Site plan viewport — fit, centre, zoom, pan.
+
+   Layout: .unit-filter_map-container is the viewport (fixed height, overflow
+   hidden, scrolls programmatically). Inside it .site-plan_map is a stage with
+   padding of half the viewport on every side, so the plan can be dragged
+   until any edge sits in the middle of the box. .site-plan_map-canvas gets an
+   explicit pixel width: fit-to-viewport ("contain", 94%) × zoom. Zoom drives
+   --oh-zoom too (labels read it). Wheel zooms towards the pointer; +/- zoom
+   around the viewport centre; drag pans; the plan starts centred.
    ============================================================ */
 (function () {
   if (window.__ohZoom) return;
   window.__ohZoom = true;
 
-  var STEP = 0.25, MAX = 3;
+  var STEP = 0.25, MAX = 4, MIN = 0.5, FIT = 0.94;
   var SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">';
   var ICON = {
     out: SVG + '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.7-4.7M7.5 10.5h6"/></svg>',
@@ -964,61 +972,60 @@ window.Wized.push((Wized) => {
     reset: SVG + '<path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4"/></svg>'
   };
 
-  var canvas, box, wrap, ui, level, btnIn, btnOut, btnReset;
-  var zoom = 1, baseW = 0, booted = false;
+  var canvas, box, stage, wrap, ui, level, btnIn, btnOut, btnReset, img;
+  var zoom = 1, baseW = 0, aspect = 0, booted = false;
 
-  var MIN = 0.5;
-  function minZoom() {
-    if (!baseW || !box) return MIN;
-    var fit = box.clientWidth / baseW;                 /* 1 when the map already fits */
-    if (fit >= 1) return MIN;                          /* zooming out past the fit shrinks the plan in place */
-    return Math.max(MIN, Math.floor(fit / STEP) * STEP || MIN);
+  function ratio() {
+    if (aspect) return aspect;
+    if (img && img.naturalWidth) aspect = img.naturalWidth / img.naturalHeight;
+    else { var svg = canvas.querySelector('svg'); var vb = svg && (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number); if (vb && vb[2]) aspect = vb[2] / vb[3]; }
+    return aspect || 1690 / 1490;
   }
-
+  /* width of the plan at zoom 1: fits the viewport with a little air */
+  function measure() {
+    var bw = box.clientWidth, bh = box.clientHeight;
+    if (!bw || !bh) return;
+    var r = ratio();
+    baseW = Math.round(Math.min(bw * FIT, bh * FIT * r));
+    stage.style.padding = Math.round(bh * 0.5) + 'px ' + Math.round(bw * 0.5) + 'px';
+    setWidth();
+  }
+  function setWidth() {
+    var w = Math.round(baseW * zoom);
+    canvas.style.width = w + 'px';
+    canvas.style.setProperty('--oh-zoom', zoom);
+    var ext = document.querySelector('.site-plan_map-extension');
+    if (ext) { ext.style.width = w + 'px'; ext.style.setProperty('--oh-zoom', zoom); }
+  }
   function label() {
     if (level) level.textContent = Math.round(zoom * 100) + '%';
     if (btnIn) btnIn.disabled = zoom >= MAX - 0.001;
-    if (btnOut) btnOut.disabled = zoom <= minZoom() + 0.001;
+    if (btnOut) btnOut.disabled = zoom <= MIN + 0.001;
     if (btnReset) btnReset.disabled = Math.abs(zoom - 1) < 0.001;
-  }
-
-  /* the wetland strip under the plan (a sibling of the canvas) carries the
-     same width expression, so it gets the same --oh-zoom and pans with it */
-  function extension() { return document.querySelector('.site-plan_map-extension'); }
-  function setZoomVar(v) {
-    canvas.style.setProperty('--oh-zoom', v);
-    var ext = extension();
-    if (ext) ext.style.setProperty('--oh-zoom', v);
-  }
-
-  /* width the canvas would have at zoom 1 — measured once, unzoomed */
-  function measure() {
-    var z = canvas.style.getPropertyValue('--oh-zoom');
-    setZoomVar(1);
-    baseW = canvas.offsetWidth;
-    box.style.setProperty('--oh-map-box', Math.round(box.getBoundingClientRect().height) + 'px');
-    if (z) setZoomVar(z);
-  }
-
-  function set(next, quiet) {
-    next = Math.max(minZoom(), Math.min(MAX, Math.round(next * 100) / 100));
-    if (next === zoom) { label(); return; }
-    /* keep whatever is in the middle of the viewport in the middle */
-    var w = canvas.offsetWidth, h = canvas.offsetHeight;
-    var fx = w ? (box.scrollLeft + box.clientWidth / 2) / w : 0.5;
-    var fy = h ? (box.scrollTop + box.clientHeight / 2) / h : 0.5;
-    zoom = next;
-    setZoomVar(zoom);
-    box.classList.toggle('is-zoomed', zoom !== 1 || box.scrollWidth > box.clientWidth);
+    box.classList.toggle('is-zoomed', zoom > 1.001);
     box.classList.toggle('is-zoomed-out', zoom < 0.999);
     box.setAttribute('data-zoom', zoom.toFixed(2));
-    label();
-    requestAnimationFrame(function () {
-      box.scrollLeft = fx * canvas.offsetWidth - box.clientWidth / 2;
-      box.scrollTop = fy * canvas.offsetHeight - box.clientHeight / 2;
-      if (!quiet && ui) ui.setAttribute('data-zoom-value', zoom);
-    });
   }
+  function centre() {
+    box.scrollLeft = (box.scrollWidth - box.clientWidth) / 2;
+    box.scrollTop = (box.scrollHeight - box.clientHeight) / 2;
+  }
+  /* zoom keeping the plan point under (px,py) — viewport coords — fixed */
+  function zoomAt(next, px, py) {
+    next = Math.max(MIN, Math.min(MAX, Math.round(next * 100) / 100));
+    if (next === zoom) { label(); return; }
+    var padL = parseFloat(stage.style.paddingLeft) || 0, padT = parseFloat(stage.style.paddingTop) || 0;
+    var oldW = canvas.offsetWidth, oldH = canvas.offsetHeight;
+    var fx = (box.scrollLeft + px - padL) / oldW, fy = (box.scrollTop + py - padT) / oldH;
+    zoom = next;
+    setWidth();
+    var newW = canvas.offsetWidth, newH = canvas.offsetHeight;
+    box.scrollLeft = fx * newW + padL - px;
+    box.scrollTop = fy * newH + padT - py;
+    label();
+    if (ui) ui.setAttribute('data-zoom-value', zoom);
+  }
+  function set(next) { zoomAt(next, box.clientWidth / 2, box.clientHeight / 2); }
 
   function build() {
     ui = document.createElement('div');
@@ -1040,92 +1047,85 @@ window.Wized.push((Wized) => {
       if (!b) return;
       e.preventDefault(); e.stopPropagation();
       var a = b.getAttribute('data-zoom');
-      set(a === 'in' ? zoom + STEP : a === 'out' ? zoom - STEP : 1);
+      if (a === 'reset') { zoom = 1; setWidth(); centre(); label(); }
+      else set(a === 'in' ? zoom + STEP : zoom - STEP);
     });
   }
 
-  /* drag to pan, once there is something to pan to */
   function bindPan() {
     var down = null, moved = false;
     box.addEventListener('pointerdown', function (e) {
-      if (e.button !== 0 || e.target.closest('.site-plan_zoom, .site-plan_badge')) return;
-      if (box.scrollWidth <= box.clientWidth && box.scrollHeight <= box.clientHeight) return;
-      down = { x: e.clientX, y: e.clientY, sl: box.scrollLeft, st: box.scrollTop };
+      if (e.button !== 0 || e.target.closest('.site-plan_zoom, .site-plan_floor-switch, .site-plan_badge, button')) return;
+      down = { x: e.clientX, y: e.clientY, sl: box.scrollLeft, st: box.scrollTop, id: e.pointerId };
       moved = false;
     });
     box.addEventListener('pointermove', function (e) {
       if (!down) return;
       var dx = e.clientX - down.x, dy = e.clientY - down.y;
-      if (!moved && Math.abs(dx) + Math.abs(dy) < 6) return;
-      if (!moved) { moved = true; box.classList.add('is-panning'); }
+      if (!moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+      if (!moved) { moved = true; box.classList.add('is-panning'); try { box.setPointerCapture(down.id); } catch (_) {} }
       box.scrollLeft = down.sl - dx;
       box.scrollTop = down.st - dy;
       e.preventDefault();
     });
-    function end() { down = null; box.classList.remove('is-panning'); setTimeout(function () { moved = false; }, 0); }
+    function end() { if (down && moved) { try { box.releasePointerCapture(down.id); } catch (_) {} } down = null; box.classList.remove('is-panning'); setTimeout(function () { moved = false; }, 0); }
     box.addEventListener('pointerup', end);
     box.addEventListener('pointercancel', end);
-    box.addEventListener('pointerleave', end);
     /* a drag must not read as a click on a plot */
     box.addEventListener('click', function (e) { if (moved) { e.stopPropagation(); e.preventDefault(); } }, true);
+    /* wheel zooms towards the pointer (plain wheel and ctrl/⌘ + wheel / trackpad pinch) */
+    box.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var r = box.getBoundingClientRect();
+      var k = (e.ctrlKey || e.metaKey) ? 0.0125 : 0.0025;
+      var factor = Math.exp(-e.deltaY * k);
+      zoomAt(zoom * factor, e.clientX - r.left, e.clientY - r.top);
+    }, { passive: false });
+    /* pinch on touch devices */
+    var pinch = null;
+    box.addEventListener('touchstart', function (e) { if (e.touches.length === 2) pinch = { d: dist(e), z: zoom, cx: mid(e).x, cy: mid(e).y }; }, { passive: true });
+    box.addEventListener('touchmove', function (e) {
+      if (!pinch || e.touches.length !== 2) return;
+      e.preventDefault();
+      var r = box.getBoundingClientRect(), m = mid(e);
+      zoomAt(pinch.z * dist(e) / pinch.d, m.x - r.left, m.y - r.top);
+    }, { passive: false });
+    box.addEventListener('touchend', function () { pinch = null; }, { passive: true });
+    function dist(e) { var a = e.touches[0], b = e.touches[1]; return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1; }
+    function mid(e) { var a = e.touches[0], b = e.touches[1]; return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 }; }
   }
 
-  /* Below 992px the map is wider than the screen and pans, so view badges
-     pinned to the canvas edges sit off-screen until you scroll to them.
-     Dock the whole badge layer onto the (non-scrolling) map wrapper instead,
-     sized to the visible map box, so all six stay on the edges you can see.
-     Styles are inline so this needs no CSS change. */
+  /* the view badges (if any) dock on the wrapper */
   function dock() {
     var host = document.querySelector('[data-view-badges]');
-    if (!host || !box || !canvas || !wrap) return;
-    var mobile = window.matchMedia('(max-width: 991px)').matches;
-    if (mobile) {
-      if (host.parentNode !== wrap) wrap.appendChild(host);
-      var wr = wrap.getBoundingClientRect(), br = box.getBoundingClientRect();
-      host.style.cssText = 'position:absolute;left:0;right:0;bottom:auto;z-index:6;pointer-events:none;' +
-        'top:' + Math.round(br.top - wr.top) + 'px;height:' + Math.round(br.height) + 'px;';
-    } else if (host.parentNode !== canvas) {
-      canvas.appendChild(host);
-      host.style.cssText = '';
-    }
-  }
-
-  function bindWheel() {
-    /* ctrl/cmd + wheel (and trackpad pinch, which browsers report the same way) zooms the plan */
-    box.addEventListener('wheel', function (e) {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      e.preventDefault();
-      set(zoom + (e.deltaY < 0 ? STEP / 2 : -STEP / 2));
-    }, { passive: false });
+    if (host && host.parentNode !== wrap) { wrap.appendChild(host); host.style.cssText = 'position:absolute;inset:0;z-index:6;pointer-events:none;'; }
   }
 
   function boot() {
     if (booted) return true;
     canvas = document.querySelector('.site-plan_map-canvas');
     box = document.querySelector('.unit-filter_map-container');
+    stage = document.querySelector('.site-plan_map');
     wrap = document.querySelector('.unit-filter_map') || (box && box.parentNode);
-    if (!canvas || !box || !wrap) return false;
+    img = canvas && canvas.querySelector('img');
+    if (!canvas || !box || !stage || !wrap) return false;
     booted = true;
+    box.classList.add('is-viewport');
     measure();
     build();
     bindPan();
-    bindWheel();
     label();
     dock();
-    /* the badge host is filled in by the view badges module, which may land
-       after this one - keep re-docking while the page settles */
-    var n = 0, iv = setInterval(function () { dock(); if (++n > 20) clearInterval(iv); }, 400);
-    if (window.ResizeObserver) new ResizeObserver(dock).observe(box);
+    centre();
+    requestAnimationFrame(centre);
+    if (img && !img.complete) img.addEventListener('load', function () { aspect = 0; measure(); centre(); });
     var t;
     window.addEventListener('resize', function () {
       clearTimeout(t);
-      t = setTimeout(function () {
-        var z = zoom; zoom = 1; setZoomVar(1);
-        measure();
-        zoom = 1; set(Math.max(minZoom(), Math.min(MAX, z)), true); label();
-        dock();
-      }, 200);
+      t = setTimeout(function () { measure(); centre(); label(); }, 150);
     });
+    if (window.ResizeObserver) new ResizeObserver(function () { clearTimeout(t); t = setTimeout(function () { measure(); centre(); }, 100); }).observe(box);
+    window.ohMapView = { zoom: function () { return zoom; }, set: set, centre: centre, fit: function () { zoom = 1; setWidth(); centre(); label(); } };
     return true;
   }
 
@@ -1482,6 +1482,8 @@ window.ohNativeSubmit = async function (form, doneText) {
       // ---- map/list view switch ----
       function setView(v) {
         component.classList.toggle('is-view-list', v === 'list');
+        var pw = document.querySelector('.page_wrap'); if (pw) pw.classList.toggle('is-view-list', v === 'list');
+        if (v === 'map' && window.ohMapView) setTimeout(window.ohMapView.fit, 50);
         viewLinks.forEach(function (l) {
           l.classList.toggle('is-current', l.getAttribute('data-view') === v);
         });
