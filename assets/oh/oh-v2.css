@@ -268,6 +268,13 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
      The level switch moves to the bottom left (opposite the zoom pill) to clear it. */
   .unit-filter_map .site-plan_toolbar{left:.75rem;right:.75rem;flex-direction:row;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end;gap:.5rem .75rem;max-width:none}
   .site-plan_floor-switch{top:auto;bottom:.75rem}
+  /* the toolbar is a row across the top and the level switch moves to the
+     bottom-left, so the north and south markers step out of their way */
+  .site-plan_viewmark{width:1.75rem;height:1.75rem}
+  .site-plan_viewmark svg{width:.95rem;height:.95rem}
+  .site-plan_viewmark[data-placement="north"]{top:3.4rem}
+  .site-plan_viewmark[data-placement="south"]{bottom:.75rem}
+  .site-plan_viewmark-tip{max-width:min(17rem,calc(100vw - 2rem))}
 }
 @media (min-width:1280px){.unit-filter_component{grid-template-columns:17rem minmax(0,1fr) 22rem}}
 /* ---- detail panel: sticky actions, above the chat widget ---- */
@@ -323,6 +330,55 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 .unit-filter_tag-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .unit-filter_tag-x{display:inline-flex;align-items:center;justify-content:center;flex:none;width:1.1rem;height:1.1rem;border-radius:999px;background:rgba(255,255,255,.2);font-size:.8125rem;line-height:1}
 .unit-filter_tag:hover .unit-filter_tag-x{background:rgba(255,255,255,.4)}
+
+/* ---- views: markers on the map edge, the View facet chips, panel + tooltip chips ----
+   The plan is rotated (plan-up = 348 deg true), so a marker sits on the edge
+   named in oh_views.placement rather than at its compass bearing. The three
+   eastern views stack down the right edge; they dodge the floating controls
+   (toolbar top-right, level switch top-left on desktop / bottom-left on
+   mobile, zoom bottom-right). */
+.site-plan_viewmarks{position:absolute;inset:0;z-index:5;pointer-events:none}
+.site-plan_viewmark{position:absolute;pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;padding:0;border:1px solid var(--oh-line);border-radius:999px;background:rgba(255,255,255,.92);color:var(--oh-ink);cursor:pointer;box-shadow:0 2px 10px rgba(21,23,20,.12);transition:background .18s ease,color .18s ease,transform .18s ease,box-shadow .18s ease}
+.site-plan_viewmark svg{width:1.05rem;height:1.05rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.site-plan_viewmark:hover,.site-plan_viewmark:focus-visible{transform:scale(1.08);box-shadow:0 4px 16px rgba(21,23,20,.2);outline:none}
+.site-plan_viewmark.is-active{background:var(--oh-ink);border-color:var(--oh-ink);color:#fff}
+.site-plan_viewmark-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+.site-plan_viewmark[data-placement="north"]{top:.75rem;left:50%;transform:translateX(-50%)}
+.site-plan_viewmark[data-placement="north"]:hover,.site-plan_viewmark[data-placement="north"]:focus-visible{transform:translateX(-50%) scale(1.08)}
+.site-plan_viewmark[data-placement="south"]{bottom:.75rem;left:50%;transform:translateX(-50%)}
+.site-plan_viewmark[data-placement="south"]:hover,.site-plan_viewmark[data-placement="south"]:focus-visible{transform:translateX(-50%) scale(1.08)}
+.site-plan_viewmark[data-placement="north-east"]{right:.75rem;top:30%}
+.site-plan_viewmark[data-placement="east"]{right:.75rem;top:50%}
+.site-plan_viewmark[data-placement="south-east"]{right:.75rem;top:70%}
+.site-plan_viewmark[data-placement="north-west"]{left:.75rem;top:30%}
+.site-plan_viewmark[data-placement="west"]{left:.75rem;top:50%}
+.site-plan_viewmark[data-placement="south-west"]{left:.75rem;top:70%}
+
+/* hover preview: the matching plots stay lit, the rest drop back */
+.site-plan_map-canvas.is-view-focus .site-plan_plot:not(.is-view-hit){opacity:.18}
+.site-plan_map-canvas.is-view-focus .site-plan_plot.is-view-hit{opacity:1}
+.site-plan_map-canvas.is-view-focus .site-plan_unit-label{opacity:.25}
+
+.site-plan_viewmark-tip{position:fixed;z-index:2147483040;max-width:17rem;padding:.7rem .85rem;border-radius:.6rem;background:#fff;color:var(--oh-ink);font-size:.75rem;line-height:1.45;box-shadow:0 12px 34px rgba(21,23,20,.22);opacity:0;pointer-events:none;transition:opacity .16s ease}
+.site-plan_viewmark-tip.is-visible{opacity:1}
+.site-plan_viewmark-tip_head{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;font-weight:700;margin-bottom:.2rem}
+.site-plan_viewmark-tip_dir{flex:none;font-weight:500;font-size:.6875rem;letter-spacing:.04em;text-transform:uppercase;color:var(--oh-accent)}
+.site-plan_viewmark-tip_body{color:rgba(44,43,39,.78)}
+.site-plan_viewmark-tip_count{display:block;margin-top:.45rem;font-weight:600}
+.site-plan_viewmark-tip_hint{display:block;margin-top:.15rem;font-size:.6875rem;color:rgba(44,43,39,.55)}
+
+/* the View facet chips carry the same icon as the marker */
+.unit-filter_chip-view .unit-filter_chip-icon{display:inline-flex;align-items:center;flex:none;margin-right:.1rem}
+.unit-filter_chip-view .unit-filter_chip-icon svg{width:.9rem;height:.9rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* view chips - the unit panel and the plot tooltip share them */
+.oh-viewchip{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;border:1px solid var(--oh-line);border-radius:999px;font-size:.6875rem;line-height:1.5;color:var(--oh-ink);background:var(--oh-sand);white-space:nowrap}
+.oh-viewchip svg{width:.85rem;height:.85rem;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.unit-details_views{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:1rem}
+.unit-details_views-label{flex:none;font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;color:rgba(44,43,39,.55)}
+.unit-details_views-chips{display:flex;flex-wrap:wrap;gap:.35rem}
+.site-plan_tooltip-views{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.5rem}
+.site-plan_tooltip-views[hidden]{display:none}
 
 /* ---- tablet & mobile: brand bar, Plan|List toolbar, one pane, footer ---- */
 @media (max-width:991px){

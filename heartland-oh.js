@@ -205,6 +205,8 @@ window.Wized.push((Wized) => {
     block: { key: 'block_name' },
     floor: { key: 'floor_level', cast: Number },
     orientation: { key: 'orientation' },
+    /* multi: one unit carries several oh_views keys in view_tags[] */
+    view: { key: 'view_tags', multi: true },
     parking: { key: 'parking_bay_type' },
   };
 
@@ -341,6 +343,9 @@ window.Wized.push((Wized) => {
     /* setFloor(level) also filters the list to that level; pass false to move the view only */
     setFloor: (level, syncFacet) => setFloor(Number(level), syncFacet !== false),
     onChange(fn) { listeners.push(fn); fn(state); },
+    /* re-run the filter pass: for chips added to the DOM after boot (the View
+       facet is built from /views, so it misses the first apply()) */
+    refresh: () => apply(),
   };
 
   function boot(rawList) {
@@ -1202,6 +1207,294 @@ window.Wized.push((Wized) => {
   function ready() {
     if (boot()) return;
     var n = 0, iv = setInterval(function () { if (boot() || ++n > 40) clearInterval(iv); }, 250);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+  else ready();
+})();
+
+/* ============================================================
+   Views — the estate's distant views as markers on the map edge, a View
+   filter facet, chips in the unit panel and a line in the plot tooltip.
+
+   Data: GET /views (the oh_views taxonomy) and view_tags[] on each unit.
+   The bearings and distances in oh_views were measured from the site
+   centre (-33.9010, 18.8460). The plan drawing is rotated - plan-up is
+   348° true - so a view's marker sits on the map edge named in its
+   placement column rather than at its raw compass bearing.
+
+   A marker click toggles the matching chip in the View facet through
+   window.ohSitePlan, so the map and the filter panel are one control and
+   the removable filter tags pick it up for free. Hover is a preview and
+   changes no state.
+   ============================================================ */
+(function () {
+  if (window.__ohViews) return;
+  window.__ohViews = true;
+
+  var API = 'https://x7aj-untn-pq4t.n7e.xano.io/api:BHoGDH-q';
+  var S = '<svg viewBox="0 0 24 24" aria-hidden="true">';
+  var ICONS = {
+    mountain: S + '<path d="M3 18 8.5 8l3.2 5.2 2.3-3.4L21 18z"/><path d="M8.5 8l1.8 2.7"/></svg>',
+    horizon: S + '<path d="M2 18h20M6 18l3.5-6h5L18 18M9.5 12h5"/></svg>',
+    vine: S + '<circle cx="9" cy="11" r="2.2"/><circle cx="14.5" cy="11" r="2.2"/><circle cx="11.75" cy="15.5" r="2.2"/><path d="M11.75 8.5V4.5c1.6 0 3 .8 4.2 2.2"/></svg>',
+    tree: S + '<path d="M12 21v-5M6 16h12l-3-4h2l-3-4h2L12 3 8 8h2l-3 4h2z"/></svg>',
+    water: S + '<path d="M3 11c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 16c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg>',
+    clubhouse: S + '<path d="M4 21V10l8-6 8 6v11M9 21v-6h6v6M2 21h20"/></svg>'
+  };
+  var PLACED = { north: 1, 'north-east': 1, east: 1, 'south-east': 1, south: 1, 'south-west': 1, west: 1, 'north-west': 1 };
+
+  var views = [], byKey = {}, markHost = null, tip = null, focusKey = null, hooked = false;
+
+  function icon(name) { return ICONS[name] || ICONS.mountain; }
+  function tags(u) {
+    var t = u && u.view_tags;
+    if (Array.isArray(t)) return t;
+    return typeof t === 'string' && t ? t.split(',').map(function (s) { return s.trim(); }) : [];
+  }
+  function units() { try { return window.ohSitePlan ? window.ohSitePlan.units() : []; } catch (e) { return []; } }
+  function facetOn() { try { return window.ohSitePlan.active('view').length > 0; } catch (e) { return false; } }
+  function isOn(key) { try { return !!window.ohSitePlan.isActive('view', key); } catch (e) { return false; } }
+
+  /* ---------- data ---------- */
+  function setViews(list) {
+    if (!Array.isArray(list) || !list.length || views.length) return;
+    views = list.filter(function (v) { return v && v.key && v.is_active !== false; })
+                .sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); });
+    byKey = {};
+    views.forEach(function (v) { byKey[v.key] = v; });
+    buildChips();
+    buildMarkers();
+    hook();
+  }
+
+  /* ---------- the View facet: chips in the filters panel ----------
+     The controller's facets are declarative, so chips carrying
+     data-filter="view" data-value="<key>" get counts, dimming, click
+     handling and Reset for nothing. They are built here rather than in the
+     Designer so that adding a row to oh_views adds a chip. */
+  function buildChips() {
+    var scroll = document.querySelector('.unit-filter_filters .unit-filter_scroll') ||
+                 document.querySelector('.unit-filter_filters .unit-filter_inner');
+    if (!scroll || scroll.querySelector('[data-filter="view"]')) return;
+
+    var group = document.createElement('div');
+    group.className = 'unit-filter_group is-views';
+    var title = document.createElement('div');
+    title.className = 'unit-filter_group-title-1';
+    title.textContent = 'View';
+    var chips = document.createElement('div');
+    chips.className = 'unit-filter_chips';
+    views.forEach(function (v) {
+      var c = document.createElement('div');
+      c.className = 'unit-filter_chip-1 unit-filter_chip-view';
+      c.setAttribute('data-filter', 'view');
+      c.setAttribute('data-value', v.key);
+      c.setAttribute('tabindex', '0');
+      c.setAttribute('role', 'button');
+      c.setAttribute('aria-disabled', 'false');
+      c.innerHTML = '<span class="unit-filter_chip-icon">' + icon(v.icon) + '</span><span></span><span class="unit-filter_count">0</span>';
+      c.querySelectorAll('span')[1].textContent = v.label;
+      chips.appendChild(c);
+    });
+    group.appendChild(title);
+    group.appendChild(chips);
+
+    /* after Orientation when it is there - the two answer the same question */
+    var after = document.querySelector('[data-filter="orientation"]');
+    after = after && after.closest ? after.closest('.unit-filter_group') : null;
+    if (after && after.parentNode) after.parentNode.insertBefore(group, after.nextSibling);
+    else scroll.appendChild(group);
+
+    /* the chips missed the last apply(), so ask for the counts */
+    try { window.ohSitePlan.refresh(); } catch (e) {}
+  }
+
+  /* ---------- markers on the map edge ---------- */
+  function buildMarkers() {
+    markHost = document.querySelector('.site-plan_viewmarks');
+    if (!markHost) {
+      var host = document.querySelector('.unit-filter_map');
+      if (!host) return;
+      markHost = document.createElement('div');
+      markHost.className = 'site-plan_viewmarks';
+      markHost.setAttribute('aria-label', 'Views from the estate');
+      host.appendChild(markHost);
+    }
+    markHost.textContent = '';
+    views.forEach(function (v) {
+      if (!PLACED[v.placement]) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'site-plan_viewmark';
+      b.setAttribute('data-view', v.key);
+      b.setAttribute('data-placement', v.placement);
+      b.setAttribute('aria-pressed', 'false');
+      b.setAttribute('aria-label', 'Show apartments with a ' + v.label + ' view' + (v.direction ? ' (' + v.direction + ')' : ''));
+      b.innerHTML = icon(v.icon) + '<span class="site-plan_viewmark-label">' + v.label + '</span>';
+      b.addEventListener('mouseenter', function () { preview(v); });
+      b.addEventListener('focus', function () { preview(v); });
+      b.addEventListener('mouseleave', function () { clear(); hideTip(); });
+      b.addEventListener('blur', function () { clear(); hideTip(); });
+      b.addEventListener('click', function (e) {
+        e.preventDefault();
+        try { window.ohSitePlan.toggle('view', v.key); } catch (err) { return; }
+        clear();                 /* the filter's own dimming takes over */
+        showTip(b, v);
+      });
+      markHost.appendChild(b);
+    });
+    syncMarkers();
+  }
+
+  /* markers mirror the facet, however it was changed - chip, tag or Reset */
+  function syncMarkers() {
+    if (!markHost) return;
+    markHost.querySelectorAll('.site-plan_viewmark').forEach(function (b) {
+      var on = isOn(b.getAttribute('data-view'));
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  /* ---------- hover preview ---------- */
+  function preview(v) {
+    if (!facetOn()) focus(v.key);      /* no double-dimming once a filter is on */
+    var b = markHost && markHost.querySelector('.site-plan_viewmark[data-view="' + v.key + '"]');
+    if (b) showTip(b, v);
+  }
+  function focus(key) {
+    focusKey = key;
+    var canvas = document.querySelector('.site-plan_map-canvas');
+    if (!canvas) return;
+    canvas.classList.add('is-view-focus');
+    units().forEach(function (u) {
+      var p = u.plot_id && document.getElementById(u.plot_id);
+      if (p) p.classList.toggle('is-view-hit', tags(u).indexOf(key) !== -1);
+    });
+  }
+  function clear() {
+    focusKey = null;
+    var canvas = document.querySelector('.site-plan_map-canvas');
+    if (canvas) canvas.classList.remove('is-view-focus');
+    document.querySelectorAll('.site-plan_plot.is-view-hit').forEach(function (p) { p.classList.remove('is-view-hit'); });
+  }
+
+  /* ---------- hover card ---------- */
+  function showTip(b, v) {
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.className = 'site-plan_viewmark-tip';
+      document.body.appendChild(tip);
+    }
+    var n = units().filter(function (u) { return u.status_key !== 'unreleased' && tags(u).indexOf(v.key) !== -1; }).length;
+    var dist = Number(v.distance_km) || 0;
+    var sub = [v.direction, dist ? (dist < 1 ? Math.round(dist * 1000) + ' m' : dist + ' km') : ''].filter(Boolean).join(' · ');
+    tip.innerHTML =
+      '<div class="site-plan_viewmark-tip_head"><span></span>' + (sub ? '<span class="site-plan_viewmark-tip_dir"></span>' : '') + '</div>' +
+      '<div class="site-plan_viewmark-tip_body"></div>' +
+      (n ? '<span class="site-plan_viewmark-tip_count"></span>' : '') +
+      '<span class="site-plan_viewmark-tip_hint"></span>';
+    tip.querySelector('.site-plan_viewmark-tip_head span').textContent = v.label;
+    if (sub) tip.querySelector('.site-plan_viewmark-tip_dir').textContent = sub;
+    tip.querySelector('.site-plan_viewmark-tip_body').textContent = v.description || '';
+    if (n) tip.querySelector('.site-plan_viewmark-tip_count').textContent = n + (n === 1 ? ' apartment' : ' apartments') + ' with this view';
+    tip.querySelector('.site-plan_viewmark-tip_hint').textContent = isOn(v.key) ? 'Click to clear this filter' : 'Click to filter to these apartments';
+
+    tip.style.left = '0px';
+    tip.style.top = '0px';
+    tip.classList.add('is-visible');
+    place(b);
+  }
+  /* pick the side of the marker with the most room, then clamp to the viewport */
+  function place(b) {
+    var q = b.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight, pad = 12;
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var cx = q.left + q.width / 2, cy = q.top + q.height / 2;
+    var room = { left: q.left, right: vw - q.right, top: q.top, bottom: vh - q.bottom };
+    var side = Object.keys(room).sort(function (a, c) { return room[c] - room[a]; })[0];
+    var x = cx - w / 2, y = cy - h / 2;
+    if (side === 'left') x = q.left - w - pad;
+    else if (side === 'right') x = q.right + pad;
+    else if (side === 'top') y = q.top - h - pad;
+    else y = q.bottom + pad;
+    x = Math.min(Math.max(pad, x), Math.max(pad, vw - w - pad));
+    y = Math.min(Math.max(pad, y), Math.max(pad, vh - h - pad));
+    tip.style.left = Math.round(x) + 'px';
+    tip.style.top = Math.round(y) + 'px';
+  }
+  function hideTip() { if (tip) tip.classList.remove('is-visible'); }
+  window.addEventListener('scroll', hideTip, { passive: true });
+
+  /* ---------- chips, shared by the panel and the tooltip ---------- */
+  function chipHtml(key, withLabel) {
+    var v = byKey[key];
+    if (!v) return '';
+    return '<span class="oh-viewchip" title="' + esc(v.description) + '">' + icon(v.icon) +
+      (withLabel ? '<span>' + esc(v.label) + '</span>' : '') + '</span>';
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* ---------- the unit panel: a "Views" row under the spec tiles ---------- */
+  function paintPanel(u) {
+    var head = document.querySelector('#ud-overview');
+    if (!head) return;
+    var box = head.querySelector('.unit-details_views');
+    var list = tags(u).filter(function (k) { return byKey[k]; });
+    if (!list.length) { if (box) box.remove(); return; }
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'unit-details_views';
+      box.innerHTML = '<span class="unit-details_views-label">Views</span><span class="unit-details_views-chips"></span>';
+      var specs = head.querySelector('.unit-details_specs');
+      if (specs) specs.parentNode.insertBefore(box, specs.nextSibling);
+      else head.appendChild(box);
+    }
+    box.querySelector('.unit-details_views-chips').innerHTML = list.map(function (k) { return chipHtml(k, true); }).join('');
+  }
+
+  /* ---------- the plot tooltip: icon chips under the specs ---------- */
+  function bindTooltip() {
+    var canvas = document.querySelector('.site-plan_map-canvas');
+    var root = document.querySelector('[data-tooltip="root"]');
+    if (!canvas || !root || root.__ohViewsBound) return;
+    root.__ohViewsBound = true;
+    var row = document.createElement('div');
+    row.className = 'site-plan_tooltip-views';
+    row.hidden = true;
+    root.appendChild(row);
+    canvas.addEventListener('mouseover', function (e) {
+      var shape = e.target.closest && e.target.closest('.site-plan_plot[id]');
+      var u = shape && units().filter(function (x) { return x.plot_id === shape.id; })[0];
+      var list = u ? tags(u).filter(function (k) { return byKey[k]; }) : [];
+      row.hidden = !list.length;
+      row.innerHTML = list.map(function (k) { return chipHtml(k, true); }).join('');
+    });
+  }
+
+  /* ---------- boot ---------- */
+  function hook() {
+    if (hooked || !window.ohSitePlan || !window.ohSitePlan.onChange) return;
+    hooked = true;
+    window.ohSitePlan.onChange(syncMarkers);   /* fires now and on every apply() */
+    bindTooltip();
+  }
+  document.addEventListener('oh:unit-open', function (e) {
+    if (e.detail && e.detail.unit) paintPanel(e.detail.unit);
+  });
+  document.addEventListener('oh:map-revealed', function () { if (views.length) buildMarkers(); });
+
+  /* ask for the taxonomy the moment this file runs - six rows, and the markers
+     should land with the rest of the map rather than seconds later */
+  fetch(API + '/views').then(function (r) { return r.json(); }).then(setViews).catch(function () {});
+
+  function ready() {
+    if (views.length) { buildChips(); buildMarkers(); }
+    hook();
+    var n = 0, iv = setInterval(function () { hook(); if ((hooked && views.length) || ++n > 40) clearInterval(iv); }, 250);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
   else ready();
