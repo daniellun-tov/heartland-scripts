@@ -213,11 +213,35 @@ window.Wized.push((Wized) => {
     });
     blocks = Array.from(byBlock.values()).sort((a, b) => a.sort - b.sort);
 
-    initMap();
-    bindControls();
-    updateLegend();
-    apply();
+    svgReady.then(() => {
+      initMap();
+      bindControls();
+      updateLegend();
+      apply();
+    });
   }
+
+  /* External plan: <svg class="site-plan_map-svg" data-svg-src="https://..."> is swapped for the
+     fetched file (per-floor groups + unit polygons) so the plan can be regenerated without
+     touching Webflow. Starts at load so it overlaps the units request. */
+  const svgReady = (function () {
+    const el = document.querySelector('.site-plan_map-svg[data-svg-src]');
+    if (!el) return Promise.resolve();
+    const src = el.getAttribute('data-svg-src');
+    return fetch(src)
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then((txt) => {
+        const doc = new DOMParser().parseFromString(txt, 'image/svg+xml');
+        const svg = doc.documentElement;
+        if (!svg || svg.nodeName.toLowerCase() !== 'svg') throw new Error('not an svg');
+        const node = document.importNode(svg, true);
+        node.classList.add('site-plan_map-svg');
+        Array.from(el.attributes).forEach((a) => { if (a.name !== 'data-svg-src' && !node.hasAttribute(a.name)) node.setAttribute(a.name, a.value); });
+        el.replaceWith(node);
+        console.log('[site-plan] plan loaded from', src);
+      })
+      .catch((e) => console.error('[site-plan] plan load failed, using inline svg', e));
+  })();
 
   console.log('[site-plan] controller loaded');
   if (Wized.data.r[REQ] && Wized.data.r[REQ].hasRequested) boot();
