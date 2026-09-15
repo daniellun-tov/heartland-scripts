@@ -1,0 +1,14 @@
+<!-- Oak Hills unit selection v2 - controller. Source: github.com/daniellun-tov/heartland-scripts, branch oh, heartland-oh.js. Release = push, paste the new commit SHA below (and in the map svg's data-svg-src when the plan changed), publish. -->
+<script>
+(function(){
+  var API='https://x7aj-untn-pq4t.n7e.xano.io/api:BHoGDH-q';
+  var html=document.documentElement;
+  html.classList.add('sales-open');
+  fetch(API+'/site-settings').then(function(r){return r.json();}).then(function(s){
+    var open=!s||s.sales_open!==false;
+    html.classList.toggle('sales-open',open);
+    document.dispatchEvent(new CustomEvent('oh:sales-phase',{detail:{open:open}}));
+  }).catch(function(){});
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@72e1c9a58b8f810191d866c9de9e24eb29791e2e/heartland-oh.js" defer></script>
