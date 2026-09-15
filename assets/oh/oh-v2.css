@@ -234,7 +234,7 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 .unit-filter_map .site-plan_toolbar{position:absolute;top:.75rem;right:.75rem;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;pointer-events:none;max-width:calc(100% - 1.5rem)}
 .unit-filter_map .site-plan_toolbar>*{pointer-events:auto}
 .unit-filter_map .site-plan_colourby{background:#fff;border-radius:999px;box-shadow:0 4px 14px rgba(21,23,20,.15)}
-.unit-filter_map .site-plan_legend{background:rgba(255,255,255,.92);border-radius:.75rem;padding:.45rem .8rem;box-shadow:0 4px 14px rgba(21,23,20,.12);font-size:.8125rem}
+.unit-filter_map .site-plan_legend{background:rgba(255,255,255,.92);border-radius:999px;padding:.45rem 1.1rem;box-shadow:0 4px 14px rgba(21,23,20,.12);font-size:.8125rem}
 @media (min-width:992px){
   /* the brand row is a fixed track: the plan and list span rows 1-2, and an auto track would grow to their content */
   .unit-filter_component{grid-template-columns:16rem minmax(0,1fr) 20rem;grid-template-rows:6.5rem minmax(0,1fr) auto;grid-template-areas:"brand main list" "filters main list" "footer footer footer"}
@@ -326,7 +326,7 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .unit-filter_map .site-plan_toolbar{top:.5rem;right:.5rem;gap:.35rem;max-width:calc(100% - 6rem)}
   .unit-filter_map .site-plan_colourby{padding:.2rem}
   .site-plan_colourby-btn{padding:.3rem .65rem;font-size:.75rem}
-  .unit-filter_map .site-plan_legend{padding:.35rem .6rem;border-radius:.6rem;font-size:.6875rem}
+  .unit-filter_map .site-plan_legend{padding:.35rem .8rem;border-radius:999px;font-size:.6875rem}
   .unit-filter_map .site-plan_legend-group{column-gap:.6rem;row-gap:.2rem;justify-content:flex-end}
   .site-plan_legend-item{gap:.3rem;font-size:.6875rem}
   .site-plan_legend-swatch{width:.6rem;height:.6rem}
