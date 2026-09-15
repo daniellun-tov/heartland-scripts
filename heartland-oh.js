@@ -315,6 +315,31 @@ window.Wized.push((Wized) => {
   /* External plan: <svg class="site-plan_map-svg" data-svg-src="https://..."> is swapped for the
      fetched file (per-floor groups + unit polygons) so the plan can be regenerated without
      touching Webflow. Starts at load so it overlaps the units request. */
+  /* "Coming soon" plots are a graded dark wash over the plan rather than a flat
+     grey, so the drawing underneath still reads. SVG gradients cannot be
+     declared in CSS, so they are injected once into the plan we fetch. */
+  function ensureSoonGradients(svg) {
+    if (!svg || svg.querySelector('#oh-soon')) return;
+    const NS = 'http://www.w3.org/2000/svg';
+    let defs = svg.querySelector('defs');
+    if (!defs) { defs = document.createElementNS(NS, 'defs'); svg.insertBefore(defs, svg.firstChild); }
+    [['oh-soon', 0.5, 0.24], ['oh-soon-hi', 0.66, 0.4]].forEach(([id, a, b]) => {
+      const lg = document.createElementNS(NS, 'linearGradient');
+      lg.setAttribute('id', id);
+      lg.setAttribute('gradientUnits', 'userSpaceOnUse');
+      lg.setAttribute('x1', '0'); lg.setAttribute('y1', '0');
+      lg.setAttribute('x2', '1690'); lg.setAttribute('y2', '1490');
+      [[0, a], [1, b]].forEach(([offset, op]) => {
+        const stop = document.createElementNS(NS, 'stop');
+        stop.setAttribute('offset', offset);
+        stop.setAttribute('stop-color', '#151714');
+        stop.setAttribute('stop-opacity', op);
+        lg.appendChild(stop);
+      });
+      defs.appendChild(lg);
+    });
+  }
+
   const svgReady = (function () {
     const el = document.querySelector('.site-plan_map-svg[data-svg-src]');
     if (!el) return Promise.resolve();
@@ -329,6 +354,7 @@ window.Wized.push((Wized) => {
         node.classList.add('site-plan_map-svg');
         Array.from(el.attributes).forEach((a) => { if (a.name !== 'data-svg-src' && !node.hasAttribute(a.name)) node.setAttribute(a.name, a.value); });
         el.replaceWith(node);
+        ensureSoonGradients(node);
         console.log('[site-plan] plan loaded from', src);
       })
       .catch((e) => console.error('[site-plan] plan load failed, using inline svg', e));
@@ -1018,6 +1044,88 @@ window.Wized.push((Wized) => {
     return true;
   }
 
+  function ready() {
+    if (boot()) return;
+    var n = 0, iv = setInterval(function () { if (boot() || ++n > 40) clearInterval(iv); }, 250);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+  else ready();
+})();
+
+/* ============================================================
+   Active filter tags — one removable tag per active chip, in the filters
+   header under the "Filters" / Reset row. The tag's X clicks the chip it
+   came from, so facets, the price/size bands and the toggles all go
+   through the same handler as the chips themselves and nothing here has
+   to know about the controller's state.
+   ============================================================ */
+(function () {
+  if (window.__ohTags) return;
+  window.__ohTags = true;
+  var SEL = '[data-filter][data-value].is-active, [data-toggle].is-active';
+
+  function host() {
+    var head = document.querySelector('.unit-filter_filters .unit-filter_head') || document.querySelector('.unit-filter_head');
+    if (!head) return null;
+    var box = head.querySelector('.unit-filter_tags');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'unit-filter_tags';
+      box.setAttribute('role', 'list');
+      box.setAttribute('aria-label', 'Active filters');
+      head.appendChild(box);
+    }
+    return box;
+  }
+
+  /* the chip's own label, and its group when the value alone is cryptic ("A") */
+  function labelFor(chip) {
+    var full = chip.querySelector('.oh-lbl-full');
+    var txt = '';
+    if (full) txt = full.textContent;
+    else {
+      var spans = [].slice.call(chip.querySelectorAll('span')).filter(function (sp) {
+        return !sp.classList.contains('unit-filter_count') && !sp.classList.contains('unit-filter_soon') && !sp.classList.contains('oh-lbl-short');
+      });
+      txt = spans.length ? spans[0].textContent : chip.textContent;
+    }
+    txt = (txt || '').replace(/\s+/g, ' ').trim();
+    var group = chip.closest ? chip.closest('.unit-filter_group') : null;
+    var title = group && group.querySelector('.unit-filter_group-title-1');
+    title = title ? title.textContent.trim() : '';
+    if (title === 'Unit type') title = 'Type';
+    if (title && txt.length <= 3 && txt.toLowerCase() !== title.toLowerCase()) txt = title + ' ' + txt;
+    return txt;
+  }
+
+  function render() {
+    var box = host();
+    if (!box) return;
+    var chips = [].slice.call(document.querySelectorAll(SEL));
+    box.textContent = '';
+    box.hidden = !chips.length;
+    chips.forEach(function (chip) {
+      var text = labelFor(chip);
+      var tag = document.createElement('button');
+      tag.type = 'button';
+      tag.className = 'unit-filter_tag';
+      tag.setAttribute('role', 'listitem');
+      tag.setAttribute('aria-label', 'Remove filter: ' + text);
+      tag.innerHTML = '<span class="unit-filter_tag-label"></span><span class="unit-filter_tag-x" aria-hidden="true">\u00d7</span>';
+      tag.querySelector('.unit-filter_tag-label').textContent = text;
+      tag.addEventListener('click', function (e) {
+        e.preventDefault();
+        chip.click();          /* the chip owns the state; this only undoes it */
+      });
+      box.appendChild(tag);
+    });
+  }
+
+  function boot() {
+    if (!window.ohSitePlan || !window.ohSitePlan.onChange) return false;
+    window.ohSitePlan.onChange(render);      /* fires now and on every apply() */
+    return true;
+  }
   function ready() {
     if (boot()) return;
     var n = 0, iv = setInterval(function () { if (boot() || ++n > 40) clearInterval(iv); }, 250);
@@ -2019,23 +2127,37 @@ window.ohNativeSubmit = async function (form, doneText) {
     var wrap = document.querySelector('.site-plan_detail-wrap');
     var links = [].slice.call(nav.querySelectorAll('a'));
 
-    /* Reserve / Share: above the subtabs (and so above the first subsection) on
-       desktop, where the whole panel is in view; on mobile they stay a sticky
-       bar at the bottom of the panel, within thumb reach. One element moves -
+    /* Reserve / Share: on desktop they ride with the subtabs in one sticky block
+       at the top of the panel, so the actions stay reachable at any scroll depth
+       and always sit above the tabs; on mobile they go back to being the sticky
+       bar at the bottom of the panel, within thumb reach. The elements MOVE -
        cloning would duplicate the Wized bindings and the modal attributes. */
     var bar = panel.querySelector('[data-actionbar]');
+    var stickyHead = null;
     if (bar) {
       var mq = window.matchMedia('(min-width: 992px)');
       var place = function () {
         if (mq.matches) {
-          if (bar.parentNode !== nav.parentNode || bar.nextElementSibling !== nav) nav.parentNode.insertBefore(bar, nav);
-        } else if (bar.parentNode !== panel || panel.lastElementChild !== bar) {
-          panel.appendChild(bar);
+          if (!stickyHead) {
+            stickyHead = document.createElement('div');
+            stickyHead.className = 'unit-details_stickyhead';
+          }
+          if (stickyHead.parentNode !== nav.parentNode) nav.parentNode.insertBefore(stickyHead, nav);
+          if (bar.parentNode !== stickyHead) stickyHead.appendChild(bar);
+          if (nav.parentNode !== stickyHead) stickyHead.appendChild(nav);
+        } else {
+          if (stickyHead && stickyHead.parentNode) {
+            stickyHead.parentNode.insertBefore(nav, stickyHead);
+            stickyHead.parentNode.removeChild(stickyHead);
+          }
+          if (bar.parentNode !== panel || panel.lastElementChild !== bar) panel.appendChild(bar);
         }
       };
       place();
       if (mq.addEventListener) mq.addEventListener('change', place);
       else if (mq.addListener) mq.addListener(place);
+      var headHeight = function () { return (stickyHead && stickyHead.offsetParent ? stickyHead : nav).offsetHeight; };
+      window.__ohPanelHeadHeight = headHeight;
     }
 
     function scroller() {
@@ -2055,16 +2177,17 @@ window.ohNativeSubmit = async function (form, doneText) {
         if (!s) return;
         e.preventDefault();
         var sc = scroller();
+        var head = window.__ohPanelHeadHeight ? window.__ohPanelHeadHeight() : nav.offsetHeight;
         var top = s.getBoundingClientRect().top
                 - sc.getBoundingClientRect().top
                 + sc.scrollTop
-                - (nav.offsetHeight + 8);
+                - (head + 8);
         sc.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
       });
     });
 
     function spy() {
-      var navB = nav.getBoundingClientRect().bottom + 12;
+      var navB = nav.getBoundingClientRect().bottom + 12;   /* the nav is the bottom of the sticky block */
       var currentIdx = 0;
       links.forEach(function (l, i) {
         var s = sectionFor(l);
