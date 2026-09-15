@@ -75,8 +75,12 @@
   if (pageWrap) pageWrap.classList.add('is-app');
   /* no smooth scroll on this page: the site's Lenis instance is torn down */
   function killLenis() {
-    try { if (window.lenis && typeof window.lenis.destroy === 'function') window.lenis.destroy(); } catch (e) {}
-    window.lenis = null;
+    var l = window.lenis;
+    if (l && l.__ohStub) return;
+    try { if (l && typeof l.destroy === 'function') l.destroy(); } catch (e) {}
+    /* the site's raf loop keeps calling window.lenis.raf(): leave an inert stub */
+    var noop = function () {};
+    window.lenis = { __ohStub: true, raf: noop, start: noop, stop: noop, on: noop, off: noop, scrollTo: noop, destroy: noop, resize: noop };
     document.documentElement.classList.remove('lenis', 'lenis-smooth', 'lenis-scrolling', 'lenis-stopped');
   }
   killLenis();
