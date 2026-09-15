@@ -119,14 +119,14 @@ html.oh-data-pending .unit-filter_mobile-match{visibility:hidden}
         data and the background are in (heartland-oh.js). html.oh-reveal is stamped
         before first paint by the head snippet; transitions only exist while
         html.oh-reveal-go is on, so nothing later animates by accident. ---- */
-html.oh-reveal .site-plan_map{opacity:0}
-html.oh-reveal .site-plan_map-canvas{transform:scale(1.05)}
+html.oh-reveal .site-plan_map-svg{opacity:0}
+html.oh-reveal .site-plan_map-canvas{transform:scale(1.04)}
 html.oh-reveal .unit-filter_map .site-plan_toolbar{opacity:0;transform:translateY(-.75rem)}
 html.oh-reveal .site-plan_floor-switch,
 html.oh-reveal .site-plan_zoom,
 html.oh-reveal .unit-filter_mobile-toolbar,
 html.oh-reveal .unit-filter_footer{opacity:0}
-html.oh-reveal-go .site-plan_map{transition:opacity .7s ease}
+html.oh-reveal-go .site-plan_map-svg{transition:opacity .7s ease .12s}
 html.oh-reveal-go .site-plan_map-canvas{transition:transform 1s cubic-bezier(.22,1,.36,1)}
 html.oh-reveal-go .unit-filter_map .site-plan_toolbar{transition:opacity .5s ease .3s,transform .5s cubic-bezier(.22,1,.36,1) .3s}
 html.oh-reveal-go .site-plan_floor-switch,
@@ -146,7 +146,7 @@ html.oh-reveal-go .unit-filter_footer{transition:opacity .5s ease .42s}
   html.oh-reveal .unit-filter_filters,
   html.oh-reveal .site-plan_list-wrap,
   html.oh-reveal .unit-filter_map .site-plan_toolbar{transform:none}
-  html.oh-reveal-go .site-plan_map,
+  html.oh-reveal-go .site-plan_map-svg,
   html.oh-reveal-go .unit-filter_map .site-plan_toolbar,
   html.oh-reveal-go .site-plan_floor-switch,
   html.oh-reveal-go .site-plan_zoom,
