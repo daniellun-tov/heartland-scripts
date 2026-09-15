@@ -2454,7 +2454,7 @@ window.ohNativeSubmit = async function (form, doneText) {
   var current = null;
 
   function video() { return document.querySelector('[data-ud-video]'); }
-  function fpImg(kind) { return document.querySelector('[data-fp-img="' + kind + '"]'); }
+  function fpImg(kind) { return document.querySelector('[data-fp-img="' + kind + '"], [data-fp="' + kind + '"] img'); }
   function fpBox(kind) { return document.querySelector('[data-fp="' + kind + '"]'); }
 
   function fill(u) {
