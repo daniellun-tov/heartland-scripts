@@ -98,6 +98,73 @@
     Array.prototype.slice.call(inner.children).forEach(function (c) { if (c !== head) scroll.appendChild(c); });
     inner.appendChild(scroll);
   }
+  /* Map loading state - the Stellenbosch Village page-loader treatment scoped to
+     the plan: a sand cover over the map with the logo and a thin bar beneath it.
+     The bar creeps towards a ceiling so it never stalls on a slow asset, and
+     three milestones move it on - the plan SVG, the unit data, the background
+     image. It dissolves once all three are in, or after 9s whatever happens. */
+  (function mapLoader() {
+    var host = document.querySelector('.unit-filter_map');
+    if (!host || document.querySelector('.site-plan_loader')) return;
+    var brand = document.querySelector('.unit-filter_brand-img');
+    var src = brand && brand.getAttribute('src');
+    var el = document.createElement('div');
+    el.className = 'site-plan_loader';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-label', 'Loading the site plan');
+    el.innerHTML = (src ? '<img class="site-plan_loader-logo" src="' + src + '" alt="">' : '') +
+      '<div class="site-plan_loader-bar"><span class="site-plan_loader-fill"></span></div>';
+    host.appendChild(el);
+
+    var p = 0, tick = null, out = false;
+    var marks = { plan: false, data: false, image: false };
+    function set(v) {
+      if (out) return;
+      p = Math.max(p, Math.min(1, v));
+      el.style.setProperty('--oh-p', p.toFixed(3));
+    }
+    function creep(ceiling) {
+      clearInterval(tick);
+      tick = setInterval(function () {
+        if (out) return clearInterval(tick);
+        set(p + (ceiling - p) * 0.08);
+      }, 120);
+    }
+    function finish() {
+      if (out) return;
+      out = true;
+      clearInterval(tick);
+      el.style.setProperty('--oh-p', '1');
+      /* a beat for the viewport to fit and centre the plan, then dissolve */
+      setTimeout(function () {
+        el.classList.add('is-out');
+        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 520);
+      }, 200);
+    }
+    window.ohMapLoader = {
+      mark: function (name) {
+        if (name in marks && !marks[name]) {
+          marks[name] = true;
+          var done = Object.keys(marks).filter(function (k) { return marks[k]; }).length;
+          set(0.25 + done * 0.2);
+          creep(0.3 + done * 0.22);
+        }
+        if (marks.plan && marks.data && marks.image) finish();
+      },
+      finish: finish,
+      progress: function () { return p; }
+    };
+    set(0.08);
+    creep(0.3);
+    var img = document.querySelector('.site-plan_map-image');
+    if (!img || (img.complete && img.naturalWidth)) window.ohMapLoader.mark('image');
+    else {
+      img.addEventListener('load', function () { window.ohMapLoader.mark('image'); });
+      img.addEventListener('error', function () { window.ohMapLoader.mark('image'); });
+    }
+    setTimeout(finish, 9000);
+  })();
+
   var pageWrap = document.querySelector('.page_wrap');
   if (pageWrap) pageWrap.classList.add('is-app');
   /* no smooth scroll on this page: the site's Lenis instance is torn down */
@@ -309,6 +376,7 @@ window.Wized.push((Wized) => {
       bindControls();
       updateLegend();
       apply();
+      if (window.ohMapLoader) window.ohMapLoader.mark('data');
     });
   }
 
@@ -359,6 +427,8 @@ window.Wized.push((Wized) => {
       })
       .catch((e) => console.error('[site-plan] plan load failed, using inline svg', e));
   })();
+
+  svgReady.then(() => { if (window.ohMapLoader) window.ohMapLoader.mark('plan'); });
 
   console.log('[site-plan] controller loaded');
   if (Wized.data.r[REQ] && Wized.data.r[REQ].hasRequested) boot();
