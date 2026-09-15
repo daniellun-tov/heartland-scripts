@@ -56,6 +56,33 @@
     cb.insertBefore(l, cb.firstChild);
   }
 
+  /* Mobile labels. The colour-by toggle, the legend and the level switch float
+     on the plan on small screens, so every label carries a short form as well:
+     both are in the DOM and the CSS picks one (.oh-lbl-full/.oh-lbl-short), so
+     nothing has to listen for resizes or re-run after a re-render. */
+  function shortLabel(el, short) {
+    if (!el || el.querySelector('.oh-lbl-full')) return;
+    var full = (el.textContent || '').trim();
+    if (!full || !short || short === full) return;
+    el.textContent = '';
+    var f = document.createElement('span'); f.className = 'oh-lbl-full'; f.textContent = full;
+    var t = document.createElement('span'); t.className = 'oh-lbl-short'; t.textContent = short;
+    el.appendChild(f); el.appendChild(t);
+  }
+  window.ohShortLabel = shortLabel;
+  var SHORT = { 'Availability': 'Status', 'Unit type': 'Type', 'Available': 'Avail', 'Reserved': 'Res', 'Pending': 'Pend', 'Sold': 'Sold', 'Sold out': 'Out', 'Coming soon': 'Soon' };
+  document.querySelectorAll('.site-plan_colourby-btn').forEach(function (b) {
+    shortLabel(b, SHORT[(b.textContent || '').trim()]);
+  });
+  document.querySelectorAll('.site-plan_legend-item').forEach(function (item) {
+    var label = Array.prototype.slice.call(item.children).filter(function (c) {
+      return !c.classList.contains('site-plan_legend-swatch') && !c.classList.contains('site-plan_legend-count');
+    })[0];
+    if (!label) return;
+    var full = (label.textContent || '').trim();
+    shortLabel(label, SHORT[full] || (/^Type\s+/.test(full) ? full.replace(/^Type\s+/, '') : null));
+  });
+
   /* app shell (15 Sep): the page is a fixed-height app - sidebar (brand +
      filters), plan, list, footer bar. Nothing scrolls but the filter chips,
      the cards and the map itself. */
@@ -488,11 +515,15 @@ window.Wized.push((Wized) => {
     host.setAttribute('role', 'group');
     host.setAttribute('aria-label', 'Level');
     if (!host.querySelector('[data-floor-btn]')) {
-      host.innerHTML = '<span class="site-plan_switch-label">Level</span>' + floorLevels.map((l) =>
-        '<button type="button" class="site-plan_floor-btn" data-floor-btn="' + l + '">' +
-        '<span class="site-plan_floor-label">' + floorLabel(l) + '</span>' +
-        '<span class="site-plan_floor-count" data-floor-count="' + l + '"></span></button>'
-      ).join('');
+      host.innerHTML = '<span class="site-plan_switch-label">Level</span>' + floorLevels.map((l) => {
+        const label = floorLabel(l);
+        const digits = String(label).match(/\d+/);
+        const short = digits ? digits[0] : String(label).charAt(0).toUpperCase();
+        return '<button type="button" class="site-plan_floor-btn" data-floor-btn="' + l + '">' +
+          '<span class="site-plan_floor-label"><span class="oh-lbl-full">' + label + '</span>' +
+          '<span class="oh-lbl-short">' + short + '</span></span>' +
+          '<span class="site-plan_floor-count" data-floor-count="' + l + '"></span></button>';
+      }).join('');
     }
     host.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-floor-btn]');
@@ -569,7 +600,11 @@ window.Wized.push((Wized) => {
         const item = c.closest('.site-plan_legend-item') || c.parentNode;
         item.classList.toggle('is-coming-soon', soon);
         let tag = item.querySelector('.site-plan_legend-soon');
-        if (soon && !tag) { tag = document.createElement('span'); tag.className = 'site-plan_legend-soon'; tag.textContent = 'Coming soon'; item.appendChild(tag); }
+        if (soon && !tag) {
+          tag = document.createElement('span'); tag.className = 'site-plan_legend-soon'; tag.textContent = 'Coming soon';
+          if (window.ohShortLabel) window.ohShortLabel(tag, 'Soon');
+          item.appendChild(tag);
+        }
         if (!soon && tag) tag.remove();
       });
     });
@@ -950,21 +985,21 @@ window.Wized.push((Wized) => {
 
   function boot() {
     var src = document.querySelector('.unit-filter_match');
-    /* the mobile toolbar sits under the fixed navbar, so the count goes in the
-       map meta strip - the first thing below the nav - and falls back to the
-       toolbar if that strip is not on the page */
-    var meta = document.querySelector('.unit-filter_mobile-map-meta');
-    var bar = meta || document.querySelector('.unit-filter_mobile-toolbar');
+    /* the app shell hides the site navbar, so the count sits in the Plan|List
+       toolbar row itself (the map meta strip below it is gone on mobile - the
+       plan controls float on the map instead); the strip is still the fallback */
+    var toolbar = document.querySelector('.unit-filter_mobile-toolbar');
+    var meta = toolbar ? null : document.querySelector('.unit-filter_mobile-map-meta');
+    var bar = toolbar || meta;
     if (!bar || !src) return false;
     if (document.querySelector('.unit-filter_mobile-match')) return true;
 
     var el = document.createElement('div');
     el.className = 'unit-filter_mobile-match';
     el.setAttribute('aria-live', 'polite');
-    /* last in the meta strip: its top rows can sit under the fixed navbar,
-       the bottom of it never does */
+    /* in the toolbar row: between the Plan|List switch and the Filters button */
     if (meta) bar.appendChild(el);
-    else bar.insertBefore(el, bar.querySelector('.unit-filter_mobile-view-switch') || null);
+    else bar.insertBefore(el, bar.querySelector('[data-drawer="open"]') || null);
 
     function sync() {
       /* the number only: .unit-filter_match may wrap the counter in a sentence */
@@ -1974,6 +2009,25 @@ window.ohNativeSubmit = async function (form, doneText) {
 
     var wrap = document.querySelector('.site-plan_detail-wrap');
     var links = [].slice.call(nav.querySelectorAll('a'));
+
+    /* Reserve / Share: above the subtabs (and so above the first subsection) on
+       desktop, where the whole panel is in view; on mobile they stay a sticky
+       bar at the bottom of the panel, within thumb reach. One element moves -
+       cloning would duplicate the Wized bindings and the modal attributes. */
+    var bar = panel.querySelector('[data-actionbar]');
+    if (bar) {
+      var mq = window.matchMedia('(min-width: 992px)');
+      var place = function () {
+        if (mq.matches) {
+          if (bar.parentNode !== nav.parentNode || bar.nextElementSibling !== nav) nav.parentNode.insertBefore(bar, nav);
+        } else if (bar.parentNode !== panel || panel.lastElementChild !== bar) {
+          panel.appendChild(bar);
+        }
+      };
+      place();
+      if (mq.addEventListener) mq.addEventListener('change', place);
+      else if (mq.addListener) mq.addListener(place);
+    }
 
     function scroller() {
       if (panel.scrollHeight > panel.clientHeight + 5) return panel;

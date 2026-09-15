@@ -18,6 +18,10 @@
 }
 .site-plan_card-title,.site-plan_tooltip-id,.unit-details_price,.unit-details_spec-value{font-family:var(--_typography---font--secondary-family, "Tenor Sans", serif)}
 
+/* ---- labels: every control label carries a full and a short form (heartland-oh.js), the breakpoint picks one ---- */
+.oh-lbl-short{display:none}
+@media (max-width:991px){.oh-lbl-full{display:none}.oh-lbl-short{display:inline}}
+
 /* ---- legend swatches & pills ---- */
 .site-plan_legend-swatch.is-available{background:var(--oh-available)}
 .site-plan_legend-swatch.is-reserved{background:var(--oh-reserved)}
@@ -194,6 +198,12 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 .unit-details_body{flex:1 1 auto}
 .unit-details_actionbar{position:sticky;bottom:0;padding-bottom:calc(.875rem + env(safe-area-inset-bottom,0px))}
 .unit-details_actionbar .button{width:100%;justify-content:center}
+/* desktop: heartland-oh.js moves [data-actionbar] into the body, above the subtabs and the
+   first subsection - it stops being a bar and becomes the panel's primary actions row */
+.unit-details_body>.unit-details_actionbar{position:static;padding:0 0 1.25rem;border-top:0;background:none}
+.unit-details_body>.unit-details_actionbar .unit-details_actionbar-reserve{flex:1 1 auto;min-width:0}
+.unit-details_body>.unit-details_actionbar .unit-details_actionbar-share{flex:0 0 auto}
+.unit-details_body>.unit-details_actionbar .unit-details_actionbar-share .button{width:auto}
 .unit-details_fp-img[src=""],.unit-details_fp-img:not([src]){display:none}
 /* the block: render + level highlight, estate + block highlight */
 .unit-details_block-image.has-ud-block>img{display:none}
@@ -223,12 +233,13 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 
 /* ---- tablet & mobile: brand bar, Plan|List toolbar, one pane, footer ---- */
 @media (max-width:991px){
-  .unit-filter_component{grid-template-columns:1fr;grid-template-rows:auto auto auto minmax(0,1fr) auto;grid-template-areas:"brand" "mtoolbar" "mmeta" "main" "footer"}
+  .unit-filter_component{grid-template-columns:1fr;grid-template-rows:auto auto minmax(0,1fr) auto;grid-template-areas:"brand" "mtoolbar" "main" "footer"}
   .unit-filter_brand{flex-direction:row;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-bottom:1px solid var(--oh-line)}
   .unit-filter_brand-logo{width:6.5rem}
-  .unit-filter_mobile-toolbar{grid-area:mtoolbar;display:flex;padding:.6rem 1rem 0}
-  .unit-filter_mobile-map-meta{grid-area:mmeta;display:flex;align-items:center;gap:.75rem;min-height:1.5rem;padding:.35rem 1rem .5rem}
-  .unit-filter_mobile-match{font-size:.875rem;color:var(--oh-ink)}
+  .unit-filter_mobile-toolbar{grid-area:mtoolbar;display:flex;align-items:center;gap:.5rem;padding:.55rem 1rem}
+  .unit-filter_mobile-map-meta{display:none}
+  .unit-filter_mobile-match{margin:0 auto;font-size:.8125rem;color:var(--oh-ink);white-space:nowrap}
+  .unit-filter_view-btn,.unit-filter_drawer-btn{padding:.4rem .8rem;font-size:.8125rem}
   .unit-filter_backdrop{display:block}
   .unit-filter_backdrop.is-open{opacity:1;pointer-events:auto;z-index:2147483000}
   .unit-filter_filters{position:fixed;top:0;right:0;bottom:0;z-index:2147483001;width:min(22rem,90vw);max-height:none;background:#fff;box-shadow:-20px 0 60px rgba(21,23,20,.2);transform:translateX(100%);transition:transform .3s}
@@ -238,12 +249,19 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .unit-filter_component.is-view-list .unit-filter_map,.unit-filter_component.is-view-list .unit-filter_map-container,.unit-filter_component.is-view-list .site-plan_zoom,.unit-filter_component.is-view-list .site-plan_floor-switch,.unit-filter_component.is-view-list .unit-filter_main{display:none}
   .unit-filter_component:not(.is-view-list) .site-plan_list-wrap{display:none}
   .page_wrap.is-view-list .site-plan_colourby{display:none}
-  .unit-filter_map .site-plan_toolbar{position:static;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem .75rem;padding:0 1rem .5rem;max-width:none}
-  .unit-filter_map .site-plan_colourby,.unit-filter_map .site-plan_legend{box-shadow:none;background:var(--oh-sand);border-radius:999px}
-  /* the level switch sits in the flow above the map (the toolbar occupies the top of the wrap) */
-  .unit-filter_map .site-plan_toolbar{order:0}
-  .unit-filter_map .site-plan_floor-switch{position:static;order:1;align-self:flex-start;margin:0 1rem .5rem;box-shadow:none;background:var(--oh-sand)}
-  .unit-filter_map .unit-filter_map-container{order:2}
+  /* the plan controls float on the map (as on desktop) so the map keeps the height:
+     colour-by + legend top right, the level switch top left, zoom bottom right */
+  .unit-filter_map .site-plan_toolbar{top:.5rem;right:.5rem;gap:.35rem;max-width:calc(100% - 6rem)}
+  .unit-filter_map .site-plan_colourby{padding:.2rem}
+  .site-plan_colourby-btn{padding:.3rem .65rem;font-size:.75rem}
+  .unit-filter_map .site-plan_legend{padding:.35rem .6rem;border-radius:.6rem;font-size:.6875rem}
+  .unit-filter_map .site-plan_legend-group{column-gap:.6rem;row-gap:.2rem;justify-content:flex-end}
+  .site-plan_legend-item{gap:.3rem;font-size:.6875rem}
+  .site-plan_legend-swatch{width:.6rem;height:.6rem}
+  .site-plan_switch-label,.site-plan_sort-label{display:none}
+  .site-plan_floor-switch{left:.5rem;top:.5rem;padding:.2rem}
+  .site-plan_floor-btn{padding:.3rem .5rem;font-size:.75rem}
+  .site-plan_zoom{right:.5rem;bottom:.5rem}
   .site-plan_list{grid-template-columns:repeat(2,minmax(0,1fr))}
   .site-plan_detail-panel{max-width:none}
   .unit-details_body{padding:1.25rem 1.25rem 3rem}
