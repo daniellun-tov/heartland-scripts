@@ -332,6 +332,11 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .unit-filter_mobile-toolbar{grid-area:mtoolbar;display:flex;align-items:center;gap:.5rem;padding:.55rem 1rem}
   .unit-filter_mobile-map-meta{display:none}
   .unit-filter_mobile-match{margin:0 auto;font-size:.8125rem;color:var(--oh-ink);white-space:nowrap}
+  /* the toolbar mirror carries the count in both views, so the list head's own
+     "N units match" line is a duplicate on mobile - hidden, not removed: it is
+     the Wized-bound source the mirror reads from */
+  .site-plan_list-head .unit-filter_match{display:none}
+  .site-plan_list-head{gap:0}
   .unit-filter_view-btn,.unit-filter_drawer-btn{padding:.4rem .8rem;font-size:.8125rem}
   .unit-filter_backdrop{display:block}
   .unit-filter_backdrop.is-open{opacity:1;pointer-events:auto;z-index:2147483000}
