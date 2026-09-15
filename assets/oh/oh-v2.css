@@ -513,8 +513,14 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
     overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   #notify-unit-v2 .contact-2-col-stack,#reserve-unit-v2 .contact-2-col-stack{grid-template-columns:1fr;gap:1.75rem}
   #notify-unit-v2 ._2-col-input-stack,#reserve-unit-v2 ._2-col-input-stack{grid-template-columns:1fr}
-  /* the close sits absolute inside the card, so it scrolls away with it -
-     pin it to the viewport instead (.popup is already fixed and full screen) */
+  /* The close scrolls away with the card, so it is pinned to the viewport
+     instead (.popup is already fixed and full screen). Its own anchor is
+     absolute at left:-16px/right:16px with width:0 - offsets that sat neatly
+     outside an inset card but hang off the edge of a full-bleed one - so the
+     anchor goes back in flow and the wrapper carries the position. */
   #notify-unit-v2 .buttons-wrapper.u-position-absolute,#reserve-unit-v2 .buttons-wrapper.u-position-absolute{
-    position:fixed;top:calc(env(safe-area-inset-top,0px) + .75rem);right:.9rem;left:auto;z-index:3}
+    position:fixed;top:calc(env(safe-area-inset-top,0px) + .75rem);right:.9rem;left:auto;bottom:auto;
+    width:auto;justify-content:flex-end;z-index:3}
+  #notify-unit-v2 .buttons-wrapper.u-position-absolute>a,#reserve-unit-v2 .buttons-wrapper.u-position-absolute>a{
+    position:static;inset:auto;width:auto}
 }
