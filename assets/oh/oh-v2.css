@@ -115,15 +115,44 @@ html.oh-data-pending .site-plan_floor-count,
 html.oh-data-pending .unit-filter_match,
 html.oh-data-pending .unit-filter_mobile-match{visibility:hidden}
 
-/* ---- map loading state: the SV page-loader treatment (sand cover, logo, thin bar),
-        scoped to the plan. --oh-p (0..1) is set by heartland-oh.js ---- */
-.site-plan_loader{--oh-p:0;position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.75rem;background:var(--oh-sand);transition:opacity .5s ease}
-.site-plan_loader.is-out{opacity:0;pointer-events:none}
-.site-plan_loader-logo{width:min(15rem,50%);height:auto;opacity:.92}
-.site-plan_loader-bar{position:relative;width:10rem;height:2px;border-radius:2px;background:rgba(44,43,39,.16);overflow:hidden}
-.site-plan_loader-fill{position:absolute;left:0;top:0;bottom:0;width:calc(100% * var(--oh-p));background:var(--oh-ink);transition:width .3s cubic-bezier(.22,1,.36,1)}
-@media (prefers-reduced-motion:reduce){.site-plan_loader,.site-plan_loader-fill{transition:none}}
-@media (max-width:991px){.site-plan_loader{gap:1.25rem}.site-plan_loader-logo{width:min(11rem,55%)}}
+/* ---- map reveal: the plan settles in and the panels slide home once the plan, the
+        data and the background are in (heartland-oh.js). html.oh-reveal is stamped
+        before first paint by the head snippet; transitions only exist while
+        html.oh-reveal-go is on, so nothing later animates by accident. ---- */
+html.oh-reveal .site-plan_map{opacity:0}
+html.oh-reveal .site-plan_map-canvas{transform:scale(1.05)}
+html.oh-reveal .unit-filter_map .site-plan_toolbar{opacity:0;transform:translateY(-.75rem)}
+html.oh-reveal .site-plan_floor-switch,
+html.oh-reveal .site-plan_zoom,
+html.oh-reveal .unit-filter_mobile-toolbar,
+html.oh-reveal .unit-filter_footer{opacity:0}
+html.oh-reveal-go .site-plan_map{transition:opacity .7s ease}
+html.oh-reveal-go .site-plan_map-canvas{transition:transform 1s cubic-bezier(.22,1,.36,1)}
+html.oh-reveal-go .unit-filter_map .site-plan_toolbar{transition:opacity .5s ease .3s,transform .5s cubic-bezier(.22,1,.36,1) .3s}
+html.oh-reveal-go .site-plan_floor-switch,
+html.oh-reveal-go .site-plan_zoom{transition:opacity .5s ease .36s}
+html.oh-reveal-go .unit-filter_mobile-toolbar,
+html.oh-reveal-go .unit-filter_footer{transition:opacity .5s ease .42s}
+/* the side panels only slide on desktop - on mobile the filters are a fixed drawer
+   that is already off-canvas and the list replaces the map pane */
+@media (min-width:992px){
+  html.oh-reveal .unit-filter_filters{transform:translateX(-101%)}
+  html.oh-reveal .site-plan_list-wrap{transform:translateX(101%)}
+  html.oh-reveal-go .unit-filter_filters{transition:transform .6s cubic-bezier(.22,1,.36,1) .18s}
+  html.oh-reveal-go .site-plan_list-wrap{transition:transform .6s cubic-bezier(.22,1,.36,1) .24s}
+}
+@media (prefers-reduced-motion:reduce){
+  html.oh-reveal .site-plan_map-canvas,
+  html.oh-reveal .unit-filter_filters,
+  html.oh-reveal .site-plan_list-wrap,
+  html.oh-reveal .unit-filter_map .site-plan_toolbar{transform:none}
+  html.oh-reveal-go .site-plan_map,
+  html.oh-reveal-go .unit-filter_map .site-plan_toolbar,
+  html.oh-reveal-go .site-plan_floor-switch,
+  html.oh-reveal-go .site-plan_zoom,
+  html.oh-reveal-go .unit-filter_mobile-toolbar,
+  html.oh-reveal-go .unit-filter_footer{transition:opacity .25s ease}
+}
 
 /* viewport: the container is a fixed-height box, the stage inside carries half-viewport padding, the canvas an explicit px width (heartland-oh.js) */
 .unit-filter_map-container{position:relative;overflow:hidden;height:min(72vh,44rem);background:var(--_colours---backgrounds--white,#fff);border-radius:var(--radius--main,.75rem);cursor:grab;touch-action:none;overscroll-behavior:contain}
@@ -301,7 +330,8 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .unit-filter_map .site-plan_legend-group{column-gap:.6rem;row-gap:.2rem;justify-content:flex-end}
   .site-plan_legend-item{gap:.3rem;font-size:.6875rem}
   .site-plan_legend-swatch{width:.6rem;height:.6rem}
-  .site-plan_switch-label,.site-plan_sort-label{display:none}
+  .site-plan_colourby .site-plan_switch-label,.site-plan_sort-label{display:none}
+  .site-plan_floor-switch .site-plan_switch-label{padding:0 .35rem 0 .5rem;font-size:.625rem}
   .site-plan_floor-switch{left:.5rem;top:.5rem;padding:.2rem}
   .site-plan_floor-btn{padding:.3rem .5rem;font-size:.75rem}
   .site-plan_zoom{right:.5rem;bottom:.5rem}

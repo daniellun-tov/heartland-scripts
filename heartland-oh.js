@@ -98,76 +98,57 @@
     Array.prototype.slice.call(inner.children).forEach(function (c) { if (c !== head) scroll.appendChild(c); });
     inner.appendChild(scroll);
   }
-  /* Map loading state - the Stellenbosch Village page-loader treatment scoped to
-     the plan: a sand cover over the map with the logo and a thin bar beneath it.
-     The bar creeps towards a ceiling so it never stalls on a slow asset, and
-     three milestones move it on - the plan SVG, the unit data, the background
-     image. It dissolves once all three are in, or after 9s whatever happens. */
-  (function mapLoader() {
-    var host = document.querySelector('.unit-filter_map');
-    if (!host || document.querySelector('.site-plan_loader')) return;
-    var brand = document.querySelector('.unit-filter_brand-img');
-    var src = brand && brand.getAttribute('src');
-    var el = document.createElement('div');
-    el.className = 'site-plan_loader';
-    el.setAttribute('role', 'status');
-    el.setAttribute('aria-label', 'Loading the site plan');
-    el.innerHTML = (src ? '<img class="site-plan_loader-logo" src="' + src + '" alt="">' : '') +
-      '<div class="site-plan_loader-bar"><span class="site-plan_loader-fill"></span></div>';
-    host.appendChild(el);
-
-    var p = 0, tick = null, out = false;
+  /* Map reveal - the Stellenbosch Village pattern. html.oh-reveal is stamped
+     before first paint (head snippet): the plan is hidden and slightly scaled
+     up, the filters and the list sit off their own sides, and the floating
+     controls, the mobile toolbar and the footer bar are transparent. Three
+     milestones say when the map is real - the plan SVG, the unit data and the
+     background image - and then the whole thing settles in, staggered from the
+     plan outwards (transitions live under html.oh-reveal-go, so nothing else
+     the page does later animates). A 9s timeout plays it regardless, and the
+     head snippet clears the class if this file never loads at all. */
+  (function mapReveal() {
+    var root = document.documentElement;
     var marks = { plan: false, data: false, image: false };
-    function set(v) {
-      if (out) return;
-      p = Math.max(p, Math.min(1, v));
-      el.style.setProperty('--oh-p', p.toFixed(3));
+    var played = false;
+
+    function play() {
+      if (played) return;
+      played = true;
+      root.classList.remove('oh-data-pending');
+      if (!root.classList.contains('oh-reveal')) return;
+      /* two frames: the viewport fits and centres the plan before it shows */
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          root.classList.add('oh-reveal-go');
+          root.classList.remove('oh-reveal');
+          setTimeout(function () { root.classList.remove('oh-reveal-go'); }, 1600);
+          document.dispatchEvent(new CustomEvent('oh:map-revealed'));
+        });
+      });
     }
-    function creep(ceiling) {
-      clearInterval(tick);
-      tick = setInterval(function () {
-        if (out) return clearInterval(tick);
-        set(p + (ceiling - p) * 0.08);
-      }, 120);
-    }
-    function finish() {
-      if (out) return;
-      out = true;
-      document.documentElement.classList.remove('oh-data-pending');
-      clearInterval(tick);
-      el.style.setProperty('--oh-p', '1');
-      /* a beat for the viewport to fit and centre the plan, then dissolve */
-      setTimeout(function () {
-        el.classList.add('is-out');
-        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 520);
-      }, 200);
-    }
-    /* the chips, the legend and the results line all read 0 until the units
-       land, which looks like "nothing matches" rather than "loading" */
-    document.documentElement.classList.add('oh-data-pending');
+
     window.ohMapLoader = {
       mark: function (name) {
-        if (name === 'data') document.documentElement.classList.remove('oh-data-pending');
-        if (name in marks && !marks[name]) {
-          marks[name] = true;
-          var done = Object.keys(marks).filter(function (k) { return marks[k]; }).length;
-          set(0.25 + done * 0.2);
-          creep(0.3 + done * 0.22);
-        }
-        if (marks.plan && marks.data && marks.image) finish();
+        if (name in marks) marks[name] = true;
+        if (name === 'data') root.classList.remove('oh-data-pending');
+        if (marks.plan && marks.data && marks.image) play();
       },
-      finish: finish,
-      progress: function () { return p; }
+      play: play,
+      finish: play
     };
-    set(0.08);
-    creep(0.3);
+
+    /* the chips, the legend and the results line all read 0 until the units
+       land, which looks like "nothing matches" rather than "loading" */
+    root.classList.add('oh-data-pending');
+
     var img = document.querySelector('.site-plan_map-image');
     if (!img || (img.complete && img.naturalWidth)) window.ohMapLoader.mark('image');
     else {
       img.addEventListener('load', function () { window.ohMapLoader.mark('image'); });
       img.addEventListener('error', function () { window.ohMapLoader.mark('image'); });
     }
-    setTimeout(finish, 9000);
+    setTimeout(play, 9000);
   })();
 
   var pageWrap = document.querySelector('.page_wrap');
