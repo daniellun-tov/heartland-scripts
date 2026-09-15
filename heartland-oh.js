@@ -1058,12 +1058,21 @@ window.Wized.push((Wized) => {
     else { var svg = canvas.querySelector('svg'); var vb = svg && (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number); if (vb && vb[2]) aspect = vb[2] / vb[3]; }
     return aspect || 1690 / 1490;
   }
+  /* Mobile portrait: the box is much taller than the plan's aspect, so a
+     "contain" fit leaves a dead band above and below it. Fill the box instead
+     (the sides overflow and pan), which is what the freed-up height was for.
+     Zoom 1 is still "the default view", so the % readout and Reset are
+     unchanged, and a rotation re-measures through the ResizeObserver. */
+  function fillsBox() {
+    return window.matchMedia('(max-width: 991px)').matches && box.clientHeight > box.clientWidth * 1.15;
+  }
   /* width of the plan at zoom 1: fits the viewport with a little air */
   function measure() {
     var bw = box.clientWidth, bh = box.clientHeight;
     if (!bw || !bh) return;
     var r = ratio();
-    baseW = Math.round(Math.min(bw * FIT, bh * FIT * r));
+    baseW = fillsBox() ? Math.round(Math.max(bw, bh * r))
+                       : Math.round(Math.min(bw * FIT, bh * FIT * r));
     stage.style.padding = Math.round(bh * 0.5) + 'px ' + Math.round(bw * 0.5) + 'px';
     setWidth();
   }

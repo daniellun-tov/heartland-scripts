@@ -1,4 +1,5 @@
-# unlabel.py - strip the baked-in labels from the site-plan background.
+# unlabel.py - strip the baked-in labels from the site-plan background, then
+# relax the edge fade (refade section at the bottom).
 #
 # The background raster carries the SDP's own text (street names, Gatehouse,
 # Utilities & Refuse, BUILDING LINE annotations, the utility plaques) and the
@@ -10,11 +11,15 @@
 # Two detectors, both conservative:
 #   A  a dark label on a near-white halo box -> fill its min-area rect
 #   B  thin-stroke glyph clusters within 230px of a curated seed (the labels
-#      with no halo box: white-on-grey brochure text, the faded notes)
+#      with no halo box). A cluster whose rect reads BRIGHTER than the ring
+#      around it is a label on a pale box (the pond, the plaques) and the whole
+#      rect is filled; one that reads darker is white-on-grey text
+#      (WELGEVONDEN BOULEVARD) and only the glyphs go, or the fill eats the
+#      road band the text sits on.
 # Block footprints from the plan SVG are excluded: the only things that look
 # like glyphs inside them are the courtyard slivers between unit polygons.
 #
-#   python3 unlabel.py            # oh-site-plan-bg.webp (v5) -> bg6.png + webp
+#   python3 unlabel.py            # ../oh-site-plan-bg-v5.webp -> bg6.png
 import cv2, numpy as np, re
 from PIL import Image
 
@@ -62,6 +67,10 @@ for i in range(1, n):
     nA += 1
 print('A labels', nA)
 
+def gpx8_pad(gpx, x, y, H, W):
+    m = np.zeros((H, W), np.uint8); m[y:y+gpx.shape[0], x:x+gpx.shape[1]] = gpx
+    return m
+
 # ---- glyph mask (thin dark or thin bright strokes) ----
 bh = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, K(41))
 th = cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, K(41))
@@ -102,10 +111,30 @@ for i in range(1, n):
     gpx = glyph[y:y+h, x:x+w] & sub.astype(np.uint8)
     if int(gpx.sum()) < 120: continue
     if not (seedmap[y:y+h, x:x+w][sub] > 0).any(): continue
+    # the label's own white halo box has to go too, or the fill samples it and
+    # leaves a bright smear (the attenuation pond): take the cluster's min-area
+    # rect, as pass A does, not just the glyph strokes
+    cnts = cv2.findContours(gpx, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
+    if len(cnts):
+        pts = np.concatenate(cnts) + np.array([[[x, y]]])
+        (rc, rs, ra) = cv2.minAreaRect(pts)
+        rect = np.int32(cv2.boxPoints((rc, (rs[0] + 18, rs[1] + 18), ra)))
+        inner = np.zeros((H, W), np.uint8); cv2.fillPoly(inner, [rect], 1)
+        ring = cv2.dilate(inner, K(61)) & (1 - inner)
+        ink = cv2.dilate(gpx8_pad(gpx, x, y, H, W), K(7))
+        inner[ink > 0] = 0; ring[ink > 0] = 0
+        # A label printed on its own pale box (the pond, the plaques) reads
+        # brighter inside the rect than just outside it: fill the whole box, or
+        # the fill samples the halo and leaves a bright smear. White-on-grey
+        # text (WELGEVONDEN BOULEVARD) reads darker inside - glyphs only there,
+        # or the rect eats the road band the text sits on.
+        if inner.sum() > 200 and ring.sum() > 200:
+            if np.median(gray[inner > 0]) > np.median(gray[ring > 0]) + 5:
+                cv2.fillPoly(maskB, [rect], 1)
     maskB[y:y+h, x:x+w] |= gpx
     nB += 1
 print('B clusters', nB)
-maskB = cv2.dilate(maskB, K(11))
+maskB = cv2.dilate(maskB, K(5))
 
 # the boulevard band text also gets an explicit rotated strip (white on grey)
 band = np.zeros((H, W), np.uint8)
