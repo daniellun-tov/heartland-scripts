@@ -301,19 +301,54 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 [data-filter][data-value].is-taken{grid-column:span 2;width:100%;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:.35rem;border-radius:999px;padding:0 .5rem}
 [data-filter][data-value].is-taken .unit-filter_count{font-size:.625rem;letter-spacing:.01em;color:var(--oh-sold);white-space:nowrap;margin:0}
 [data-filter][data-value].is-coming-soon>span:first-child{white-space:nowrap}
-/* coming-soon / reserve popups: unit details left, form right */
-/* they are opened from inside the detail panel (z-index 2147483000) - the site's .popup
-   z-index of 99999 left them behind it */
+/* ---- coming-soon / reserve popups ----
+   Both are the site's .popup > .modal-content shell: the unit summary on the
+   left, the Webflow form on the right. Three things are restated here, all
+   scoped to these two ids so nothing else on the site moves.
+
+   z-index: they open from inside the detail panel (2147483000) and the site's
+   .popup sits at 99999, which left them behind it.
+
+   Alignment: the form column's own classes are .form-main-wrapper.right -
+   align-items:flex-end over a width:auto .w-form - so the fields shrank to
+   their content and sat shoved 40-80px right of everything else in the card,
+   and .w-form's Webflow default margin-bottom left a dead 15px. The form now
+   stretches to its column and every row shares one left edge.
+
+   The submit: the Designer's form button is the SECONDARY (outline) variant
+   with the arrow in its own outlined box, while the panel's Reserve is
+   "Btn / Filled Merlot / Icon Right". That filled look is an inline style on
+   the component instance, so there is no class to borrow - it is restated
+   against the same --oh-accent token, and the brown arrow asset is inverted
+   to white to match the filled component's own white arrow. */
 #notify-unit-v2.popup,#reserve-unit-v2.popup{z-index:2147483060}
 #notify-unit-v2 .modal-content,#reserve-unit-v2 .modal-content{max-width:72rem}
 #notify-unit-v2 .contact-2-col-stack,#reserve-unit-v2 .contact-2-col-stack{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:2.5rem 3rem;align-items:start}
 #notify-unit-v2 .contact-2-col-stack>.content-cell,#reserve-unit-v2 .contact-2-col-stack>.content-cell{min-width:0}
-#notify-unit-v2 .form-main-wrapper,#reserve-unit-v2 .form-main-wrapper{gap:1.1rem}
+
+/* the form fills its column instead of hugging its content on the right */
+#notify-unit-v2 .reserve-unit-form-wrapper,#reserve-unit-v2 .reserve-unit-form-wrapper,
+#notify-unit-v2 .form-stack,#reserve-unit-v2 .form-stack,
+#notify-unit-v2 .w-form,#reserve-unit-v2 .w-form,
+#notify-unit-v2 form,#reserve-unit-v2 form{width:100%;min-width:0}
+#notify-unit-v2 .form-main-wrapper,#reserve-unit-v2 .form-main-wrapper{width:100%;align-items:stretch;gap:1.1rem}
+#notify-unit-v2 .w-form,#reserve-unit-v2 .w-form{margin-bottom:0}
+/* one rhythm down the form: field rows, then the submit */
+#notify-unit-v2 form,#reserve-unit-v2 form{display:flex;flex-direction:column;gap:1.1rem}
+#notify-unit-v2 ._2-col-input-stack,#reserve-unit-v2 ._2-col-input-stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+#notify-unit-v2 ._2-col-input-stack>.content-cell,#reserve-unit-v2 ._2-col-input-stack>.content-cell{min-width:0}
 #notify-unit-v2 [data-notify="fields"],#notify-unit-v2 [data-notify="fields"] .content-cell{display:flex;flex-direction:column;gap:1.1rem}
-#notify-unit-v2 ._2-col-input-stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-#notify-unit-v2 .form_main_field_wrap,#reserve-unit-v2 .form_main_field_wrap{display:flex;flex-direction:column;gap:.35rem}
-#notify-unit-v2 [type="submit"],#notify-unit-v2 .w-button,#reserve-unit-v2 [type="submit"],#reserve-unit-v2 .w-button{margin-top:1.25rem}
-@media (max-width:767px){#notify-unit-v2 .contact-2-col-stack,#reserve-unit-v2 .contact-2-col-stack{grid-template-columns:1fr;gap:1.75rem}#notify-unit-v2 ._2-col-input-stack{grid-template-columns:1fr}}
+#notify-unit-v2 .form_main_field_wrap,#reserve-unit-v2 .form_main_field_wrap{display:flex;flex-direction:column;gap:.35rem;width:100%}
+#notify-unit-v2 .form_main_field_input,#reserve-unit-v2 .form_main_field_input{width:100%;margin-bottom:0}
+
+/* submit = the filled merlot component, not the outline one */
+#notify-unit-v2 .large-submit,#reserve-unit-v2 .large-submit{width:100%}
+#notify-unit-v2 .large-submit .button-wrapper,#reserve-unit-v2 .large-submit .button-wrapper{display:flex;align-items:stretch;gap:4px}
+#notify-unit-v2 .large-submit .label-button,#reserve-unit-v2 .large-submit .label-button{flex:1 1 auto;min-width:0;margin:0;background:var(--oh-accent);border:1px solid var(--oh-accent);border-radius:10px;color:#fff;text-align:center}
+#notify-unit-v2 .large-submit .label-button:hover,#reserve-unit-v2 .large-submit .label-button:hover{background:#9a5238;border-color:#9a5238}
+#notify-unit-v2 .large-submit .icon-button,#reserve-unit-v2 .large-submit .icon-button{flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:var(--oh-accent);border:1px solid var(--oh-accent);border-radius:10px}
+/* the asset is the brown arrow; the filled component ships a white one */
+#notify-unit-v2 .large-submit .button-icon,#reserve-unit-v2 .large-submit .button-icon{filter:brightness(0) invert(1)}
 
 /* ---- active filter tags: a wrapping row under the Filters / Reset line ---- */
 .unit-filter_head{flex-wrap:wrap}
@@ -464,4 +499,22 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
      what this moment is about - fade them out while the sheet is up */
   .unit-filter_map.has-soon-sheet .site-plan_viewmarks{opacity:0;pointer-events:none}
   .site-plan_viewmarks{transition:opacity .2s ease}
+}
+
+/* ---- popups go full bleed on a phone ----
+   The centred card left a 20px gutter all round on a 390px screen and still
+   scrolled internally, which pushed the absolutely-positioned close button
+   off the top. Full screen, one scroller, close pinned to the viewport. */
+@media (max-width:767px){
+  #notify-unit-v2.popup,#reserve-unit-v2.popup{align-items:stretch;justify-content:stretch;padding:0}
+  #notify-unit-v2 .modal-content,#reserve-unit-v2 .modal-content{
+    width:100%;max-width:none;height:100%;max-height:none;border-radius:0;
+    padding:calc(env(safe-area-inset-top,0px) + 3.25rem) 1.25rem calc(env(safe-area-inset-bottom,0px) + 1.5rem);
+    overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  #notify-unit-v2 .contact-2-col-stack,#reserve-unit-v2 .contact-2-col-stack{grid-template-columns:1fr;gap:1.75rem}
+  #notify-unit-v2 ._2-col-input-stack,#reserve-unit-v2 ._2-col-input-stack{grid-template-columns:1fr}
+  /* the close sits absolute inside the card, so it scrolls away with it -
+     pin it to the viewport instead (.popup is already fixed and full screen) */
+  #notify-unit-v2 .buttons-wrapper.u-position-absolute,#reserve-unit-v2 .buttons-wrapper.u-position-absolute{
+    position:fixed;top:calc(env(safe-area-inset-top,0px) + .75rem);right:.9rem;left:auto;z-index:3}
 }
