@@ -115,6 +115,18 @@ html.oh-data-pending .site-plan_floor-count,
 html.oh-data-pending .unit-filter_match,
 html.oh-data-pending .unit-filter_mobile-match{visibility:hidden}
 
+/* ---- map loader: a blurred scrim over the map while it loads, with a small bar
+        looping left to right. Built and removed by heartland-oh.js. ---- */
+.site-plan_loader{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;background:rgba(242,239,230,.45);backdrop-filter:blur(7px) saturate(.9);-webkit-backdrop-filter:blur(7px) saturate(.9);transition:opacity .45s ease}
+.site-plan_loader.is-out{opacity:0;pointer-events:none}
+.site-plan_loader-bar{position:relative;width:7rem;height:2px;border-radius:999px;background:rgba(44,43,39,.14);overflow:hidden}
+.site-plan_loader-bar span{position:absolute;left:0;top:0;bottom:0;width:38%;border-radius:999px;background:var(--oh-ink);transform:translateX(-110%);animation:oh-bar 1.2s ease-in-out infinite}
+@keyframes oh-bar{from{transform:translateX(-110%)}to{transform:translateX(270%)}}
+@media (prefers-reduced-motion:reduce){.site-plan_loader-bar span{animation-duration:2.6s;animation-timing-function:linear}}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .site-plan_loader{background:rgba(242,239,230,.82)}
+}
+
 /* ---- map reveal: the plan settles in and the panels slide home once the plan, the
         data and the background are in (heartland-oh.js). html.oh-reveal is stamped
         before first paint by the head snippet; transitions only exist while

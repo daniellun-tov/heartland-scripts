@@ -112,10 +112,27 @@
     var marks = { plan: false, data: false, image: false };
     var played = false;
 
+    /* a blurred scrim over the map with a small looping bar, so the wait reads as
+       loading rather than as a plan that has not drawn itself yet */
+    var host = document.querySelector('.unit-filter_map');
+    var veil = null;
+    if (host && root.classList.contains('oh-reveal') && !host.querySelector('.site-plan_loader')) {
+      veil = document.createElement('div');
+      veil.className = 'site-plan_loader';
+      veil.setAttribute('role', 'status');
+      veil.setAttribute('aria-label', 'Loading the site plan');
+      veil.innerHTML = '<div class="site-plan_loader-bar"><span></span></div>';
+      host.appendChild(veil);
+    }
+
     function play() {
       if (played) return;
       played = true;
       root.classList.remove('oh-data-pending');
+      if (veil) {
+        veil.classList.add('is-out');
+        setTimeout(function () { if (veil && veil.parentNode) veil.parentNode.removeChild(veil); }, 520);
+      }
       if (!root.classList.contains('oh-reveal')) return;
       /* two frames: the viewport fits and centres the plan before it shows */
       requestAnimationFrame(function () {
