@@ -916,18 +916,30 @@ window.Wized.push((Wized) => {
       });
     });
 
-    document.querySelectorAll('[data-filter]').forEach((el) =>
-      el.addEventListener('click', () => {
-        if (el.classList.contains('is-coming-soon') || el.classList.contains('is-disabled')) return;
-        const facet = el.getAttribute('data-filter');
-        const set = state[facet];
-        if (!set) return console.warn('Unknown filter facet:', facet);
-        const key = norm(FACETS[facet], el.getAttribute('data-value'));
-        set.has(key) ? set.delete(key) : set.add(key);
-        el.classList.toggle('is-active', set.has(key));
-        apply();
-      }),
-    );
+    /* delegated, not bound per chip: the View facet's chips are built from
+       /views after this runs, and a per-element listener would miss them */
+    function chipClick(el) {
+      if (!el || el.classList.contains('is-coming-soon') || el.classList.contains('is-disabled')) return;
+      const facet = el.getAttribute('data-filter');
+      const set = state[facet];
+      if (!set) return console.warn('Unknown filter facet:', facet);
+      const key = norm(FACETS[facet], el.getAttribute('data-value'));
+      set.has(key) ? set.delete(key) : set.add(key);
+      el.classList.toggle('is-active', set.has(key));
+      apply();
+    }
+    document.addEventListener('click', (e) => {
+      chipClick(e.target.closest && e.target.closest('[data-filter]'));
+    });
+    /* the chips are divs with role="button", which fire no click from the
+       keyboard - honour the role rather than leaving it a broken promise */
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      const el = e.target.closest && e.target.closest('[data-filter],[data-toggle],[data-reset]');
+      if (!el) return;
+      e.preventDefault();
+      el.click();
+    });
 
     document.querySelectorAll('[data-toggle]').forEach((el) =>
       el.addEventListener('click', () => {
@@ -1323,6 +1335,7 @@ window.Wized.push((Wized) => {
       host.appendChild(markHost);
     }
     markHost.textContent = '';
+    layout();
     views.forEach(function (v) {
       if (!PLACED[v.placement]) return;
       var b = document.createElement('button');
@@ -1348,13 +1361,33 @@ window.Wized.push((Wized) => {
     syncMarkers();
   }
 
+  /* The toolbar floats over the top of the map - a right-aligned column on
+     desktop, a full-width row (sometimes two, when the legend wraps) on
+     mobile. Publish its height so the north marker can sit under it instead
+     of behind the legend. */
+  function layout() {
+    if (!markHost) return;
+    var bar = document.querySelector('.unit-filter_map .site-plan_toolbar');
+    var h = bar ? Math.round(bar.getBoundingClientRect().height) : 0;
+    markHost.style.setProperty('--oh-marks-top', (h ? h + 20 : 12) + 'px');
+  }
+  window.addEventListener('resize', layout);
+  document.addEventListener('oh:sales-phase', layout);
+
   /* markers mirror the facet, however it was changed - chip, tag or Reset */
   function syncMarkers() {
     if (!markHost) return;
     markHost.querySelectorAll('.site-plan_viewmark').forEach(function (b) {
-      var on = isOn(b.getAttribute('data-view'));
+      var key = b.getAttribute('data-view');
+      var on = isOn(key);
       b.classList.toggle('is-active', on);
       b.setAttribute('aria-pressed', String(on));
+      /* a view with nothing available reads as inert, exactly as its chip does -
+         otherwise the marker invites a click that returns "0 units match" */
+      var chip = document.querySelector('[data-filter="view"][data-value="' + key + '"]');
+      var off = !!(chip && chip.classList.contains('is-disabled'));
+      b.classList.toggle('is-muted', off);
+      b.disabled = off;
     });
   }
 
@@ -1483,13 +1516,13 @@ window.Wized.push((Wized) => {
   function hook() {
     if (hooked || !window.ohSitePlan || !window.ohSitePlan.onChange) return;
     hooked = true;
-    window.ohSitePlan.onChange(syncMarkers);   /* fires now and on every apply() */
+    window.ohSitePlan.onChange(function () { syncMarkers(); layout(); });   /* fires now and on every apply() */
     bindTooltip();
   }
   document.addEventListener('oh:unit-open', function (e) {
     if (e.detail && e.detail.unit) paintPanel(e.detail.unit);
   });
-  document.addEventListener('oh:map-revealed', function () { if (views.length) buildMarkers(); });
+  document.addEventListener('oh:map-revealed', function () { if (views.length) buildMarkers(); else layout(); });
 
   /* ask for the taxonomy the moment this file runs - six rows, and the markers
      should land with the rest of the map rather than seconds later */
