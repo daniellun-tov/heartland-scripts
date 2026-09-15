@@ -243,6 +243,11 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .unit-filter_brand,.unit-filter_filters{border-right:1px solid var(--oh-line)}
   .site-plan_list-wrap{border-left:1px solid var(--oh-line)}
   .unit-filter_mobile-toolbar,.unit-filter_mobile-map-meta{display:none}
+  /* tighter than the Designer's 1.25rem so the four items stay on one line and the
+     full radius reads as a pill rather than a squircle (it still wraps if it must) */
+  .unit-filter_map .site-plan_legend-group{column-gap:.85rem}
+  .unit-filter_map .site-plan_legend{font-size:.78125rem}
+  .unit-filter_map .site-plan_legend-item{gap:.4rem}
   /* the plan controls are one row across the top of the map: colour-by left, legend right.
      The level switch moves to the bottom left (opposite the zoom pill) to clear it. */
   .unit-filter_map .site-plan_toolbar{left:.75rem;right:.75rem;flex-direction:row;align-items:flex-start;justify-content:space-between;gap:.75rem;max-width:none}
