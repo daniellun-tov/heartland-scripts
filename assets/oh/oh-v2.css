@@ -71,14 +71,16 @@ html:not(.legends-ready) .site-plan_legend-group[data-legend-group="type"]{displ
 .is-colour-type .site-plan_plot[data-type="A"]{fill:var(--oh-type-a)}
 .is-colour-type .site-plan_plot[data-type="B"]{fill:var(--oh-type-b)}
 .is-colour-type .site-plan_plot[data-type="C"]{fill:var(--oh-type-c)}
-.is-colour-type .site-plan_plot[data-status="unreleased"]{fill-opacity:.3}
-.is-colour-type .site-plan_plot[data-status="unreleased"]:hover{fill-opacity:.5}
 @media (hover:hover){.site-plan_map-svg .site-plan_plot{fill-opacity:.72;transition:fill-opacity .15s}.site-plan_map-svg .site-plan_plot:hover,.site-plan_map-svg .site-plan_plot.is-selected{fill-opacity:1}}
 .site-plan_plot.is-dimmed{opacity:.2}
 .site-plan_plot.is-selected{stroke:var(--oh-ink);stroke-width:3}
-/* coming soon: a graded dark wash (the gradient is injected into the plan by heartland-oh.js) */
-.site-plan_map-svg .site-plan_plot[data-status="unreleased"]{cursor:pointer;fill-opacity:1}
+/* coming soon: a graded dark wash (the gradient is injected into the plan by heartland-oh.js).
+   The opacity is scoped to status mode - unscoped it also beat the quiet type colour below. */
+.site-plan_map-svg .site-plan_plot[data-status="unreleased"]{cursor:pointer}
+.is-colour-status .site-plan_plot[data-status="unreleased"]{fill-opacity:1}
 .is-colour-status .site-plan_plot[data-status="unreleased"]:hover{fill:url(#oh-soon-hi)}
+.is-colour-type .site-plan_plot[data-status="unreleased"]{fill-opacity:.28}
+.is-colour-type .site-plan_plot[data-status="unreleased"]:hover{fill-opacity:.5}
 .site-plan_map-svg .site-plan_plot.is-static{cursor:default}
 .site-plan_tooltip [hidden]{display:none!important}
 .site-plan_map-canvas.has-floors [data-floor]:not(.is-current){display:none}
