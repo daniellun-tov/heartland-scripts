@@ -268,13 +268,6 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
      The level switch moves to the bottom left (opposite the zoom pill) to clear it. */
   .unit-filter_map .site-plan_toolbar{left:.75rem;right:.75rem;flex-direction:row;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end;gap:.5rem .75rem;max-width:none}
   .site-plan_floor-switch{top:auto;bottom:.75rem}
-  /* the toolbar is a row across the top and the level switch moves to the
-     bottom-left, so the north and south markers step out of their way */
-  .site-plan_viewmark{width:1.75rem;height:1.75rem}
-  .site-plan_viewmark svg{width:.95rem;height:.95rem}
-  .site-plan_viewmark[data-placement="north"]{top:var(--oh-marks-top,3.4rem)}
-  .site-plan_viewmark[data-placement="south"]{bottom:3.25rem}
-  .site-plan_viewmark-tip{max-width:min(17rem,calc(100vw - 2rem))}
 }
 @media (min-width:1280px){.unit-filter_component{grid-template-columns:17rem minmax(0,1fr) 22rem}}
 /* ---- detail panel: sticky actions, above the chat widget ---- */
@@ -428,4 +421,20 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 }
 @media (max-width:767px){
   .site-plan_list{grid-template-columns:1fr}
+}
+
+/* ---- view markers on small screens ----
+   Last in the file on purpose: the marker base rules sit after the earlier
+   tablet media block, so these overrides have to come after them to win.
+   The floating controls crowd the top and bottom of the map on a phone - the
+   level switch and the colour-by / legend stack share the top strip, the zoom
+   bar the bottom - so the north marker drops below whatever height the
+   toolbar has reflowed to (--oh-marks-top, measured in the controller) and
+   the south marker clears the zoom bar. */
+@media (max-width:991px){
+  .site-plan_viewmark{width:1.75rem;height:1.75rem}
+  .site-plan_viewmark svg{width:.95rem;height:.95rem}
+  .site-plan_viewmark[data-placement="north"]{top:var(--oh-marks-top,4rem)}
+  .site-plan_viewmark[data-placement="south"]{bottom:3.25rem}
+  .site-plan_viewmark-tip{max-width:min(17rem,calc(100vw - 2rem))}
 }
