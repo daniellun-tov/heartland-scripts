@@ -107,6 +107,14 @@ html:not(.legends-ready) .site-plan_legend-group[data-legend-group="type"]{displ
 .site-plan_floor-count{font-size:.6875rem;opacity:.65}
 .site-plan_floor-count:empty{display:none}
 @media (max-width:767px){.site-plan_floor-switch{left:.5rem;top:.5rem;padding:.2rem}.site-plan_floor-btn{padding:.3rem .55rem}.site-plan_floor-count{display:none}}
+/* while the units are still loading, every count would read 0 - hide them rather
+   than have the page say "nothing matches" (heartland-oh.js owns the flag) */
+html.oh-data-pending .unit-filter_count,
+html.oh-data-pending .site-plan_legend-count,
+html.oh-data-pending .site-plan_floor-count,
+html.oh-data-pending .unit-filter_match,
+html.oh-data-pending .unit-filter_mobile-match{visibility:hidden}
+
 /* ---- map loading state: the SV page-loader treatment (sand cover, logo, thin bar),
         scoped to the plan. --oh-p (0..1) is set by heartland-oh.js ---- */
 .site-plan_loader{--oh-p:0;position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.75rem;background:var(--oh-sand);transition:opacity .5s ease}

@@ -133,6 +133,7 @@
     function finish() {
       if (out) return;
       out = true;
+      document.documentElement.classList.remove('oh-data-pending');
       clearInterval(tick);
       el.style.setProperty('--oh-p', '1');
       /* a beat for the viewport to fit and centre the plan, then dissolve */
@@ -141,8 +142,12 @@
         setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 520);
       }, 200);
     }
+    /* the chips, the legend and the results line all read 0 until the units
+       land, which looks like "nothing matches" rather than "loading" */
+    document.documentElement.classList.add('oh-data-pending');
     window.ohMapLoader = {
       mark: function (name) {
+        if (name === 'data') document.documentElement.classList.remove('oh-data-pending');
         if (name in marks && !marks[name]) {
           marks[name] = true;
           var done = Object.keys(marks).filter(function (k) { return marks[k]; }).length;
