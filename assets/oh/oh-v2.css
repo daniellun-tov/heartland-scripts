@@ -410,22 +410,33 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 .site-plan_tooltip-views{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.5rem}
 .site-plan_tooltip-views[hidden]{display:none}
 
-/* ---- coming-soon peek sheet (mobile) ----
-   Rises over the bottom of the map when a coming-soon plot is tapped, so the
-   plan and the tapped plot stay in view and the notify form is one more tap.
-   Desktop never builds it (the plan's handler opens the popup directly), but
-   the display:none below is the belt to that brace. */
-.site-plan_soon-sheet{position:fixed;left:0;right:0;bottom:0;z-index:2147482900;display:none;padding:.9rem 1rem 1rem;background:#fff;border-top:1px solid var(--oh-line);border-radius:1rem 1rem 0 0;box-shadow:0 -12px 34px rgba(21,23,20,.18);transform:translateY(110%);transition:transform .28s cubic-bezier(.22,1,.36,1)}
-.site-plan_soon-sheet.is-open{transform:none}
-.site-plan_soon-close{position:absolute;top:.6rem;right:.6rem;display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border:0;border-radius:999px;background:var(--oh-sand);color:var(--oh-ink);font-size:1.1rem;line-height:1;cursor:pointer}
-.site-plan_soon-pill{display:inline-flex;align-items:center;padding:.2rem .6rem;border-radius:999px;background:var(--oh-unreleased);color:var(--oh-ink);font-size:.6875rem;font-weight:600;letter-spacing:.02em}
-.site-plan_soon-title{margin-top:.4rem;font-size:1.0625rem;font-weight:600;color:var(--oh-ink)}
-.site-plan_soon-meta{margin-top:.15rem;font-size:.8125rem;color:rgba(44,43,39,.62)}
-.site-plan_soon-btn{margin-top:.7rem;width:100%;padding:.7rem 1rem;border:0;border-radius:999px;background:var(--oh-accent);color:#fff;font:inherit;font-size:.9375rem;font-weight:600;cursor:pointer}
-.site-plan_soon-btn:active{opacity:.9}
-/* the plot behind the sheet keeps an outline so it is clear what was tapped */
-.site-plan_map-svg .site-plan_plot.is-soon-peek{stroke:var(--oh-ink);stroke-width:2.4px;stroke-opacity:.9;fill-opacity:1}
-@media (prefers-reduced-motion:reduce){.site-plan_soon-sheet{transition:none}}
+/* ---- Filters button active count ----
+   The Designer ships the badge inside [data-drawer="open"] with an inline
+   display:none; the controller writes the number and clears that inline
+   style when anything is active. */
+.unit-filter_active-count{display:inline-flex;align-items:center;justify-content:center;min-width:1.25rem;height:1.25rem;margin-left:.4rem;padding:0 .3rem;border-radius:999px;background:var(--oh-ink);color:#fff;font-size:.6875rem;font-weight:700;line-height:1}
+
+/* ---- mobile peek sheet ----
+   Rises over the bottom of the map when a coming-soon plot or a parking bay
+   is tapped, so the plan and the tapped shape stay in view and the panel or
+   the notify form is one more tap. Desktop never builds it (the plan's
+   handlers go direct), but the display:none below is the belt to that brace.
+   [data-mode] is "soon" or "bay" and only changes the pill. */
+.site-plan_sheet{position:fixed;left:0;right:0;bottom:0;z-index:2147482900;display:none;padding:.9rem 1rem 1rem;background:#fff;border-top:1px solid var(--oh-line);border-radius:1rem 1rem 0 0;box-shadow:0 -12px 34px rgba(21,23,20,.18);transform:translateY(110%);transition:transform .28s cubic-bezier(.22,1,.36,1)}
+.site-plan_sheet.is-open{transform:none}
+.site-plan_sheet-close{position:absolute;top:.6rem;right:.6rem;display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border:0;border-radius:999px;background:var(--oh-sand);color:var(--oh-ink);font-size:1.1rem;line-height:1;cursor:pointer}
+.site-plan_sheet-pill{display:inline-flex;align-items:center;padding:.2rem .6rem;border-radius:999px;background:var(--oh-unreleased);color:var(--oh-ink);font-size:.6875rem;font-weight:600;letter-spacing:.02em}
+.site-plan_sheet[data-mode="bay"] .site-plan_sheet-pill{background:var(--oh-sand);border:1px solid var(--oh-line)}
+.site-plan_sheet-title{margin-top:.4rem;font-size:1.0625rem;font-weight:600;color:var(--oh-ink)}
+.site-plan_sheet-meta{margin-top:.15rem;font-size:.8125rem;color:rgba(44,43,39,.62)}
+.site-plan_sheet-btn{margin-top:.7rem;width:100%;padding:.7rem 1rem;border:0;border-radius:999px;background:var(--oh-accent);color:#fff;font:inherit;font-size:.9375rem;font-weight:600;cursor:pointer}
+.site-plan_sheet-btn:active{opacity:.9}
+.site-plan_sheet-btn[hidden]{display:none}
+/* the shape behind the sheet keeps an outline so it is clear what was tapped */
+.site-plan_map-svg .site-plan_plot.is-peek{stroke:var(--oh-ink);stroke-width:2.4px;stroke-opacity:.9;fill-opacity:1}
+/* a bay answers a tap on mobile, so it is not the dead shape .is-static implies */
+@media (max-width:991px){.site-plan_map-svg .site-plan_plot.is-bay.is-static{cursor:pointer}}
+@media (prefers-reduced-motion:reduce){.site-plan_sheet{transition:none}}
 
 /* ---- tablet & mobile: brand bar, Plan|List toolbar, one pane, footer ---- */
 @media (max-width:991px){
@@ -468,7 +479,10 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .site-plan_detail-panel{max-width:none}
   .unit-details_body{padding:1.25rem 1.25rem 3rem}
   .unit-details_specs{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .unit-filter_footer{flex-direction:column;align-items:flex-start;gap:.15rem;padding:.4rem 1rem}
+  /* one row that wraps rather than two fixed lines (Daniel, 15 Sep): the
+     credit and the Oneland line sit at the ends while they both fit, and the
+     second drops to its own left-aligned line only when it has to */
+  .unit-filter_footer{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.1rem .75rem;padding:.4rem 1rem}
   .unit-filter_footer-text.is-right{text-align:left}
 }
 @media (max-width:767px){
@@ -493,11 +507,11 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 /* the sheet only exists on the mobile layout, and the zoom bar sits exactly
    where it lands - lift it by the sheet's measured height while it is up */
 @media (max-width:991px){
-  .site-plan_soon-sheet{display:block}
-  .unit-filter_map.has-soon-sheet .site-plan_zoom{transform:translateY(calc(-1 * var(--oh-sheet-h, 0px)));transition:transform .28s cubic-bezier(.22,1,.36,1)}
+  .site-plan_sheet{display:block}
+  .unit-filter_map.has-sheet .site-plan_zoom{transform:translateY(calc(-1 * var(--oh-sheet-h, 0px)));transition:transform .28s cubic-bezier(.22,1,.36,1)}
   /* the lifted zoom bar would land on the lower view markers, and they are not
      what this moment is about - fade them out while the sheet is up */
-  .unit-filter_map.has-soon-sheet .site-plan_viewmarks{opacity:0;pointer-events:none}
+  .unit-filter_map.has-sheet .site-plan_viewmarks{opacity:0;pointer-events:none}
   .site-plan_viewmarks{transition:opacity .2s ease}
 }
 

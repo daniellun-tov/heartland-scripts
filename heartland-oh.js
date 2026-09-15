@@ -479,20 +479,30 @@ window.Wized.push((Wized) => {
   const unitOfBay = new Map();    /* bay id -> unit */
   const SVGNS = 'http://www.w3.org/2000/svg';
 
-  function wireShape(el, u) {
+  /* isBay: the same unit is wired twice - its apartment shape on its own floor
+     and its parking bay on the parking level - and on mobile the bay peeks
+     rather than jumping into the panel, so the two need telling apart. */
+  function wireShape(el, u, isBay) {
     el.setAttribute('data-status', u.status_key);
     el.setAttribute('data-type', u.type_code);
     el.setAttribute('data-unit', u.plot_id);
     el.classList.add('site-plan_plot');
-    if (!LIST_HIDE.has(u.status_key)) el.addEventListener('click', () => openUnit(u));
+    /* mobile: a small bottom sheet first, so the map and the tapped shape stay
+       visible and the panel or the form is one more tap. Desktop is direct. */
+    const peek = (mode) => window.ohSheet && window.ohSheet.shouldUse() && window.ohSheet.open(u, mode, el);
+    if (!LIST_HIDE.has(u.status_key))
+      el.addEventListener('click', () => { if (!(isBay && peek('bay'))) openUnit(u); });
     else if (u.status_key === 'unreleased')
       el.addEventListener('click', () => {
-        /* mobile: a small bottom sheet first, so the map and the tapped plot
-           stay visible and the form is one more tap. Desktop opens it straight. */
-        if (window.ohSoonSheet && window.ohSoonSheet.shouldUse()) window.ohSoonSheet.open(u);
-        else if (window.ohNotify) window.ohNotify.open(u);
+        if (peek(isBay ? 'bay' : 'soon')) return;
+        if (window.ohNotify) window.ohNotify.open(u);
       });
-    else el.classList.add('is-static'); /* reserved / sold: visible, tooltip, no click */
+    else {
+      el.classList.add('is-static'); /* reserved / sold: visible, tooltip, no click */
+      /* except a bay, where the only question is which unit owns it - and
+         there is no tooltip on a touch screen to answer it */
+      if (isBay) el.addEventListener('click', () => peek('bay'));
+    }
     if (!unitShapes.has(u.plot_id)) unitShapes.set(u.plot_id, []);
     unitShapes.get(u.plot_id).push(el);
   }
@@ -556,7 +566,7 @@ window.Wized.push((Wized) => {
         const bay = document.getElementById('bay-' + key);
         if (!bay) { console.warn('[site-plan] no bay shape for', key, '(' + u.unit_number + ')'); return; }
         bay.classList.add('is-bay');
-        wireShape(bay, u);
+        wireShape(bay, u, true);
         bayOfUnit.set(u.plot_id, bay);
         unitOfBay.set(bay.id, u);
         const t = addLabel(parking, bay, u, 'is-bay');
@@ -1544,23 +1554,30 @@ window.Wized.push((Wized) => {
 })();
 
 /* ============================================================
-   Coming-soon peek sheet (mobile only)
+   Mobile peek sheet
    ------------------------------------------------------------
-   On a phone, tapping a coming-soon plot used to throw the full notify-me
-   popup over the whole screen — you lost the map and could not see what
-   you had just tapped. Instead a small sheet rises from the bottom with
-   the unit number, its type line and the Coming soon pill, the tapped
-   plot stays outlined behind it, and "Notify me" is one more tap. On
-   desktop nothing changes: the popup opens straight away.
+   On a phone there is no hover, so the plan's tooltip never runs and a tap
+   had to commit to something: a coming-soon plot threw the full notify-me
+   popup over the whole screen, and a parking bay jumped straight into the
+   unit panel. Either way you lost the map and could not see what you had
+   just tapped. Both now raise a small sheet from the bottom instead - what
+   this plot is, and one button to go further:
 
-   The sheet is the only owner of its own state; the plan's click handler
-   asks shouldUse() and the notify module is untouched.
+     soon  coming-soon plot -> Coming soon pill, unit, type -> Notify me
+     bay   parking bay      -> Bay pill, the unit it belongs to -> View the
+                               unit (Notify me if it is coming soon, and no
+                               button at all if it is already taken)
+
+   The tapped shape stays outlined behind the sheet. Desktop is untouched:
+   the plan's handlers ask shouldUse() first, so the popup and the panel
+   still open directly and the sheet is never even built.
    ============================================================ */
 (function () {
-  if (window.__ohSoonSheet) return;
-  window.__ohSoonSheet = true;
+  if (window.__ohSheet) return;
+  window.__ohSheet = true;
 
   var MOBILE = '(max-width: 991px)';
+  var TAKEN = ['reserved', 'sold', 'sold-out', 'pending'];
   var sheet = null, current = null;
 
   function shouldUse() {
@@ -1570,21 +1587,23 @@ window.Wized.push((Wized) => {
   function build() {
     if (sheet) return sheet;
     sheet = document.createElement('div');
-    sheet.className = 'site-plan_soon-sheet';
+    sheet.className = 'site-plan_sheet';
     sheet.setAttribute('role', 'dialog');
-    sheet.setAttribute('aria-label', 'Coming soon apartment');
+    sheet.setAttribute('aria-label', 'Selected plot');
     sheet.setAttribute('aria-hidden', 'true');
     sheet.innerHTML =
-      '<button type="button" class="site-plan_soon-close" aria-label="Close">×</button>' +
-      '<span class="site-plan_soon-pill">Coming soon</span>' +
-      '<div class="site-plan_soon-title"></div>' +
-      '<div class="site-plan_soon-meta"></div>' +
-      '<button type="button" class="site-plan_soon-btn">Notify me</button>';
-    sheet.querySelector('.site-plan_soon-close').addEventListener('click', close);
-    sheet.querySelector('.site-plan_soon-btn').addEventListener('click', function () {
+      '<button type="button" class="site-plan_sheet-close" aria-label="Close">\u00d7</button>' +
+      '<span class="site-plan_sheet-pill"></span>' +
+      '<div class="site-plan_sheet-title"></div>' +
+      '<div class="site-plan_sheet-meta"></div>' +
+      '<button type="button" class="site-plan_sheet-btn"></button>';
+    sheet.querySelector('.site-plan_sheet-close').addEventListener('click', close);
+    sheet.querySelector('.site-plan_sheet-btn').addEventListener('click', function () {
       var u = current;
+      if (!u) return;
       close();
-      if (u && window.ohNotify) window.ohNotify.open(u);
+      if (u.status_key === 'unreleased') { if (window.ohNotify) window.ohNotify.open(u); }
+      else if (window.ohSitePlan) window.ohSitePlan.open(u.unit_number);
     });
     /* a tap inside the sheet is never a tap on the map behind it */
     sheet.addEventListener('click', function (e) { e.stopPropagation(); });
@@ -1592,12 +1611,12 @@ window.Wized.push((Wized) => {
     return sheet;
   }
 
-  /* the plot behind the sheet keeps an outline, so it is obvious which one
-     this is about */
-  function mark(u) {
-    document.querySelectorAll('.site-plan_plot.is-soon-peek').forEach(function (p) { p.classList.remove('is-soon-peek'); });
-    if (!u) return;
-    document.querySelectorAll('[data-unit="' + u.plot_id + '"]').forEach(function (p) { p.classList.add('is-soon-peek'); });
+  /* the shape behind the sheet keeps an outline, so it is obvious which one
+     this is about - the bay and the unit share a plot_id, so mark the one
+     that was actually tapped */
+  function mark(el) {
+    document.querySelectorAll('.site-plan_plot.is-peek').forEach(function (p) { p.classList.remove('is-peek'); });
+    if (el) el.classList.add('is-peek');
   }
 
   /* the zoom control sits at the map's bottom-right, which is where the
@@ -1607,25 +1626,44 @@ window.Wized.push((Wized) => {
     if (!map) return;
     if (on && sheet) map.style.setProperty('--oh-sheet-h', Math.round(sheet.getBoundingClientRect().height) + 'px');
     else map.style.removeProperty('--oh-sheet-h');
-    map.classList.toggle('has-soon-sheet', !!on);
+    map.classList.toggle('has-sheet', !!on);
   }
 
-  function open(u) {
+  function place(u) {
+    return [u.type_code ? 'Type ' + u.type_code : '', u.block_name ? 'Block ' + u.block_name : '',
+            u.floor_label ? u.floor_label + ' level' : ''].filter(Boolean).join(' \u00b7 ');
+  }
+
+  function open(u, mode, el) {
     if (!u) return false;
     build();
     current = u;
-    sheet.querySelector('.site-plan_soon-title').textContent = 'Unit ' + u.unit_number;
-    var meta = ['Type ' + (u.type_code || ''), u.block_name ? 'Block ' + u.block_name : '', u.floor_label ? u.floor_label + ' level' : '']
-      .filter(function (s) { return s && s !== 'Type '; }).join(' · ');
-    sheet.querySelector('.site-plan_soon-meta').textContent = meta;
+    var soon = u.status_key === 'unreleased';
+    var taken = TAKEN.indexOf(u.status_key) !== -1;
+    var bay = mode === 'bay';
+
+    sheet.setAttribute('data-mode', bay ? 'bay' : 'soon');
+    sheet.querySelector('.site-plan_sheet-pill').textContent = bay
+      ? 'Bay ' + (u.parking_bay_number || '') + (u.parking_bay_type ? ' \u00b7 ' + u.parking_bay_type : '')
+      : 'Coming soon';
+    sheet.querySelector('.site-plan_sheet-title').textContent = 'Unit ' + u.unit_number;
+    /* on a bay the status is the thing you cannot see from the plan colour */
+    sheet.querySelector('.site-plan_sheet-meta').textContent =
+      [place(u), bay ? (soon ? 'Coming soon' : taken ? u.status : 'Available') : ''].filter(Boolean).join(' \u00b7 ');
+
+    var btn = sheet.querySelector('.site-plan_sheet-btn');
+    var label = soon ? 'Notify me' : taken ? '' : 'View the unit';
+    btn.textContent = label;
+    btn.hidden = !label;
+
     sheet.setAttribute('aria-hidden', 'false');
     /* let the element land before the transition so it always animates */
     requestAnimationFrame(function () {
       sheet.classList.add('is-open');
       lift(true);
     });
-    mark(u);
-    document.dispatchEvent(new CustomEvent('oh:soon-peek', { detail: { unit: u } }));
+    mark(el || document.querySelector('[data-unit="' + u.plot_id + '"]'));
+    document.dispatchEvent(new CustomEvent('oh:peek', { detail: { unit: u, mode: bay ? 'bay' : 'soon' } }));
     return true;
   }
 
@@ -1643,10 +1681,9 @@ window.Wized.push((Wized) => {
   document.addEventListener('click', function (e) {
     if (!sheet || !sheet.classList.contains('is-open')) return;
     if (sheet.contains(e.target)) return;
-    /* a tap on another coming-soon plot re-opens it through the plan's own
+    /* a tap on another peekable plot re-opens it through the plan's own
        handler, which runs after this one - only close on everything else */
-    var plot = e.target.closest && e.target.closest('.site-plan_plot[data-status="unreleased"]');
-    if (plot) return;
+    if (e.target.closest && e.target.closest('.site-plan_plot')) return;
     close();
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
@@ -1654,7 +1691,9 @@ window.Wized.push((Wized) => {
   document.addEventListener('oh:notify-open', close);
   window.matchMedia(MOBILE).addEventListener('change', function (e) { if (!e.matches) close(); });
 
-  window.ohSoonSheet = { open: open, close: close, shouldUse: shouldUse, current: function () { return current; } };
+  window.ohSheet = { open: open, close: close, shouldUse: shouldUse, current: function () { return current; } };
+  /* the first name this shipped under, before parking bays used it too */
+  window.ohSoonSheet = window.ohSheet;
 })();
 
 /* ============================================================
@@ -2244,21 +2283,32 @@ window.ohNativeSubmit = async function (form, doneText) {
         if (e.key === 'Escape') closeDrawer();
       });
 
-      // ---- filters active-count badge (mirrors chip is-active state) ----
+      /* ---- Filters button active count ----
+         It counts the same elements the removable filter tags do, so the
+         badge, the tags and the chips can never disagree. It used to look
+         for `.unit-filter_chip`, which is not a class on this page (the
+         Designer's is `.unit-filter_chip-1`), so it always read 0 and the
+         badge never appeared. It also polled on click; now it rides
+         ohSitePlan.onChange, which fires on boot and after every apply()
+         however the state changed - chip, marker, tag, Reset or deep link.
+         The Designer ships it with an inline display:none, so the inline
+         style is what has to be written back. */
       var badge = document.querySelector('[data-active-count]');
       function updateBadge() {
         if (!badge) return;
-        var n = document.querySelectorAll('.unit-filter_chip.is-active, [data-toggle].is-active').length;
-        badge.textContent = n;
+        var n = document.querySelectorAll('[data-filter][data-value].is-active, [data-toggle].is-active').length;
+        badge.textContent = String(n);
         badge.style.display = n ? '' : 'none';
+        badge.setAttribute('aria-label', n + (n === 1 ? ' active filter' : ' active filters'));
       }
       updateBadge();
-      // recompute after any chip / reset click (fires after the main controller's own handler)
-      document.addEventListener('click', function (e) {
-        if (e.target.closest('[data-filter], [data-toggle], [data-reset]')) {
-          setTimeout(updateBadge, 0);
-        }
-      });
+      (function subscribe() {
+        if (window.ohSitePlan && window.ohSitePlan.onChange) return window.ohSitePlan.onChange(updateBadge);
+        var n = 0, iv = setInterval(function () {
+          if (window.ohSitePlan && window.ohSitePlan.onChange) { clearInterval(iv); window.ohSitePlan.onChange(updateBadge); }
+          else if (++n > 40) clearInterval(iv);
+        }, 250);
+      })();
     }
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', boot);
