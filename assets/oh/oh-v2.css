@@ -42,6 +42,7 @@ html:not(.legends-ready) .site-plan_legend-group[data-legend-group="type"]{displ
 
 /* ---- toggles, chips, sort ---- */
 /* active pill = ink (it used to be white, which vanished on the white toolbar) */
+.site-plan_colourby-btn,.unit-filter_view-btn{white-space:nowrap}
 .site-plan_colourby-btn.is-active,.unit-filter_view-btn.is-current{background:var(--oh-ink);color:#fff;box-shadow:none}
 .site-plan_sort-btn.is-active{background:var(--oh-sand);color:var(--oh-ink)}
 [data-filter][data-value]:hover,[data-toggle]:hover{border-color:var(--oh-ink)}
@@ -207,7 +208,8 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 .unit-details_actionbar .button{width:100%;justify-content:center}
 /* desktop: heartland-oh.js puts [data-actionbar] and the subtabs in one sticky block at the
    top of the panel, so Reserve / Share stay reachable at any scroll depth, above the tabs */
-.unit-details_stickyhead{position:sticky;top:0;z-index:6;background:#fff;margin-bottom:1rem;box-shadow:0 10px 12px -10px rgba(21,23,20,.22)}
+.unit-details_stickyhead{position:sticky;top:0;z-index:6;background:#fff;padding-top:.75rem;margin-bottom:1rem;box-shadow:0 10px 12px -10px rgba(21,23,20,.22)}
+.unit-details_close{z-index:7}
 .unit-details_stickyhead>.unit-details_actionbar{position:static;padding:.25rem 0 .75rem;border-top:0;background:none}
 .unit-details_stickyhead .unit-details_scroll-nav{position:static;margin-bottom:0}
 .unit-details_stickyhead .unit-details_actionbar-reserve{flex:1 1 auto;min-width:0}
