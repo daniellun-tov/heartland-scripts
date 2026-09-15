@@ -1,4 +1,14 @@
 <!-- Oak Hills unit selection v2 - controller. Source: github.com/daniellun-tov/heartland-scripts, branch oh, heartland-oh.js. Release = push, paste the new commit SHA below (and in the map svg's data-svg-src when the plan changed), publish. -->
+<style>
+/* the tooltip and lightboxes are moved to <body>, outside .page_wrap[data-oh-v2] where the tokens live: repeat them on :root */
+:root{--oh-available:var(--_colours---success--success-1,#7f9780);--oh-reserved:var(--_colours---warning--warning-2,#ddb365);--oh-sold:var(--_colours---error--error-2,#eb5853);--oh-unreleased:var(--_colours---sand--s-300,#b5b3ad);--oh-type-a:var(--_colours---mahogany--mahogany,#5f4d3f);--oh-type-b:var(--_colours---merlot--m-100,#c7907b);--oh-type-c:var(--_colours---vinyard-night--vn-200,#6f786c);--oh-ink:var(--_colours---mahogany--mahogany,#5f4d3f);--oh-accent:var(--_colours---merlot--m-200,#af6042);--oh-line:var(--_colours---sand--s-100,#dedbd3);--oh-sand:var(--_colours---sand--s-50,#f2efe6)}
+/* tooltip status pill - the Designer's .is-static variant clears the background; restate the status colours at higher specificity */
+.site-plan_tooltip .site-plan_pill.is-static{color:#fff}
+.site-plan_tooltip .site-plan_pill.is-available{background:var(--oh-available)}
+.site-plan_tooltip .site-plan_pill.is-reserved,.site-plan_tooltip .site-plan_pill.is-pending{background:var(--oh-reserved);color:var(--oh-ink)}
+.site-plan_tooltip .site-plan_pill.is-sold,.site-plan_tooltip .site-plan_pill.is-sold-out{background:var(--oh-sold);color:#fff}
+.site-plan_tooltip .site-plan_pill.is-unreleased{background:var(--oh-unreleased);color:var(--oh-ink)}
+</style>
 <script>
 (function(){
   var API='https://x7aj-untn-pq4t.n7e.xano.io/api:BHoGDH-q';
