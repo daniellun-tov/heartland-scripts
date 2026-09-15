@@ -1108,6 +1108,7 @@ window.Wized.push((Wized) => {
     stage = document.querySelector('.site-plan_map');
     wrap = document.querySelector('.unit-filter_map') || (box && box.parentNode);
     img = canvas && canvas.querySelector('img');
+    if (img && img.loading === 'lazy') img.loading = 'eager'; /* the viewport needs its size now */
     if (!canvas || !box || !stage || !wrap) return false;
     booted = true;
     box.classList.add('is-viewport');
@@ -1119,12 +1120,14 @@ window.Wized.push((Wized) => {
     centre();
     requestAnimationFrame(centre);
     if (img && !img.complete) img.addEventListener('load', function () { aspect = 0; measure(); centre(); });
-    var t;
+    var t, lastW = box.clientWidth;
     window.addEventListener('resize', function () {
       clearTimeout(t);
-      t = setTimeout(function () { measure(); centre(); label(); }, 150);
+      t = setTimeout(function () { lastW = box.clientWidth; measure(); centre(); label(); }, 150);
     });
-    if (window.ResizeObserver) new ResizeObserver(function () { clearTimeout(t); t = setTimeout(function () { measure(); centre(); }, 100); }).observe(box);
+    /* re-fit when the column changes width; a height-only change can be our own
+       stage padding echoing back through an auto-height ancestor, so ignore it */
+    if (window.ResizeObserver) new ResizeObserver(function () { if (box.clientWidth === lastW) return; lastW = box.clientWidth; clearTimeout(t); t = setTimeout(function () { measure(); centre(); }, 100); }).observe(box);
     window.ohMapView = { zoom: function () { return zoom; }, set: set, centre: centre, fit: function () { zoom = 1; setWidth(); centre(); label(); } };
     return true;
   }
