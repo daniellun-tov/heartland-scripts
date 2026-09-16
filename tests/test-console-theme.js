@@ -299,6 +299,85 @@ const probe = () => {
     await ctx.close();
   }
 
+  /* ── 8. the card contract, measured rather than read off the stylesheet ──────
+     .card is the BOX; .pad is how one asks for the standard inset. Until 16 Sep .pad
+     was declared only under #viewInv and #viewDev, so the first new section written
+     after that - Teams - rendered every card with its text against the border, and
+     nothing failed. Asserting the RULE EXISTS is not enough: it has to reach the
+     element, in the view being looked at. This walks every tab an admin can open and
+     checks both halves of the contract, so the next new section is covered the day it
+     is written rather than the day somebody notices. */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+    const p = await ctx.newPage();
+    await p.goto(FX + "/dash.html?role=admin");
+    await p.waitForTimeout(500);
+    console.log("8. the card contract");
+
+    const tabs = ["tabDash", "tabToday", "tabLeads", "tabPipe", "tabInv", "tabDev", "tabTeams", "tabTeam"];
+    const seen = [];
+    for (const t of tabs) {
+      await p.evaluate(id => {
+        const b = document.getElementById("hl-console-host").shadowRoot.getElementById(id);
+        if (b) { b.click(); }
+      }, t);
+      await p.waitForTimeout(700);
+      const cards = await p.evaluate(id => {
+        const r = document.getElementById("hl-console-host").shadowRoot;
+        const view = r.querySelector("section:not(.hide)");
+        if (!view) { return []; }
+        return [...view.querySelectorAll(".card")].map(e => {
+          const c = getComputedStyle(e);
+          return { tab: id, view: view.id, cls: e.className,
+            pad: e.classList.contains("pad"),
+            top: parseFloat(c.paddingTop), left: parseFloat(c.paddingLeft) };
+        });
+      }, t);
+      cards.forEach(c => seen.push(c));
+    }
+
+    ok("the walk actually found cards to judge", seen.length >= 6, seen.length);
+    ok("every tab an admin can open was reached",
+      new Set(seen.map(c => c.view)).size >= 4, [...new Set(seen.map(c => c.view))]);
+
+    const unpadded = seen.filter(c => c.pad && !(c.top > 0 && c.left > 0));
+    ok("every .card.pad actually receives an inset, in the view it is rendered in",
+      unpadded.length === 0, unpadded);
+
+    const insets = [...new Set(seen.filter(c => c.pad).map(c => c.top + "/" + c.left))];
+    ok("and they all receive the SAME one - a second value is a second source of truth",
+      insets.length === 1, insets);
+
+    /* The other half. .card cannot simply carry padding itself, because a card that is
+       nothing but a table sets its own on .tablewrap and a global inset would double it
+       up - and because three card VARIANTS legitimately have their own geometry: a KPI
+       tile, a chart and a Today group are components, not plain cards.
+
+       So the rule is not "no inset without .pad", it is THIS LIST. Anything padded by
+       some fourth route is a new way of saying an old thing, and that is exactly how
+       .pad ended up declared twice under two view ids and missing from the third. A new
+       entry here should be a decision somebody made on purpose, not a default. */
+    const OWN_INSET = ["kpi", "chart", "group"];
+    const rogue = seen.filter(c => !c.pad && (c.top > 0 || c.left > 0) &&
+      !OWN_INSET.some(k => c.cls.split(" ").indexOf(k) !== -1));
+    ok("a .card that is padded by neither .pad nor a known variant does not exist",
+      rogue.length === 0, rogue);
+
+    /* AND THE WAY ROUND THAT ACTUALLY BIT. Everything above still passes when a card
+       simply FORGETS .pad - which is what the Teams cards did, and why this whole pass
+       happened. An unpadded card is only legitimate when something inside it supplies
+       the inset instead; today that is .tablewrap and nothing else. Enumerated for the
+       same reason as the list above: zero is a decision here, not a default. */
+    const NO_INSET = ["tablewrap"];
+    const bare = seen.filter(c => c.top === 0 && c.left === 0 &&
+      !NO_INSET.some(k => c.cls.split(" ").indexOf(k) !== -1));
+    ok("a .card with NO inset is one that supplies its own inside - never one that forgot",
+      bare.length === 0, bare);
+
+    ok("no page errors", (p.__errs || []).length === 0, p.__errs);
+    await ctx.close();
+  }
+
   await browser.close();
   console.log("\n" + pass + " passed, " + fail + " failed");
   process.exit(fail ? 1 : 0);

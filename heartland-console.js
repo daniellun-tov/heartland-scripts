@@ -134,6 +134,15 @@
     "    background:var(--surface); border:1px solid var(--ring);",
     "    border-radius:var(--radius); box-shadow:var(--shadow);",
     "  }",
+    "  /* .card is the BOX and carries no padding - the drawer's .sect and the table's",
+    "     .tablewrap each supply their own, and a card that is nothing but a table must",
+    "     not double it up. .pad is how a card asks for the standard inset, and it is",
+    "     GLOBAL because it is a common element: until 16 Sep it was declared only as",
+    "     #viewInv .card.pad and #viewDev .card.pad, so the Teams tab - the first new",
+    "     section since - rendered every card with its text against the border. A class",
+    "     every view has to redeclare is not a shared style, it is a trap for the next",
+    "     section. Add view-specific MARGINS below; never re-declare this padding. */",
+    "  .card.pad { padding:16px 20px; }",
     "  h1 { font:600 1.15rem/1.25 var(--font-display); margin:0; letter-spacing:-0.01em; }",
     "  h2 { font:600 .95rem/1.3 var(--font-display); margin:0 0 10px; }",
     "  a { color:var(--accent); }",
@@ -731,9 +740,11 @@
     "  @media (max-width: 620px) { .pwform { grid-template-columns:1fr; } }",
     "  .team-grid { display:grid; grid-template-columns:1fr; gap:16px; }",
     "  @media (min-width: 900px) { .team-grid { grid-template-columns:1.25fr 1fr; align-items:start; } }",
-    "  /* .card carries no padding of its own anywhere in this console - the drawer's",
-    "     .sect and the table's .tablewrap each supply their own. These two need it. */",
-    "  .team-grid > .card { padding:18px 20px; }",
+    "  /* The two cards here take .pad like every other padded card in the console. They",
+    "     used to be padded by this container instead, at 18px rather than the standard",
+    "     16px - a second way of saying the same thing, and the reason .pad was never",
+    "     made global. The row's full-bleed hover pulls back by the INSET, which is 20px",
+    "     either way, so it is unaffected. */",
     "  .team-intro { font-size:.8125rem; color:var(--ink-2); margin:0 0 14px; }",
     "  .team-list { border-top:1px solid var(--rule); }",
     "  /* Full-bleed hover: the row's padding is pulled back out to the card's edge so",
@@ -803,7 +814,7 @@
     "  /* THE CMS SYNC, inside the banner that explains why the grid is read-only - which is",
     "     the one place on the screen where somebody is already being told the CMS is the",
     "     source. A button for it anywhere else would need its own paragraph to make sense. */",
-    "  .cms-sync { margin-top:10px; }",
+    "  .cms-sync, .banner-act { margin-top:10px; }",
     "  .cms-sync-act { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }",
     "  .cms-plan {",
     "    margin-top:10px; padding:10px 12px; border:1px solid var(--rule);",
@@ -825,8 +836,7 @@
     "    color:var(--ink); background:var(--surface-2); padding:1px 5px;",
     "    border-radius:var(--radius-sm);",
     "  }",
-    "  #viewInv .card { padding:0; }",
-    "  #viewInv .card.pad { padding:16px 20px; margin:14px 0 0; }",
+    "  #viewInv .card.pad { margin:14px 0 0; }",
     "  .inv-chips { display:inline-flex; gap:6px; flex-wrap:wrap; vertical-align:middle; }",
     "  .inv-chip {",
     "    display:inline-block; border:1px solid var(--rule); border-radius:var(--radius-sm);",
@@ -956,8 +966,11 @@
     "  .linkish { font:inherit; color:var(--accent); background:none; border:0; padding:0; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }",
     "  .gbar select, .gbar input[type=text] { font:inherit; font-size:.8125rem; padding:6px 8px; border:1px solid var(--rule); border-radius:var(--radius-sm); background:var(--surface); color:var(--ink); }",
     "  /* ── sales teams ──────────────────────────────────── */",
-    "  .tm-wrap { margin-top:16px; }",
-    "  .tm-team { margin-top:12px; }",
+    "  /* Spacing only. The padding comes from .pad like every other card - this",
+    "     section owns its rhythm, not its inset. */",
+    "  .tm-wrap { margin:0 0 14px; }",
+    "  .tm-team { margin:0 0 12px; }",
+    "  #viewTeams .tm-team:last-child { margin-bottom:0; }",
     "  .tm-team.is-off h2 { color:var(--ink-muted); }",
     "  .tm-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }",
     "  .tm-body h3 { font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-muted); margin:14px 0 6px; }",
@@ -991,7 +1004,7 @@
     "  .feat-head { margin-bottom:14px; }",
     "  .feat-head h2 { margin:0 0 6px; font-size:1rem; }",
     "  .feat-head em { font-style:normal; }",
-    "  #viewDev .card.pad { padding:16px 20px; margin:0 0 14px; }",
+    "  #viewDev .card.pad { margin:0 0 14px; }",
     "  #viewDev .card.pad h2 {",
     "    margin:0 0 4px; font-size:.6875rem; text-transform:uppercase;",
     "    letter-spacing:var(--tracking); color:var(--ink-2); font-weight:600;",
@@ -9126,9 +9139,16 @@
       if (!sells) {
         var here = "this development";
         (props || []).forEach(function (p) { if (p.slug === PL.property) { here = p.name; } });
-        teamNote = '<div class="inv-owed pl-noteam">No team sells ' + esc(here) +
-          " yet, so every lead for it will arrive unassigned. Put the people who sell it on a team, and the rotation takes over." +
-          (plCanAssign() ? ' <button type="button" id="plToTeams">Set up a team</button>' : "") + "</div>";
+        /* .inv-warn is the banner this console already uses for "this qualifies every
+           number below it" - same inset, same rule, same tint as the three on Inventory.
+           It was an .inv-owed hint, which is body text with no box at all, so it read as
+           a stray grey line against the stats. .pl-noteam carries no style; it is the
+           test hook. */
+        teamNote = '<div class="inv-warn pl-noteam"><div><strong>No team sells ' + esc(here) +
+          " yet.</strong> Every lead for it will arrive unassigned. Put the people who sell it " +
+          "on a team and the rotation takes over." +
+          (plCanAssign() ? '<div class="banner-act"><button type="button" id="plToTeams">Set up a team</button></div>' : "") +
+          "</div></div>";
       }
     }
 
@@ -9556,7 +9576,7 @@
 
     $("viewTeam").innerHTML =
       '<div class="team-grid">' +
-      '<div class="card">' +
+      '<div class="card pad">' +
         "<h2>Who has an account</h2>" +
         '<div class="team-intro">' +
           "Click a person to change their role, reset their password, or turn their access off. " +
@@ -9564,7 +9584,7 @@
         "</div>" + list +
       "</div>" +
 
-      '<div class="card">' +
+      '<div class="card pad">' +
         "<h2>" + (editing ? "Editing " + esc((editingRow && editingRow.name) || editing) : "Add someone") + "</h2>" +
         '<div class="team-form">' +
         '<div class="nr-field"><label for="tmName">Name</label>' +
