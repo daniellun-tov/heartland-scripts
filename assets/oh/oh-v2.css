@@ -474,7 +474,11 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .site-plan_floor-switch .site-plan_switch-label{padding:0 .35rem 0 .5rem;font-size:.625rem}
   .site-plan_floor-switch{left:.5rem;top:.5rem;padding:.2rem}
   .site-plan_floor-btn{padding:.3rem .5rem;font-size:.75rem}
-  .site-plan_zoom{right:.5rem;bottom:.5rem}
+  /* the site's chat bubble sits in the bottom-right corner on small screens
+     and was covering the zoom bar, so it moves across (Daniel, 16 Sep). The
+     bottom-left is free the whole way up this breakpoint - the level switch
+     is pinned top-left by the rule above. */
+  .site-plan_zoom{left:.5rem;right:auto;bottom:.5rem}
   .site-plan_list{grid-template-columns:repeat(2,minmax(0,1fr))}
   .site-plan_detail-panel{max-width:none}
   .unit-details_body{padding:1.25rem 1.25rem 3rem}
