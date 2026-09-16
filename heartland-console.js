@@ -9645,7 +9645,15 @@
     TEAM.editing = row.email;
     TEAM.err = ""; TEAM.ok = "";
     TEAM.v = {
-      name: row.name || "", email: row.email, role: row.role || "sales",
+    /* 16 Sep: this fallback still named the retired role after the rename. It carries NO
+       TEST and cannot have one: the picker is built from ["agent","manager","admin"], so
+       a select told to take a value it does not offer keeps its first option, teamRead
+       reads "agent" straight back out of the DOM, and the two versions are
+       indistinguishable both on the screen and in what gets posted. The reader maps every
+       row to one of the three anyway, so it is unreachable as well. Corrected because a
+       retired word left lying in the source is read as live by the next person, not
+       because anything behaved wrongly. */
+      name: row.name || "", email: row.email, role: row.role || "agent",
       password: "", is_active: row.is_active ? "yes" : "no"
     };
     renderTeam();
