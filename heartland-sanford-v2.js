@@ -276,8 +276,12 @@
       ORDER.forEach(function (k, i) {
         on(tabs[k], "click", function (e) { e.preventDefault(); userTook(); goto_(i); });
       });
-      on(root, "pointerenter", function () { if (auto) { stopAuto(); clearTimeout(idleTimer); } });
-      on(root, "pointerleave", function () { clearTimeout(idleTimer); idleTimer = setTimeout(startAuto, 1200); });
+      // Pause only over the TAB ROW, which means the visitor is about to pick a time of day.
+      // Hovering the picture itself must not stop the drift: on desktop the cursor sits over
+      // this section the whole time it is on screen, which used to stop autoplay dead.
+      var tabRow = qs(".sd2_light_tabs", root) || root;
+      on(tabRow, "pointerenter", function () { if (auto) { stopAuto(); clearTimeout(idleTimer); } });
+      on(tabRow, "pointerleave", function () { clearTimeout(idleTimer); idleTimer = setTimeout(startAuto, 1200); });
       if ("IntersectionObserver" in w) {
         new IntersectionObserver(function (es) { visible = es[0].isIntersecting; if (visible) { startAuto(); } else { stopAuto(); } }, { threshold: 0.35 }).observe(root);
       } else { visible = true; startAuto(); }
