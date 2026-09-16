@@ -18,6 +18,25 @@
   html.sd2-js .sd2_reveal{transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
   html.sd2-js .sd2_reveal:not(.is-inview){opacity:0;transform:translateY(26px)}
 
+  /* JS state classes. These live here, not as Webflow combo classes: a combo class that no
+     element carries in the Designer is published by Webflow as a BARE selector (.is-active{…})
+     and leaks onto every other page of the site. Everything below is toggled by the bundle. */
+  .sd2_nav.is-scrolled{border-bottom:1px solid rgba(28,26,23,.08);background-color:rgba(246,243,238,.86);background-image:none;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#1C1A17}
+  .sd2_life_cap.is-on{opacity:1;pointer-events:auto;transform:translateY(0)}
+  .sd2_life_dot.is-current{width:3.5rem;color:#FCFAF7}
+  .sd2_hero_video.is-playing,.sd2_fly_video.is-playing{opacity:1}
+  .sd2_map_overlay.is-on{opacity:.85}
+  .sd2_pin.is-reserved{border-color:#A9754B;background-color:#C79A6E;color:#1C1A17}
+  .sd2_pin.is-sold{border-color:rgba(28,26,23,.3);background-color:#F6F3EE;color:rgba(28,26,23,.45);text-decoration:line-through;cursor:not-allowed}
+  .sd2_pin.is-active{z-index:5;width:2.5rem;height:2.5rem;border-color:#A9754B;background-color:#A9754B;box-shadow:0 0 0 7px rgba(169,117,75,.18),0 10px 26px rgba(28,26,23,.3);color:#FCFAF7;font-size:.8125rem}
+  .sd2_pin.is-dim{opacity:.28}
+  .sd2_aerial_map.is-open{display:block}
+  .sd2_up_panel.is-open{flex:1 1 0;background-color:#F6F3EE}
+  .sd2_option.is-active{border-color:#1C1A17;background-color:#FCFAF7}
+  .sd2_calc_backdrop.is-open{opacity:1;pointer-events:auto}
+  .sd2_bar.is-visible{opacity:1;pointer-events:auto;transform:translateY(0)}
+  .sd2_vr_tab.is-active{border-color:#F6F3EE;background-color:#F6F3EE;color:#1C1A17}
+
   /* nav */
   .sd2_nav.is-scrolled .sd2_nav_cta{background:#1C1A17;color:#F6F3EE;border-color:transparent}
   .sd2_nav.is-scrolled .sd2_nav_cta:hover{background:#A9754B;color:#FCFAF7}
