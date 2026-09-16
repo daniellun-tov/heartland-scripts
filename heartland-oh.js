@@ -1809,14 +1809,23 @@ window.Wized.push((Wized) => {
   }
 
   function bindPan() {
-    var down = null, moved = false;
+    var down = null, moved = false, pinching = false;
     box.addEventListener('pointerdown', function (e) {
+      /* the second finger of a pinch is not the start of a new drag */
+      if (pinching) return;
       if (e.button !== 0 || e.target.closest('.site-plan_zoom, .site-plan_floor-switch, .site-plan_badge, button')) return;
       down = { x: e.clientX, y: e.clientY, sl: box.scrollLeft, st: box.scrollTop, id: e.pointerId };
       moved = false;
     });
     box.addEventListener('pointermove', function (e) {
-      if (!down) return;
+      /* While a pinch is in flight the pinch owns the scroll offsets. The box
+         is touch-action:none, so every finger also arrives here as a pointer
+         event: this handler used to keep writing box.scrollLeft = down.sl - dx
+         from the FIRST finger's displacement, overwriting the offsets zoomAt
+         had just set to hold the midpoint still. As the fingers spread, dx
+         grew, the scroll was pushed to 0 and clamped there - which is why
+         pinch-zoom read as anchored to the plan's top-left corner. */
+      if (pinching || !down) return;
       var dx = e.clientX - down.x, dy = e.clientY - down.y;
       if (!moved && Math.abs(dx) + Math.abs(dy) < 5) return;
       if (!moved) { moved = true; box.classList.add('is-panning'); try { box.setPointerCapture(down.id); } catch (_) {} }
@@ -1837,16 +1846,37 @@ window.Wized.push((Wized) => {
       var factor = Math.exp(-e.deltaY * k);
       zoomAt(zoom * factor, e.clientX - r.left, e.clientY - r.top);
     }, { passive: false });
-    /* pinch on touch devices */
+    /* pinch on touch devices: zooms towards the midpoint of the two fingers.
+       Scale is measured against the span at gesture start, so it cannot drift. */
     var pinch = null;
-    box.addEventListener('touchstart', function (e) { if (e.touches.length === 2) pinch = { d: dist(e), z: zoom, cx: mid(e).x, cy: mid(e).y }; }, { passive: true });
+    box.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 2) return;
+      pinch = { d: dist(e), z: zoom };
+      pinching = true;
+      /* stand the pan down and forget the drag the first finger began */
+      down = null;
+      box.classList.remove('is-panning');
+    }, { passive: true });
     box.addEventListener('touchmove', function (e) {
       if (!pinch || e.touches.length !== 2) return;
       e.preventDefault();
       var r = box.getBoundingClientRect(), m = mid(e);
       zoomAt(pinch.z * dist(e) / pinch.d, m.x - r.left, m.y - r.top);
     }, { passive: false });
-    box.addEventListener('touchend', function () { pinch = null; }, { passive: true });
+    function endPinch(e) {
+      if (e.touches && e.touches.length >= 2) return;
+      pinch = null;
+      pinching = false;
+      /* one finger still down: carry on panning from where it is now, rather
+         than from wherever the pinch started */
+      if (e.touches && e.touches.length === 1) {
+        var t = e.touches[0];
+        down = { x: t.clientX, y: t.clientY, sl: box.scrollLeft, st: box.scrollTop, id: null };
+        moved = true;   /* already a gesture, so no 5px threshold and no click */
+      }
+    }
+    box.addEventListener('touchend', endPinch, { passive: true });
+    box.addEventListener('touchcancel', endPinch, { passive: true });
     function dist(e) { var a = e.touches[0], b = e.touches[1]; return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1; }
     function mid(e) { var a = e.touches[0], b = e.touches[1]; return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 }; }
   }
