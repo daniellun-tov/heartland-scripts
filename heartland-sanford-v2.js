@@ -180,8 +180,20 @@
     var root = qs("[data-sd2-life]");
     if (!root) { return; }
     var slides = qsa(".sd2_life_slide", root), caps = qsa(".sd2_life_cap", root), dots = qsa(".sd2_life_dot", root);
-    var n = slides.length, cur = -1;
+    var n = slides.length, cur = -1, primed = false;
     if (!n) { return; }
+    // The slides are lazy <img>s stacked at the same spot inside the sticky panel, so the browser
+    // only fetches them once the panel is on screen — one scroll step too late on a phone. Switch
+    // them to eager as soon as the section is within two viewports.
+    function prime() {
+      if (primed) { return; }
+      primed = true;
+      slides.forEach(function (s) {
+        if (s.tagName !== "IMG") { return; }
+        s.setAttribute("decoding", "async");
+        if (s.getAttribute("loading") === "lazy") { s.setAttribute("loading", "eager"); }
+      });
+    }
     function paint(i) {
       if (i === cur) { return; }
       cur = i;
@@ -191,7 +203,12 @@
     }
     function sync() {
       var r = root.getBoundingClientRect();
-      var total = r.height - w.innerHeight;
+      if (!primed && r.top < w.innerHeight * 2 && r.bottom > 0) { prime(); }
+      // the sticky panel's own height (100svh) is the stable measure on phones, where innerHeight
+      // jumps as the browser toolbar collapses mid-scroll
+      var panel = qs(".sd2_life_sticky", root);
+      var vh = (panel && panel.offsetHeight) || w.innerHeight;
+      var total = r.height - vh;
       if (total <= 0) { paint(0); return; }
       var p = Math.min(1, Math.max(0, -r.top / total));
       paint(Math.min(n - 1, Math.floor(p * n)));
@@ -200,7 +217,8 @@
       on(dd, "click", function (e) {
         e.preventDefault();
         var top = root.getBoundingClientRect().top + w.pageYOffset;
-        var step = (root.offsetHeight - w.innerHeight) / n;
+        var panel = qs(".sd2_life_sticky", root);
+        var step = (root.offsetHeight - ((panel && panel.offsetHeight) || w.innerHeight)) / n;
         w.scrollTo({ top: top + step * i + step / 2, behavior: reduceMotion ? "auto" : "smooth" });
       });
     });

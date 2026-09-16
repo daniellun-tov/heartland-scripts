@@ -46,6 +46,18 @@
   .sd2_life_cap{transition:opacity .8s ease,transform .9s cubic-bezier(.2,.7,.2,1)}
   .sd2_life_dot.is-current .sd2_life_dot_label{opacity:1}
   .sd2_life_hint{writing-mode:vertical-rl}
+  /* the sticky panel must never be taller than the VISIBLE viewport: on iOS 100vh includes the
+     collapsed toolbar area, which pushes the caption under Safari's bottom bar. svh is the small
+     viewport; browsers without it keep the 100vh from the class. */
+  .sd2_life_sticky{height:100svh}
+  .sd2_life_ui{padding-bottom:env(safe-area-inset-bottom)}
+  @media screen and (max-width: 767px){
+    .sd2_life{height:480vh}
+    /* six full-screen composited layers with a 6s scale is what makes phones drop frames / flash
+       black panels — on small screens the slides just cross-fade */
+    .sd2_life_slide{transform:none;transition:opacity .75s ease;will-change:auto}
+    .sd2_life_caps{min-height:0}
+  }
 
   /* lighting toggle */
   .sd2_light_tab_bg{transition:transform 380ms cubic-bezier(.4,0,.2,1),opacity 260ms cubic-bezier(.4,0,.2,1)}
