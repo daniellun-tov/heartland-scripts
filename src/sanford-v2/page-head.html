@@ -1,0 +1,84 @@
+<!-- Sanford Dev 2 (/sanford-dev-2) — Page settings › Inside <head> tag.
+     Source of truth for this block lives in the repo; paste the whole thing.
+     Everything Webflow's style panel cannot express lives here: nested state
+     selectors, keyframes, scroll-snap, writing-mode, clip-path, range inputs. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200;0,6..72,300;0,6..72,400&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6aaaaaccb498ff08c62f9876_sd2-hero-poster-16x9.jpg" media="(min-width: 768px)">
+<link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6aaaaaccb498ff08c62f988c_sd2-hero-poster-9x16.jpg" media="(max-width: 767px)">
+<script>document.documentElement.classList.add('sd2-js');</script>
+<style>
+  html{scroll-behavior:smooth;scroll-padding-top:5rem}
+  @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+  .sd2_page{-webkit-font-smoothing:antialiased;text-wrap:pretty}
+  .sd2_page ::selection{background:#E2D5C6}
+
+  /* reveals — hidden only when JS is running, so nothing disappears without it */
+  html.sd2-js .sd2_reveal{transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
+  html.sd2-js .sd2_reveal:not(.is-inview){opacity:0;transform:translateY(26px)}
+
+  /* nav */
+  .sd2_nav.is-scrolled .sd2_nav_cta{background:#1C1A17;color:#F6F3EE;border-color:transparent}
+  .sd2_nav.is-scrolled .sd2_nav_cta:hover{background:#A9754B;color:#FCFAF7}
+
+  /* life scroller — multi-property transitions */
+  .sd2_life_slide{transition:opacity 1.1s cubic-bezier(.2,.7,.2,1),transform 6s ease-out;will-change:transform,opacity}
+  .sd2_life_cap{transition:opacity .8s ease,transform .9s cubic-bezier(.2,.7,.2,1)}
+  .sd2_life_dot.is-current .sd2_life_dot_label{opacity:1}
+  .sd2_life_hint{writing-mode:vertical-rl}
+
+  /* lighting toggle */
+  .sd2_light_tab_bg{transition:transform 380ms cubic-bezier(.4,0,.2,1),opacity 260ms cubic-bezier(.4,0,.2,1)}
+  .sd2_light_tab.is-active .sd2_light_tab_bg{transform:scale(1);opacity:1}
+  .sd2_light.is-auto .sd2_light_tab.is-active .sd2_light_tab_progress{animation:sd2-lt-progress var(--lt-dwell,4200ms) linear forwards}
+  @keyframes sd2-lt-progress{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  .sd2_light_tab:focus-visible{outline:2px solid #fff;outline-offset:3px}
+
+  /* availability selector */
+  @keyframes sd2-pulse{0%{transform:scale(1);opacity:.55}70%{transform:scale(2.1);opacity:0}100%{transform:scale(2.1);opacity:0}}
+  .sd2_pin_ring{animation:sd2-pulse 2.6s ease-out infinite}
+  .sd2_pin.is-reserved .sd2_pin_ring,.sd2_pin.is-sold .sd2_pin_ring,.sd2_pin.is-active .sd2_pin_ring{display:none}
+  .sd2_pin.is-hover{width:2.5rem;height:2.5rem;font-size:.8125rem;box-shadow:0 6px 18px rgba(28,26,23,.25);z-index:4}
+  .sd2_pin_tag{display:none}
+  .sd2_pin.is-reserved .sd2_pin_tag[data-flag=reserved]:not(.w-condition-invisible),
+  .sd2_pin.is-sold .sd2_pin_tag[data-flag=sold]:not(.w-condition-invisible){display:block}
+  .sd2_strip,.sd2_apps,.sd2_gallery_track{scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .sd2_strip::-webkit-scrollbar,.sd2_apps::-webkit-scrollbar,.sd2_gallery_track::-webkit-scrollbar{display:none}
+  .sd2_gallery_track,.sd2_apps{scroll-snap-type:x mandatory}
+  .sd2_gallery_item,.sd2_app{scroll-snap-align:start}
+  .sd2_sizes{white-space:pre-line}
+  .sd2_detail_assets{display:none}
+
+  /* make it yours — closed tabs read vertically on desktop */
+  @media (min-width: 992px){
+    .sd2_up_panel:not(.is-open) .sd2_up_title{writing-mode:vertical-rl;transform:rotate(180deg);margin-top:6px}
+    .sd2_up_panel{transition:flex-grow .55s cubic-bezier(.2,.7,.2,1),flex-basis .55s cubic-bezier(.2,.7,.2,1),background-color .4s ease}
+  }
+  .sd2_option.is-active .sd2_option_swatch{box-shadow:inset 0 0 0 2px #FCFAF7,0 0 0 1px #1C1A17}
+
+  /* aerial pin */
+  .sd2_aerial_pin_body{clip-path:polygon(0 0,100% 0,100% 62%,50% 100%,0 62%);border-radius:74px 74px 90px 90px / 74px 74px 90px 90px}
+  .sd2_map_iframe,.sd2_vr_iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+  .sd2_loc_map .sd2_map_iframe{filter:saturate(.55) sepia(.18) brightness(1.02) contrast(.95)}
+
+  /* explore more — collapsed until asked (only when JS runs) */
+  html.sd2-js .sd2_explore:not(.is-open){display:none}
+  @keyframes sd2-fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+  .sd2_explore.is-open{animation:sd2-fade-up .9s cubic-bezier(.2,.7,.2,1) both}
+
+  /* bond calculator */
+  .sd2_range{accent-color:#A9754B}
+  .sd2_calc{transition:transform .45s cubic-bezier(.2,.7,.2,1)}
+  .sd2_calc.is-open{transform:none}
+  .sd2_calc_backdrop{backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  html.sd2-calc-open{overflow:hidden}
+
+  /* sticky bar + upgrade tags */
+  .sd2_bar{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  .sd2_option_tags:has(.sd2_option_tag_std:not(.w-condition-invisible)) .sd2_option_tag{display:none}
+
+  /* forms */
+  .sd2_input::placeholder{color:rgba(246,243,238,.45)}
+  .sd2_input:focus{border-color:#C79A6E;outline:none}
+</style>
