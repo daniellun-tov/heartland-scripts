@@ -230,6 +230,52 @@ const pasteInto = (p, text) => p.evaluate(t => {
     await ctx.close();
   }
 
+  // ── 7. the people picker, and a development nobody sells ─────────────────
+  /* 16 Sep. Two changes, one cause: the agent picker was the ROTATION's pool - active
+     memberships of active teams - so on a development whose team did not exist yet it was
+     empty, and there was no way to hand a lead to anybody. It is now the people list, and
+     the server records the team only where the person is on one that sells the development.
+     The screen says so when nobody does, because a column of blanks explains nothing. */
+  {
+    const { ctx, p } = await open("?role=manager");
+    console.log("7. the people picker and the no-team notice");
+    /* Everyone, so the row stays on screen after it leaves this manager's own leads. */
+    await click(p, '[data-pl-scope="all"]'); await p.waitForTimeout(400);
+
+    await click(p, '[data-cell="701|assigned_staff_id"]');
+    await click(p, '[data-cell="701|assigned_staff_id"]'); await p.waitForTimeout(150);
+    const opts = await p.evaluate(() => [...document.getElementById("hl-console-host").shadowRoot
+      .getElementById("plCellInput").options].map(o => o.value + ":" + o.textContent.trim()));
+    ok("the picker lists every person, including somebody on no team at all",
+      opts.some(o => /^7:Johan/.test(o)) && opts.some(o => /^5:/.test(o)) && opts.some(o => /^6:/.test(o)), opts);
+
+    await set(p, "plCellInput", "7"); await keyOn(p, "plCellInput", "Enter"); await p.waitForTimeout(150);
+    await clickId(p, "plReview"); await p.waitForTimeout(400);
+    const sent = await p.evaluate(() => (window.__PL_POSTED || {}).items);
+    ok("assigning them sends their id, not a refusal before the round trip",
+      sent && sent.length === 1 && sent[0].fields.assigned_staff_id === 7, sent);
+    ok("and the server answers applied, one row, no refusal",
+      (await count(p, ".gpreview .gp-row")) === 1 && (await count(p, ".gp-row.is-bad")) === 0 &&
+      /1 to change/.test(await txt(p, ".gpreview-counts") || ""), await txt(p, ".gpreview-counts"));
+    await set(p, "plBulkReason", "handing it to Johan");
+    await clickId(p, "plBulkGo"); await p.waitForTimeout(500);
+    const teamCell = await txt(p, '[data-cell="701|assigned_team_name"]');
+    ok("the lead is theirs with NO team, because they are on none that sells this development",
+      (await txt(p, '[data-cell="701|assigned_staff_id"]')) === "Johan" && (teamCell === "" || teamCell === "\u2014"),
+      [await txt(p, '[data-cell="701|assigned_staff_id"]'), teamCell]);
+
+    ok("no notice on a development a team does sell", (await count(p, ".pl-noteam")) === 0);
+    await set(p, "plProp", "sanford-heart"); await p.waitForTimeout(450);
+    ok("a development nobody sells says so, by name",
+      (await count(p, ".pl-noteam")) === 1 && /Sanford/.test(await txt(p, ".pl-noteam") || ""), await txt(p, ".pl-noteam"));
+    ok("and the way out is one button", (await count(p, "#plToTeams")) === 1);
+    await clickId(p, "plToTeams"); await p.waitForTimeout(300);
+    ok("which opens the Teams tab", (await attr(p, "#tabTeams", "aria-selected")) === "true" &&
+      (await count(p, "#viewTeams .tm-wrap")) === 1);
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+
   await browser.close();
   console.log("\n" + pass + " passed, " + fail + " failed");
   process.exit(fail ? 1 : 0);

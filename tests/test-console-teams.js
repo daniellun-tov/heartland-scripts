@@ -1,8 +1,15 @@
-/* Sales teams on the Team tab - 11 Sep. A team is an agency, Heartland included; people sit
-   on several; each membership carries a cap and a place in the rotation; a team sells the
-   developments it is attached to. One writer, POST /staff/teams. The assertions are about what
-   reaches the server for each control and what is refused before it. The fixture mirrors
-   set_team and list_teams; run_smoke_leads is the server's proof. */
+/* Sales teams - 11 Sep, moved onto their OWN TAB on 16 Sep. A team is an agency, Heartland
+   included; people sit on several; each membership carries a cap and a place in the rotation;
+   a team sells the developments it is attached to. One writer, POST /staff/teams. The
+   assertions are about what reaches the server for each control and what is refused before it.
+
+   THE TAB ITSELF IS AN ASSERTION NOW. This block used to be appended under the accounts list
+   on the Team tab, below two tall cards, which on a laptop put it below the fold - so the
+   answer to "where does an admin set up a team" was a scroll nobody made, and with no team
+   the allocator had nobody to give a lead to. It is its own section, and a MANAGER sees it:
+   POST /staff/teams takes manager or admin, and an agency lead should not need an admin to
+   add their own people. The fixture mirrors set_team and list_teams; run_smoke_leads is the
+   server's proof. */
 const { chromium } = require("playwright");
 const FX = "file://" + require("path").join(__dirname, "fixtures");
 
@@ -41,7 +48,7 @@ const last = (p) => p.evaluate(() => window.__TEAMS_POSTED);
     p.__errs = []; p.on("pageerror", e => p.__errs.push(String(e)));
     await p.goto(FX + "/dash.html" + (q || "?role=admin"));
     await p.waitForTimeout(450);
-    await clickId(p, "tabTeam"); await p.waitForTimeout(450);
+    await clickId(p, "tabTeams"); await p.waitForTimeout(450);
     return { ctx, p };
   };
 
@@ -49,7 +56,11 @@ const last = (p) => p.evaluate(() => window.__TEAMS_POSTED);
   {
     const { ctx, p } = await open();
     console.log("1. the register");
-    ok("the Team tab carries a Sales teams block", (await count(p, ".tm-wrap")) === 1);
+    ok("Teams is its own section, not a block under the accounts list",
+      (await count(p, "#viewTeams .tm-wrap")) === 1 && (await count(p, "#viewTeam .tm-wrap")) === 0);
+    ok("and it is high enough on the screen to be seen without scrolling",
+      (await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot
+        .querySelector("#viewTeams .tm-wrap").getBoundingClientRect().top)) < 400);
     ok("Heartland is listed as the internal team with its counts",
       (await count(p, '[data-tm-team="1"]')) === 1 && /Heartland/.test(await txt(p, '[data-tm-team="1"] h2') || "") &&
         /2 members · 1 development/.test(await txt(p, '[data-tm-team="1"] .inv-who') || ""));
@@ -144,6 +155,33 @@ const last = (p) => p.evaluate(() => window.__TEAMS_POSTED);
     ok("a refused write is shown in the block", /Only a manager/.test(await txt(p, "#tmsErr") || ""));
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
+  }
+
+  // ── 4. who sees the tab ──────────────────────────────────────────────────
+  {
+    const ctx = await browser.newContext({ colorScheme: "light", viewport: { width: 1400, height: 1200 } });
+    const p = await ctx.newPage();
+    p.__errs = []; p.on("pageerror", e => p.__errs.push(String(e)));
+    await p.goto(FX + "/dash.html?role=manager");
+    await p.waitForTimeout(450);
+    console.log("4. who sees it");
+    const hidden = (id) => p.evaluate(i => document.getElementById("hl-console-host").shadowRoot.getElementById(i).hidden, id);
+    ok("a manager is offered Teams", (await hidden("tabTeams")) === false);
+    ok("but not the accounts list, and not Developments",
+      (await hidden("tabTeam")) === true && (await hidden("tabDev")) === true);
+    ok("and the group they sit in is shown, since it now holds something for them",
+      (await hidden("sideAdmin")) === false);
+    await clickId(p, "tabTeams"); await p.waitForTimeout(450);
+    ok("and the register loads for them", (await count(p, "#viewTeams .tm-team")) === 1);
+    await ctx.close();
+
+    const ctx2 = await browser.newContext({ colorScheme: "light", viewport: { width: 1400, height: 1200 } });
+    const p2 = await ctx2.newPage();
+    await p2.goto(FX + "/dash.html?role=agent");
+    await p2.waitForTimeout(450);
+    const hidden2 = (id) => p2.evaluate(i => document.getElementById("hl-console-host").shadowRoot.getElementById(i).hidden, id);
+    ok("an agent is offered none of it", (await hidden2("tabTeams")) === true && (await hidden2("sideAdmin")) === true);
+    await ctx2.close();
   }
 
   await browser.close();

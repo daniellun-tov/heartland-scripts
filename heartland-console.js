@@ -1443,9 +1443,10 @@
     "      <button id=\"tabInv\" aria-selected=\"false\">Inventory</button>",
     "    </div>",
     "    <div class=\"side-group\" id=\"sideAdmin\" hidden>",
-    "      <div class=\"side-label\">Admin</div>",
+    "      <div class=\"side-label\">Setup</div>",
     "      <button id=\"tabDev\" aria-selected=\"false\" hidden>Developments</button>",
-    "      <button id=\"tabTeam\" aria-selected=\"false\" hidden>Team</button>",
+    "      <button id=\"tabTeams\" aria-selected=\"false\" hidden>Teams</button>",
+    "      <button id=\"tabTeam\" aria-selected=\"false\" hidden>People</button>",
     "    </div>",
     "  </nav>",
     "",
@@ -1464,9 +1465,16 @@
     "  <!-- Inventory. The stock list, filled on first view. -->",
     "  <section id=\"viewInv\" class=\"hide\"></section>",
     "",
-    "  <!-- Team. Admin only - the button is hidden for everyone else and the endpoint",
-    "       refuses them, which is the check that matters. -->",
+    "  <!-- People: console accounts. Admin only - the button is hidden for everyone else",
+    "       and the endpoint refuses them, which is the check that matters. -->",
     "  <section id=\"viewTeam\" class=\"hide\"></section>",
+    "",
+    "  <!-- Sales teams. ITS OWN SECTION SINCE 16 SEP: it was appended under the accounts",
+    "       list on this tab, where on a laptop it began below the fold - so the answer to",
+    "       \"where does an admin set up teams\" was a scroll nobody made. Manager or admin,",
+    "       because POST /staff/teams takes both and an agency lead should not need an",
+    "       admin to add their own people. -->",
+    "  <section id=\"viewTeams\" class=\"hide\"></section>",
     "",
     "  <!-- Pipeline: leads, the grid -->",
     "  <section id=\"viewLeads\" class=\"hide\"></section>",
@@ -2028,7 +2036,7 @@
      checks this too - see the delete endpoint; this is what stops a salesperson being
      shown a button they cannot use. */
   function canDelete() {
-    var role = String((S.staff && S.staff.role) || "sales").toLowerCase();
+    var role = String((S.staff && S.staff.role) || "agent").toLowerCase();
     return role === "manager" || role === "admin";
   }
 
@@ -2038,7 +2046,7 @@
      being shown a button that will be refused. Creating a phase sits behind the same gate
      because a phase that exists is a phase somebody can release. */
   function canPhase() {
-    var role = String((S.staff && S.staff.role) || "sales").toLowerCase();
+    var role = String((S.staff && S.staff.role) || "agent").toLowerCase();
     return role === "manager" || role === "admin";
   }
 
@@ -7205,7 +7213,7 @@
      which homes an agent may sell. The server checks it too - this only stops a salesperson
      being shown a button that will be refused. */
   function canMirror() {
-    var role = String((S.staff && S.staff.role) || "sales").toLowerCase();
+    var role = String((S.staff && S.staff.role) || "agent").toLowerCase();
     return role === "manager" || role === "admin";
   }
 
@@ -8602,9 +8610,11 @@
   try { PL.dense = localStorage.getItem("hl_pl_dense") === "1"; } catch (e) {}
 
   /* THE COLUMNS. kind drives the editor and the paste conversion; editable is the column's
-     own answer, on top of the row's and the grid's. The agent column is an enum of the people
-     who could take the lead - the server's list, per development - and only a manager or an
-     admin may type into it. */
+     own answer, on top of the row's and the grid's. The agent column is an enum of EVERY
+     ACTIVE PERSON - the server's list, which since 16 Sep is the people list rather than the
+     rotation's pool, because a manager naming somebody is not the rotation and the old list
+     was empty on any development whose team did not exist yet. Only a manager or an admin
+     may type into it, and the server refuses anyone else. */
   var PL_COLS_FIXED = [
     { key: "first_name",         label: "First name",   kind: "text", w: 110, editable: true },
     { key: "last_name",          label: "Last name",    kind: "text", w: 110, editable: true },
@@ -8996,7 +9006,7 @@
     var d = PL.data;
     var props = (S.data && S.data.properties) || [];
     var scope = (d && d.scope) || {};
-    var role = String((S.staff && S.staff.role) || "sales").toLowerCase();
+    var role = String((S.staff && S.staff.role) || "agent").toLowerCase();
     var wide = role === "manager" || role === "admin";
     var counts = (d && d.counts) || {};
 
@@ -9101,7 +9111,28 @@
     var note = PL.scope === "mine" && scope.scope_requested === "all" && scope.scope_applied !== "all"
       ? '<div class="inv-owed">Everyone is a manager view; showing your team instead.</div>' : "";
 
-    v.innerHTML = topbar + stats + note +
+    /* NOTHING IS ALLOCATED UNTIL A TEAM SELLS THE DEVELOPMENT. Said here, on the screen where
+       the unassigned leads are, rather than left for somebody to work out from a column of
+       blanks - this is the state every development starts in, and the way out of it is one
+       tab away. Derived from the agents the server sent: if not one of them sells this slug,
+       no team does. Only drawn when a single development is being looked at, because across
+       all of them the answer is per row. */
+    var teamNote = "";
+    if (PL.property) {
+      var sells = false;
+      (d.agents || []).forEach(function (a) {
+        if ((a.slugs || []).indexOf(PL.property) !== -1) { sells = true; }
+      });
+      if (!sells) {
+        var here = "this development";
+        (props || []).forEach(function (p) { if (p.slug === PL.property) { here = p.name; } });
+        teamNote = '<div class="inv-owed pl-noteam">No team sells ' + esc(here) +
+          " yet, so every lead for it will arrive unassigned. Put the people who sell it on a team, and the rotation takes over." +
+          (plCanAssign() ? ' <button type="button" id="plToTeams">Set up a team</button>' : "") + "</div>";
+      }
+    }
+
+    v.innerHTML = topbar + stats + note + teamNote +
       (PL.addOk ? '<div class="ok" style="margin-bottom:10px">' + esc(PL.addOk) + "</div>" : "") +
       (PL.add ? plAddHtml() : "") +
       (PL.saveErr ? '<div class="inv-owed" id="plMsg" style="margin-bottom:10px">' + esc(PL.saveErr) + "</div>" : "") +
@@ -9122,6 +9153,9 @@
     });
     var p = $("plProp");
     if (p) { p.addEventListener("change", function () { PL.property = p.value; plLoad(); }); }
+    /* The way out of "no team sells this" is the Teams tab, so the sentence carries the door. */
+    var toTeams = $("plToTeams");
+    if (toTeams) { toTeams.addEventListener("click", function () { tab("teams"); }); }
     var st = $("plStatus");
     if (st) { st.addEventListener("change", function () { PL.status = st.value; renderLeads(); }); }
     var lost = $("plLost");
@@ -9220,19 +9254,19 @@
   function loadTeams() {
     if (TEAMS.loading) { return Promise.resolve(); }
     TEAMS.loading = true; TEAMS.err = "";
-    renderTeam();
+    renderTeams();
     return api("/staff/teams")
       .then(function (d) { TEAMS.data = d; })
       .catch(function (e) { TEAMS.err = e.message; })
-      .then(function () { TEAMS.loading = false; renderTeam(); });
+      .then(function () { TEAMS.loading = false; renderTeams(); });
   }
 
   function teamsWrite(body, busyKey, okText) {
     TEAMS.busy = busyKey; TEAMS.err = ""; TEAMS.ok = "";
-    renderTeam();
+    renderTeams();
     return api("/staff/teams", { method: "POST", body: JSON.stringify(body) })
       .then(function () { TEAMS.ok = okText || "Saved."; TEAMS.busy = ""; return loadTeams(); })
-      .catch(function (e) { TEAMS.err = e.message; TEAMS.busy = ""; renderTeam(); });
+      .catch(function (e) { TEAMS.err = e.message; TEAMS.busy = ""; renderTeams(); });
   }
 
   function teamsMemberHtml(t, m) {
@@ -9333,14 +9367,24 @@
       body + "</div>";
   }
 
+  /* ITS OWN SECTION. Until 16 Sep this block was appended to the accounts screen, below
+     two tall cards - which on a laptop put "Sales teams" below the fold, so an admin
+     looking for where to set a team up found nothing and the allocator had no pool. */
+  function renderTeams() {
+    var v = $("viewTeams");
+    if (!v) { return; }
+    v.innerHTML = teamsHtml();
+    teamsWire();
+  }
+
   function teamsWire() {
-    var v = $("viewTeam");
+    var v = $("viewTeams");
     if (!v) { return; }
     var each = function (attr, fn) {
       [].forEach.call(v.querySelectorAll("[" + attr + "]"), function (el) { fn(el, el.getAttribute(attr)); });
     };
     each("data-tm-open", function (el, id) {
-      el.addEventListener("click", function () { TEAMS.open = TEAMS.open === Number(id) ? null : Number(id); TEAMS.ok = ""; renderTeam(); });
+      el.addEventListener("click", function () { TEAMS.open = TEAMS.open === Number(id) ? null : Number(id); TEAMS.ok = ""; renderTeams(); });
     });
     each("data-tm-detach", function (el, key) {
       el.addEventListener("click", function () {
@@ -9387,7 +9431,7 @@
         var was = (x.m.lead_cap === null || x.m.lead_cap === undefined) ? "" : String(x.m.lead_cap);
         if (raw === was) { return; }
         if (raw === "") { teamsWrite({ kind: "member", team_id: x.t.id, member_staff_id: x.m.staff_id, clear_cap: true }, "m:" + mid, "No cap."); return; }
-        if (!/^[0-9]+$/.test(raw)) { TEAMS.err = "A cap is a whole number of open leads."; renderTeam(); return; }
+        if (!/^[0-9]+$/.test(raw)) { TEAMS.err = "A cap is a whole number of open leads."; renderTeams(); return; }
         teamsWrite({ kind: "member", team_id: x.t.id, member_staff_id: x.m.staff_id, lead_cap: Number(raw) }, "m:" + mid, "Cap set.");
       };
       el.addEventListener("change", commit);
@@ -9420,9 +9464,9 @@
       });
     });
     var no = $("tmNewOpen");
-    if (no) { no.addEventListener("click", function () { TEAMS.nt = { name: "", slug: "", internal: false }; TEAMS.err = ""; TEAMS.ok = ""; renderTeam(); }); }
+    if (no) { no.addEventListener("click", function () { TEAMS.nt = { name: "", slug: "", internal: false }; TEAMS.err = ""; TEAMS.ok = ""; renderTeams(); }); }
     var nc = $("tmNewCancel");
-    if (nc) { nc.addEventListener("click", function () { TEAMS.nt = null; renderTeam(); }); }
+    if (nc) { nc.addEventListener("click", function () { TEAMS.nt = null; renderTeams(); }); }
     var readNew = function () {
       if (!TEAMS.nt) { return; }
       TEAMS.nt = { name: $("tmNewName") ? $("tmNewName").value : "", slug: $("tmNewSlug") ? $("tmNewSlug").value : "",
@@ -9448,10 +9492,10 @@
       ng.addEventListener("click", function () {
         readNew();
         var nt = TEAMS.nt;
-        if (!nt.name.trim()) { TEAMS.err = "A team needs a name."; renderTeam(); return; }
-        if (!/^[a-z0-9][a-z0-9-]*$/.test(nt.slug)) { TEAMS.err = "The handle is lower-case letters, digits and hyphens."; renderTeam(); return; }
+        if (!nt.name.trim()) { TEAMS.err = "A team needs a name."; renderTeams(); return; }
+        if (!/^[a-z0-9][a-z0-9-]*$/.test(nt.slug)) { TEAMS.err = "The handle is lower-case letters, digits and hyphens."; renderTeams(); return; }
         teamsWrite({ kind: "team", slug: nt.slug, name: nt.name.trim(), is_internal: nt.internal, is_active: true }, "new", "Team created. Attach a development and add people.")
-          .then(function () { TEAMS.nt = null; renderTeam(); });
+          .then(function () { TEAMS.nt = null; renderTeams(); });
       });
     }
   }
@@ -9478,7 +9522,7 @@
 
   function teamRowHtml(r) {
     var isMe = !!(TEAM.me && TEAM.me.id === r.id);
-    var role = r.role || "sales";
+    var role = r.role || "agent";
     return '<div class="item team-row' + (r.is_active ? "" : " is-off") + '" data-team="' +
       esc(r.email) + '" role="button" tabindex="0">' +
       '<div><div class="team-name">' + esc(r.name || r.email) +
@@ -9533,7 +9577,7 @@
             : "How they sign in.") + "</div></div>" +
         '<div class="nr-field"><label for="tmRole">Role</label>' +
           '<select id="tmRole">' +
-          ["sales", "manager", "admin"].map(function (r) {
+          ["agent", "manager", "admin"].map(function (r) {
             return '<option value="' + r + '"' + (v.role === r ? " selected" : "") + ">" + r + "</option>";
           }).join("") + "</select>" +
           '<div class="nr-hint">manager can also <strong>delete</strong> a reservation, which is ' +
@@ -9555,9 +9599,8 @@
           '<button type="button" class="primary" id="tmGo"' + (TEAM.busy ? " disabled" : "") + ">" +
           (TEAM.busy ? "Saving…" : (editing ? "Save changes" : "Create account")) + "</button>" +
         "</div>" +
-      "</div></div>" + teamsHtml();
+      "</div></div>";
 
-    teamsWire();
     [].forEach.call($("viewTeam").querySelectorAll("[data-team]"), function (el) {
       var pick = function () { teamEdit(el.getAttribute("data-team")); };
       el.addEventListener("click", pick);
@@ -9718,8 +9761,13 @@
     /* Admin-only. The button being hidden is a courtesy; /staff/team refuses anyone else. */
     $("tabTeam").hidden = (role !== "admin");
     $("tabDev").hidden = (role !== "admin");
-    /* The heading goes with them. An "Admin" label above nothing is worse than no label. */
-    $("sideAdmin").hidden = (role !== "admin");
+    /* TEAMS IS A MANAGER VERB. POST /staff/teams takes manager or admin and GET is open to
+       any staff, so an agency lead builds their own team without an admin. The accounts
+       list next door stays admin-only: adding a person who can SIGN IN is a different act
+       from putting somebody already trusted on a team. */
+    $("tabTeams").hidden = !(role === "admin" || role === "manager");
+    /* The heading goes with them. A "Setup" label above nothing is worse than no label. */
+    $("sideAdmin").hidden = !(role === "admin" || role === "manager");
   }
 
   function showApp() {
@@ -9919,14 +9967,15 @@
     { k: "pipe",  btn: "tabPipe",  view: "viewPipe" },
     { k: "inv",   btn: "tabInv",   view: "viewInv" },
     { k: "dev",   btn: "tabDev",   view: "viewDev" },
-    { k: "team",  btn: "tabTeam",  view: "viewTeam" }
+    { k: "team",  btn: "tabTeam",  view: "viewTeam" },
+    { k: "teams", btn: "tabTeams", view: "viewTeams" }
   ];
   function tab(which) {
     S.tab = which;
     /* Fetched on first view rather than with the pipeline: most sessions never open it,
        and it is a second request against a rate-limited API. */
     if (which === "team" && !TEAM.loaded && !TEAM.loading) { loadTeam(); }
-    if (which === "team" && !TEAMS.data && !TEAMS.loading) { loadTeams(); }
+    if (which === "teams" && !TEAMS.data && !TEAMS.loading) { loadTeams(); }
     /* Loaded on first view and re-read on every return - a lead can arrive while the tab
        sat behind another, and the count in the sidebar should be the count on screen. */
     if (which === "leads") { if (!PL.data && !PL.loading) { plLoad(); } else if (!PL.loading) { plLoad(true); } }

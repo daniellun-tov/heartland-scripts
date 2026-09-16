@@ -44,7 +44,7 @@
     });
   }
   window.__FIXTURE = {
-    staff: { name: "Anneke Grobler", role: "sales" },
+    staff: { name: "Anneke Grobler", role: "agent" },
     matched: items.length,
     summary: { total: items.length,
                overdue: items.filter(function(r){return r.overdue;}).length,
@@ -428,13 +428,13 @@
     { id: 6, email: "ana@heartland.co.za", name: "Ana Mokoena", role: "manager",
       is_active: true, last_login_at: null, login_count: 0,
       created_at: Date.now() - 2 * 86400000 },
-    { id: 7, email: "sipho@heartland.co.za", name: "Sipho Ndlovu", role: "sales",
+    { id: 7, email: "sipho@heartland.co.za", name: "Sipho Ndlovu", role: "agent",
       is_active: false, last_login_at: Date.now() - 20 * 86400000, login_count: 4,
       created_at: Date.now() - 60 * 86400000 }
   ];
   window.__ADDR_CALLS = [];
   window.__CREATE_FAILS = /[?&]createfail=1/.test(location.search);
-  window.__ROLE = (/[?&]role=([a-z]+)/.exec(location.search) || [0, "sales"])[1];
+  window.__ROLE = (/[?&]role=([a-z]+)/.exec(location.search) || [0, "agent"])[1];
   window.__ADDR_MODE = (/[?&]addr=([a-z]+)/.exec(location.search) || [0, "ok"])[1];
   window.__FIXTURE.staff.role = window.__ROLE;
   // A row whose reference is a TEST number, so the tag can be asserted against a real
@@ -511,9 +511,14 @@
         res_dead: false, res_unit_name: "", res_deal_stage: "", res_deal_stage_due_at: null, res_days_left: null, res_overdue: false, res_total_cents: 0,
         created_at: Date.now() - 20 * 86400000, assigned_at: null, last_activity_at: Date.now() - 10 * 86400000 }
     ];
+    /* SINCE 16 SEP THE SERVER SENDS EVERY ACTIVE PERSON HERE, not only the rotation's pool,
+       so the fixture carries somebody on NO team: Johan sells nothing, and assigning him a
+       lead has to work and land with no team. A list where everyone is on a team would let
+       the console keep the old assumption and the suite would never notice. */
     window.__AGENTS = window.__AGENTS || [
       { id: 5, name: "Anneke Grobler", role: window.__ROLE, teams: [{ id: 1, slug: "heartland", name: "Heartland", receives_leads: true, lead_cap: 5 }], slugs: ["stellenbosch"] },
-      { id: 6, name: "Danette", role: "manager", teams: [{ id: 1, slug: "heartland", name: "Heartland", receives_leads: true, lead_cap: null }], slugs: ["stellenbosch"] }
+      { id: 6, name: "Danette", role: "manager", teams: [{ id: 1, slug: "heartland", name: "Heartland", receives_leads: true, lead_cap: null }], slugs: ["stellenbosch"] },
+      { id: 7, name: "Johan", role: "agent", teams: [], slugs: [] }
     ];
     window.__TEAMS = window.__TEAMS || {
       teams: [
@@ -614,8 +619,15 @@
         } else if (f.hasOwnProperty("assigned_staff_id") && f.assigned_staff_id) {
           if (!WIDE) { out.reason = "Only a manager or an admin can assign a lead."; return out; }
           var ag = null; window.__AGENTS.forEach(function (a) { if (a.id === Number(f.assigned_staff_id)) { ag = a; } });
-          if (!ag) { out.reason = "That person is not on a team that sells this development. Add them to the team first."; return out; }
-          if (l.assigned_staff_id !== ag.id) { ch.assigned_staff_id = { was: l.assigned_staff_id, now: ag.id }; next.assigned_staff_id = ag.id; next.assigned_staff_name = ag.name; next.assignment_method = "manual"; next.assigned_team_id = 1; next.assigned_team_name = "Heartland"; }
+          // 16 Sep: the only refusal left is a person who is not there. Being on no team that
+          // sells this development is no longer one - the lead is theirs, with a null team.
+          if (!ag) { out.reason = "That staff account does not exist or is retired."; return out; }
+          if (l.assigned_staff_id !== ag.id) {
+            var sells = (ag.slugs || []).indexOf(l.property_slug) !== -1;
+            ch.assigned_staff_id = { was: l.assigned_staff_id, now: ag.id };
+            next.assigned_staff_id = ag.id; next.assigned_staff_name = ag.name; next.assignment_method = "manual";
+            next.assigned_team_id = sells ? 1 : null; next.assigned_team_name = sells ? "Heartland" : "";
+          }
         }
         if (!Object.keys(ch).length) { out.outcome = "unchanged"; return out; }
         out.outcome = "applied"; out.changes = ch;

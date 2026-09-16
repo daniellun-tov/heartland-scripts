@@ -85,7 +85,7 @@ const openMenu = async p => { await click(p, "#avatarBtn"); await p.waitForTimeo
     // Hover has to answer "whose initials are these", and a screen reader has to be told.
     const title = await attr(p, "#avatarBtn", "title");
     ok("hovering names the person", /Anneke Grobler/.test(title || ""), title);
-    ok("and the role rides along", /sales/.test(title || ""), title);
+    ok("and the role rides along", /agent/.test(title || ""), title);
     ok("the accessible name is not two letters",
       /Anneke Grobler/.test(await attr(p, "#avatarBtn", "aria-label") || ""));
     ok("no page errors", p.__errs.length === 0, p.__errs);
@@ -121,7 +121,7 @@ const openMenu = async p => { await click(p, "#avatarBtn"); await p.waitForTimeo
     ok("the avatar opens it", (await hidden(p, "avatarMenu")) === false);
     ok("aria-expanded follows", (await attr(p, "#avatarBtn", "aria-expanded")) === "true");
     ok("it names the person", (await txt(p, "#umName")) === "Anneke Grobler");
-    ok("and their role", (await txt(p, "#umRole")) === "sales");
+    ok("and their role", (await txt(p, "#umRole")) === "agent");
     ok("sign out is in it", (await p.evaluate(() => !!document.getElementById("hl-console-host")
       .shadowRoot.querySelector("#avatarMenu #signout"))) === true);
     ok("so is settings", (await p.evaluate(() => !!document.getElementById("hl-console-host")
@@ -211,7 +211,7 @@ const openMenu = async p => { await click(p, "#avatarBtn"); await p.waitForTimeo
   {
     const { ctx, p } = await open();
     console.log("6. team tab visibility");
-    ok("a salesperson is not shown the tab", (await hidden(p, "tabTeam")) === true);
+    ok("an agent is not shown the tab", (await hidden(p, "tabTeam")) === true);
     ok("and nothing was fetched for it",
       (await p.evaluate(() => window.__TEAM_CALLS)) === 0);
     await ctx.close();
@@ -251,7 +251,8 @@ const openMenu = async p => { await click(p, "#avatarBtn"); await p.waitForTimeo
     ok("including the deactivated one - accounts are never deleted",
       rows.filter(r => r.off).length === 1, rows);
     ok("and it is the right one", (rows.find(r => r.off) || {}).email === "sipho@heartland.co.za", rows);
-    ok("roles are shown", rows.map(r => r.role).join(",") === "admin,manager,sales", rows.map(r => r.role));
+    ok("roles are shown, and the basic one is AGENT since 16 Sep - the word Daniel uses and the only one the picker offers",
+      rows.map(r => r.role).join(",") === "admin,manager,agent", rows.map(r => r.role));
     ok("you are marked as you", /you/.test((rows.find(r => r.email === "daniel@tovstudio.co") || {}).name || ""), rows[0]);
     ok("somebody who never signed in says so",
       /never signed in/.test(await txt(p, '#viewTeam [data-team="ana@heartland.co.za"]')));
@@ -264,6 +265,12 @@ const openMenu = async p => { await click(p, "#avatarBtn"); await p.waitForTimeo
     const { ctx, p } = await open("?role=admin");
     console.log("8. creating");
     await click(p, "#tabTeam"); await p.waitForTimeout(350);
+
+    /* THE THREE WORDS. 16 Sep: the basic role is an AGENT, and "sales" is gone from the
+       console entirely - the server still accepts it from an older client and stores agent. */
+    ok("the picker offers agent, manager, admin - and no longer sales",
+      (await p.evaluate(() => [...document.getElementById("hl-console-host").shadowRoot
+        .getElementById("tmRole").options].map(o => o.value).join(","))) === "agent,manager,admin");
 
     await click(p, "#tmGo"); await p.waitForTimeout(80);
     ok("no name, no request", (await p.evaluate(() => window.__TEAM_POSTED)) === null);
@@ -335,7 +342,7 @@ const openMenu = async p => { await click(p, "#avatarBtn"); await p.waitForTimeo
     await click(p, "#tabTeam"); await p.waitForTimeout(350);
     await click(p, '#viewTeam [data-team="daniel@tovstudio.co"]'); await p.waitForTimeout(80);
 
-    await set(p, "tmRole", "sales");
+    await set(p, "tmRole", "agent");
     await click(p, "#tmGo"); await p.waitForTimeout(120);
     ok("demoting yourself sends nothing", (await p.evaluate(() => window.__TEAM_POSTED)) === null);
     ok("and explains why", /nobody left/i.test(await txt(p, "#tmErr")), await txt(p, "#tmErr"));
