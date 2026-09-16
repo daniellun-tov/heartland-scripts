@@ -10,7 +10,7 @@
      - Scroll reveals, parallax, nav state, sticky reserve bar
      - Hero + flythrough video loaders (poster owns LCP; video attaches on load)
      - "Life here" sticky scroller (600vh, scroll-progress driven)
-     - Flythrough chapter chips (auto-rotate, click to pin)
+     - Flythrough video card (plays muted on scroll-in; steps are static copy)
      - Day / sunset / night lighting toggle (ported from web/lighting-toggle.html)
      - Availability selector: pins, footprints, strip, detail card, filters,
        counts in the hero + stats + legend, hand-off into #reservation-form
@@ -31,7 +31,6 @@
      .sd2_nav               + .is-scrolled
      .sd2_hero_video, .sd2_fly_video        + .is-playing
      .sd2_life_slide .is-active  .sd2_life_cap .is-on  .sd2_life_dot .is-current
-     .sd2_chip .is-active   .sd2_fly_card .is-current
      .sd2_light .is-auto   .sd2_light_img .is-on   .sd2_light_tab .is-active
      .sd2_pin  .is-active .is-hover .is-dim .is-reserved .is-sold
      .sd2_map_overlay .is-on
@@ -146,6 +145,10 @@
     if (!src) { return; }
     function go() {
       if (v.getAttribute("src")) { return; }
+      // Webflow drops `muted` and `loop` from custom attributes when it publishes, and an unmuted
+      // video is never allowed to autoplay — so the flags are set here, before play().
+      v.muted = true; v.defaultMuted = true; v.loop = true;
+      v.setAttribute("muted", ""); v.setAttribute("loop", ""); v.setAttribute("playsinline", "");
       v.addEventListener("playing", function () { v.classList.add("is-playing"); }, { once: true });
       v.setAttribute("src", src);
       v.load();
@@ -227,26 +230,9 @@
     sync();
   })();
 
-  /* ----------------------------------------------------------- 6. flythrough chapters */
-  (function chapters() {
-    var wrap = qs("[data-sd2-chapters]");
-    if (!wrap) { return; }
-    var chips = qsa(".sd2_chip[data-chapter]", wrap), cards = qsa(".sd2_fly_card[data-chapter]");
-    var cur = 0, timer = null;
-    function paint(i) {
-      cur = i;
-      chips.forEach(function (c) { c.classList.toggle("is-active", c.getAttribute("data-chapter") === String(i)); });
-      cards.forEach(function (c) { c.classList.toggle("is-current", c.getAttribute("data-chapter") === String(i)); });
-    }
-    function start() { stop(); if (!reduceMotion) { timer = setInterval(function () { paint((cur + 1) % chips.length); }, 6000); } }
-    function stop() { if (timer) { clearInterval(timer); timer = null; } }
-    chips.forEach(function (c) {
-      on(c, "click", function (e) { e.preventDefault(); paint(parseInt(c.getAttribute("data-chapter"), 10) || 0); start(); });
-    });
-    if ("IntersectionObserver" in w) {
-      new IntersectionObserver(function (es) { if (es[0].isIntersecting) { start(); } else { stop(); } }, { threshold: 0.2 }).observe(wrap);
-    } else { start(); }
-  })();
+  /* ----------------------------------------------------------- 6. flythrough
+     Static two-column section since Sep 2026: the video card plays on scroll-in (section 4),
+     the 01-03 steps are plain copy. No chapter cycling. */
 
   /* ----------------------------------------------------------- 7. lighting toggle */
   (function lighting() {
