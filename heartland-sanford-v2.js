@@ -305,10 +305,22 @@
     });
   }
 
+  /* Reserved / Sold come from the CMS Switch fields through conditional visibility on
+     the [data-flag] tags (Webflow renders a hidden tag with .w-condition-invisible).
+     Conditional visibility can only be set in the Designer, so until that is done no
+     tag anywhere carries the class — in that state every unit reads as available
+     rather than every unit reading as sold. */
+  var VIS_BOUND = null;
+  function visBound() {
+    if (VIS_BOUND === null) { VIS_BOUND = !!qs("[data-sd2-map] .w-condition-invisible, [data-sd2-details] .w-condition-invisible"); }
+    return VIS_BOUND;
+  }
   function statusOf(item) {
-    // Reserved / Sold come from CMS switches through conditional visibility.
-    if (item.getAttribute("data-sold") === "true" || !isHidden(qs("[data-flag=sold]", item))) { return "Sold"; }
-    if (item.getAttribute("data-reserved") === "true" || !isHidden(qs("[data-flag=reserved]", item))) { return "Reserved"; }
+    if (item.getAttribute("data-sold") === "true") { return "Sold"; }
+    if (item.getAttribute("data-reserved") === "true") { return "Reserved"; }
+    if (!visBound()) { return "Available"; }
+    if (!isHidden(qs("[data-flag=sold]", item))) { return "Sold"; }
+    if (!isHidden(qs("[data-flag=reserved]", item))) { return "Reserved"; }
     return "Available";
   }
 
@@ -403,7 +415,7 @@
         }
       }
       if (u.detail) {
-        qsa(".sd2_status", u.detail).forEach(function (s) {
+        qsa(".sd2_detail_flags [data-status]", u.detail).forEach(function (s) {
           var k = s.getAttribute("data-status");
           s.style.display = (k === u.status.toLowerCase()) ? "" : "none";
         });
@@ -610,13 +622,23 @@
 
     /* An option is "standard" when its CMS Default switch is on, which Webflow
        renders as the Standard tag NOT carrying .w-condition-invisible. */
+    function tagsBound(panel) {
+      // Same caveat as the unit flags: the Standard tag only means something once
+      // conditional visibility is set on it in the Designer.
+      return !!qs(".sd2_option_tag_std.w-condition-invisible", panel || root);
+    }
     function isStandard(opt) {
+      if (opt.getAttribute("data-default") === "true") { return true; }
       var std = qs(".sd2_option_tag_std", opt);
-      return opt.getAttribute("data-default") === "true" || (std ? !isHidden(std) : false);
+      if (!std) { return false; }
+      var panel = opt.closest ? opt.closest(".sd2_up_panel") : null;
+      return tagsBound(panel) && !isHidden(std);
     }
     function markTags(panel) {
+      var bound = tagsBound(panel);
       qsa(".sd2_option", panel).forEach(function (o) {
-        var up = qs(".sd2_option_tag", o);
+        var up = qs(".sd2_option_tag", o), std = qs(".sd2_option_tag_std", o);
+        if (!bound) { if (std) { std.style.display = "none"; } if (up) { up.style.display = ""; } return; }
         if (up) { up.style.display = isStandard(o) ? "none" : ""; }
       });
     }
@@ -679,7 +701,7 @@
       box.innerHTML = "";
       panels.forEach(function (p) {
         var key = p.getAttribute("data-up") || "";
-        var title = text(qs(".sd2_up_title", p)).split(" ")[0];
+        var title = text(qs(".sd2_up_title", p)).split(/[\s,&]+/)[0];
         if (!picks[key]) { return; }
         var chip = d.createElement("div");
         chip.className = "sd2_up_chip";
@@ -704,6 +726,9 @@
       if (def) { choose(p, def, true); }
       var carousel = qs(".sd2_apps", p);
       if (carousel) {
+        // Standard/Upgrade tags on appliances are conditional-visibility bound; until
+        // that is set in the Designer both render, so show neither.
+        if (!qs(".w-condition-invisible", carousel)) { qsa(".sd2_app_tag, .sd2_app_tag_up", carousel).forEach(function (t) { t.style.display = "none"; }); }
         var count = qsa(".sd2_app", carousel).length;
         picks[p.getAttribute("data-up") || ""] = count + " included";
         var pickEl = qs(".sd2_up_pick", p); if (pickEl) { pickEl.textContent = count + " included"; }
@@ -796,6 +821,9 @@
         else if (k === "rates") { el.textContent = u && u.detail ? text(qs("[data-sd2-detail=rates]", u.detail)) : ""; }
         else if (k === "note") { el.textContent = "Based on " + (u ? "home " + u.n : "the selected home") + " at " + money(price) + ", " + CALC.dep + "% deposit, " + CALC.rate + "% over " + CALC.years + " years. Indicative only."; }
       });
+      // "+ est. levies & rates" only when the CMS has figures for this home.
+      var lev = qs("[data-sd2-fin=levies]"), rat = qs("[data-sd2-fin=rates]"), sub = qs(".sd2_calc_sub");
+      if (sub) { sub.style.display = (text(lev) || text(rat)) ? "" : "none"; }
       qsa("input[data-calc]").forEach(function (inp) {
         var k = inp.getAttribute("data-calc");
         if (k === "price" && !CALC.touched) { inp.value = price; }
@@ -894,12 +922,20 @@
         try { d.dispatchEvent(new CustomEvent("sd2:selected", { detail: { slug: SEL.selected } })); } catch (e) {}
       }
     }, 150);
-    // Placeholders can't be set through the Webflow API; fill them here unless the Designer already has.
-    var PH = { "First-Name": "First name", "Last-Name": "Last name", "Email": "Email", "Contact-Number": "Mobile", "Message": "Anything we should know?" };
-    Object.keys(PH).forEach(function (n) {
-      var el = qs("#reservation-form [name=\"" + n + "\"]");
-      if (el && !el.getAttribute("placeholder")) { el.setAttribute("placeholder", PH[n]); }
+    // Field names and placeholders can't be set through the Webflow API (the published
+    // form still says name="field", placeholder="Example Text"). Until they are set in
+    // the Designer, give the inputs the names the reserve hand-off and Xano expect.
+    var FIELDS = { "sd2-first-name": ["First-Name", "First name"], "sd2-last-name": ["Last-Name", "Last name"],
+                   "sd2-email": ["Email", "Email"], "sd2-contact-number": ["Contact-Number", "Mobile"],
+                   "sd2-message": ["Message", "Anything we should know?"], "sd2-unit-id": ["Unit ID", ""] };
+    Object.keys(FIELDS).forEach(function (id) {
+      var el = d.getElementById(id);
+      if (!el) { return; }
+      if (/^field(-\d+)?$/i.test(el.getAttribute("name") || "")) { el.setAttribute("name", FIELDS[id][0]); el.setAttribute("data-name", FIELDS[id][0]); }
+      var ph = el.getAttribute("placeholder");
+      if (!ph || ph === "Example Text") { if (FIELDS[id][1]) { el.setAttribute("placeholder", FIELDS[id][1]); } else { el.removeAttribute("placeholder"); } }
     });
+    paintSelected();   // re-fill Unit ID now that the field carries its name
     d.documentElement.classList.add("sd2-ready");
     w.SD2 = { units: function () { return UNITS; }, types: function () { return TYPES; }, pick: pick, state: SEL };
   })();

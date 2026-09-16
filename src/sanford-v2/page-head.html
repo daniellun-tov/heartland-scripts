@@ -40,9 +40,9 @@
   .sd2_pin_ring{animation:sd2-pulse 2.6s ease-out infinite}
   .sd2_pin.is-reserved .sd2_pin_ring,.sd2_pin.is-sold .sd2_pin_ring,.sd2_pin.is-active .sd2_pin_ring{display:none}
   .sd2_pin.is-hover{width:2.5rem;height:2.5rem;font-size:.8125rem;box-shadow:0 6px 18px rgba(28,26,23,.25);z-index:4}
-  .sd2_pin_tag{display:none}
-  .sd2_pin.is-reserved .sd2_pin_tag[data-flag=reserved]:not(.w-condition-invisible),
-  .sd2_pin.is-sold .sd2_pin_tag[data-flag=sold]:not(.w-condition-invisible){display:block}
+  .sd2_pin_tag,.sd2_pin_tag_sold{display:none}
+  .sd2_pin.is-reserved .sd2_pin_tag[data-flag=reserved],
+  .sd2_pin.is-sold .sd2_pin_tag_sold[data-flag=sold]{display:block}
   .sd2_strip,.sd2_apps,.sd2_gallery_track{scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .sd2_strip::-webkit-scrollbar,.sd2_apps::-webkit-scrollbar,.sd2_gallery_track::-webkit-scrollbar{display:none}
   .sd2_gallery_track,.sd2_apps{scroll-snap-type:x mandatory}
@@ -71,6 +71,7 @@
   .sd2_range{accent-color:#A9754B}
   .sd2_calc{transition:transform .45s cubic-bezier(.2,.7,.2,1)}
   .sd2_calc.is-open{transform:none}
+  .sd2_calc_field_val .sd2_calc_sub_item{color:#1C1A17}
   .sd2_calc_backdrop{backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
   html.sd2-calc-open{overflow:hidden}
 
