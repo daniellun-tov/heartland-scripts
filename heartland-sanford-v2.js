@@ -70,6 +70,18 @@
      <a href="#id">; this helper is only for jumps JS starts itself (picking a home on a
      phone). Both land the same way, because html{scroll-padding-top} owns the nav offset
      rather than a magic number in here. */
+  /* A .sd2_reveal that has not fired yet is sitting 26px low. Scroll to something inside one
+     and it lands 26px off, because the reveal then animates it up under your feet. So finish
+     the reveal first, without the transition, and only then measure. */
+  function settleReveal(el) {
+    var r = el && el.closest ? el.closest(".sd2_reveal") : null;
+    if (!r || r.classList.contains("is-inview")) { return; }
+    r.style.transition = "none";
+    r.classList.add("is-inview");
+    void r.offsetWidth;
+    r.style.transition = "";
+  }
+
   function scrollToEl(el) {
     if (!el) { return; }
     el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
@@ -545,6 +557,7 @@
     // On a phone the masterplan fills the screen and the detail card is below the fold,
     // so a tap looks like it did nothing. Bring the card to the top after the paint.
     if (fromUser && u.detail && w.matchMedia("(max-width: 767px)").matches) {
+      settleReveal(u.detail);
       requestAnimationFrame(function () { scrollToEl(u.detail); });
     }
     if (fromUser) { log("picked", slug); }

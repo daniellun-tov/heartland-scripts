@@ -149,8 +149,11 @@
 
   /* explore more — collapsed until asked (only when JS runs) */
   html.sd2-js .sd2_explore:not(.is-open){display:none}
-  @keyframes sd2-fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
-  .sd2_explore.is-open{animation:sd2-fade-up .9s cubic-bezier(.2,.7,.2,1) both}
+  /* Opacity only, no translate: the browser jumps to #sd2-explore the moment this block is
+     shown, so anything that moves it afterwards leaves the landing 18px out and reads as a
+     scroll that missed. */
+  @keyframes sd2-fade-in{from{opacity:0}to{opacity:1}}
+  .sd2_explore.is-open{animation:sd2-fade-in .7s ease both}
 
   /* bond calculator */
   .sd2_range{accent-color:#A9754B}
