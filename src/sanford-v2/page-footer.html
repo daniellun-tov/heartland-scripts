@@ -1,0 +1,12 @@
+<!-- Sanford Dev 2 (/sanford-dev-2) — Page settings › Before </body> tag.
+
+     1. The reserve hand-off. Pinned to the same commit every other brochure page uses.
+        The marker <div data-hl-entry="sanford" data-hl-target="/reserve-flow"> lives inside
+        the 09 — Reserve section, next to #reservation-form.
+     2. The page's own interactions bundle. Pinned to a commit (not @main) with an SRI hash,
+        so a push cannot change this page until the tag below is updated and published.
+        After a push: new sha → new SRI → paste both here → publish.
+          openssl dgst -sha384 -binary heartland-sanford-v2.js | openssl base64 -A
+     Source of truth for this block: src/sanford-v2/page-footer.html in heartland-scripts. -->
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a6b87bac8b93a0f37c3399d5d30a0de1e32f80fb/heartland-reserve.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@cdae6ca2411dd079fe10bd578b2d751d8d43dc8b/heartland-sanford-v2.js" integrity="sha384-Gov1tme023UMD5PBKeWLFO1C05XFJ2/jrrkUno8/0X8+As9U2rQ2TAKA0VGvgPK6" crossorigin="anonymous"></script>
