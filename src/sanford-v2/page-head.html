@@ -7,7 +7,27 @@
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200;0,6..72,300;0,6..72,400&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6aaaaaccb498ff08c62f9876_sd2-hero-poster-16x9.jpg" media="(min-width: 768px)">
 <link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6aaaaaccb498ff08c62f988c_sd2-hero-poster-9x16.jpg" media="(max-width: 767px)">
-<script>document.documentElement.classList.add('sd2-js');</script>
+<script>
+  (function (h) {
+    h.classList.add('sd2-js');
+    // The loader is two pseudo-elements on <html> (see .sd2-loading below), so there is no
+    // markup to inject and nothing to wait for: it is painted with the first frame.
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
+    h.classList.add('sd2-loading');
+    var start = Date.now(), done = false;
+    function lift() {
+      if (done) { return; }
+      done = true;
+      // Hold it just long enough to read, never long enough to annoy.
+      setTimeout(function () {
+        h.classList.add('sd2-loaded');
+        setTimeout(function () { h.classList.remove('sd2-loading', 'sd2-loaded'); }, 700);
+      }, Math.max(0, 620 - (Date.now() - start)));
+    }
+    addEventListener('load', lift);
+    setTimeout(lift, 2600);            // a stalled asset must never trap the page
+  })(document.documentElement);
+</script>
 <style>
   html{scroll-behavior:smooth;scroll-padding-top:5rem}
   @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
@@ -37,6 +57,25 @@
   .sd2_bar.is-visible{opacity:1;pointer-events:auto;transform:translateY(0)}
   .sd2_vr_tab.is-active{border-color:#F6F3EE;background-color:#F6F3EE;color:#1C1A17}
 
+  /* page loader — a cream sheet, the wordmark, and one hairline that fills.
+     Drawn entirely with ::before/::after so it needs no markup and no bundle. */
+  html.sd2-loading,html.sd2-loading body{overflow:hidden}
+  html.sd2-loading::before,html.sd2-loading::after{position:fixed;z-index:9999;pointer-events:none}
+  html.sd2-loading::before{
+    content:"SANFORD HEART";inset:0;display:flex;align-items:center;justify-content:center;
+    padding-bottom:3rem;background:#F6F3EE;color:#1C1A17;
+    font-family:Righteous,Manrope,sans-serif;font-size:.8125rem;
+    letter-spacing:.42em;text-indent:.42em;white-space:nowrap}
+  html.sd2-loading::after{
+    content:"";left:50%;top:50%;margin-top:.5rem;transform:translateX(-50%);
+    width:8.75rem;height:1px;background-color:rgba(28,26,23,.14);
+    background-image:linear-gradient(90deg,#A9754B,#C79A6E);
+    background-repeat:no-repeat;background-size:0% 100%;
+    animation:sd2-load 1.5s cubic-bezier(.25,.8,.3,1) forwards}
+  @keyframes sd2-load{to{background-size:100% 100%}}
+  html.sd2-loaded::before,html.sd2-loaded::after{opacity:0;transition:opacity .55s ease}
+  html.sd2-loaded::after{background-size:100% 100%}
+
   /* nav */
   .sd2_nav.is-scrolled .sd2_nav_cta{background:#1C1A17;color:#F6F3EE;border-color:transparent}
   .sd2_nav.is-scrolled .sd2_nav_cta:hover{background:#A9754B;color:#FCFAF7}
@@ -51,6 +90,21 @@
      viewport; browsers without it keep the 100vh from the class. */
   .sd2_life_sticky{height:100svh}
   .sd2_life_ui{padding-bottom:env(safe-area-inset-bottom)}
+  /* One slide per swipe on phones. The bands are invisible boxes the page can snap to —
+     one per picture — added by the bundle only under 768px. Proximity, not mandatory, so
+     the rest of the page still scrolls freely; the negative scroll-margin cancels the
+     5rem scroll-padding so a snapped slide sits flush against the top. */
+  @media screen and (max-width: 767px){
+    html.sd2-js{scroll-snap-type:y proximity}
+    .sd2_life_snaps{position:absolute;inset:0;pointer-events:none}
+    .sd2_life_snap{position:absolute;left:0;right:0;scroll-snap-align:start;scroll-margin-top:-5rem}
+  }
+
+  /* masterplan: the mobile frame pans horizontally over a wider drawing (.sd2_map_pan).
+     Webflow owns the widths; these are the bits its panel cannot express. */
+  .sd2_map_frame{scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  .sd2_map_frame::-webkit-scrollbar{display:none}
+
   @media screen and (max-width: 767px){
     .sd2_life{height:480vh}
     /* six full-screen composited layers with a 6s scale is what makes phones drop frames / flash

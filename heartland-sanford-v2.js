@@ -66,10 +66,13 @@
   function money(n) { return "R" + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
   function short(n) { return "R" + (n / 1000000).toFixed(2).replace(/0$/, "").replace(/\.0$/, "") + "m"; }
 
-  function scrollToEl(el, offset) {
+  /* Scrolling is the browser's job. Anything with a destination on this page is a plain
+     <a href="#id">; this helper is only for jumps JS starts itself (picking a home on a
+     phone). Both land the same way, because html{scroll-padding-top} owns the nav offset
+     rather than a magic number in here. */
+  function scrollToEl(el) {
     if (!el) { return; }
-    var top = el.getBoundingClientRect().top + w.pageYOffset - (offset || 72);
-    w.scrollTo({ top: top, behavior: reduceMotion ? "auto" : "smooth" });
+    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   }
 
   /* ----------------------------------------------------------- 1. reveals */
@@ -225,6 +228,26 @@
         w.scrollTo({ top: top + step * i + step / 2, behavior: reduceMotion ? "auto" : "smooth" });
       });
     });
+    /* On a phone a 480vh free-scrolling section means every flick lands mid-crossfade.
+       These bands give the page something to snap to — one per slide — so a swipe up
+       settles on the next picture. They are invisible and only exist under 768px;
+       the snapping itself is CSS (html gets scroll-snap-type in the page head). */
+    function buildSnaps() {
+      if (qs(".sd2_life_snaps", root)) { return; }
+      var wrap = d.createElement("div");
+      wrap.className = "sd2_life_snaps";
+      wrap.setAttribute("aria-hidden", "true");
+      for (var i = 0; i < n; i++) {
+        var band = d.createElement("div");
+        band.className = "sd2_life_snap";
+        band.style.top = (i * 100 / n) + "%";
+        band.style.height = (100 / n) + "%";
+        wrap.appendChild(band);
+      }
+      root.appendChild(wrap);
+    }
+    if (!reduceMotion && w.matchMedia("(max-width: 767px)").matches) { buildSnaps(); }
+
     on(w, "scroll", sync, { passive: true });
     on(w, "resize", sync);
     sync();
@@ -400,6 +423,15 @@
     });
   }
 
+  /* The mobile masterplan is a wider drawing inside a horizontally scrollable frame
+     (.sd2_map_pan). Open it in the middle rather than hard against the left edge. */
+  function centreMapPan() {
+    var frame = qs("[data-sd2-map] .sd2_map_frame");
+    if (!frame) { return; }
+    var over = frame.scrollWidth - frame.clientWidth;
+    if (over > 4) { frame.scrollLeft = over / 2; }
+  }
+
   function positionPins() {
     var frame = qs("[data-sd2-map] .sd2_map_frame");
     var scale = frame ? (parseFloat(frame.getAttribute("data-scale")) || 1) : 1;
@@ -510,6 +542,11 @@
     if (!u || u.status === "Sold") { return; }
     SEL.selected = slug;
     paintSelection();
+    // On a phone the masterplan fills the screen and the detail card is below the fold,
+    // so a tap looks like it did nothing. Bring the card to the top after the paint.
+    if (fromUser && u.detail && w.matchMedia("(max-width: 767px)").matches) {
+      requestAnimationFrame(function () { scrollToEl(u.detail); });
+    }
     if (fromUser) { log("picked", slug); }
   }
 
@@ -540,21 +577,23 @@
     });
     // "See Type X homes" on the type cards and the detail card's type link.
     qsa("[data-filter-type]").forEach(function (b) {
-      on(b, "click", function (e) {
-        e.preventDefault();
+      // No preventDefault: the link carries href="#sd2-select" and the browser's own
+      // anchor jump is smoother than anything scripted here.
+      on(b, "click", function () {
         var t = b.getAttribute("data-filter-type") || "all";
         SEL.filter = t;
         var first = UNITS.filter(function (u) { return u.typeSlug === t && u.status === "Available"; })[0] ||
                     UNITS.filter(function (u) { return u.typeSlug === t; })[0];
         if (first && first.status !== "Sold") { SEL.selected = first.slug; }
         paintSelection();
-        scrollToEl(qs("#sd2-select"), 60);
       });
     });
     // Default: the first available home, lowest number first (the design's "07" was a placeholder).
     var def = UNITS.filter(function (u) { return u.status === "Available"; })[0] || UNITS[0];
     if (def && def.status !== "Sold") { SEL.selected = def.slug; }
     paintSelection();
+    centreMapPan();
+    on(w, "resize", centreMapPan);
   }
 
   /* ----------------------------------------------------------- 10. sticky bar */
@@ -753,12 +792,13 @@
   (function explore() {
     var openers = qsa("[data-sd2-explore-open]"), box = qs(".sd2_explore");
     openers.forEach(function (b) {
-      on(b, "click", function (e) {
-        e.preventDefault();
+      // The button is <a href="#sd2-explore">. Reveal the block synchronously and let the
+      // browser jump to it: the old scripted scroll fired 30ms later, against a page whose
+      // height was still changing, which is what made it feel like it missed.
+      on(b, "click", function () {
         if (!box) { return; }
         box.classList.add("is-open");
         var cta = qs("[data-sd2-explore-cta]"); if (cta) { cta.style.display = "none"; }
-        setTimeout(function () { scrollToEl(box, 40); }, 30);
       });
     });
 
@@ -805,6 +845,32 @@
     var CALC = { price: 0, dep: cfg ? num(cfg.getAttribute("data-deposit")) || 10 : 10,
                  rate: cfg ? num(cfg.getAttribute("data-rate")) || 11.25 : 11.25,
                  years: cfg ? num(cfg.getAttribute("data-years")) || 20 : 20, touched: false };
+    /* Purchase price is not a free number: it can only be one of the prices the homes
+       actually sell for. The slider becomes an index over that (sorted, de-duplicated)
+       list, so every stop is a real price and there is nothing in between to land on. */
+    var PRICES = [];
+    function buildPrices() {
+      var seen = {};
+      PRICES = [];
+      UNITS.forEach(function (u) { if (u.price && !seen[u.price]) { seen[u.price] = 1; PRICES.push(u.price); } });
+      PRICES.sort(function (a, b) { return a - b; });
+      qsa("input[data-calc=price]").forEach(function (inp) {
+        if (!PRICES.length) { return; }
+        inp.min = "0";
+        inp.max = String(PRICES.length - 1);
+        inp.step = "1";
+        // One price across the whole development: nothing to choose, so don't pretend.
+        inp.disabled = PRICES.length < 2;
+        var host = inp.parentNode;
+        if (host && host.setAttribute) { host.setAttribute("data-stops", String(PRICES.length)); }
+      });
+    }
+    function priceAt(i) { return PRICES[Math.max(0, Math.min(PRICES.length - 1, Math.round(i)))] || 0; }
+    function priceIndex(p) {
+      var best = 0, gap = Infinity;
+      PRICES.forEach(function (v, i) { var g = Math.abs(v - p); if (g < gap) { gap = g; best = i; } });
+      return best;
+    }
     function monthly(price, depPct, rate, years) {
       var loan = price - Math.round(price * depPct / 100), r = rate / 100 / 12, n = years * 12;
       return r > 0 ? loan * r / (1 - Math.pow(1 + r, -n)) : loan / n;
@@ -834,7 +900,7 @@
       if (sub) { sub.style.display = (text(lev) || text(rat)) ? "" : "none"; }
       qsa("input[data-calc]").forEach(function (inp) {
         var k = inp.getAttribute("data-calc");
-        if (k === "price" && !CALC.touched) { inp.value = price; }
+        if (k === "price") { inp.value = priceIndex(price); inp.setAttribute("aria-valuetext", money(price)); }
         if (k === "deposit") { inp.value = CALC.dep; }
         if (k === "rate") { inp.value = CALC.rate; }
         if (k === "years") { inp.value = CALC.years; }
@@ -843,7 +909,7 @@
     qsa("input[data-calc]").forEach(function (inp) {
       on(inp, "input", function () {
         var k = inp.getAttribute("data-calc"), v = num(inp.value);
-        if (k === "price") { CALC.price = v; CALC.touched = true; }
+        if (k === "price") { CALC.price = priceAt(v); CALC.touched = true; }
         else if (k === "deposit") { CALC.dep = v; }
         else if (k === "rate") { CALC.rate = v; }
         else if (k === "years") { CALC.years = v; }
@@ -861,6 +927,8 @@
     on(backdrop, "click", function () { setCalc(false); });
     on(d, "keydown", function (e) { if (e.key === "Escape") { setCalc(false); } });
     d.addEventListener("sd2:selected", function () { CALC.touched = false; paintFinance(); });
+    d.addEventListener("sd2:catalogue", function () { buildPrices(); paintFinance(); });
+    buildPrices();
     paintFinance();
   })();
 
