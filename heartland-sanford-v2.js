@@ -556,7 +556,16 @@
     });
     qsa(".sd2_filter").forEach(function (b) { b.classList.toggle("is-active", (b.getAttribute("data-filter") || "all") === SEL.filter); });
     var hint = qs("[data-sd2-hint]");
-    if (hint) { hint.textContent = SEL.hover && f ? "Home " + f.n + " — " + f.status : "Hover a marker to light its footprint"; }
+    if (hint) {
+      // "Hover" has no meaning on a touch screen — mobile never sets SEL.hover, so this used
+      // to sit on the desktop copy forever. f already falls back to the tapped/selected home,
+      // so using it (not SEL.hover) here lights the hint on mobile too, and the idle copy is
+      // per-device since only desktop actually has a hover to invite.
+      var touchDevice = w.matchMedia("(max-width: 767px)").matches;
+      hint.textContent = f
+        ? "Home " + f.n + " — " + f.status
+        : (touchDevice ? "Tap a marker to see a home" : "Hover a marker to light its footprint");
+    }
     paintSelected();
   }
 
