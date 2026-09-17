@@ -607,6 +607,19 @@
     paintSelection();
     centreMapPan();
     on(w, "resize", centreMapPan);
+    // At boot the drawing usually has no height yet, so there is nothing to centre against.
+    // Run it again once the image has laid out.
+    var mapImg = qs("[data-sd2-map] .sd2_map_base");
+    if (mapImg) {
+      // Webflow writes sizes="100vw", but under 768px the drawing is laid out at twice the
+      // viewport, so that hint makes the browser pick a variant half the resolution it needs.
+      // Webflow's API refuses to write `sizes` on an Image element, so it is corrected here —
+      // before the image has been fetched, since this runs while it is still below the fold.
+      if (w.matchMedia("(max-width: 767px)").matches && !mapImg.complete) {
+        mapImg.setAttribute("sizes", "200vw");
+      }
+      if (!mapImg.complete) { on(mapImg, "load", centreMapPan); }
+    }
   }
 
   /* ----------------------------------------------------------- 10. sticky bar */
