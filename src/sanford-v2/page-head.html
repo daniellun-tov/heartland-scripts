@@ -2,9 +2,14 @@
      Source of truth for this block lives in the repo; paste the whole thing.
      Everything Webflow's style panel cannot express lives here: nested state
      selectors, keyframes, scroll-snap, writing-mode, clip-path, range inputs. -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200;0,6..72,300;0,6..72,400&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- Type is self-hosted (Site settings > Fonts), so no Google Fonts round trip: Webflow
+     writes the @font-face rules into the site stylesheet. These three preloads pull the
+     faces that paint first - the loader wordmark, the hero display line, body copy - so
+     they are already in flight while that stylesheet is still being parsed. -->
+<link rel="preconnect" href="https://webflow-files-prod.global.ssl.fastly.net" crossorigin>
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6a2985a0b9c89b7ba97ce32c_Righteous-Regular.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://webflow-files-prod.global.ssl.fastly.net/61110f294933f9d0faf6d77f/fonts/6aab8a93e7878c50f4fd8d11-Newsreader-ExtraLight.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://webflow-files-prod.global.ssl.fastly.net/61110f294933f9d0faf6d77f/fonts/6aab8a92fbccf47717872c7c-Manrope-Regular.woff2">
 <link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6aaaaaccb498ff08c62f9876_sd2-hero-poster-16x9.jpg" media="(min-width: 768px)">
 <link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6aaaaaccb498ff08c62f988c_sd2-hero-poster-9x16.jpg" media="(max-width: 767px)">
 <script>
