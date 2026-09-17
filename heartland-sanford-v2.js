@@ -87,6 +87,25 @@
     el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   }
 
+  /* Webflow's smoothScroll module delegates a click handler on `document` for every
+     a[href*="#"], preventDefault()s it and runs its own easing to window.scroll(). That is
+     what made in-page links feel scripted, and it also bypasses scroll-padding-top, so every
+     anchor landed with the fixed nav covering the top of the section.
+
+     Stopping propagation AT THE LINK (capture phase) keeps the event from reaching Webflow's
+     handler on document while still running this page's own handlers on the same element —
+     stopPropagation, unlike stopImmediatePropagation, does not touch listeners on this node.
+     Nothing calls preventDefault, so the browser performs the fragment navigation itself:
+     native easing from `scroll-behavior`, and the offset from `scroll-padding-top` on <html>,
+     which clears the fixed nav on every breakpoint. */
+  (function nativeAnchors() {
+    qsa('a[href^="#"]').forEach(function (a) {
+      var href = a.getAttribute("href");
+      if (!href || href === "#" || !qs(href)) { return; }
+      a.addEventListener("click", function (e) { e.stopPropagation(); }, true);
+    });
+  })();
+
   /* ----------------------------------------------------------- 1. reveals */
   (function reveals() {
     var els = qsa(".sd2_reveal");
