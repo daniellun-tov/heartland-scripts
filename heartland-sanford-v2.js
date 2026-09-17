@@ -374,14 +374,24 @@
     });
   }
 
-  /* Reserved / Sold come from the CMS Switch fields through conditional visibility on
-     the [data-flag] tags (Webflow renders a hidden tag with .w-condition-invisible).
-     Conditional visibility can only be set in the Designer, so until that is done no
-     tag anywhere carries the class — in that state every unit reads as available
-     rather than every unit reading as sold. */
+  /* Reserved / Sold come from the CMS Switch fields through conditional visibility on the
+     [data-flag] tags. Webflow has two ways of rendering a condition that is false: older
+     output keeps the element and adds .w-condition-invisible, current output leaves the
+     element out of the HTML altogether. Both read as "hidden" through isHidden().
+
+     The guard below is for the state where the condition is not bound at all: every item
+     then renders BOTH tags, and without it every unit would read as Sold. So the flags are
+     treated as carrying signal unless every single item shows reserved AND sold at once,
+     which is not a state real data can produce. Do not go back to looking for
+     .w-condition-invisible — an omitted element leaves no class to find. */
   var VIS_BOUND = null;
   function visBound() {
-    if (VIS_BOUND === null) { VIS_BOUND = !!qs("[data-sd2-map] .w-condition-invisible, [data-sd2-details] .w-condition-invisible"); }
+    if (VIS_BOUND === null) {
+      var items = qsa("[data-sd2-map] .sd2_map_item");
+      VIS_BOUND = items.length > 0 && !items.every(function (it) {
+        return !isHidden(qs("[data-flag=reserved]", it)) && !isHidden(qs("[data-flag=sold]", it));
+      });
+    }
     return VIS_BOUND;
   }
   function statusOf(item) {
@@ -724,9 +734,11 @@
     /* An option is "standard" when its CMS Default switch is on, which Webflow
        renders as the Standard tag NOT carrying .w-condition-invisible. */
     function tagsBound(panel) {
-      // Same caveat as the unit flags: the Standard tag only means something once
-      // conditional visibility is set on it in the Designer.
-      return !!qs(".sd2_option_tag_std.w-condition-invisible", panel || root);
+      // Same shape as visBound(): the Standard tag only means something once its condition
+      // is bound, and an unbound condition shows the tag on every option. A bound one hides
+      // it somewhere — either with .w-condition-invisible or by omitting the element.
+      var opts = qsa(".sd2_option", panel || root);
+      return opts.length > 0 && !opts.every(function (o) { return !isHidden(qs(".sd2_option_tag_std", o)); });
     }
     function isStandard(opt) {
       if (opt.getAttribute("data-default") === "true") { return true; }
