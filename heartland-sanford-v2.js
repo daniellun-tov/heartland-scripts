@@ -434,25 +434,26 @@
     });
   }
 
-  /* The mobile masterplan is a wider drawing inside a horizontally scrollable frame
-     (.sd2_map_pan). Open it in the middle rather than hard against the left edge. */
+  /* On phones the masterplan is a drawing twice the width of its frame (.sd2_map_pan inside
+     a square .sd2_map_frame), pannable on both axes. Open it in the middle of both rather
+     than hard against a corner. */
   function centreMapPan() {
     var frame = qs("[data-sd2-map] .sd2_map_frame");
     if (!frame) { return; }
-    var over = frame.scrollWidth - frame.clientWidth;
-    if (over > 4) { frame.scrollLeft = over / 2; }
+    var overX = frame.scrollWidth - frame.clientWidth;
+    var overY = frame.scrollHeight - frame.clientHeight;
+    if (overX > 4) { frame.scrollLeft = overX / 2; }
+    if (overY > 4) { frame.scrollTop = overY / 2; }
   }
 
   function positionPins() {
-    var frame = qs("[data-sd2-map] .sd2_map_frame");
-    var scale = frame ? (parseFloat(frame.getAttribute("data-scale")) || 1) : 1;
     UNITS.forEach(function (u) {
       if (!u.pin) { return; }
-      // CMS positions were authored on the un-zoomed masterplan; the base image is
-      // scaled about its centre, so the pins follow the same transform.
-      var x = 50 + (u.x - 50) * scale, y = 50 + (u.y - 50) * scale;
-      u.pin.style.left = x.toFixed(2) + "%";
-      u.pin.style.top = y.toFixed(2) + "%";
+      // The CMS positions are plain percentages of the masterplan drawing, and the pins sit
+      // in the same box as the drawing (.sd2_map_pan), so any zoom is a change of that box's
+      // width and both move together. Nothing to correct for here.
+      u.pin.style.left = u.x.toFixed(2) + "%";
+      u.pin.style.top = u.y.toFixed(2) + "%";
       u.pin.classList.toggle("is-reserved", u.status === "Reserved");
       u.pin.classList.toggle("is-sold", u.status === "Sold");
       u.pin.setAttribute("aria-label", "Home " + u.n + " — " + u.status);

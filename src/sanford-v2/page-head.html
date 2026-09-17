@@ -105,9 +105,11 @@
     .sd2_life_snap{position:absolute;left:0;right:0;scroll-snap-align:start;scroll-margin-top:-5rem}
   }
 
-  /* masterplan: the mobile frame pans horizontally over a wider drawing (.sd2_map_pan).
-     Webflow owns the widths; these are the bits its panel cannot express. */
-  .sd2_map_frame{scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  /* masterplan: on phones the frame is a square window that pans in both directions over a
+     drawing twice its width (.sd2_map_pan). Webflow owns the sizes; these are the bits its
+     panel cannot express. The drawing and the pin layer share that box, so they zoom together
+     and the pins stay put — which is why nothing here scales anything. */
+  .sd2_map_frame{scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   .sd2_map_frame::-webkit-scrollbar{display:none}
 
   @media screen and (max-width: 767px){
