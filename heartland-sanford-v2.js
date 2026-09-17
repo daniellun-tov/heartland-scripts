@@ -92,17 +92,25 @@
      what made in-page links feel scripted, and it also bypasses scroll-padding-top, so every
      anchor landed with the fixed nav covering the top of the section.
 
-     Stopping propagation AT THE LINK (capture phase) keeps the event from reaching Webflow's
-     handler on document while still running this page's own handlers on the same element —
-     stopPropagation, unlike stopImmediatePropagation, does not touch listeners on this node.
-     Nothing calls preventDefault, so the browser performs the fragment navigation itself:
-     native easing from `scroll-behavior`, and the offset from `scroll-padding-top` on <html>,
-     which clears the fixed nav on every breakpoint. */
+     Stopping propagation AT THE LINK keeps the event away from that handler on document while
+     the link's own listeners still run, and nothing calls preventDefault, so the browser does
+     the fragment navigation itself: native easing from `scroll-behavior`, and the offset from
+     `scroll-padding-top` on <html>, which clears the fixed nav on every breakpoint.
+
+     It has to be a BUBBLE listener. Chrome runs a target's capture listeners in the capture
+     pass and its bubble listeners in the bubble pass, so stopping propagation from a capture
+     listener here also kills every other handler on the same link — which silently disabled
+     the explore opener. In the bubble phase the flag only stops the event reaching document. */
   (function nativeAnchors() {
     qsa('a[href^="#"]').forEach(function (a) {
       var href = a.getAttribute("href");
       if (!href || href === "#" || !qs(href)) { return; }
-      a.addEventListener("click", function (e) { e.stopPropagation(); }, true);
+      a.addEventListener("click", function (e) {
+        // A .sd2_reveal that has not fired yet sits 26px low; finish it before the browser
+        // measures where to land, or the anchor lands 26px short (the detail card did).
+        settleReveal(qs(href));
+        e.stopPropagation();
+      }, false);
     });
   })();
 
