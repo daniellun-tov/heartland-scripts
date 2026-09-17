@@ -588,7 +588,7 @@
 
   function pick(slug, fromUser) {
     var u = unitBy(slug);
-    if (!u || u.status === "Sold") { return; }
+    if (!u || u.status === "Sold" || u.status === "Reserved") { return; }
     SEL.selected = slug;
     paintSelection();
     // On a phone the masterplan fills the screen and the detail card is below the fold,
