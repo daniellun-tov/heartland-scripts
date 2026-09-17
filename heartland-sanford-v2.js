@@ -278,7 +278,7 @@
       qsa(".sd2_light_tab", root).forEach(function (el, i) { tabs[el.getAttribute("data-target") || ORDER[i]] = el; });
       if (!imgs.day || !tabs.day) { return; }
       var dwell = parseInt(root.getAttribute("data-dwell") || "4200", 10);
-      var fade = 620, cur = 0, autoTimer = null, chainTimer = null, idleTimer = null, auto = false, visible = false;
+      var cur = 0, autoTimer = null, idleTimer = null, auto = false, visible = false;
       root.style.setProperty("--lt-dwell", dwell + "ms");
       function paint(i) {
         ORDER.forEach(function (k, n) {
@@ -287,13 +287,12 @@
         });
         cur = i;
       }
-      // Step one state at a time so the light never jumps a phase (day -> night passes through sunset).
+      // Every change is a single cross-fade straight to the target, including the wrap from
+      // night back to day. An earlier version stepped through the intermediate phase, which
+      // made the loop stall on sunset on its way round and ignored a direct click on Day.
       function goto_(target) {
-        clearTimeout(chainTimer);
         if (target === cur) { return; }
-        var next = cur + (target > cur ? 1 : -1);
-        paint(next);
-        if (next !== target) { chainTimer = setTimeout(function () { goto_(target); }, fade * 0.72); }
+        paint(target);
       }
       function restartProgress() {
         var bar = qs(".sd2_light_tab.is-active .sd2_light_tab_progress", root);
