@@ -108,8 +108,13 @@
   /* masterplan: on phones the frame is a square window that pans in both directions over a
      drawing twice its width (.sd2_map_pan). Webflow owns the sizes; these are the bits its
      panel cannot express. The drawing and the pin layer share that box, so they zoom together
-     and the pins stay put — which is why nothing here scales anything. */
-  .sd2_map_frame{scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+     and the pins stay put — which is why nothing here scales anything.
+     The two axes want opposite overscroll rules. Vertically it must CHAIN: a swipe pans the
+     drawing to its bottom edge and then keeps going as an ordinary page scroll, otherwise the
+     page reads as frozen for the ~100px the map has left in it. Horizontally it must be
+     CONTAINED, so panning past the left or right edge cannot trigger the browser's
+     back-navigation swipe. */
+  .sd2_map_frame{scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;overscroll-behavior-y:auto}
   .sd2_map_frame::-webkit-scrollbar{display:none}
 
   @media screen and (max-width: 767px){
