@@ -29,7 +29,8 @@
 .site-plan_legend-swatch.is-available{background:var(--oh-available)}
 .site-plan_legend-swatch.is-reserved{background:var(--oh-reserved)}
 .site-plan_legend-swatch.is-sold{background:var(--oh-sold)}
-.site-plan_legend-swatch.is-unreleased{background:repeating-linear-gradient(135deg,rgba(21,23,20,.32) 0 1.5px,transparent 1.5px 5px),rgba(21,23,20,.1),var(--oh-sand)}
+/* same wash + 45deg hatch as the #oh-hatch plot pattern (a bare colour is only valid as the LAST background layer, hence the flat linear-gradient for the wash) */
+.site-plan_legend-swatch.is-unreleased{background:repeating-linear-gradient(-45deg,rgba(21,23,20,.24) 0 1.5px,transparent 1.5px 5.5px),linear-gradient(rgba(21,23,20,.10),rgba(21,23,20,.10)),var(--oh-sand);border:1px solid rgba(21,23,20,.28)}
 .site-plan_legend-swatch.is-type-a{background:var(--oh-type-a)}
 .site-plan_legend-swatch.is-type-b{background:var(--oh-type-b)}
 .site-plan_legend-swatch.is-type-c{background:var(--oh-type-c)}
