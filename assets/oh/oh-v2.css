@@ -29,7 +29,7 @@
 .site-plan_legend-swatch.is-available{background:var(--oh-available)}
 .site-plan_legend-swatch.is-reserved{background:var(--oh-reserved)}
 .site-plan_legend-swatch.is-sold{background:var(--oh-sold)}
-.site-plan_legend-swatch.is-unreleased{background:linear-gradient(135deg,rgba(21,23,20,.6),rgba(21,23,20,.26)),var(--oh-sand)}
+.site-plan_legend-swatch.is-unreleased{background:repeating-linear-gradient(135deg,rgba(21,23,20,.32) 0 1.5px,transparent 1.5px 5px),rgba(21,23,20,.1),var(--oh-sand)}
 .site-plan_legend-swatch.is-type-a{background:var(--oh-type-a)}
 .site-plan_legend-swatch.is-type-b{background:var(--oh-type-b)}
 .site-plan_legend-swatch.is-type-c{background:var(--oh-type-c)}
@@ -53,24 +53,31 @@ html:not(.legends-ready) .site-plan_legend-group[data-legend-group="type"]{displ
 .unit-filter_soon,.site-plan_legend-soon{display:inline-block;margin-left:.4rem;padding:.1rem .45rem;border-radius:999px;background:var(--oh-sand);color:var(--oh-ink);font-size:.6875rem;line-height:1.4;white-space:nowrap}
 .site-plan_legend-item.is-coming-soon{opacity:.6}
 .site-plan_switch-label{display:inline-flex;align-items:center;padding:0 .5rem 0 .75rem;font-size:.6875rem;letter-spacing:.08em;text-transform:uppercase;color:var(--oh-ink);opacity:.7;white-space:nowrap}
+/* 18 Sep: every group sits in the main flow (Price, Type, Block, Orientation, Parking, Directional View, Size);
+   the More-filters disclosure is empty and hidden, Level is kept in the Designer for a later version */
+.unit-filter_more-button,.unit-filter_more-list,.unit-filter_group[data-oh-hidden]{display:none!important}
+.unit-filter_group:has([data-filter="price"]) .unit-filter_chips,.unit-filter_group:has([data-filter="size"]) .unit-filter_chips{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.unit-filter_group:has([data-filter="price"]) .unit-filter_chip-1,.unit-filter_group:has([data-filter="size"]) .unit-filter_chip-1{width:100%;justify-content:space-between}
 .unit-filter_more-list.svx-more-collapsed{max-height:0!important;margin:0}
 .unit-filter_more-list.svx-more-open{max-height:none}
 .unit-filter_more-button.is-open .unit-filter_more-icon{transform:rotate(-135deg);margin-top:.25rem}
 
 /* ---- map: block footprints ---- */
-.site-plan_map-svg .site-plan_block{fill:var(--oh-ink);fill-opacity:.07;stroke:#fff;stroke-width:2;cursor:pointer;transition:fill-opacity .2s,stroke .2s}
+.site-plan_map-svg .site-plan_block{fill:var(--oh-ink);fill-opacity:.07;stroke:rgba(255,255,255,.75);stroke-width:1.5;cursor:pointer;transition:fill-opacity .2s,stroke .2s,filter .25s}
 .site-plan_map-svg .site-plan_block:hover{fill-opacity:.14}
-.site-plan_map-svg .site-plan_block.is-selected{stroke:var(--oh-ink);stroke-width:3;fill-opacity:.12}
+/* 18 Sep: the selected / filtered block glows instead of taking a hard outline - softer, and it reads at any zoom */
+.site-plan_map-svg .site-plan_block.is-selected{stroke:var(--oh-ink);stroke-opacity:.55;stroke-width:1.5;fill-opacity:.1;filter:drop-shadow(0 0 5px rgba(95,77,63,.55)) drop-shadow(0 3px 6px rgba(21,23,20,.28))}
 .site-plan_map-svg .site-plan_block.is-dimmed{fill-opacity:.04;stroke-opacity:.5}
 /* phase 2: unit-level plots share the same states */
-.site-plan_map-svg .site-plan_plot{cursor:pointer;stroke:#fff;stroke-width:1}
-.is-colour-status .site-plan_plot[data-status="available"]{fill:var(--oh-available)}
-.is-colour-status .site-plan_plot[data-status="reserved"],.is-colour-status .site-plan_plot[data-status="pending"]{fill:var(--oh-reserved)}
-.is-colour-status .site-plan_plot[data-status="sold"]{fill:var(--oh-sold)}
-.is-colour-status .site-plan_plot[data-status="unreleased"]{fill:url(#oh-soon)}
-.is-colour-type .site-plan_plot[data-type="A"]{fill:var(--oh-type-a)}
-.is-colour-type .site-plan_plot[data-type="B"]{fill:var(--oh-type-b)}
-.is-colour-type .site-plan_plot[data-type="C"]{fill:var(--oh-type-c)}
+.site-plan_map-svg .site-plan_plot{cursor:pointer;stroke:rgba(255,255,255,.9);stroke-width:1;stroke-linejoin:round}
+/* 18 Sep: outlines are a bolder shade of the fill (color-mix), not white */
+.is-colour-status .site-plan_plot[data-status="available"]{fill:var(--oh-available);stroke:color-mix(in srgb,var(--oh-available) 72%,#1f1911)}
+.is-colour-status .site-plan_plot[data-status="reserved"],.is-colour-status .site-plan_plot[data-status="pending"]{fill:var(--oh-reserved);stroke:color-mix(in srgb,var(--oh-reserved) 72%,#1f1911)}
+.is-colour-status .site-plan_plot[data-status="sold"]{fill:var(--oh-sold);stroke:color-mix(in srgb,var(--oh-sold) 72%,#1f1911)}
+.is-colour-status .site-plan_plot[data-status="unreleased"]{fill:url(#oh-hatch);stroke:rgba(21,23,20,.28)}
+.is-colour-type .site-plan_plot[data-type="A"]{fill:var(--oh-type-a);stroke:color-mix(in srgb,var(--oh-type-a) 72%,#1f1911)}
+.is-colour-type .site-plan_plot[data-type="B"]{fill:var(--oh-type-b);stroke:color-mix(in srgb,var(--oh-type-b) 72%,#1f1911)}
+.is-colour-type .site-plan_plot[data-type="C"]{fill:var(--oh-type-c);stroke:color-mix(in srgb,var(--oh-type-c) 72%,#1f1911)}
 @media (hover:hover){.site-plan_map-svg .site-plan_plot{fill-opacity:.72;transition:fill-opacity .15s}.site-plan_map-svg .site-plan_plot:hover,.site-plan_map-svg .site-plan_plot.is-selected{fill-opacity:1}}
 .site-plan_plot.is-dimmed{opacity:.2}
 .site-plan_plot.is-selected{stroke:var(--oh-ink);stroke-width:3}
@@ -78,7 +85,7 @@ html:not(.legends-ready) .site-plan_legend-group[data-legend-group="type"]{displ
    The opacity is scoped to status mode - unscoped it also beat the quiet type colour below. */
 .site-plan_map-svg .site-plan_plot[data-status="unreleased"]{cursor:pointer}
 .is-colour-status .site-plan_plot[data-status="unreleased"]{fill-opacity:1}
-.is-colour-status .site-plan_plot[data-status="unreleased"]:hover{fill:url(#oh-soon-hi)}
+.is-colour-status .site-plan_plot[data-status="unreleased"]:hover{fill:url(#oh-hatch-hi)}
 .is-colour-type .site-plan_plot[data-status="unreleased"]{fill-opacity:.28}
 .is-colour-type .site-plan_plot[data-status="unreleased"]:hover{fill-opacity:.5}
 .site-plan_map-svg .site-plan_plot.is-static{cursor:default}
@@ -205,6 +212,11 @@ html:not(.sales-open) [data-prelaunch-ui]{display:inline-flex}
 .ud-lightbox_stage{width:min(92vw,1200px);height:min(86vh,800px);display:flex;align-items:center;justify-content:center}
 .ud-lightbox_stage img,.ud-lightbox_stage video,.ud-lightbox_stage iframe{max-width:100%;max-height:100%;width:auto;height:auto;border:0}
 .ud-lightbox_stage iframe{width:100%;height:100%}
+/* 360 tour: as big as the viewport allows while still reading as a modal */
+.ud-tour_stage{width:min(96vw,1700px);height:min(92vh,1080px);border-radius:12px;overflow:hidden;background:#000;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.ud-tour_stage iframe{display:block;width:100%;height:100%;border:0}
+@media (max-width:767px){.ud-tour_stage{width:100vw;height:100dvh;border-radius:0}}
+html.oh-tour-open{overflow:hidden}
 .ud-lb-btn,.fp-lightbox_close{position:absolute;display:flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;border:0;border-radius:999px;background:rgba(255,255,255,.14);color:#fff;font-size:1.5rem;line-height:1;cursor:pointer}
 .ud-lb-close,.fp-lightbox_close{top:1rem;right:1rem}
 .ud-lb-prev{left:1rem;top:50%;transform:translateY(-50%)}
@@ -249,7 +261,7 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 .unit-filter_map .site-plan_legend{background:rgba(255,255,255,.92);border-radius:999px;padding:.45rem 1.1rem;box-shadow:0 4px 14px rgba(21,23,20,.12);font-size:.8125rem}
 @media (min-width:992px){
   /* the brand row is a fixed track: the plan and list span rows 1-2, and an auto track would grow to their content */
-  .unit-filter_component{grid-template-columns:16rem minmax(0,1fr) 20rem;grid-template-rows:6.5rem minmax(0,1fr) auto;grid-template-areas:"brand main list" "filters main list" "footer footer footer"}
+  .unit-filter_component{grid-template-columns:19rem minmax(0,1fr) 20rem;grid-template-rows:6.5rem minmax(0,1fr) auto;grid-template-areas:"brand main list" "filters main list" "footer footer footer"}
   .unit-filter_brand{height:6.5rem;overflow:hidden;justify-content:center;padding:0 1.25rem}
   .unit-filter_main,.site-plan_list-wrap{overflow:hidden}
   .unit-filter_brand,.unit-filter_filters{border-right:1px solid var(--oh-line)}
@@ -269,7 +281,7 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .unit-filter_map .site-plan_toolbar{left:.75rem;right:.75rem;flex-direction:row;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end;gap:.5rem .75rem;max-width:none}
   .site-plan_floor-switch{top:auto;bottom:.75rem}
 }
-@media (min-width:1280px){.unit-filter_component{grid-template-columns:17rem minmax(0,1fr) 22rem}}
+@media (min-width:1280px){.unit-filter_component{grid-template-columns:20rem minmax(0,1fr) 22rem}}
 /* ---- detail panel: sticky actions, above the chat widget ---- */
 .site-plan_detail-wrap{z-index:2147483000}
 .site-plan_detail-panel{display:flex;flex-direction:column}
@@ -366,9 +378,9 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
    (toolbar top-right, level switch top-left on desktop / bottom-left on
    mobile, zoom bottom-right). */
 .site-plan_viewmarks{position:absolute;inset:0;z-index:5;pointer-events:none}
-.site-plan_viewmark{position:absolute;pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;padding:0;border:1px solid rgba(95,77,63,.28);border-radius:999px;background:#fff;color:var(--oh-ink);cursor:pointer;box-shadow:0 2px 10px rgba(21,23,20,.14);transition:background .18s ease,color .18s ease,transform .18s ease,box-shadow .18s ease}
-.site-plan_viewmark svg{width:1.05rem;height:1.05rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.site-plan_viewmark:hover,.site-plan_viewmark:focus-visible{transform:scale(1.08);box-shadow:0 4px 16px rgba(21,23,20,.2);outline:none}
+.site-plan_viewmark{position:absolute;pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;padding:0;border:1px solid rgba(95,77,63,.28);border-radius:999px;background:#fff;color:var(--oh-ink);cursor:pointer;box-shadow:0 2px 10px rgba(21,23,20,.14);transition:background .18s ease,color .18s ease,transform .18s ease,box-shadow .18s ease}
+.site-plan_viewmark svg{width:1.3rem;height:1.3rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.site-plan_viewmark:hover,.site-plan_viewmark:focus-visible{background:#e9e3d6;border-color:rgba(95,77,63,.45);transform:scale(1.08);box-shadow:0 4px 16px rgba(21,23,20,.22);outline:none}
 .site-plan_viewmark.is-active{background:var(--oh-ink);border-color:var(--oh-ink);color:#fff}
 .site-plan_viewmark.is-muted{opacity:.4;cursor:default}
 .site-plan_viewmark.is-muted:hover,.site-plan_viewmark.is-muted:focus-visible{transform:none;box-shadow:0 2px 10px rgba(21,23,20,.12)}
@@ -502,7 +514,7 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
    toolbar has reflowed to (--oh-marks-top, measured in the controller) and
    the south marker clears the zoom bar. */
 @media (max-width:991px){
-  .site-plan_viewmark{width:1.75rem;height:1.75rem}
+  .site-plan_viewmark{width:2.125rem;height:2.125rem}
   .site-plan_viewmark svg{width:.95rem;height:.95rem}
   .site-plan_viewmark[data-placement="south"]{bottom:3.25rem}
   .site-plan_viewmark-tip{max-width:min(17rem,calc(100vw - 2rem))}

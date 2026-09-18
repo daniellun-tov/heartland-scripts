@@ -70,7 +70,7 @@
     el.appendChild(f); el.appendChild(t);
   }
   window.ohShortLabel = shortLabel;
-  var SHORT = { 'Availability': 'Status', 'Unit type': 'Type', 'Available': 'Avail', 'Reserved': 'Res', 'Pending': 'Pend', 'Sold': 'Sold', 'Sold out': 'Out', 'Coming soon': 'Soon' };
+  var SHORT = { 'Availability': 'Status', 'Unit type': 'Type', 'Available': 'Avail', 'Reserved': 'Res', 'Pending': 'Pend', 'Sold': 'Sold', 'Sold out': 'Out', 'Coming soon': 'Soon', 'Directional View': 'View' };
   document.querySelectorAll('.site-plan_colourby-btn').forEach(function (b) {
     shortLabel(b, SHORT[(b.textContent || '').trim()]);
   });
@@ -214,10 +214,10 @@ window.Wized.push((Wized) => {
     price: {
       key: 'price_value',
       bands: {
-        'under-2': [0, 2e6],
-        '2-2.5': [2e6, 2.5e6],
-        '2.5-3': [2.5e6, 3e6],
-        '3-plus': [3e6, Infinity],
+        'under-1.6': [0, 1.6e6],
+        '2.4-2.6': [1.6e6, 2.6e6],
+        '2.6-2.8': [2.6e6, 2.8e6],
+        '2.8-plus': [2.8e6, Infinity],
       },
     },
     size: {
@@ -225,8 +225,8 @@ window.Wized.push((Wized) => {
       bands: {
         'under-40': [0, 40],
         '40-50': [40, 50],
-        '50-70': [50, 70],
-        '70-plus': [70, Infinity],
+        '50-60': [50, 60],
+        '80-plus': [60, Infinity],
       },
     },
   };
@@ -413,6 +413,24 @@ window.Wized.push((Wized) => {
         lg.appendChild(stop);
       });
       defs.appendChild(lg);
+    });
+    /* unreleased plots: a light wash with a diagonal hatch (18 Sep) - the
+       old solid dark wash read as heavy. userSpaceOnUse so the hatch scales
+       with the plan; the hover variant is a shade darker. */
+    [['oh-hatch', 0.10, 0.22], ['oh-hatch-hi', 0.18, 0.34]].forEach(([id, wash, line]) => {
+      const p = document.createElementNS(NS, 'pattern');
+      p.setAttribute('id', id);
+      p.setAttribute('patternUnits', 'userSpaceOnUse');
+      p.setAttribute('width', '7'); p.setAttribute('height', '7');
+      p.setAttribute('patternTransform', 'rotate(45)');
+      const bg = document.createElementNS(NS, 'rect');
+      bg.setAttribute('width', '7'); bg.setAttribute('height', '7');
+      bg.setAttribute('fill', '#151714'); bg.setAttribute('fill-opacity', wash);
+      const ln = document.createElementNS(NS, 'rect');
+      ln.setAttribute('width', '7'); ln.setAttribute('height', '1.6');
+      ln.setAttribute('fill', '#151714'); ln.setAttribute('fill-opacity', line);
+      p.appendChild(bg); p.appendChild(ln);
+      defs.appendChild(p);
     });
   }
 
@@ -784,6 +802,15 @@ window.Wized.push((Wized) => {
   }
 
   const TAKEN = new Set(['reserved', 'sold', 'pending', 'sold-out']);
+  const SOON_TYPE = (u) => u.type_coming_soon === true || u.type_active === false;
+  /* the "Coming soon" tag on a chip - shared by the type chips and the
+     price / size bands that only the coming-soon types fall into */
+  function setSoonChip(el, soon) {
+    el.classList.toggle('is-coming-soon', soon);
+    let tag = el.querySelector('.unit-filter_soon');
+    if (soon && !tag) { tag = document.createElement('span'); tag.className = 'unit-filter_soon'; tag.textContent = 'Coming soon'; el.appendChild(tag); }
+    if (!soon && tag) tag.remove();
+  }
   function writeCount(el, n, takenOut) {
     const c = el.querySelector('.unit-filter_count');
     if (c) c.textContent = takenOut ? 'Reserved/Sold' : n;
@@ -814,7 +841,13 @@ window.Wized.push((Wized) => {
       } else if (RANGES[facet]) {
         const band = RANGES[facet].bands[raw];
         const k = RANGES[facet].key;
-        if (band) n = pool.filter((u) => Number(u[k]) >= band[0] && Number(u[k]) < band[1]).length;
+        if (band) {
+          n = pool.filter((u) => Number(u[k]) >= band[0] && Number(u[k]) < band[1]).length;
+          const all = units.filter((u) => Number(u[k]) >= band[0] && Number(u[k]) < band[1]);
+          const soon = n === 0 && all.length > 0 && all.every(SOON_TYPE);
+          setSoonChip(el, soon);
+          if (soon && state[facet] && state[facet].has(raw)) { state[facet].delete(raw); el.classList.remove('is-active'); }
+        }
       }
       writeCount(el, n, takenOut);
     });
@@ -1044,8 +1077,8 @@ window.Wized.push((Wized) => {
     set(field.status, soon ? 'Coming soon' : u.status);
     pill(u.status_key);
     rows(!soon);
-    if (soon) return;
     set(field.type, 'Type ' + u.type_code + ' · Block ' + u.block_name + ' · ' + u.floor_label + ' level');
+    if (soon) { if (field.type) field.type.hidden = false; return; }
     const bay = u.parking_bay_number ? ' · Bay ' + u.parking_bay_number + (u.parking_bay_type ? ' (' + String(u.parking_bay_type).toLowerCase() + ')' : '') : '';
     set(field.specs, [u.bedrooms + ' bed', u.bathrooms + ' bath', Math.round(u.unit_size) + ' m²'].join(' · ') + bay);
     set(field.price, u.prices_hidden ? (u.price_display || 'Price on request') : (u.price_display || 'Price on request'));
@@ -1311,7 +1344,7 @@ window.Wized.push((Wized) => {
     group.className = 'unit-filter_group is-views';
     var title = document.createElement('div');
     title.className = 'unit-filter_group-title-1';
-    title.textContent = 'View';
+    title.textContent = 'Directional View';
     var chips = document.createElement('div');
     chips.className = 'unit-filter_chips';
     views.forEach(function (v) {
@@ -1329,8 +1362,9 @@ window.Wized.push((Wized) => {
     group.appendChild(title);
     group.appendChild(chips);
 
-    /* after Orientation when it is there - the two answer the same question */
-    var after = document.querySelector('[data-filter="orientation"]');
+    /* after Parking (Daniel's order: Price, Type, Block, Orientation, Parking,
+       Directional View, Size); Orientation is the fallback */
+    var after = document.querySelector('[data-toggle="parking-covered"]') || document.querySelector('[data-filter="orientation"]');
     after = after && after.closest ? after.closest('.unit-filter_group') : null;
     if (after && after.parentNode) after.parentNode.insertBefore(group, after.nextSibling);
     else scroll.appendChild(group);
@@ -1450,7 +1484,7 @@ window.Wized.push((Wized) => {
     tip.querySelector('.site-plan_viewmark-tip_head span').textContent = v.label;
     if (sub) tip.querySelector('.site-plan_viewmark-tip_dir').textContent = sub;
     tip.querySelector('.site-plan_viewmark-tip_body').textContent = v.description || '';
-    if (n) tip.querySelector('.site-plan_viewmark-tip_count').textContent = n + (n === 1 ? ' apartment' : ' apartments') + ' available with this view';
+    if (n) tip.querySelector('.site-plan_viewmark-tip_count').textContent = n + (n === 1 ? ' apartment' : ' apartments') + ' available with this directional view';
     tip.querySelector('.site-plan_viewmark-tip_hint').textContent = isOn(v.key) ? 'Click to clear this filter' : 'Click to filter to these apartments';
 
     tip.style.left = '0px';
@@ -3328,6 +3362,49 @@ window.ohNativeSubmit = async function (form, doneText) {
      (oh_floors.highlight_image_url, an SVG overlay), then the whole estate in
      3D with the block highlighted (oh_buildings.highlight_image_url over the
      site render). Both overlays were drawn for v1 on the same frames. */
+  /* 360 virtual tour (18 Sep): the VR link opens the tour in a modal that is
+     as big as the viewport allows while still reading as a modal. */
+  var tour = null;
+  function tourBuild() {
+    if (tour) return tour;
+    tour = document.createElement('div');
+    tour.className = 'ud-lightbox ud-tour';
+    tour.innerHTML = '<button class="ud-lb-btn ud-lb-close" aria-label="Close">&#10005;</button><div class="ud-tour_stage"></div>';
+    document.body.appendChild(tour);
+    tour.querySelector('.ud-lb-close').addEventListener('click', tourClose);
+    tour.addEventListener('click', function (e) { if (e.target === tour) tourClose(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && tour.classList.contains('is-open')) tourClose(); });
+    return tour;
+  }
+  function tourOpen(url) {
+    if (!url) return;
+    tourBuild();
+    var st = tour.querySelector('.ud-tour_stage');
+    st.innerHTML = '';
+    var f = document.createElement('iframe');
+    f.src = url; f.allow = 'fullscreen; xr-spatial-tracking; accelerometer; gyroscope'; f.setAttribute('allowfullscreen', '');
+    f.setAttribute('title', '360 virtual tour');
+    st.appendChild(f);
+    tour.classList.add('is-open');
+    document.documentElement.classList.add('oh-tour-open');
+  }
+  function tourClose() {
+    if (!tour) return;
+    tour.classList.remove('is-open');
+    tour.querySelector('.ud-tour_stage').innerHTML = '';
+    document.documentElement.classList.remove('oh-tour-open');
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('[wized="v2_udVr"]');
+    if (!a) return;
+    var href = a.getAttribute('href');
+    var url = (href && href !== '#') ? href : (current && current.vr_url);
+    if (!url) return;
+    e.preventDefault(); e.stopPropagation();
+    tourOpen(url);
+  }, true);
+  window.ohTour = { open: tourOpen, close: tourClose };
+
   var SITE_RENDER = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/698dc3b31548f3fe0dc66daa_img-3d-buildings-render.webp';
   function fillBlock(u) {
     var host = document.querySelector('.unit-details_block-image');
