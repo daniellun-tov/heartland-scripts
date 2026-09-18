@@ -170,6 +170,10 @@
 
   var pageWrap = document.querySelector('.page_wrap');
   if (pageWrap) pageWrap.classList.add('is-app');
+  /* a popup previewed in the Designer can publish with its is-active combo
+     still on (18 Sep: the reserve popup shipped open on load) - nothing may
+     be open before someone asks for it */
+  document.querySelectorAll('.popup.is-active').forEach(function (p) { p.classList.remove('is-active'); });
   /* no smooth scroll on this page: the site's Lenis instance is torn down */
   function killLenis() {
     var l = window.lenis;
