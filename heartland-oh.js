@@ -1770,16 +1770,8 @@ window.Wized.push((Wized) => {
       '<span class="site-plan_sheet-pill"></span>' +
       '<div class="site-plan_sheet-title"></div>' +
       '<div class="site-plan_sheet-meta"></div>';
-    sheet.appendChild(makeBtn());
+    mountBtn();
     sheet.querySelector('.site-plan_sheet-close').addEventListener('click', close);
-    sheet.querySelector('.site-plan_sheet-btn').addEventListener('click', function (e) {
-      if (e && e.preventDefault) e.preventDefault();
-      var u = current;
-      if (!u) return;
-      close();
-      if (u.status_key === 'unreleased') { if (window.ohNotify) window.ohNotify.open(u); }
-      else if (window.ohSitePlan) window.ohSitePlan.open(u.unit_number);
-    });
     /* a tap inside the sheet is never a tap on the map behind it */
     sheet.addEventListener('click', function (e) { e.stopPropagation(); });
     (document.querySelector('.unit-filter_component') || document.body).appendChild(sheet);
@@ -1792,11 +1784,48 @@ window.Wized.push((Wized) => {
      unit into two elements), defijn-modal (it would open the reserve popup),
      data-w-id (an IX2 binding is not ours to duplicate), id and href. */
   var BTN_SRC = '[wized="v2_udReserveBtn"], .unit-details_actionbar-reserve .button, a.button.primary';
+  /* Wized owns that button: it is in the DOM from parse until its first
+     render (~840ms on staging) and then only while a unit is open. Take a
+     copy whenever it is there - this module runs from a deferred script, so
+     module load is inside the first window - and keep it. */
+  var btnTpl = null;
+  function captureBtn() {
+    var live = document.querySelector(BTN_SRC);
+    if (live && !btnTpl) btnTpl = live.cloneNode(true);
+    return btnTpl;
+  }
+  captureBtn();
+  document.addEventListener('oh:unit-open', function () { if (!btnTpl && captureBtn()) remountBtn(); });
+
+  function act(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    var u = current;
+    if (!u) return;
+    close();
+    if (u.status_key === 'unreleased') { if (window.ohNotify) window.ohNotify.open(u); }
+    else if (window.ohSitePlan) window.ohSitePlan.open(u.unit_number);
+  }
+  function mountBtn(old) {
+    var el = makeBtn();
+    el.addEventListener('click', act);
+    if (old && old.parentNode) { el.hidden = old.hidden; old.parentNode.replaceChild(el, old); }
+    else sheet.appendChild(el);
+    return el;
+  }
+  /* a fallback was mounted before the component could be copied: upgrade it */
+  function remountBtn() {
+    if (!sheet) return null;
+    var cur = sheet.querySelector('.site-plan_sheet-btn');
+    if (!cur || cur.getAttribute('data-oh-btn') === 'clone' || !btnTpl) return cur;
+    return mountBtn(cur);
+  }
+
   function makeBtn() {
-    var src = document.querySelector(BTN_SRC);
+    var src = captureBtn();
     var el;
     if (src) {
       el = src.cloneNode(true);
+      el.setAttribute('data-oh-btn', 'clone');
       ['wized', 'data-v2', 'defijn-modal', 'defijn-modal-element', 'data-w-id', 'id', 'href', 'data-actionbar-reserve']
         .forEach(function (a) { el.removeAttribute(a); });
       el.querySelectorAll('[wized],[data-w-id],[id],[defijn-modal]').forEach(function (n) {
@@ -1806,6 +1835,7 @@ window.Wized.push((Wized) => {
       /* the panel is not on the page (or not built yet): same classes by hand */
       el = document.createElement('a');
       el.className = 'button primary w-inline-block';
+      el.setAttribute('data-oh-btn', 'fallback');
       el.innerHTML = '<div class="button-wrapper"><div class="label-button"><div class="button-text text-color-white"></div></div></div>';
     }
     el.setAttribute('role', 'button');
@@ -1859,7 +1889,7 @@ window.Wized.push((Wized) => {
     sheet.querySelector('.site-plan_sheet-meta').textContent =
       [place(u), bay ? (soon ? 'Coming soon' : taken ? u.status : 'Available') : ''].filter(Boolean).join(' \u00b7 ');
 
-    var btn = sheet.querySelector('.site-plan_sheet-btn');
+    var btn = remountBtn() || sheet.querySelector('.site-plan_sheet-btn');
     var label = soon ? 'Notify me' : taken ? '' : 'View the unit';
     btnLabel(btn, label);
     btn.hidden = !label;
