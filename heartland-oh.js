@@ -512,10 +512,15 @@ window.Wized.push((Wized) => {
     /* mobile: a small bottom sheet first, so the map and the tapped shape stay
        visible and the panel or the form is one more tap. Desktop is direct. */
     const peek = (mode) => window.ohSheet && window.ohSheet.shouldUse() && window.ohSheet.open(u, mode, el);
+    /* the filters have ruled this one out: it stays on the plan as context,
+       but it is not a target. CSS already lifts pointer-events off it - this
+       is the guard for a synthetic or keyboard-driven click. */
+    const ruledOut = () => el.classList.contains('is-dimmed');
     if (!LIST_HIDE.has(u.status_key))
-      el.addEventListener('click', () => { if (!(isBay && peek('bay'))) openUnit(u); });
+      el.addEventListener('click', () => { if (ruledOut()) return; if (!(isBay && peek('bay'))) openUnit(u); });
     else if (u.status_key === 'unreleased')
       el.addEventListener('click', () => {
+        if (ruledOut()) return;
         if (peek(isBay ? 'bay' : 'soon')) return;
         if (window.ohNotify) window.ohNotify.open(u);
       });
@@ -523,7 +528,7 @@ window.Wized.push((Wized) => {
       el.classList.add('is-static'); /* reserved / sold: visible, tooltip, no click */
       /* except a bay, where the only question is which unit owns it - and
          there is no tooltip on a touch screen to answer it */
-      if (isBay) el.addEventListener('click', () => peek('bay'));
+      if (isBay) el.addEventListener('click', () => { if (!ruledOut()) peek('bay'); });
     }
     if (!unitShapes.has(u.plot_id)) unitShapes.set(u.plot_id, []);
     unitShapes.get(u.plot_id).push(el);
@@ -1128,6 +1133,7 @@ window.Wized.push((Wized) => {
     if (path === active) return;
     const sp = window.ohSitePlan;
     if (!sp) return hide();
+    if (path.classList.contains('is-dimmed') && path.classList.contains('site-plan_plot')) return hide();
     const unitId = path.getAttribute('data-unit') || path.id;
     const u = sp.units().find((x) => x.plot_id === unitId);
     const b = !u && sp.blocks().find((x) => x.plot_id === path.id);
@@ -1681,6 +1687,7 @@ window.Wized.push((Wized) => {
     root.appendChild(row);
     canvas.addEventListener('mouseover', function (e) {
       var shape = e.target.closest && e.target.closest('.site-plan_plot[id]');
+      if (shape && shape.classList.contains('is-dimmed')) shape = null;
       var u = shape && units().filter(function (x) { return x.plot_id === shape.id; })[0];
       var list = u ? tags(u).filter(function (k) { return byKey[k]; }) : [];
       row.hidden = !list.length;
