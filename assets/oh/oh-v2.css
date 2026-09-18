@@ -57,7 +57,7 @@ html:not(.legends-ready) .site-plan_legend-group[data-legend-group="type"]{displ
    the More-filters disclosure is empty and hidden, Level is kept in the Designer for a later version */
 .unit-filter_more-button,.unit-filter_more-list,.unit-filter_group[data-oh-hidden]{display:none!important}
 .unit-filter_group:has([data-filter="price"]) .unit-filter_chips,.unit-filter_group:has([data-filter="size"]) .unit-filter_chips{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
-.unit-filter_group:has([data-filter="price"]) .unit-filter_chip-1,.unit-filter_group:has([data-filter="size"]) .unit-filter_chip-1{width:100%;justify-content:space-between}
+.unit-filter_group:has([data-filter="price"]) .unit-filter_chip-1,.unit-filter_group:has([data-filter="size"]) .unit-filter_chip-1{width:100%;justify-content:space-between;white-space:nowrap;padding-left:.75rem;padding-right:.75rem}
 .unit-filter_more-list.svx-more-collapsed{max-height:0!important;margin:0}
 .unit-filter_more-list.svx-more-open{max-height:none}
 .unit-filter_more-button.is-open .unit-filter_more-icon{transform:rotate(-135deg);margin-top:.25rem}

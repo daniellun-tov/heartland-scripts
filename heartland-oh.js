@@ -421,13 +421,13 @@ window.Wized.push((Wized) => {
       const p = document.createElementNS(NS, 'pattern');
       p.setAttribute('id', id);
       p.setAttribute('patternUnits', 'userSpaceOnUse');
-      p.setAttribute('width', '7'); p.setAttribute('height', '7');
+      p.setAttribute('width', '9'); p.setAttribute('height', '9');
       p.setAttribute('patternTransform', 'rotate(45)');
       const bg = document.createElementNS(NS, 'rect');
-      bg.setAttribute('width', '7'); bg.setAttribute('height', '7');
+      bg.setAttribute('width', '9'); bg.setAttribute('height', '9');
       bg.setAttribute('fill', '#151714'); bg.setAttribute('fill-opacity', wash);
       const ln = document.createElementNS(NS, 'rect');
-      ln.setAttribute('width', '7'); ln.setAttribute('height', '1.6');
+      ln.setAttribute('width', '9'); ln.setAttribute('height', '1.8');
       ln.setAttribute('fill', '#151714'); ln.setAttribute('fill-opacity', line);
       p.appendChild(bg); p.appendChild(ln);
       defs.appendChild(p);
