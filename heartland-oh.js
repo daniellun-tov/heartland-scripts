@@ -599,7 +599,9 @@ window.Wized.push((Wized) => {
         const t = addLabel(parking, bay, u, 'is-bay');
         t.setAttribute('data-status', u.status_key);
       });
-      parking.querySelectorAll('[id^="bay-"]:not(.site-plan_plot)').forEach((b) => b.classList.add('site-plan_bay-free'));
+      const free = parking.querySelectorAll('[id^="bay-"]:not(.site-plan_plot)');
+      free.forEach((b) => b.classList.add('site-plan_bay-free'));
+      addAdditionalLegend(free.length);
     }
 
     /* block-level footprints */
@@ -697,6 +699,7 @@ window.Wized.push((Wized) => {
       b.classList.toggle('is-active', Number(b.getAttribute('data-floor-btn')) === level)
     );
     document.querySelector('.site-plan_map-canvas')?.classList.toggle('is-parking-view', isParkingLevel(level));
+    document.documentElement.classList.toggle('oh-parking-view', isParkingLevel(level));
     document.dispatchEvent(new CustomEvent('oh:floor-change', { detail: { level, label: floorLabel(level) } }));
     /* the parking level shows every unit's bay: it never narrows the list */
     if (syncFacet && !isParkingLevel(level)) {
@@ -754,6 +757,27 @@ window.Wized.push((Wized) => {
         }
         if (!soon && tag) tag.remove();
       });
+    });
+  }
+
+  /* "Additional" = a bay on the plan that no unit owns (visitor / extra bays).
+     One entry per legend group, shown only while the Parking level is up. */
+  function addAdditionalLegend(count) {
+    document.querySelectorAll('.site-plan_legend-group').forEach((group) => {
+      let item = group.querySelector('.site-plan_legend-item.is-parking-only');
+      if (!item) {
+        const ref = group.querySelector('.site-plan_legend-item');
+        item = document.createElement('div');
+        item.className = 'site-plan_legend-item is-parking-only';
+        const sw = document.createElement('span'); sw.className = 'site-plan_legend-swatch is-additional';
+        const label = document.createElement('span'); label.textContent = 'Additional';
+        const n = document.createElement('span'); n.className = 'site-plan_legend-count'; n.setAttribute('data-legend-additional', '');
+        item.appendChild(sw); item.appendChild(label); item.appendChild(n);
+        if (ref) item.className += ' ' + Array.from(ref.classList).filter((k) => !/^is-/.test(k) && k !== 'site-plan_legend-item').join(' ');
+        group.appendChild(item);
+        if (window.ohShortLabel) window.ohShortLabel(label, 'Extra');
+      }
+      item.querySelector('[data-legend-additional]').textContent = count;
     });
   }
 

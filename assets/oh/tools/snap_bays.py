@@ -43,7 +43,7 @@ def same_row(a, b):
     return abs(np.dot(v, nn)) <= 0.35 * a['w']
 # rows the geometry test cannot see as one (a label the OCR put well off the
 # line, a tree over the middle) but the drawing shows as one line of cells
-FORCE_ROWS = [(230, 237), (364, 368), (266, 293), (294, 297)]
+FORCE_ROWS = [(230, 237), (364, 368), (266, 293), (294, 297), (253, 264)]
 def forced(n): return next((f for f in FORCE_ROWS if f[0] <= n <= f[1]), None)
 runs = []; cur = [bays[order[0]]]
 for a, b in zip(order, order[1:]):
@@ -102,7 +102,60 @@ def across_lines(dark, us, ns, ulo, uhi, d):
     sc = g[i] * 0.5
     return (ns[i], ns[i] + d, sc) if ns[i] < 0 else (ns[i] - d, ns[i], sc)
 
-def along_comb(dark, us, ns, n1, n2, w):
+def divider_ends(dark, us, ns, phase, pitch, ulo, uhi, d):
+    """Front/back lines from the drawn dividers: each divider is a short dark
+    segment across the row whose two ends ARE the front and back corners. Trace
+    every divider's dark run along n, then fit a line through the front ends and
+    one through the back ends - that gives the depth, the offset and the row's
+    real tilt in one go. Returns (n1, n2, tilt_rad, count) or None."""
+    fill_band = (ns > -0.35 * d) & (ns < 0.35 * d)
+    ks = np.arange(-3, 80)
+    cols = phase + ks * pitch
+    cols = cols[(cols > ulo - pitch * 0.6) & (cols < uhi + pitch * 0.6)]
+    ends = []
+    for cu in cols:
+        j = int(round((cu - us[0]) / RES))
+        if j < 2 or j > len(us) - 3: continue
+        c = dark[:, j - 1:j + 2].mean(1)
+        # fill level: the cell interiors either side of this divider
+        jl, jr = int(round((cu - pitch / 2 - us[0]) / RES)), int(round((cu + pitch / 2 - us[0]) / RES))
+        inter = []
+        for jj in (jl, jr):
+            if 1 <= jj < len(us) - 1: inter.append(dark[fill_band, jj - 1:jj + 2].mean())
+        if not inter: continue
+        f = np.mean(inter)
+        on = c > f + 7
+        # longest run of "dark" through the row's centre, tolerating 1.5-unit gaps
+        i0 = int(np.argmin(np.abs(ns)))
+        if not on[max(0, i0 - 3):i0 + 4].any(): continue
+        lo = i0; gap = 0
+        while lo > 0:
+            if on[lo - 1]: lo -= 1; gap = 0
+            elif gap < 3: lo -= 1; gap += 1
+            else: break
+        lo += gap
+        hi = i0; gap = 0
+        while hi < len(on) - 1:
+            if on[hi + 1]: hi += 1; gap = 0
+            elif gap < 3: hi += 1; gap += 1
+            else: break
+        hi -= gap
+        n1, n2 = ns[lo], ns[hi]
+        if 0.55 * d <= n2 - n1 <= 1.6 * d: ends.append((cu, n1, n2))
+    if len(ends) < 2: return None
+    E = np.array(ends)
+    # robust lines through the ends: median offsets, slope from a least-squares fit
+    # over the ends within 3 units of the median (so one bad divider cannot tilt the row)
+    def fit(col):
+        med = np.median(E[:, col]); ok = np.abs(E[:, col] - med) < 3.0
+        if ok.sum() >= 3 and (E[ok, 0].max() - E[ok, 0].min()) > 2 * pitch:
+            b, a = np.polyfit(E[ok, 0], E[ok, col], 1); return a, b
+        return med, 0.0
+    a1, b1 = fit(1); a2, b2 = fit(2)
+    tilt = math.atan((b1 + b2) / 2) if abs(b1 - b2) < math.tan(math.radians(1.5)) else 0.0
+    return a1, a2, tilt, len(ends)
+
+def along_comb(dark, us, ns, n1, n2, w, with_score=False):
     """divider phase and pitch: a comb of period ~w that best matches the profile."""
     band = (ns > n1 + 2.5) & (ns < n2 - 2.5)
     prof = dark[band, :].mean(0)
@@ -116,7 +169,12 @@ def along_comb(dark, us, ns, n1, n2, w):
             idx = np.round((pos - us[0]) / RES).astype(int)
             score = sm[idx].mean()
             if best is None or score > best[0]: best = (score, phase, pitch)
-    return best[1], best[2]
+    return best if with_score else (best[1], best[2])
+
+def rot(u, a):
+    ca, sa = math.cos(a), math.sin(a)
+    v = np.array([u[0] * ca - u[1] * sa, u[0] * sa + u[1] * ca]); v /= np.linalg.norm(v)
+    return v, np.array([-v[1], v[0]])
 
 new = {}; log = []; det = {}
 def build(group, m, u, nrm, n1, n2, tag):
@@ -142,8 +200,29 @@ def build(group, m, u, nrm, n1, n2, tag):
     log.append((tag, f'lines {n1:+.1f}/{n2:+.1f} depth {abs(n2-n1):.1f} pitch {pitch:.2f} phase {phase:.2f}'))
 
 def detect(group):
-    m, u, nrm, C = frame(group); proj = (C - m) @ u
+    m, u, nrm, C = frame(group)
     w = float(np.median([b['w'] for b in group])); d = float(np.median([b['d'] for b in group]))
+    # coarse tilt first: the dividers read sharpest when the frame runs along the
+    # drawn row, so try a fan of directions and keep the one with the crispest comb
+    if len(group) >= 3:
+        best = None
+        for deg in np.arange(-7, 7.01, 1.0):
+            u2, n2 = rot(u, math.radians(deg)); proj = (C - m) @ u2
+            dark, us, ns = strip(m, u2, n2, proj.min() - 1.5 * w, proj.max() + 1.5 * w, -0.4 * d, 0.4 * d)
+            sc = along_comb(dark, us, ns, -0.35 * d, 0.35 * d, w, with_score=True)[0]
+            if best is None or sc > best[0]: best = (sc, u2, n2)
+        u, nrm = best[1], best[2]
+    for it in range(2):
+        proj = (C - m) @ u
+        dark, us, ns = strip(m, u, nrm, proj.min() - 1.5 * w, proj.max() + 1.5 * w, -1.4 * d, 1.4 * d)
+        phase, pitch = along_comb(dark, us, ns, -0.35 * d, 0.35 * d, w)
+        r = divider_ends(dark, us, ns, phase, pitch, proj.min(), proj.max(), d)
+        if r is None: break
+        n1, n2, tilt, cnt = r
+        if abs(tilt) > math.radians(0.3) and it == 0:
+            u, nrm = rot(u, tilt); continue
+        return (m, u, nrm, (n1, n2, 100.0 + cnt))
+    proj = (C - m) @ u
     dark, us, ns = strip(m, u, nrm, proj.min() - 1.5 * w, proj.max() + 1.5 * w, -1.3 * d, 1.3 * d)
     lines = across_lines(dark, us, ns, proj.min() - w / 2, proj.max() + w / 2, d)
     return (m, u, nrm, lines)
@@ -155,7 +234,7 @@ def pass1(r, tag, depth=0):
     # a run that reads as one row is one row - unless splitting it reads
     # clearly better (two drawn rows the OCR numbered consecutively)
     best = None
-    if len(r) >= 4 and depth < 2:
+    if len(r) >= 4 and depth < 2 and forced(r[0]['n']) is None:   # a forced row is one row
         for k in range(2, len(r) - 1):
             da = detect(r[:k]); db = detect(r[k:])
             if da[3] is None or db[3] is None: continue
@@ -220,8 +299,8 @@ for g in groups:
                 if abs(o - lines[k]) < 2.0: votes[k] += 1
     shared = 0 if votes[0] >= votes[1] else 1
     ns_ = lines[shared]; nf = lines[1 - shared]
-    m2, u2, nrm2, _ = frame(allb)
-    if np.dot(u2, u) < 0: u2, nrm2 = -u2, -nrm2
+    m2, _, _, _ = frame(allb)
+    u2, nrm2 = u, nrm              # the big run's measured direction (tilt included)
     # express the two lines in the merged frame
     ns_g = np.dot(m + nrm * ns_ - m2, nrm2); nf_g = np.dot(m + nrm * nf - m2, nrm2)
     build(allb, m2, u2, nrm2, ns_g, nf_g, 'merged ' + '+'.join(f'{runs[i][0]["n"]}-{runs[i][-1]["n"]}' for i in g) + f' shared={"front" if shared == 0 else "back"}')

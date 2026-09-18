@@ -109,9 +109,15 @@ html:not(.legends-ready) .site-plan_legend-group[data-legend-group="type"]{displ
 .site-plan_feature.is-road{font-size:calc(19px / var(--oh-zoom,1));fill:#3f3428}
 .site-plan_feature.is-area{font-size:calc(24px / var(--oh-zoom,1));fill:#7d7267;letter-spacing:.18em}
 .site-plan_map-canvas:not(.has-floors) [data-layer="features"],.site-plan_map-canvas.has-floors [data-layer="features"]{pointer-events:none}
-/* parking level */
-.site-plan_map-svg .site-plan_bay-free{fill:#fff;fill-opacity:.35;stroke:rgba(95,77,63,.35);stroke-width:.6;pointer-events:none}
-.site-plan_map-svg .site-plan_plot.is-bay{stroke:#fff;stroke-width:.6}
+/* parking level. 18 Sep: a bay owned by a unit keeps that unit's fill AND its
+   fill-derived outline (the stroke colour comes from the status/type rules
+   above; only the width is thinner). A bay no unit owns is an Additional bay:
+   a quiet sand fill with a dashed outline, and its own legend entry. */
+.site-plan_map-svg .site-plan_bay-free{fill:var(--oh-sand);fill-opacity:.7;stroke:rgba(95,77,63,.55);stroke-width:.6;stroke-dasharray:2 1.4;pointer-events:none}
+.site-plan_map-svg .site-plan_plot.is-bay{stroke-width:.8}
+.site-plan_legend-swatch.is-additional{background:var(--oh-sand);border:1px dashed rgba(95,77,63,.7)}
+.site-plan_legend-item.is-parking-only{display:none}
+html.oh-parking-view .site-plan_legend-item.is-parking-only{display:inline-flex}
 .site-plan_map-canvas.is-parking-view .site-plan_block{fill-opacity:.05}
 .site-plan_map-canvas.has-floors .site-plan_block{pointer-events:none;fill-opacity:.06}
 .site-plan_map-canvas.has-floors .site-plan_block.is-selected{stroke-width:3}
