@@ -134,7 +134,7 @@ def grow(rects, hull, i):
     ny0 = y0 - reach(box(x0, y0 - REACH, x1, y0), shapely.LineString([(x0, y0), (x1, y0)]))
     return box(r2(nx0), r2(ny0), r2(nx1), r2(ny1))
 
-new = {}; labels = {}; report = {}
+new = {}; labels = {}; report = {}; new_blocks = {}
 for fl, units in floors.items():
     byblock = {}
     for k, v in units.items(): byblock.setdefault(int(k.split('-')[1]), {})[k] = v
@@ -159,6 +159,11 @@ for fl, units in floors.items():
         cx = cluster([x for x, y in hc], set()); cy = cluster([y for x, y in hc], set())
         Br = Polygon([(cx[x], cy[y]) for x, y in hc]).buffer(0)
         assert Br.geom_type == 'Polygon', n
+        # the block outline the page draws is the cleaned hull too, so the plots'
+        # outer walls and the block stroke are one line (the painted background
+        # differs from it by under 2.5 plan units - about a pixel)
+        Hb = affinity.rotate(Br, th, origin=(0, 0))
+        new_blocks['block-' + LETTERS[n - 1]] = Polygon([(round(x, 2), round(y, 2)) for x, y in Hb.exterior.coords])
         names = sorted(us)
         rects = [box(*[r2(v) for v in affinity.rotate(us[k], -th, origin=(0, 0)).bounds]) for k in names]
         # 4. overlaps: split down the middle of the overlap's thinner side
@@ -233,6 +238,8 @@ def sub_poly(m):
     k = m.group(1)
     return f'<polygon id="{k}" points="{fmt(new[k])}"' if k in new else m.group(0)
 out = re.sub(r'<polygon id="(unit-[^"]+)" points="[^"]+"', sub_poly, svg)
+out = re.sub(r'<polygon id="(block-[a-l])" points="[^"]+"',
+             lambda m: f'<polygon id="{m.group(1)}" points="{fmt(new_blocks[m.group(1)])}"' if m.group(1) in new_blocks else m.group(0), out)
 def sub_label(m):
     k = m.group(1)
     if k not in labels: return m.group(0)
