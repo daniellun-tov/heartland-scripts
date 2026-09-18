@@ -14,6 +14,7 @@ from PIL import Image
 from scipy import ndimage
 
 orig, candA, candB, bgp, dst = sys.argv[1:6]
+D_STD = float(sys.argv[6]) if len(sys.argv) > 6 else 31.3
 BG = 255 - np.array(Image.open(bgp).convert('L')).astype(float)
 S = BG.shape[1] / 1690.0
 
@@ -67,6 +68,38 @@ def transform(rects, dx, dy, ang, about):
     ca, sa = math.cos(ang), math.sin(ang); R = np.array([[ca, -sa], [sa, ca]])
     return [(r - about) @ R.T + about + np.array([dx, dy]) for r in rects]
 
+def sides(rect):
+    """(A, B, C, D) with A->B the DEPTH edge (long, across the row) and A->D the
+    WIDTH edge (short, along the row). A-D and B-C are therefore the bay's front
+    and back edges - the ones that lie on the row's drawn lines."""
+    L = [np.linalg.norm(rect[(i + 1) % 4] - rect[i]) for i in range(4)]
+    i0 = int(np.argmax(L[:2]))
+    return rect[i0], rect[(i0 + 1) % 4], rect[(i0 + 2) % 4], rect[(i0 + 3) % 4], i0
+
+def line_ink(p, q):
+    t = np.linspace(0.08, 0.92, 24)[:, None]; pts = p + t * (q - p)
+    return ndimage.map_coordinates(BG, [pts[:, 1] * S, pts[:, 0] * S], order=1, mode='nearest').mean()
+
+def normalise_depth(rects):
+    """Every bay on this plan is the same depth. Where a row came out deeper or
+    shallower (a tree over the divider ends, a kerb the same tone as the fill),
+    keep the front/back edge that sits on darker ink - that one is the drawn
+    line - and put the other exactly D_STD away from it."""
+    d = np.mean([np.linalg.norm(sides(r)[1] - sides(r)[0]) for r in rects])
+    if abs(d - D_STD) < 0.06 * D_STD: return rects
+    front = np.mean([line_ink(sides(r)[0], sides(r)[3]) for r in rects])   # A-D
+    back = np.mean([line_ink(sides(r)[1], sides(r)[2]) for r in rects])    # B-C
+    out = []
+    for r in rects:
+        A, B, C, D, i0 = sides(r)
+        dv = (B - A) / np.linalg.norm(B - A)
+        if front >= back: A2, D2 = A, D; B2, C2 = A + dv * D_STD, D + dv * D_STD
+        else: B2, C2 = B, C; A2, D2 = B - dv * D_STD, C - dv * D_STD
+        q = np.empty((4, 2))
+        q[i0] = A2; q[(i0 + 1) % 4] = B2; q[(i0 + 2) % 4] = C2; q[(i0 + 3) % 4] = D2
+        out.append(q)
+    return out
+
 new = {}; log = []
 for r in runs:
     ra = [A[n] for n in r]; rb = [B[n] for n in r]
@@ -85,6 +118,7 @@ for r in runs:
                 if sc > best[0]: best = (sc, du, dn, deg)
     _, du, dn, deg = best; d = t * du + nn * dn
     final = transform(base, d[0], d[1], math.radians(deg), about)
+    final = normalise_depth(final)
     for n, rect in zip(r, final): new[n] = rect
     log.append((f'{r[0]}-{r[-1]}', tag, round(sa, 1), round(sb, 1), round(best[0], 1), du, dn, deg))
 

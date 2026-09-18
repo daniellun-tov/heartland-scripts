@@ -21,6 +21,7 @@ src, dst, bgp = sys.argv[1], sys.argv[2], sys.argv[3]
 BG = np.array(Image.open(bgp).convert('L')).astype(float)   # 2 px per plan unit
 SCALE = BG.shape[1] / 1690.0
 RES = 0.5
+D_STD = None
 
 svg = open(src).read()
 fm = re.search(r'<g data-floor="0"[^>]*>(.*?)(?=<g data-floor=|</svg>)', svg, re.S)
@@ -117,14 +118,14 @@ def divider_ends(dark, us, ns, phase, pitch, ulo, uhi, d):
         j = int(round((cu - us[0]) / RES))
         if j < 2 or j > len(us) - 3: continue
         c = dark[:, j - 1:j + 2].mean(1)
-        # fill level: the cell interiors either side of this divider
+        # a divider is darker than the cell interiors beside it AT THE SAME n -
+        # beyond the bay the road (darker than the fill) is the same either side
+        # of the divider line, so the run stops where the drawn line stops
         jl, jr = int(round((cu - pitch / 2 - us[0]) / RES)), int(round((cu + pitch / 2 - us[0]) / RES))
-        inter = []
-        for jj in (jl, jr):
-            if 1 <= jj < len(us) - 1: inter.append(dark[fill_band, jj - 1:jj + 2].mean())
-        if not inter: continue
-        f = np.mean(inter)
-        on = c > f + 7
+        sides = [dark[:, jj - 1:jj + 2].mean(1) for jj in (jl, jr) if 1 <= jj < len(us) - 1]
+        if not sides: continue
+        f = np.mean(sides, 0)
+        on = c > f + 6
         # longest run of "dark" through the row's centre, tolerating 1.5-unit gaps
         i0 = int(np.argmin(np.abs(ns)))
         if not on[max(0, i0 - 3):i0 + 4].any(): continue
@@ -141,7 +142,7 @@ def divider_ends(dark, us, ns, phase, pitch, ulo, uhi, d):
             else: break
         hi -= gap
         n1, n2 = ns[lo], ns[hi]
-        if 0.55 * d <= n2 - n1 <= 1.6 * d: ends.append((cu, n1, n2))
+        if 0.6 * d <= n2 - n1 <= 1.5 * d: ends.append((cu, n1, n2))
     if len(ends) < 2: return None
     E = np.array(ends)
     # robust lines through the ends: median offsets, slope from a least-squares fit
@@ -153,6 +154,14 @@ def divider_ends(dark, us, ns, phase, pitch, ulo, uhi, d):
         return med, 0.0
     a1, b1 = fit(1); a2, b2 = fit(2)
     tilt = math.atan((b1 + b2) / 2) if abs(b1 - b2) < math.tan(math.radians(1.5)) else 0.0
+    # every bay on this plan is the same depth (D_STD, measured over all rows on
+    # the first pass); a row whose dividers read shorter or longer than that is
+    # one where trees or a kerb hide the ends - keep the better-agreed edge and
+    # put the other a standard depth from it
+    if D_STD and not (0.88 * D_STD <= a2 - a1 <= 1.15 * D_STD):
+        s1 = np.median(np.abs(E[:, 1] - np.median(E[:, 1]))); s2 = np.median(np.abs(E[:, 2] - np.median(E[:, 2])))
+        if s1 <= s2: a2 = a1 + D_STD
+        else: a1 = a2 - D_STD
     return a1, a2, tilt, len(ends)
 
 def along_comb(dark, us, ns, n1, n2, w, with_score=False):
@@ -201,7 +210,7 @@ def build(group, m, u, nrm, n1, n2, tag):
 
 def detect(group):
     m, u, nrm, C = frame(group)
-    w = float(np.median([b['w'] for b in group])); d = float(np.median([b['d'] for b in group]))
+    w = float(np.median([b['w'] for b in group])); d = D_STD or float(np.median([b['d'] for b in group]))
     # coarse tilt first: the dividers read sharpest when the frame runs along the
     # drawn row, so try a fan of directions and keep the one with the crispest comb
     if len(group) >= 3:
@@ -226,6 +235,16 @@ def detect(group):
     dark, us, ns = strip(m, u, nrm, proj.min() - 1.5 * w, proj.max() + 1.5 * w, -1.3 * d, 1.3 * d)
     lines = across_lines(dark, us, ns, proj.min() - w / 2, proj.max() + w / 2, d)
     return (m, u, nrm, lines)
+
+# pass 0: the plan's one bay depth, from the rows whose dividers read cleanly
+D_STD = None
+_depths = []
+for r in runs:
+    if len(r) < 4: continue
+    res = detect(r)
+    if res[3] is not None and res[3][2] >= 100: _depths.append(res[3][1] - res[3][0])
+D_STD = float(np.median(_depths)) if _depths else None
+print('standard bay depth', None if D_STD is None else round(D_STD, 1), 'from', len(_depths), 'rows')
 
 # pass 1: every run on its own; a run the profile cannot read as one row (the
 # drawn row bends or steps) is split in half and each half read on its own
@@ -299,6 +318,7 @@ for g in groups:
                 if abs(o - lines[k]) < 2.0: votes[k] += 1
     shared = 0 if votes[0] >= votes[1] else 1
     ns_ = lines[shared]; nf = lines[1 - shared]
+    if D_STD and abs(abs(nf - ns_) - D_STD) > 0.15 * D_STD: nf = ns_ + (D_STD if nf > ns_ else -D_STD)
     m2, _, _, _ = frame(allb)
     u2, nrm2 = u, nrm              # the big run's measured direction (tilt included)
     # express the two lines in the merged frame
