@@ -406,7 +406,7 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 .site-plan_map-canvas.is-view-focus .site-plan_plot.is-view-hit{opacity:1}
 .site-plan_map-canvas.is-view-focus .site-plan_unit-label{opacity:.25}
 
-.site-plan_viewmark-tip{position:fixed;z-index:2147483040;max-width:17rem;padding:.7rem .85rem;border-radius:.6rem;background:#fff;color:var(--oh-ink);font-size:.75rem;line-height:1.45;box-shadow:0 12px 34px rgba(21,23,20,.22);opacity:0;pointer-events:none;transition:opacity .16s ease}
+.site-plan_viewmark-tip{position:fixed;z-index:2147483040;max-width:15.5rem;padding:.7rem .85rem;border-radius:.6rem;background:#fff;color:var(--oh-ink);font-size:.75rem;line-height:1.45;box-shadow:0 12px 34px rgba(21,23,20,.22);opacity:0;pointer-events:none;transition:opacity .16s ease}
 .site-plan_viewmark-tip.is-visible{opacity:1}
 .site-plan_viewmark-tip_head{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;font-weight:700;margin-bottom:.2rem}
 .site-plan_viewmark-tip_dir{flex:none;font-weight:500;font-size:.6875rem;letter-spacing:.04em;text-transform:uppercase;color:var(--oh-accent)}
