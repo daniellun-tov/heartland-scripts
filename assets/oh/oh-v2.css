@@ -89,10 +89,10 @@ html:not(.legends-ready) .site-plan_legend-group[data-legend-group="type"]{displ
 .site-plan_unit-label{font-family:var(--_typography---font--primary-family, "Helvetica Neue", sans-serif);font-size:12px;font-weight:700;fill:#1f1911;pointer-events:none;paint-order:stroke;stroke:rgba(255,255,255,.95);stroke-width:2.8px;stroke-linejoin:round;opacity:clamp(0,calc((var(--oh-zoom,1) - .65) / .3),1);transition:opacity .2s}
 .site-plan_unit-label.is-bay{font-size:6.5px;font-weight:600;stroke-width:1.5px}
 .site-plan_unit-label[data-status="unreleased"],.site-plan_unit-label.is-dimmed{display:none}
-.site-plan_feature{font-family:var(--_typography---font--primary-family, "Helvetica Neue", sans-serif);font-size:calc(15px / var(--oh-zoom,1));letter-spacing:.06em;text-transform:uppercase;fill:#574a3d;pointer-events:none;paint-order:stroke;stroke:rgba(242,239,230,.9);stroke-width:calc(4px / var(--oh-zoom,1));opacity:clamp(.35,calc(1.6 - var(--oh-zoom,1) * .7),1)}
-.site-plan_feature.is-street{font-size:calc(13px / var(--oh-zoom,1));fill:#655749}
-.site-plan_feature.is-road{font-size:calc(19px / var(--oh-zoom,1));fill:#5f4d3f}
-.site-plan_feature.is-area{font-size:calc(24px / var(--oh-zoom,1));fill:#9b9187;letter-spacing:.14em}
+.site-plan_feature{font-family:var(--_typography---font--primary-family, "Helvetica Neue", sans-serif);font-size:calc(15px / var(--oh-zoom,1));font-weight:700;letter-spacing:.1em;text-transform:uppercase;fill:#3f3428;pointer-events:none;paint-order:stroke;stroke:rgba(242,239,230,.9);stroke-width:calc(4.5px / var(--oh-zoom,1));stroke-linejoin:round;opacity:clamp(.45,calc(1.7 - var(--oh-zoom,1) * .7),1)}
+.site-plan_feature.is-street{font-size:calc(13px / var(--oh-zoom,1));fill:#43382d}
+.site-plan_feature.is-road{font-size:calc(19px / var(--oh-zoom,1));fill:#3f3428}
+.site-plan_feature.is-area{font-size:calc(24px / var(--oh-zoom,1));fill:#7d7267;letter-spacing:.18em}
 .site-plan_map-canvas:not(.has-floors) [data-layer="features"],.site-plan_map-canvas.has-floors [data-layer="features"]{pointer-events:none}
 /* parking level */
 .site-plan_map-svg .site-plan_bay-free{fill:#fff;fill-opacity:.35;stroke:rgba(95,77,63,.35);stroke-width:.6;pointer-events:none}
