@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """refine_bays.py - straighten the parking bays into aligned rows.
 
+SUPERSEDED by snap_bays.py, which fits the rows to the bay lines drawn in the
+background instead of only straightening them. Kept for reference.
+
 The bays were placed one at a time from the brochure's OCR'd labels, each
 with its own depth scan, so a row of bays wanders off its line by up to 4
 plan units, the pitch drifts and the depths differ bay to bay. This makes
