@@ -522,7 +522,7 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .site-plan_viewmark{width:2.125rem;height:2.125rem}
   .site-plan_viewmark svg{width:.95rem;height:.95rem}
   .site-plan_viewmark[data-placement="south"]{bottom:3.25rem}
-  .site-plan_viewmark-tip{max-width:min(17rem,calc(100vw - 2rem))}
+  .site-plan_viewmark-tip{max-width:min(15.5rem,calc(100vw - 2rem))}
 }
 
 /* the sheet only exists on the mobile layout, and the zoom bar sits exactly

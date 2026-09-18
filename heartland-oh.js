@@ -1524,6 +1524,7 @@ window.Wized.push((Wized) => {
       canvas ? canvas.style.width : '', canvas ? (canvas.className || '') : '',
       scroller ? Math.round(scroller.scrollLeft) : 0, scroller ? Math.round(scroller.scrollTop) : 0,
       document.querySelectorAll('.site-plan_plot').length,
+      focusKey || '',
     ].join('|');
   }
 
@@ -1550,18 +1551,26 @@ window.Wized.push((Wized) => {
       }
     }
 
-    /* the plots on the level that is showing, plus their labels */
+    /* What it costs to cover something, worst first. A phone's map box has no
+       gap the card fits in, so the search will always be covering SOMETHING:
+       make that the least useful thing on screen. The apartments this view
+       just lit are the answer to the hover, so they cost most; any other plot
+       next; a floating control is the cheapest thing to sit on. */
+    var W_LIT = 5000, W_PLOT = 600, W_UI = 40;
     var shapes = document.querySelectorAll('.site-plan_map-svg .site-plan_plot, .site-plan_map-svg .site-plan_unit-label');
     for (var i = 0; i < shapes.length; i++) {
       var el = shapes[i];
       if (!el.getClientRects().length) continue;          /* hidden level */
-      stamp(el.getBoundingClientRect(), 1000);
+      var lit = el.classList.contains('is-view-hit') ||
+                (el.getAttribute('data-for') && document.getElementById(el.getAttribute('data-for')) &&
+                 document.getElementById(el.getAttribute('data-for')).classList.contains('is-view-hit'));
+      stamp(el.getBoundingClientRect(), lit ? W_LIT : W_PLOT);
     }
     /* the floating controls: worth avoiding, worth overlapping before a plot */
     var ui = document.querySelectorAll('.unit-filter_map .site-plan_toolbar, .unit-filter_map .site-plan_floor-switch, .unit-filter_map .site-plan_zoom, .unit-filter_map .site-plan_sheet, .site-plan_viewmark');
     for (var j = 0; j < ui.length; j++) {
       if (!ui[j].getClientRects().length) continue;
-      stamp(ui[j].getBoundingClientRect(), 1);
+      stamp(ui[j].getBoundingClientRect(), W_UI);
     }
 
     /* integral image: sum of any cell rect in four lookups */
@@ -1614,7 +1623,7 @@ window.Wized.push((Wized) => {
         var over = cost(o, px, py, w, h);
         /* distance from the marker keeps the card attached to what it explains */
         var dx = px + w / 2 - cx, dy = py + h / 2 - cy;
-        var score = over * 1e6 + Math.sqrt(dx * dx + dy * dy);
+        var score = over * 10 + Math.sqrt(dx * dx + dy * dy);
         if (!best || score < best.score) best = { x: px, y: py, score: score, over: over };
       }
     }
