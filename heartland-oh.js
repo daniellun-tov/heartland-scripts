@@ -1211,7 +1211,14 @@ window.Wized.push((Wized) => {
 (function () {
   if (window.__ohTags) return;
   window.__ohTags = true;
-  var SEL = '[data-filter][data-value].is-active, [data-toggle].is-active';
+  /* Facets that are set by something other than a chip the visitor clicked.
+     The level switcher sets `floor` so the list follows the plan; that is
+     navigation, so it gets no tag and no badge count. window.ohTagSel keeps
+     the Filters badge reading exactly what the tags row shows. */
+  var SKIP = ['floor'];
+  var SEL = SKIP.map(function (f) { return '[data-filter][data-value].is-active:not([data-filter="' + f + '"])'; })
+    .concat(['[data-toggle].is-active']).join(', ');
+  window.ohTagSel = SEL;
 
   function host() {
     var head = document.querySelector('.unit-filter_filters .unit-filter_head') || document.querySelector('.unit-filter_head');
@@ -2493,7 +2500,7 @@ window.ohNativeSubmit = async function (form, doneText) {
       var badge = document.querySelector('[data-active-count]');
       function updateBadge() {
         if (!badge) return;
-        var n = document.querySelectorAll('[data-filter][data-value].is-active, [data-toggle].is-active').length;
+        var n = document.querySelectorAll(window.ohTagSel || '[data-filter][data-value].is-active, [data-toggle].is-active').length;
         badge.textContent = String(n);
         badge.style.display = n ? '' : 'none';
         badge.setAttribute('aria-label', n + (n === 1 ? ' active filter' : ' active filters'));
