@@ -449,8 +449,10 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 .site-plan_sheet[data-mode="bay"] .site-plan_sheet-pill{background:var(--oh-sand);border:1px solid var(--oh-line)}
 .site-plan_sheet-title{margin-top:.4rem;font-size:1.0625rem;font-weight:600;color:var(--oh-ink)}
 .site-plan_sheet-meta{margin-top:.15rem;font-size:.8125rem;color:rgba(44,43,39,.62)}
-.site-plan_sheet-btn{margin-top:.7rem;width:100%;padding:.7rem 1rem;border:0;border-radius:999px;background:var(--oh-accent);color:#fff;font:inherit;font-size:.9375rem;font-weight:600;cursor:pointer}
-.site-plan_sheet-btn:active{opacity:.9}
+/* the sheet's action IS the site's button component (cloned in heartland-oh.js):
+   everything here is layout, so the component keeps its own fill, type and arrow */
+.site-plan_sheet-btn{display:flex;margin-top:.7rem;width:100%;cursor:pointer}
+.site-plan_sheet-btn .button-wrapper{width:100%;justify-content:center}
 .site-plan_sheet-btn[hidden]{display:none}
 /* the shape behind the sheet keeps an outline so it is clear what was tapped */
 .site-plan_map-svg .site-plan_plot.is-peek{stroke:var(--oh-ink);stroke-width:2.4px;stroke-opacity:.9;fill-opacity:1}

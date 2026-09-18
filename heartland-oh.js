@@ -1769,10 +1769,11 @@ window.Wized.push((Wized) => {
       '<button type="button" class="site-plan_sheet-close" aria-label="Close">\u00d7</button>' +
       '<span class="site-plan_sheet-pill"></span>' +
       '<div class="site-plan_sheet-title"></div>' +
-      '<div class="site-plan_sheet-meta"></div>' +
-      '<button type="button" class="site-plan_sheet-btn"></button>';
+      '<div class="site-plan_sheet-meta"></div>';
+    sheet.appendChild(makeBtn());
     sheet.querySelector('.site-plan_sheet-close').addEventListener('click', close);
-    sheet.querySelector('.site-plan_sheet-btn').addEventListener('click', function () {
+    sheet.querySelector('.site-plan_sheet-btn').addEventListener('click', function (e) {
+      if (e && e.preventDefault) e.preventDefault();
       var u = current;
       if (!u) return;
       close();
@@ -1783,6 +1784,39 @@ window.Wized.push((Wized) => {
     sheet.addEventListener('click', function (e) { e.stopPropagation(); });
     (document.querySelector('.unit-filter_component') || document.body).appendChild(sheet);
     return sheet;
+  }
+
+  /* The sheet's action is the same component as the panel's Reserve button,
+     cloned from the live instance so it cannot drift from it. The bindings
+     that only belong to the original come off: wized (Wized would write the
+     unit into two elements), defijn-modal (it would open the reserve popup),
+     data-w-id (an IX2 binding is not ours to duplicate), id and href. */
+  var BTN_SRC = '[wized="v2_udReserveBtn"], .unit-details_actionbar-reserve .button, a.button.primary';
+  function makeBtn() {
+    var src = document.querySelector(BTN_SRC);
+    var el;
+    if (src) {
+      el = src.cloneNode(true);
+      ['wized', 'data-v2', 'defijn-modal', 'defijn-modal-element', 'data-w-id', 'id', 'href', 'data-actionbar-reserve']
+        .forEach(function (a) { el.removeAttribute(a); });
+      el.querySelectorAll('[wized],[data-w-id],[id],[defijn-modal]').forEach(function (n) {
+        ['wized', 'data-v2', 'data-w-id', 'id', 'defijn-modal', 'defijn-modal-element'].forEach(function (a) { n.removeAttribute(a); });
+      });
+    } else {
+      /* the panel is not on the page (or not built yet): same classes by hand */
+      el = document.createElement('a');
+      el.className = 'button primary w-inline-block';
+      el.innerHTML = '<div class="button-wrapper"><div class="label-button"><div class="button-text text-color-white"></div></div></div>';
+    }
+    el.setAttribute('role', 'button');
+    el.setAttribute('href', '#');
+    el.classList.add('site-plan_sheet-btn');
+    return el;
+  }
+  /* the component keeps its text in .button-text; a fallback <a> may not */
+  function btnLabel(btn, text) {
+    var t = btn.querySelector('.button-text');
+    if (t) t.textContent = text; else btn.textContent = text;
   }
 
   /* the shape behind the sheet keeps an outline, so it is obvious which one
@@ -1827,7 +1861,7 @@ window.Wized.push((Wized) => {
 
     var btn = sheet.querySelector('.site-plan_sheet-btn');
     var label = soon ? 'Notify me' : taken ? '' : 'View the unit';
-    btn.textContent = label;
+    btnLabel(btn, label);
     btn.hidden = !label;
 
     sheet.setAttribute('aria-hidden', 'false');
