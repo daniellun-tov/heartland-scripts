@@ -598,8 +598,11 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 .oh-welcome_list strong{font-weight:600;opacity:1}
 /* the reserve line is only true while sales are open */
 html:not(.sales-open) .oh-welcome_sales{display:none}
-.oh-welcome_cta{display:inline-flex;align-items:center;justify-content:center;width:100%;padding:.85rem 1.25rem;border:0;border-radius:999px;background:var(--oh-accent);color:#fff;font:inherit;font-size:.9375rem;font-weight:600;cursor:pointer;transition:filter .15s}
-.oh-welcome_cta:hover{filter:brightness(1.06)}
+/* the CTA IS the site's button component (cloned in heartland-oh.js): these
+   are layout rules only, so the component keeps its own fill, type and arrow */
+.oh-welcome_action{display:flex}
+.oh-welcome_cta{display:flex;width:100%;cursor:pointer}
+.oh-welcome_cta .button-wrapper{width:100%;justify-content:center}
 .oh-welcome_cta:focus-visible,.oh-welcome_close:focus-visible{outline:2px solid var(--oh-ink);outline-offset:2px}
 /* the card takes focus so the ring does not land on the CTA; a site-wide
    focus style would otherwise draw a box around the whole modal */
@@ -622,3 +625,18 @@ html:not(.sales-open) .oh-welcome_sales{display:none}
   background-color:currentColor;
   -webkit-mask:url("https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6979e6af9f16002b40f6d7a2_icon-whatsapp.svg") no-repeat center/contain;
           mask:url("https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6979e6af9f16002b40f6d7a2_icon-whatsapp.svg") no-repeat center/contain}
+
+/* ---- panel header: number and price on one row ---------------------------- */
+.unit-details_header{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;column-gap:1rem}
+.unit-details_header>*:not(.unit-details_title):not(.unit-details_price){flex:0 0 100%}
+.unit-details_title{margin:0}
+.unit-details_price{white-space:nowrap}
+
+/* ---- mobile: the action bar sits in front of the subtabs ------------------- */
+@media (max-width:991px){
+  .unit-details_actionbar{z-index:8;box-shadow:0 -10px 14px -10px rgba(21,23,20,.28)}
+  .unit-details_scroll-nav{z-index:4}
+  /* the bar is ~4.2rem plus its safe-area padding: leave room so the last
+     section can always be scrolled clear of it */
+  .unit-details_body{padding-bottom:calc(6rem + env(safe-area-inset-bottom,0px))}
+}

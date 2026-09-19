@@ -1844,7 +1844,7 @@ window.Wized.push((Wized) => {
     return mountBtn(cur);
   }
 
-  function makeBtn() {
+  function makeBtn(cls) {
     var src = captureBtn();
     var el;
     if (src) {
@@ -1873,7 +1873,7 @@ window.Wized.push((Wized) => {
     }
     el.setAttribute('role', 'button');
     el.setAttribute('href', '#');
-    el.classList.add('site-plan_sheet-btn');
+    el.classList.add(cls || 'site-plan_sheet-btn');
     return el;
   }
   /* the component keeps its text in .button-text; a fallback <a> may not */
@@ -1963,6 +1963,10 @@ window.Wized.push((Wized) => {
   window.matchMedia(MOBILE).addEventListener('change', function (e) { if (!e.matches) close(); });
 
   window.ohSheet = { open: open, close: close, shouldUse: shouldUse, current: function () { return current; } };
+  /* the site's button, for anything else that needs one: make(cls) returns the
+     component (cloned while Wized still has it on the page, else built from the
+     same markup) and label() writes into whichever of the two it handed back */
+  window.ohButton = { make: makeBtn, label: btnLabel };
   /* the first name this shipped under, before parking bays used it too */
   window.ohSoonSheet = window.ohSheet;
 })();
@@ -3780,12 +3784,25 @@ window.ohNativeSubmit = async function (form, doneText) {
             '<li><strong>Narrow it down.</strong> Filter by price, type, level, parking or the view you want to wake up to.</li>' +
             '<li class="oh-welcome_sales"><strong>Reserve online.</strong> Found the one? Reserve it and complete your details in a few steps.</li>' +
           '</ul>' +
-          '<button type="button" class="oh-welcome_cta" data-welcome-close>Start exploring</button>' +
+          '<div class="oh-welcome_action"></div>' +
         '</div>' +
       '</div>';
     document.body.appendChild(el);
+    /* the CTA is the site's button component (see window.ohButton), so it can
+       never drift from the one in the panel; the fallback is the same markup */
+    var slot = el.querySelector('.oh-welcome_action');
+    var cta;
+    if (window.ohButton) {
+      cta = window.ohButton.make('oh-welcome_cta');
+      window.ohButton.label(cta, 'Start exploring');
+    } else {
+      cta = document.createElement('button');
+      cta.type = 'button'; cta.className = 'oh-welcome_cta'; cta.textContent = 'Start exploring';
+    }
+    cta.setAttribute('data-welcome-close', '');
+    slot.appendChild(cta);
     el.addEventListener('click', function (e) {
-      if (e.target.closest('[data-welcome-close]')) close();
+      if (e.target.closest('[data-welcome-close]')) { e.preventDefault(); close(); }
     });
     el.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { e.preventDefault(); close(); return; }
