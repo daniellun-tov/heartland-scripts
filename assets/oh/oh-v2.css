@@ -573,3 +573,52 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   #notify-unit-v2 .buttons-wrapper.u-position-absolute>a,#reserve-unit-v2 .buttons-wrapper.u-position-absolute>a{
     position:static;inset:auto;width:auto}
 }
+
+/* ---- welcome modal (patch-oh14) ------------------------------------------
+   Above the lightbox so nothing can cover it; it is the first thing a visitor
+   sees and it closes on the CTA, the x, Escape or the scrim. */
+.oh-welcome{position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;padding:1rem}
+.oh-welcome[hidden]{display:none}
+.oh-welcome_scrim{position:absolute;inset:0;background:rgba(21,23,20,.55);backdrop-filter:blur(3px);opacity:0;transition:opacity .25s ease}
+.oh-welcome.is-open .oh-welcome_scrim{opacity:1}
+.oh-welcome_card{font-family:var(--_typography---font--primary-family,"Helvetica Neue",sans-serif);position:relative;z-index:1;width:min(100%,34rem);max-height:calc(100dvh - 2rem);overflow:auto;overscroll-behavior:contain;background:#fff;border-radius:16px;box-shadow:0 30px 80px rgba(21,23,20,.35);opacity:0;transform:translateY(12px) scale(.985);transition:opacity .28s ease,transform .28s cubic-bezier(.22,1,.36,1)}
+.oh-welcome.is-open .oh-welcome_card{opacity:1;transform:none}
+.oh-welcome_figure{margin:0;aspect-ratio:16/9;background:var(--oh-sand);overflow:hidden}
+.oh-welcome_figure img{display:block;width:100%;height:100%;object-fit:cover}
+.oh-welcome_close{position:absolute;top:.75rem;right:.75rem;display:flex;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;padding:0;border:0;border-radius:999px;background:rgba(21,23,20,.42);color:#fff;cursor:pointer;transition:background .15s}
+.oh-welcome_close:hover{background:rgba(21,23,20,.62)}
+.oh-welcome_close svg{width:1.1rem;height:1.1rem}
+.oh-welcome_body{padding:1.5rem 1.6rem 1.6rem}
+.oh-welcome_eyebrow{margin:0 0 .5rem;color:var(--oh-ink);opacity:.6;font-size:.6875rem;letter-spacing:.14em;text-transform:uppercase}
+.oh-welcome_title{font-family:var(--_typography---font--secondary-family,"Tenor Sans",serif);margin:0 0 .55rem;color:var(--oh-ink);font-size:1.5rem;line-height:1.2}
+.oh-welcome_lede{margin:0 0 1.1rem;color:var(--oh-ink);opacity:.8;font-size:.9375rem;line-height:1.5}
+.oh-welcome_list{margin:0 0 1.35rem;padding:0;list-style:none;display:flex;flex-direction:column;gap:.6rem}
+.oh-welcome_list li{position:relative;padding-left:1.35rem;color:var(--oh-ink);opacity:.85;font-size:.875rem;line-height:1.45}
+.oh-welcome_list li::before{content:"";position:absolute;left:0;top:.5em;width:.45rem;height:.45rem;border-radius:999px;background:var(--oh-accent)}
+.oh-welcome_list strong{font-weight:600;opacity:1}
+/* the reserve line is only true while sales are open */
+html:not(.sales-open) .oh-welcome_sales{display:none}
+.oh-welcome_cta{display:inline-flex;align-items:center;justify-content:center;width:100%;padding:.85rem 1.25rem;border:0;border-radius:999px;background:var(--oh-accent);color:#fff;font:inherit;font-size:.9375rem;font-weight:600;cursor:pointer;transition:filter .15s}
+.oh-welcome_cta:hover{filter:brightness(1.06)}
+.oh-welcome_cta:focus-visible,.oh-welcome_close:focus-visible{outline:2px solid var(--oh-ink);outline-offset:2px}
+/* the card takes focus so the ring does not land on the CTA; a site-wide
+   focus style would otherwise draw a box around the whole modal */
+.oh-welcome .oh-welcome_card:focus,.oh-welcome .oh-welcome_card:focus-visible{outline:none!important}
+@media (max-width:480px){
+  .oh-welcome{padding:.75rem}
+  .oh-welcome_body{padding:1.25rem 1.25rem 1.35rem}
+  .oh-welcome_title{font-size:1.3125rem}
+}
+@media (prefers-reduced-motion:reduce){
+  .oh-welcome_scrim,.oh-welcome_card{transition:none}
+  .oh-welcome_card{transform:none}
+}
+
+/* ---- Share button: the WhatsApp mark, inside the outline ----------------- */
+.unit-details_actionbar-share .label-button{display:flex;align-items:center}
+.unit-details_actionbar-share .button-text{display:inline-flex;align-items:center;white-space:nowrap}
+.unit-details_actionbar-share .button-text::before{
+  content:"";flex:none;width:1.05em;height:1.05em;margin-right:.45em;
+  background-color:currentColor;
+  -webkit-mask:url("https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6979e6af9f16002b40f6d7a2_icon-whatsapp.svg") no-repeat center/contain;
+          mask:url("https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6979e6af9f16002b40f6d7a2_icon-whatsapp.svg") no-repeat center/contain}
