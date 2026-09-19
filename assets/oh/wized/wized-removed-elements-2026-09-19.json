@@ -1,0 +1,1224 @@
+{
+ "taken": "2026-09-19",
+ "project": "MHh0NuKcGUFaHV6ZcZxa (Oak Hills [New])",
+ "branch_the_deletions_were_made_on": "prune-v1-elements (9r0fj33g8cmQ9kVMB9he)",
+ "note": "Full definitions of the 72 elements removed from the prune-v1-elements branch, copied out of the live main config BEFORE deletion. Everything needed to recreate them is here: events, actions, request/variable bindings, conditions and all text/value/visibility expressions. request_id_map and variable_id_map resolve the opaque ids referenced inside the actions.",
+ "request_id_map": {
+  "0CkN9vq74fgm44fvjIhH": "get_unit_totals",
+  "2TrNvARfXvqc1KzFIhuD": "get_selected_unit",
+  "35CgOrJABAL5wFYJMz61": "v2_getUnitTypes",
+  "57pK6ATvsebGS9l4iLpa": "add_user_interest",
+  "5Nm2FJbwD4OAo8Lm1Jzu": "get_building_floors",
+  "DVYxNxaqPFJrJ4MwSLvk": "change_unit_status_reserved",
+  "Mdw754KhuqldT58ID2sj": "get_unit_by_filters",
+  "R7T1nORU4An92DlLDacc": "get_unit_type_details",
+  "XGdTutQ31pxQReCTFdfE": "add_user_reservation",
+  "hWxEyq12bMsWbcf9tPme": "v2_getSettings",
+  "khRZutnNQoVDyTXrTqxG": "get_onfloor_numbers",
+  "py0rLY3S2ybUPACiLy9S": "v2_getUnits",
+  "whjmZU7zSI9C08ojgFGq": "get_unit_types_list"
+ },
+ "variable_id_map": {
+  "0NU6hiXwJcqzpjNT3DRh": "unit_floor_index",
+  "11L3kL9XsJkNuK2nBxeP": "unit_index",
+  "1e6G5IGdNRWzQI59c6PV": "selected_building_id_now",
+  "2E0ymH1feCKYuPyzj5NZ": "ofn_to_unit_map",
+  "5gcGwFJAq0v0FFnBIOTt": "selected_unit_type_id",
+  "5oIaqtJVNW6Ee2BiKjwn": "selected_floor_display_name",
+  "73SAZfKRMlM5JWCUc3Cp": "unit_block_index",
+  "CKKITSF8lNsPVoSggS6H": "selected_building_name",
+  "CV7ZLuWOe6JkNff8BdIZ": "unit_type_index",
+  "FLNSdM0L43n7PlABz5w2": "selected_building_img",
+  "HPeGp8hID5JSAHAx3hG5": "v2_slideIndex",
+  "IsJjpq3E2NZpaTVrX8QZ": "selected_building_floorplan",
+  "JwZiOipnFY6NkfQqa9jw": "selected_unit_number",
+  "MnkSBB40fX6Pobq5ClU8": "selected_unit_floorplan_url",
+  "MsVuNZfOcYjuBV2WcEZf": "onfloor_index",
+  "NK4wZNuITfdDEfYpEpd9": "selected_bay_number",
+  "ROWAgbzqXm7wOvSwdoa6": "onfloor_unit_id",
+  "SSA6cH4IQnAbQdJujUCF": "selected_building",
+  "U9jssNdLHvmE6PXv6aO8": "temp_onfloor_id",
+  "V17hWn6TyoCsVWhnNzgI": "unit_media_index",
+  "VauNfmgK66DrDrsbvDfg": "v2_notifyUnit",
+  "WxkDVO5ftRZgOMt4Hj7Y": "selected_building_letter",
+  "X43QXbEl8iLX2bTWWlmr": "selected_unit_type_letter",
+  "XEn2XGnPpmbIRmZrcive": "selected_floor_id",
+  "XiZxyPyzY9mfTEYaCmu4": "building_index",
+  "YfH4LDNvMny4zhH1k7rd": "reserve_error",
+  "YfKrk5keX6ngCDQUxPgJ": "ofn_status_map",
+  "Z7yTGzZrM4FDwCZqdQX8": "v2_visibleUnits",
+  "cptKCBHosq2znQjslQtS": "selected_onfloor_number_id",
+  "dUHDSaKvlM8y31bPXsjk": "v2_selectedUnit",
+  "dlKU55kg7mCzQ50rMBvr": "selected_unit_price",
+  "f3rT7t7MrulahhcfS27s": "selected_floor_name",
+  "f5AyvcFjaDbEnKRJCBES": "selected_building_id",
+  "gQPGVYEthxV0bSUumZrq": "has_initialized_unit",
+  "hXhPTipgbqotDo6ApTOt": "floor_index",
+  "ie0Yb9phL32TBWdlHu1h": "v2_unitIndex",
+  "jdpq9MRFWfnRY4Dy6Nr3": "selected_building_id",
+  "jzVRejsYqUHpdSHwVOXD": "selected_unit_vr_url",
+  "ol64u0EsQdwvF4Ouituw": "selected_building_name2",
+  "pmouw0Txy0Neznc7FUn3": "unit_img_index",
+  "tUWRYGhaUgRwT1rvPkeX": "selected_unit_id",
+  "wcctZv21fbQhsahSjLCi": "v2_selectedType",
+  "zf2PP10hUDr3PZtLfoBx": "onfloor_number_id"
+ },
+ "elements": [
+  {
+   "id": "d2bxOdoVDn4XBOPjItlk",
+   "name": "building_highlight_img",
+   "attributes": {
+    "values": [
+     {
+      "key": "src",
+      "id": "be05d528-4246-4478-a19a-51f4de7c8078",
+      "value": "return r.get_unit_type_details.data.buildings_full[v.building_index]\n  .building_highlight_image[0].url;\n"
+     },
+     {
+      "id": "beffe4c2-1c31-4867-b194-b9d7cb8bad80",
+      "value": "return r.get_unit_type_details.data.buildings_full[v.building_index]\n  .building_highlight_image[0].url;\n",
+      "key": "srcset"
+     }
+    ]
+   },
+   "createdTimestamp": 1770975242
+  },
+  {
+   "styles": {
+    "values": [
+     {
+      "property": "top",
+      "id": "c113f738-02b3-4069-9533-b364f72c502a",
+      "value": "return r.get_unit_type_details.data.buildings_full[v.building_index].top_position;\n"
+     },
+     {
+      "id": "ee438ff7-bded-4bab-950c-6ce583e85b49",
+      "property": "left",
+      "value": "return r.get_unit_type_details.data.buildings_full[v.building_index].left_position;\n"
+     }
+    ]
+   },
+   "name": "building_pin_item",
+   "id": "djYQxPy9DLjDCTd06e29",
+   "createdTimestamp": 1770974970
+  },
+  {
+   "name": "building_pin_name",
+   "createdTimestamp": 1770973551,
+   "text": {
+    "value": "return r.get_unit_type_details.data.buildings_full[v.building_index].name;\n"
+   },
+   "id": "dH5O7AS8IsQ6z010DRMg"
+  },
+  {
+   "id": "m0iSDPTCjvzz0UEmzMc4",
+   "name": "building_pin_wrapper",
+   "events": [
+    {
+     "id": "0ffe2e04-3c25-410e-b923-f08f6d4127f0",
+     "type": "click",
+     "actions": [
+      {
+       "id": "c5dbbd8e-1780-4161-aba6-bc9944873324",
+       "type": "set-variable",
+       "variable": "jdpq9MRFWfnRY4Dy6Nr3",
+       "value": "const el = e.currentTarget.closest(\"[data-building-id]\");\n  return el ? Number(el.getAttribute(\"data-building-id\")) : null;"
+      },
+      {
+       "id": "432ef03f-2e6f-4900-8134-1b540f4262f0",
+       "type": "set-variable",
+       "variable": "FLNSdM0L43n7PlABz5w2",
+       "value": "return r.get_unit_type_details.data.buildings_full[v.unit_block_index].building_type_img[0].url;\n"
+      },
+      {
+       "id": "b2cdea26-fa04-48e7-b07a-2210f81570fc",
+       "type": "set-variable",
+       "variable": "IsJjpq3E2NZpaTVrX8QZ",
+       "value": "return r.get_unit_type_details.data.buildings_full[v.unit_block_index].building_floorplan[0].url;\n"
+      },
+      {
+       "id": "46302cd1-92be-4b61-95bb-d73af872ccd7",
+       "type": "set-variable",
+       "variable": "CKKITSF8lNsPVoSggS6H",
+       "value": "return r.get_unit_type_details.data.buildings_full[v.unit_block_index].name;"
+      },
+      {
+       "id": "92a1c4de-6879-4b42-bfc0-ac8500132a63",
+       "type": "perform-request",
+       "request": "5Nm2FJbwD4OAo8Lm1Jzu"
+      },
+      {
+       "id": "7611268d-2e63-452a-a66f-90baff4b74c2",
+       "type": "run-function",
+       "functionMode": "inline",
+       "function": "window.OakhillsBuildings?.selectBuildingById?.(wized.variables.selected_building_id);"
+      }
+     ]
+    }
+   ],
+   "createdTimestamp": 1772797458
+  },
+  {
+   "visibility": {
+    "value": "return Number(v.selected_building_id) <= 0;"
+   },
+   "name": "building_select_btn",
+   "id": "szPu7t5yMCiMmKfkhSpZ",
+   "styles": {
+    "values": [
+     {
+      "value": "return Number(v.selected_building_id) <= 0\n  ? \"display:flex;\"\n  : \"display:none;\"",
+      "property": "display",
+      "id": "a5551ead-acb9-4b90-a6d6-55bcd140f64c"
+     }
+    ]
+   },
+   "createdTimestamp": 1771436143
+  },
+  {
+   "createdTimestamp": 1771435608,
+   "id": "hNaEYnwkc1XXT5SoLTTB",
+   "name": "building_selected_tag",
+   "styles": {
+    "values": [
+     {
+      "property": "display",
+      "value": "return Number(v.selected_building_id) <= 0\n  ? \"display:block;\"\n  : \"display:none;\"",
+      "id": "a7d96998-c0dc-48e5-9e87-1e23cb2b842b"
+     }
+    ]
+   },
+   "visibility": {
+    "value": "return Number(v.selected_building_id) > 0;"
+   }
+  },
+  {
+   "id": "8Y8BjgBcQOTsDS1sOgom",
+   "createdTimestamp": 1770646296,
+   "name": "details_unit_type_floorplan_btn",
+   "attributes": {
+    "values": [
+     {
+      "key": "href",
+      "value": "return r.get_unit_type_details.data.unit_type.unit_type_floorplan[0].url;\n",
+      "id": "fcbc155e-bf3b-4fbf-9058-93b6394bbd3f"
+     }
+    ]
+   }
+  },
+  {
+   "attributes": {
+    "values": [
+     {
+      "key": "href",
+      "value": "return r.get_unit_type_details.data.unit_type.vr_url;\n",
+      "id": "2cea1344-0710-4072-9a8d-789e5dc13557"
+     }
+    ]
+   },
+   "id": "3VUYIR7NHaJ4Tfrcldpn",
+   "events": [
+    {
+     "actions": [
+      {
+       "id": "74fdbf2e-ac32-4b02-a85a-3099b52f1feb",
+       "type": "navigate-to",
+       "openInNewTab": true,
+       "url": "return r.get_unit_type_details.data.unit_type.vr_url;\n"
+      }
+     ],
+     "id": "9521cdc3-4411-48c0-bd67-7e77f552926c",
+     "type": "click"
+    }
+   ],
+   "name": "details_unit_type_vr_btn",
+   "createdTimestamp": 1770646431
+  },
+  {
+   "id": "vX235poHY4FWM5pSRFH8",
+   "name": "floor_pin_area",
+   "classes": {
+    "values": [
+     {
+      "id": "3ac92dfd-3b7f-4b2f-ab28-7922a30b5683",
+      "class": "is-disabled",
+      "condition": "if (r.get_building_floors.data.floors[v.floor_index]?.display_name == \"Parking\") {\n  return false;\n}\n\nreturn !r.get_building_floors.data.floors\n  .map(floor =>\n    floor.units.some(unit =>\n      unit.status === \"Available\" &&\n      Number(unit.unit_type?.[0] || 0) === Number(\n        document.querySelector('.unit-accordion-item.is-selected[data-unit-type-id]')?.getAttribute('data-unit-type-id') || 0\n      )\n    )\n  )[v.floor_index];\n\n/*!r.get_building_floors.data.floors\n  .map(floor => floor.units.some(unit => unit.status === \"Available\"))\n  [v.floor_index]*/"
+     }
+    ]
+   },
+   "createdTimestamp": 1773153960
+  },
+  {
+   "name": "floor_pin_item",
+   "createdTimestamp": 1771404045,
+   "id": "JlL0d7wnGqF4O0eSWF3Y",
+   "styles": {
+    "values": [
+     {
+      "property": "top",
+      "id": "d0ac330d-e652-4155-8d91-39d6e82ee0ed",
+      "value": "return r.get_building_floors.data.floors[v.floor_index].top_position;\n"
+     }
+    ]
+   }
+  },
+  {
+   "createdTimestamp": 1771404089,
+   "name": "floor_pin_name",
+   "text": {
+    "value": "return r.get_building_floors.data.floors[v.floor_index].name;\n"
+   },
+   "id": "wSMeg6SemiI4KTYo2Fiq"
+  },
+  {
+   "id": "NlcrlNn5ndjYIGkDwWMF",
+   "name": "floor_pin_number",
+   "text": {
+    "value": "return r.get_building_floors.data.floors[v.floor_index].display_name;\n"
+   },
+   "createdTimestamp": 1773153003
+  },
+  {
+   "id": "zAdeuoLEovvipOipsExm",
+   "name": "floor_pin_wrapper",
+   "classes": {
+    "values": [
+     {
+      "id": "21fde5b0-eed4-425d-9bf8-e641baf7fe00",
+      "class": "is-disabled",
+      "condition": "if (r.get_building_floors.data.floors[v.unit_floor_index]?.display_name !== \"Parking\") {\n  return false;\n}\n\nreturn !r.get_building_floors.data.floors\n  .map(floor =>\n    floor.units.some(unit =>\n      unit.status === \"Available\" &&\n      Number(unit.unit_type?.[0] || 0) === Number(\n        document.querySelector('.unit-accordion-item.is-selected[data-unit-type-id]')?.getAttribute('data-unit-type-id') || 0\n      )\n    )\n  )[v.unit_floor_index];"
+     }
+    ]
+   },
+   "events": [
+    {
+     "id": "9a5e478f-1219-47b4-90ad-6aa65cfec1cc",
+     "type": "click",
+     "hasCondition": true,
+     "condition": "return r.get_building_floors.data.floors[v.floor_index].display_name != \"Parking\";",
+     "actions": [
+      {
+       "id": "9815679b-5312-4bf9-9361-a0474239a408",
+       "type": "set-variable",
+       "variable": "XEn2XGnPpmbIRmZrcive",
+       "value": "const el = e.currentTarget.closest(\"[data-floor-id]\");\n  return el ? Number(el.getAttribute(\"data-floor-id\")) : null;"
+      },
+      {
+       "id": "3a246f19-a7c8-4091-9941-59938d72f605",
+       "type": "set-variable",
+       "variable": "5oIaqtJVNW6Ee2BiKjwn",
+       "value": "return r.get_building_floors.data.floors[v.unit_floor_index].display_name;\n"
+      },
+      {
+       "id": "50765b1b-ff2f-4305-a59a-4179a1965712",
+       "type": "perform-request",
+       "request": "khRZutnNQoVDyTXrTqxG"
+      }
+     ]
+    }
+   ],
+   "createdTimestamp": 1773153790
+  },
+  {
+   "visibility": {
+    "value": "return Number(v.selected_floor_id) <= 0;"
+   },
+   "name": "floor_select_btn",
+   "styles": {
+    "values": [
+     {
+      "property": "display",
+      "value": "return Number(v.selected_floor_id) <= 0\n  ? \"display:flex;\"\n  : \"display:none;\"",
+      "id": "5d42fb6d-e1e1-4d06-b1f3-361ff292b928"
+     }
+    ]
+   },
+   "id": "BuvYemzu0Q2PXMwmbp4O",
+   "createdTimestamp": 1771442659
+  },
+  {
+   "visibility": {
+    "value": "return Number(v.selected_floor_id) > 0;"
+   },
+   "id": "EP5JXXtdsQpydg9pkril",
+   "styles": {
+    "values": [
+     {
+      "value": "return Number(v.selected_floor_id) <= 0\n  ? \"display:block;\"\n  : \"display:none;\"",
+      "property": "display",
+      "id": "838a143d-66ad-4e0d-aa67-338843203bc7"
+     }
+    ]
+   },
+   "name": "floor_selected_tag",
+   "createdTimestamp": 1771442803
+  },
+  {
+   "createdTimestamp": 1784905975,
+   "name": "get_selected_bay_number",
+   "id": "Lbx6Ot2coxL4CL5wcGh2",
+   "text": {
+    "value": "return r.get_selected_unit.data.unit.parking_bay_number;"
+   }
+  },
+  {
+   "createdTimestamp": 1784906078,
+   "name": "get_selected_bay_type",
+   "id": "gphJ0JIxQIVi2LfeuCvu",
+   "text": {
+    "value": "return r.get_selected_unit.data.unit.parking_bay_type;"
+   }
+  },
+  {
+   "text": {
+    "value": "return r.get_selected_unit.data.unit.building[0].name;\n"
+   },
+   "createdTimestamp": 1771529343,
+   "name": "get_selected_block_letter",
+   "id": "PZbsYeZdvSPPvW3uOfKC"
+  },
+  {
+   "createdTimestamp": 1771529381,
+   "id": "GONwkb5Cr1YiOwlTDtBC",
+   "text": {
+    "value": "return r.get_selected_unit.data.unit.floor[0][0].name;\n"
+   },
+   "name": "get_selected_floor_name"
+  },
+  {
+   "id": "WZbKtG8r3N9eBYxp0uAL",
+   "name": "get_selected_unit_number",
+   "text": {
+    "value": "return r.get_selected_unit.data.unit.unit_number;\n"
+   },
+   "createdTimestamp": 1771529395
+  },
+  {
+   "id": "3UBWYlONn8Ej0OyzuurD",
+   "text": {
+    "value": "const unit_price = r.get_selected_unit.data.unit.price;\n\n// Format with commas and 2 decimal places\nconst formattedUnitPrice = unit_price.toLocaleString(\"en-ZA\", {\n  style: \"currency\",\n  currency: \"ZAR\",\n  minimumFractionDigits: 2,\n  maximumFractionDigits: 2,\n});\n\n// Remove currency symbol and add custom \"R \" prefix\nreturn formattedUnitPrice;\n"
+   },
+   "name": "get_selected_unit_price",
+   "createdTimestamp": 1771529223
+  },
+  {
+   "name": "get_selected_unit_type_letter",
+   "text": {
+    "value": "return r.get_selected_unit.data.unit.unit_type[0][0].type;\n"
+   },
+   "id": "xfNgSR11L6BSJxj6cvXS",
+   "createdTimestamp": 1771529266
+  },
+  {
+   "id": "OECXQtEvz0i0qWVDi6pN",
+   "name": "level_unavailable_tag",
+   "visibility": {
+    "value": "return !r.get_building_floors.data.floors\n  .map(floor =>\n    floor.units.some(unit =>\n      unit.status === \"Available\" &&\n      Number(unit.unit_type?.[0] || 0) === Number(\n        document.querySelector('.unit-accordion-item.is-selected[data-unit-type-id]')?.getAttribute('data-unit-type-id') || 0\n      )\n    )\n  )[v.unit_floor_index]"
+   },
+   "createdTimestamp": 1786527045
+  },
+  {
+   "id": "QynOQz0mgS4NUMOMYQts",
+   "name": "onfloor_pin_item",
+   "styles": {
+    "values": [
+     {
+      "id": "6744c5f5-47d7-48aa-893f-63cdc3097161",
+      "property": "top",
+      "value": "//return r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_index].top_position;\nreturn r.get_onfloor_numbers.data.onfloor_numbers_list.find(\n  p => p.id === r.get_onfloor_numbers.data.units_list[v.unit_index].onfloor_number[0]\n)?.top_position\n"
+     },
+     {
+      "id": "2586db80-ed71-4972-a6ff-ac6b837b5d92",
+      "property": "left",
+      "value": "//return r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_index].left_position;\nreturn r.get_onfloor_numbers.data.onfloor_numbers_list.find(\n  p => p.id === r.get_onfloor_numbers.data.units_list[v.unit_index].onfloor_number[0]\n)?.left_position\n"
+     }
+    ]
+   },
+   "createdTimestamp": 1771496238
+  },
+  {
+   "id": "ibfeI6MNxxGwC8c7OQh7",
+   "name": "onfloor_pin_name",
+   "text": {
+    "value": "//return r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_index].name;\n//return r.get_onfloor_numbers.data.units_list[v.onfloor_index].unit_number;\nreturn r.get_onfloor_numbers.data.units_list[v.unit_index].unit_number\n"
+   },
+   "createdTimestamp": 1771496394
+  },
+  {
+   "id": "Yo7iPMwduRlt7C8fN3i2",
+   "name": "onfloor_pin_wrapper",
+   "events": [
+    {
+     "id": "b0a562c8-0050-4375-8975-be5ae02b0a65",
+     "type": "click",
+     "actions": [
+      {
+       "id": "daecf4ee-0d3a-48f2-a325-6e3eee6e9ace",
+       "type": "set-variable",
+       "variable": "zf2PP10hUDr3PZtLfoBx",
+       "value": "const row = e.currentTarget.closest(\"[data-onfloor-number-id]\");\nif (!row) return null;\n\nif (row.dataset.available !== \"true\") return null;\n\nreturn Number(row.getAttribute(\"data-onfloor-number-id\"));"
+      },
+      {
+       "id": "91a3143c-4d2a-415d-93cf-c47fbf8f582b",
+       "type": "perform-request",
+       "request": "Mdw754KhuqldT58ID2sj",
+       "hasCondition": true,
+       "condition": "return (\n    Number.isFinite(Number(v.selected_unit_type_id)) &&\n    Number.isFinite(Number(v.selected_building_id)) &&\n    Number.isFinite(Number(v.selected_floor_id)) &&\n    Number.isFinite(Number(v.selected_onfloor_number_id))\n  );"
+      },
+      {
+       "id": "857f08eb-2153-44a7-b1c4-45c0752d136f",
+       "type": "set-variable",
+       "variable": "tUWRYGhaUgRwT1rvPkeX",
+       "value": "//const arr = r.get_onfloor_numbers.data.units_list;\n//return Array.isArray(arr) && arr[0]?.id ? Number(arr[0].id) : null;\n\nreturn r.get_onfloor_numbers.data.units_list[v.onfloor_number_id].id;\n"
+      },
+      {
+       "id": "3a895f41-84c6-4100-8417-d26f8258d29a",
+       "type": "set-variable",
+       "variable": "dlKU55kg7mCzQ50rMBvr",
+       "value": "return r.get_selected_unit.data.unit.price;\n"
+      },
+      {
+       "id": "5dbc953a-80b0-47a5-925b-d11da02263c8",
+       "type": "perform-request",
+       "request": "2TrNvARfXvqc1KzFIhuD",
+       "hasCondition": true,
+       "condition": "return Number.isFinite(Number(v.selected_unit_id))"
+      }
+     ]
+    }
+   ],
+   "createdTimestamp": 1772461031
+  },
+  {
+   "id": "NkjyC2StIM9lFqeP5qWM",
+   "name": "onfloor_unit_highlight_img",
+   "attributes": {
+    "values": [
+     {
+      "id": "f7096cf2-da80-4d0b-9021-6bc64d70cabb",
+      "key": "src",
+      "value": "//return r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_index].onfloor_unit_highlight_img[0].url;\nreturn r.get_onfloor_numbers.data.onfloor_numbers_list.find(\n  p => p.id === r.get_onfloor_numbers.data.units_list[v.unit_index].onfloor_number[0]\n)?.onfloor_unit_highlight_img?.[0]?.url\n"
+     },
+     {
+      "id": "08d77c2d-2fb7-4572-a12b-bd40e5fe8af9",
+      "key": "srcset",
+      "value": "return r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_index].onfloor_unit_highlight_img[0].url;\n"
+     },
+     {
+      "id": "03b8bf44-d1d2-436f-a3c6-70f360d9870c",
+      "key": "data-onfloor-number-id",
+      "value": "return r.get_onfloor_numbers.data.units_list[v.unit_index].onfloor_number[0]"
+     }
+    ]
+   },
+   "createdTimestamp": 1771499758
+  },
+  {
+   "createdTimestamp": 1785922354,
+   "text": {
+    "type": "html",
+    "value": "return v.reserve_error;"
+   },
+   "name": "reserve_error_text",
+   "visibility": {
+    "value": "return !!v.reserve_error;"
+   },
+   "customName": "Reserve error message",
+   "id": "RhZEklZyIBcnc1GoVQIX"
+  },
+  {
+   "id": "IAzdiATmtSrpfi7H0GkK",
+   "name": "reserve_unit_btn",
+   "createdTimestamp": 1772707660
+  },
+  {
+   "name": "reserve_unit_form",
+   "events": [
+    {
+     "id": "291ab69f-8243-4434-91cd-48eaf3c31932",
+     "actions": [
+      {
+       "variable": "YfH4LDNvMny4zhH1k7rd",
+       "id": "d0ZsCCGc5FMDPaULYvuo",
+       "type": "set-variable",
+       "value": "return \"\";",
+       "hasCondition": false
+      },
+      {
+       "hasCondition": false,
+       "id": "6ac166c0-3c0b-4ae8-84e1-217c0bed588d",
+       "request": "XGdTutQ31pxQReCTFdfE",
+       "type": "perform-request"
+      },
+      {
+       "hasCondition": false,
+       "id": "0084a558-9cd6-4051-8ed8-81090d608b36",
+       "type": "perform-request",
+       "request": "DVYxNxaqPFJrJ4MwSLvk"
+      },
+      {
+       "value": "return 0",
+       "type": "set-variable",
+       "condition": "return r.change_unit_status_reserved.ok;",
+       "id": "10435951-fe7f-4f09-9fb4-d0f7627540f8",
+       "variable": "f5AyvcFjaDbEnKRJCBES",
+       "hasCondition": true
+      },
+      {
+       "value": "return 0",
+       "type": "set-variable",
+       "hasCondition": true,
+       "variable": "tUWRYGhaUgRwT1rvPkeX",
+       "condition": "return r.change_unit_status_reserved.ok;",
+       "id": "7912c4e1-fe78-40dc-b425-95ac01f060c6"
+      },
+      {
+       "condition": "return r.change_unit_status_reserved.ok;",
+       "value": "return 0",
+       "id": "e9369786-e382-4513-9da4-8e09a8191889",
+       "type": "set-variable",
+       "variable": "XEn2XGnPpmbIRmZrcive",
+       "hasCondition": true
+      },
+      {
+       "value": "return 0",
+       "condition": "return r.change_unit_status_reserved.ok;",
+       "type": "set-variable",
+       "id": "6ee87273-e9a5-405b-9c8d-8f8c215e8fed",
+       "variable": "cptKCBHosq2znQjslQtS",
+       "hasCondition": true
+      },
+      {
+       "hasCondition": true,
+       "value": "return (r.change_unit_status_reserved.data && r.change_unit_status_reserved.data.message) || \"Something went wrong. Please try again.\";",
+       "condition": "return !r.change_unit_status_reserved.ok;",
+       "type": "set-variable",
+       "id": "0BgPhFzTUosQCvVCQsPB",
+       "variable": "YfH4LDNvMny4zhH1k7rd"
+      }
+     ],
+     "type": "submit"
+    }
+   ],
+   "id": "jX8prqaWBpbZVZW9N1tf",
+   "createdTimestamp": 1772711112
+  },
+  {
+   "id": "Gr46AGsS1DGw0tS5jNlE",
+   "name": "reserve_unit_id",
+   "value": {
+    "value": "return v.selected_unit_id"
+   },
+   "createdTimestamp": 1772707636
+  },
+  {
+   "id": "6R6WtXR0XdlLU5wsGoev",
+   "name": "reserve_unit_number",
+   "createdTimestamp": 1785331495,
+   "value": {
+    "value": "return r.get_selected_unit.data.unit.unit_number;"
+   }
+  },
+  {
+   "id": "FNZN4tMnBetupDkcqmnF",
+   "name": "reserve_unit_price",
+   "value": {
+    "value": "return r.get_selected_unit.data.unit.price;\n"
+   },
+   "createdTimestamp": 1772707737
+  },
+  {
+   "createdTimestamp": 1771434332,
+   "name": "select_building_warning",
+   "visibility": {
+    "value": "return Number(v.selected_building_id) <= 0;"
+   },
+   "styles": {
+    "values": [
+     {
+      "property": "display",
+      "value": "return Number(v.selected_building_id) <= 0\n  ? \"display:flex;\"\n  : \"display:none;\"",
+      "id": "2fc06ec6-960d-491f-a459-4c44041e5865"
+     }
+    ]
+   },
+   "id": "GDooThD00HagS5ixSINY"
+  },
+  {
+   "styles": {
+    "values": [
+     {
+      "property": "display",
+      "id": "eb9c00f1-5827-4e78-a2ba-7b0c4f5609c4",
+      "value": "return Number(v.selected_floor_id) <= 0\n  ? \"display:flex;\"\n  : \"display:none;\""
+     }
+    ]
+   },
+   "visibility": {
+    "value": "return Number(v.selected_floor_id) <= 0;"
+   },
+   "id": "DgBuDG6NOh8quVIcoC29",
+   "name": "select_floor_warning",
+   "createdTimestamp": 1771443913
+  },
+  {
+   "id": "JdcvwmEan9MEnxfRvgs4",
+   "name": "select_unit_warning",
+   "visibility": {
+    "value": "return Number(v.selected_unit_id <= 0);"
+   },
+   "styles": {
+    "values": [
+     {
+      "id": "bec515f5-3aa0-44ba-950d-79303ace7c79",
+      "property": "display",
+      "value": "return Number(v.selected_onfloor_number_id) <= 0\n  ? \"display:flex;\"\n  : \"display:none;\""
+     }
+    ]
+   },
+   "createdTimestamp": 1771522012
+  },
+  {
+   "createdTimestamp": 1771528750,
+   "id": "s3mUV8Y2dJ40GK98v1U4",
+   "styles": {
+    "values": [
+     {
+      "id": "b0b58bfa-6993-4882-be1b-bf117d1e7d68",
+      "value": "return Number(v.selected_unit_id) <= 0\n  ? \"display:flex;\"\n  : \"display:none;\"",
+      "property": "display"
+     }
+    ]
+   },
+   "visibility": {
+    "value": "return Number(v.selected_unit_id) <= 0;"
+   },
+   "name": "select_unit_warning_btn"
+  },
+  {
+   "id": "htKmtkrliuSB5nN7i4Vo",
+   "createdTimestamp": 1771339529,
+   "name": "selected_block_letter",
+   "text": {
+    "value": "return v.selected_building_name\n"
+   }
+  },
+  {
+   "id": "6eyvMJEYCZOB2gcruLXb",
+   "name": "selected_floor_name",
+   "text": {
+    "value": "return v.selected_floor_display_name\n"
+   },
+   "createdTimestamp": 1771442500
+  },
+  {
+   "id": "3un36JPvhfJ01HJi1lNr",
+   "name": "selected_unit_details",
+   "visibility": {
+    "value": "return Number(v.selected_unit_id) > 0;"
+   },
+   "styles": {
+    "values": [
+     {
+      "id": "b3fc69e2-775d-4e5c-8b4c-c905fe334f5c",
+      "property": "display",
+      "value": "return Number(v.selected_unit_id) <= 0\n  ? \"display:flex;\"\n  : \"display:none;\""
+     }
+    ]
+   },
+   "createdTimestamp": 1771547408
+  },
+  {
+   "createdTimestamp": 1771528265,
+   "id": "040r2FeB9NSo0ri2ievF",
+   "name": "selected_unit_name",
+   "text": {
+    "value": "return r.get_selected_unit.data.unit.unit_number;\n"
+   }
+  },
+  {
+   "name": "selected_unit_number",
+   "text": {
+    "value": "return r.get_selected_unit.data.unit.unit_number;\n"
+   },
+   "createdTimestamp": 1771521933,
+   "id": "IuwWnSia4FHXi7icnELc"
+  },
+  {
+   "id": "BrKpGAL0cisWfU21FvBO",
+   "text": {
+    "value": "const unit_price = r.get_selected_unit.data.unit.price;\n\n// Format with commas and 2 decimal places\nconst formattedPrice = unit_price.toLocaleString(\"en-ZA\", {\n  style: \"currency\",\n  currency: \"ZAR\",\n  minimumFractionDigits: 2,\n  maximumFractionDigits: 2,\n});\n\n// Remove currency symbol and add custom \"R \" prefix\nreturn formattedPrice;\n"
+   },
+   "createdTimestamp": 1771525643,
+   "name": "selected_unit_price"
+  },
+  {
+   "id": "Szl7bNmi9RuCDNEoUDCq",
+   "name": "selected_unit_type_flythrough",
+   "attributes": {
+    "values": [
+     {
+      "id": "ba391dfb-c9bb-4d99-988d-8f84d87e84a8",
+      "key": "src",
+      "value": "return r.get_unit_type_details.data.unit_type.unit_type_flythrough;\n"
+     }
+    ]
+   },
+   "createdTimestamp": 1771538775
+  },
+  {
+   "id": "ZRtbUnHHodxf8Dt34IBa",
+   "text": {
+    "value": "return r.get_unit_type_details.data.unit_type.type;\n"
+   },
+   "name": "selected_unit_type_letter",
+   "createdTimestamp": 1770972295
+  },
+  {
+   "id": "mRKhhbUeXISvbZC6N8WV",
+   "name": "selected_unit_type_media_img",
+   "attributes": {
+    "values": [
+     {
+      "id": "31205f89-6be4-45c8-9bd9-f9c97270ca9f",
+      "key": "src",
+      "value": "return r.get_unit_type_details.data.unit_media[v.unit_media_index].unit_media_img.url;\n"
+     },
+     {
+      "id": "b97ac7a4-7bcb-4018-8065-fe9c24d176a5",
+      "key": "srcset",
+      "value": "return r.get_unit_type_details.data.unit_media[v.unit_media_index].unit_media_img.url;\n"
+     }
+    ]
+   },
+   "createdTimestamp": 1771538834
+  },
+  {
+   "id": "PGLrCLQvCQA8etDGsBbZ",
+   "name": "selected_unit_type_media_item",
+   "list": {
+    "indexVariable": "V17hWn6TyoCsVWhnNzgI",
+    "value": "return (r.get_unit_type_details?.data?.unit_media || [])\n  .filter(item => item?.unit_media_img?.access === \"public\" && item?.unit_media_img?.url);"
+   },
+   "attributes": {
+    "values": [
+     {
+      "id": "80fdcdd1-7269-45a9-b905-2907c4a25705",
+      "key": "src",
+      "value": "return r.get_unit_type_details.data.unit_media[v.unit_media_index].unit_media_img.url;"
+     }
+    ]
+   },
+   "createdTimestamp": 1771538812
+  },
+  {
+   "text": {
+    "value": "return r.get_unit_totals.data.total_units;"
+   },
+   "createdTimestamp": 1770294399,
+   "name": "total_units",
+   "id": "wjsog0CjuS2nWk8SDJsC"
+  },
+  {
+   "name": "total_units_available",
+   "text": {
+    "value": "return r.get_unit_totals.data.total_units_available;"
+   },
+   "id": "9zgiTmpYWta13P0uYR3J",
+   "createdTimestamp": 1770296645
+  },
+  {
+   "createdTimestamp": 1770296667,
+   "id": "OLryrKC2reHYYdas3PZL",
+   "name": "total_units_reserved",
+   "text": {
+    "value": "return r.get_unit_totals.data.total_units_reserved;"
+   }
+  },
+  {
+   "createdTimestamp": 1770296680,
+   "text": {
+    "value": "return r.get_unit_totals.data.total_units_sold;"
+   },
+   "name": "total_units_sold",
+   "id": "0tvXnkooSzMz7NaKXUqg"
+  },
+  {
+   "id": "X0pKCQEg8Dzre3rqmYXi",
+   "name": "unit-type-floorplan-img",
+   "attributes": {
+    "values": [
+     {
+      "id": "71232520-0873-48ed-937d-e427fa197cee",
+      "key": "src",
+      "value": "return r.get_unit_type_details.data.unit_type.unit_type_floorplan[0].url;\n"
+     },
+     {
+      "id": "21eb4117-6509-4cac-8bf1-ef217b00145a",
+      "key": "srcset",
+      "value": "return r.get_unit_type_details.data.unit_type.unit_type_floorplan[v.unit_type_index].url;\n"
+     }
+    ]
+   },
+   "createdTimestamp": 1771224926
+  },
+  {
+   "id": "qWxVMqEEbYQB8Q1ha1bH",
+   "events": [
+    {
+     "type": "click",
+     "actions": [
+      {
+       "value": "return e.target.closest('.unit-accordion-item').getAttribute('data-unit-type-id');",
+       "id": "5b975832-4f3c-4264-a6c1-51a00934e0d8",
+       "variable": "5gcGwFJAq0v0FFnBIOTt",
+       "type": "set-variable"
+      },
+      {
+       "type": "perform-request",
+       "id": "7a2b42ae-e56d-4544-9d17-e8db5ba59975",
+       "request": "R7T1nORU4An92DlLDacc"
+      },
+      {
+       "functionMode": "inline",
+       "type": "run-function",
+       "function": "const id = v.selected_unit_type_id;\n\n  // open/close accordion animated\n  window.OakhillsAccordion?.selectById?.(id);\n\n  // refresh swiper after Wized swapped slides\n  window.reinitUnitTypesSwiper?.();",
+       "id": "92ae6e3d-086d-419a-8801-674e4405144a"
+      }
+     ],
+     "id": "6209f081-6c5d-4aa9-8baa-5352cbb067ed"
+    }
+   ],
+   "createdTimestamp": 1770799691,
+   "name": "unit_accordion_view_btn"
+  },
+  {
+   "createdTimestamp": 1770972802,
+   "text": {
+    "value": "return r.get_unit_type_details.data.buildings_full[v.unit_block_index].name;\n"
+   },
+   "id": "neRdmYBxvxF0SxqdtUpm",
+   "name": "unit_block_name"
+  },
+  {
+   "name": "unit_floor_display_name",
+   "id": "ydjMeeONxOqVX72JlLAh",
+   "createdTimestamp": 1771345174,
+   "text": {
+    "value": "return r.get_building_floors.data.floors[v.unit_floor_index].display_name;\n"
+   }
+  },
+  {
+   "id": "74OgH4SXE5Ak7e2TLe2x",
+   "attributes": {
+    "values": [
+     {
+      "id": "68e3165a-6e0b-463c-a5f2-6b4bd437a98a",
+      "value": "return r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_index].onfloor_unit_highlight_img[0].url;\n",
+      "key": "src"
+     },
+     {
+      "id": "247005dd-91ec-4cdc-9276-accf9748c780",
+      "key": "srcset",
+      "value": "return r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_index].onfloor_unit_highlight_img[0].url;\n"
+     }
+    ]
+   },
+   "createdTimestamp": 1771496478,
+   "name": "unit_highlight_img"
+  },
+  {
+   "id": "uWZwYhqsJbJASf5IuXDk",
+   "name": "unit_interest_count",
+   "text": {
+    "value": "return r.get_onfloor_numbers.data.units_list[v.onfloor_number_id].interest_count || 0;"
+   },
+   "createdTimestamp": 1780479809
+  },
+  {
+   "id": "W3JzKIen4klexCLk33Z5",
+   "name": "unit_interest_count_trigger",
+   "visibility": {
+    "value": "return (r.get_onfloor_numbers.data.units_list[v.onfloor_number_id].interest_count || 0) > 0;"
+   },
+   "createdTimestamp": 1780480045
+  },
+  {
+   "attributes": {
+    "values": [
+     {
+      "id": "9256f82d-9d54-4f28-967d-233f35cc9fd6",
+      "value": "return r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_unit_id].id;",
+      "key": "data-unit-id"
+     }
+    ]
+   },
+   "id": "X8HAUZ3ElTQg6SsJjTQZ",
+   "name": "unit_item",
+   "list": {
+    "indexVariable": "ROWAgbzqXm7wOvSwdoa6",
+    "value": "return r.get_onfloor_numbers.data.onfloor_numbers_list;"
+   },
+   "createdTimestamp": 1771441600
+  },
+  {
+   "id": "I92oRs8UDwZ8KgaTX3fd",
+   "name": "unit_name",
+   "text": {
+    "value": "return r.get_onfloor_numbers.data.units_list[v.onfloor_number_id].unit_number;\n// r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_number_id].name;\n"
+   },
+   "createdTimestamp": 1771442912
+  },
+  {
+   "styles": {
+    "values": [
+     {
+      "id": "617e3e49-c634-428f-a23b-c2d8f9a161ad",
+      "value": "return r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_unit_id].top_position;\n",
+      "property": "top"
+     },
+     {
+      "id": "d44ae4d3-340c-4746-9fae-3f31c6ef0dcf",
+      "property": "left",
+      "value": "return r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_unit_id].left_position;\n"
+     }
+    ]
+   },
+   "id": "kppQRJny25UjnK6k1WiY",
+   "name": "unit_pin_item",
+   "createdTimestamp": 1771485738
+  },
+  {
+   "id": "mGOxlBhZBfgkQBGFCmof",
+   "name": "unit_pin_name",
+   "text": {
+    "value": "return r.get_onfloor_numbers.data.onfloor_numbers_list[v.onfloor_unit_id].name;\n"
+   },
+   "createdTimestamp": 1771486933
+  },
+  {
+   "id": "Bxwq0PaHUVMeyT2qTaoM",
+   "name": "unit_reserve_btn",
+   "events": [
+    {
+     "id": "c8040585-447a-434e-bdc0-f30408e448b4",
+     "type": "click",
+     "actions": [
+      {
+       "id": "1b08f97a-6af0-4e25-bcb2-0c86e1b80953",
+       "type": "set-variable",
+       "variable": "tUWRYGhaUgRwT1rvPkeX",
+       "value": "return r.get_selected_unit.data.unit.id;\n"
+      }
+     ]
+    }
+   ],
+   "createdTimestamp": 1772710323
+  },
+  {
+   "id": "BY2XqKT6Im3RRCU7khg5",
+   "name": "unit_reserved_tag",
+   "visibility": {
+    "value": "const current_status = r.get_onfloor_numbers.data.units_list[v.onfloor_number_id].status;\nreturn current_status == \"Reserved\" || current_status == \"Pending\";"
+   },
+   "createdTimestamp": 1785472558
+  },
+  {
+   "id": "f16oNKSSMGwt7CxHGLz9",
+   "name": "unit_select_block_btn",
+   "events": [
+    {
+     "id": "9b0cbee3-2ba7-4376-8c4f-66c03f46493e",
+     "type": "click",
+     "preventDefault": true,
+     "actions": [
+      {
+       "id": "4390bb0a-f640-4f7a-9339-28ccd366fcb8",
+       "type": "set-variable",
+       "variable": "jdpq9MRFWfnRY4Dy6Nr3",
+       "value": "const el = e.currentTarget.closest(\"[data-building-id]\");\n  return el ? Number(el.getAttribute(\"data-building-id\")) : null;"
+      },
+      {
+       "id": "f512f2df-2575-4602-b7f6-a1d760c669ae",
+       "type": "set-variable",
+       "variable": "FLNSdM0L43n7PlABz5w2",
+       "value": "return r.get_unit_type_details.data.buildings_full[v.unit_block_index].building_type_img[0].url;\n"
+      },
+      {
+       "id": "90ffcd2e-c4a3-402a-956a-e33142615835",
+       "type": "set-variable",
+       "variable": "IsJjpq3E2NZpaTVrX8QZ",
+       "value": "return r.get_unit_type_details.data.buildings_full[v.unit_block_index].building_floorplan[0].url;\n"
+      },
+      {
+       "id": "0c85a909-c4ba-45d7-8b1c-137024373049",
+       "type": "set-variable",
+       "variable": "CKKITSF8lNsPVoSggS6H",
+       "value": "return r.get_unit_type_details.data.buildings_full[v.unit_block_index].name;"
+      },
+      {
+       "id": "cda6529d-a29b-4ba8-9a06-27612478402f",
+       "type": "perform-request",
+       "request": "5Nm2FJbwD4OAo8Lm1Jzu"
+      },
+      {
+       "id": "60fd7ef2-92ce-4e48-b8a8-963fdd67e386",
+       "type": "run-function",
+       "functionMode": "inline",
+       "function": "window.OakhillsBuildings?.selectBuildingById?.(wized.variables.selected_building_id);"
+      },
+      {
+       "id": "854e579f-05f0-429a-95b6-79208935f3dc",
+       "type": "set-variable",
+       "variable": "XEn2XGnPpmbIRmZrcive",
+       "value": "return 0"
+      }
+     ]
+    }
+   ],
+   "createdTimestamp": 1770975578
+  },
+  {
+   "id": "Z15cE8udBE1Fa6ivRSor",
+   "createdTimestamp": 1771443148,
+   "visibility": {
+    "value": "return r.get_onfloor_numbers.data.units_list[v.onfloor_number_id].status == \"Available\";\n"
+   },
+   "events": [
+    {
+     "type": "click",
+     "actions": [
+      {
+       "value": "const row = e.currentTarget.closest(\"[data-onfloor-number-id]\");\nif (!row) return null;\n\nif (row.dataset.available !== \"true\") return null;\n\nreturn Number(row.getAttribute(\"data-onfloor-number-id\"));",
+       "id": "3ff9b6ef-9789-4e81-93f3-3909c9c815ea",
+       "type": "set-variable",
+       "variable": "cptKCBHosq2znQjslQtS"
+      },
+      {
+       "request": "Mdw754KhuqldT58ID2sj",
+       "id": "33691981-3300-4da5-a25c-a24eecb7803d",
+       "condition": "return (\n    Number.isFinite(Number(v.selected_unit_type_id)) &&\n    Number.isFinite(Number(v.selected_building_id)) &&\n    Number.isFinite(Number(v.selected_floor_id)) &&\n    Number.isFinite(Number(v.selected_onfloor_number_id))\n  );",
+       "type": "perform-request",
+       "hasCondition": true
+      },
+      {
+       "id": "3254b5c5-3127-4941-8f81-77c583ba7abb",
+       "value": "//const arr = r.get_onfloor_numbers.data.units_list;\n//return Array.isArray(arr) && arr[0]?.id ? Number(arr[0].id) : null;\n\nreturn r.get_onfloor_numbers.data.units_list[v.onfloor_number_id].id;\n",
+       "type": "set-variable",
+       "variable": "tUWRYGhaUgRwT1rvPkeX"
+      },
+      {
+       "id": "737ad973-0698-4f80-be9e-44c7a34f910d",
+       "value": "return r.get_selected_unit.data.unit.price;\n",
+       "type": "set-variable",
+       "variable": "dlKU55kg7mCzQ50rMBvr"
+      },
+      {
+       "hasCondition": true,
+       "id": "b03e90e7-91b6-42c6-b6d9-4365004b4fb7",
+       "request": "2TrNvARfXvqc1KzFIhuD",
+       "type": "perform-request",
+       "condition": "return Number.isFinite(Number(v.selected_unit_id))"
+      }
+     ],
+     "id": "b8130cfb-ddad-418c-a22a-c7f99253c70d"
+    }
+   ],
+   "name": "unit_select_btn"
+  },
+  {
+   "id": "eehgKl9ipaf8Rbs3q84C",
+   "name": "unit_select_floor_btn",
+   "classes": {
+    "values": [
+     {
+      "id": "25427a97-5f2b-4d0e-a154-c6d00f48e804",
+      "class": "is-hidden",
+      "condition": "return !r.get_building_floors.data.floors\n  .map(floor =>\n    floor.units.some(unit =>\n      unit.status === \"Available\" &&\n      Number(unit.unit_type?.[0] || 0) === Number(\n        document.querySelector('.unit-accordion-item.is-selected[data-unit-type-id]')?.getAttribute('data-unit-type-id') || 0\n      )\n    )\n  )[v.unit_floor_index]\n\n/*!r.get_building_floors.data.floors\n  .map(floor => floor.units.some(unit => unit.status === \"Available\"))\n  [v.unit_floor_index]*/"
+     }
+    ]
+   },
+   "events": [
+    {
+     "id": "101e175e-87f2-41f3-ac2a-c209a2c1917f",
+     "type": "click",
+     "actions": [
+      {
+       "id": "673a7421-a9c7-49d6-bbb9-85fb440d02ae",
+       "type": "set-variable",
+       "variable": "XEn2XGnPpmbIRmZrcive",
+       "value": "const el = e.currentTarget.closest(\"[data-floor-id]\");\n  return el ? Number(el.getAttribute(\"data-floor-id\")) : null;"
+      },
+      {
+       "id": "b43cae27-f95e-409e-8e83-f643ce9441dd",
+       "type": "set-variable",
+       "variable": "5oIaqtJVNW6Ee2BiKjwn",
+       "value": "return r.get_building_floors.data.floors[v.unit_floor_index].display_name;\n"
+      },
+      {
+       "id": "e9d305c3-cc3d-4aac-82ce-33a91d3959a9",
+       "type": "perform-request",
+       "request": "khRZutnNQoVDyTXrTqxG"
+      }
+     ]
+    }
+   ],
+   "createdTimestamp": 1771442296
+  },
+  {
+   "id": "qRsF8M4NNHjZBUmhgljl",
+   "name": "unit_selected_tag",
+   "visibility": {
+    "value": "return Number(v.selected_unit_id) > 0;"
+   },
+   "styles": {
+    "values": [
+     {
+      "id": "5c54a888-d547-4f5e-b90e-bfd3a2abd3ff",
+      "property": "display",
+      "value": "return Number(v.selected_onfloor_number_id) <= 0\n  ? \"display:block;\"\n  : \"display:none;\""
+     }
+    ]
+   },
+   "createdTimestamp": 1771528330
+  },
+  {
+   "id": "gWcGqQ3IeI0WHiaajCMv",
+   "name": "unit_sold_tag",
+   "visibility": {
+    "value": "return r.get_onfloor_numbers.data.units_list[v.onfloor_number_id].status == \"Sold\";"
+   },
+   "createdTimestamp": 1786525396
+  },
+  {
+   "id": "IJRxTSyXMpTG3goOzKD7",
+   "name": "unit_status_tag",
+   "visibility": {
+    "value": "return r.get_onfloor_numbers.data.units_list[v.onfloor_number_id].status != \"Available\";\n"
+   },
+   "createdTimestamp": 1772455653
+  },
+  {
+   "id": "12Oi4qrdTl59stNBdtD2",
+   "name": "unit_status_tag_text",
+   "text": {
+    "value": "return r.get_onfloor_numbers.data.units_list[v.onfloor_number_id].status;\n"
+   },
+   "createdTimestamp": 1772460108
+  },
+  {
+   "id": "t8vWO7JkbxMDydYMKlpK",
+   "name": "unit_type_vr_url",
+   "attributes": {
+    "values": [
+     {
+      "id": "49877574-9ab1-4cae-9bb3-7f5b69f4f0c9",
+      "key": "src",
+      "value": "return r.get_unit_type_details.data.unit_type.vr_url;;\n"
+     }
+    ]
+   },
+   "createdTimestamp": 1771546761
+  }
+ ]
+}
