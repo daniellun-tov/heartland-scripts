@@ -2280,14 +2280,18 @@ window.ohNativeSubmit = async function (form, doneText) {
     return phone;
   }
 
+  /* The box sits on the .w-form WRAPPER, not inside the <form>: Webflow hides the
+     form element when it swaps in its success block, so a message written inside it
+     disappears exactly when a buyer most needs to read it. */
   function showMsg(form, msg, isError) {
-    let box = form.querySelector('.reservation-status');
+    const host = form.closest('.w-form') || form.parentNode || form;
+    let box = host.querySelector('.reservation-status');
     if (!box) {
       box = document.createElement('div');
       box.className = 'reservation-status';
       box.style.marginTop = '8px';
       box.style.fontSize = '0.95rem';
-      form.appendChild(box);
+      host.appendChild(box);
     }
     box.textContent = msg;
     box.style.color = isError ? 'crimson' : 'inherit';
@@ -2369,8 +2373,7 @@ window.ohNativeSubmit = async function (form, doneText) {
     const data = await res.json();
     const redirectUrl = data.redirectUrl || data.url || data.reservationUrl;
     if (!redirectUrl) throw new Error('No redirect URL received from server');
-    /* same tab: window.open is blocked by Safari and in-app browsers */
-    window.location.href = redirectUrl;
+    return redirectUrl;
   }
 
   function bind() {
@@ -2392,16 +2395,33 @@ window.ohNativeSubmit = async function (form, doneText) {
         const { lead, unitId, unitNumber } = collect(form);
 
         showMsg(form, 'Holding your unit...');
-        await placeHold(unitId, lead);
+
+        /* Both at once, the way v1 does it - v1's page script never stops propagation,
+           so Wized's reserve_unit_form submit (add_user_reservation +
+           change_unit_status_reserved) runs alongside the BOL POST. Serialising them
+           in v2 broke the handoff: the hold flips the unit in Xano first, and BOL then
+           will not open a session for a unit that is no longer clear. */
+        const [holdRes, bolRes] = await Promise.allSettled([
+          placeHold(unitId, lead),
+          startBol(unitNumber, lead),
+        ]);
+
+        /* A refused hold wins over a successful BOL answer: someone else took the
+           unit, so the buyer must not be sent on to pay for it. */
+        if (holdRes.status === 'rejected') throw holdRes.reason;
+        if (bolRes.status === 'rejected') throw bolRes.reason;
+
         document.dispatchEvent(new CustomEvent('oh:hold-placed', { detail: { unitId } }));
-        /* Webflow Forms copy (feeds LeadConnector, unit fields included). After the
-           hold so a refused hold still shows its error on a visible form; Webflow
-           then swaps the form for its success block while BOL starts. */
+
+        /* Only now, with a redirect URL in hand, hand the form to Webflow Forms
+           (LeadConnector). Doing this before BOL answered swapped in the success
+           block and hid every error behind a false "Thank you". */
+        showMsg(form, 'Taking you to the secure reservation page...');
         await window.ohNativeSubmit(form, 'Taking you to the secure reservation page...');
         await new Promise((r) => setTimeout(r, 400));
 
-        showMsg(form, 'Taking you to the secure reservation page...');
-        await startBol(unitNumber, lead);
+        /* same tab: window.open is blocked by Safari and in-app browsers */
+        window.location.href = bolRes.value;
       } catch (err) {
         console.error('[reserve]', err);
         showMsg(form, err.message || 'Something went wrong.', true);
