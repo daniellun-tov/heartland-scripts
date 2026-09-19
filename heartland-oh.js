@@ -2250,8 +2250,11 @@ window.ohNativeSubmit = async function (form, doneText) {
 
 (function () {
   const HOLD_ENDPOINT = 'https://x7aj-untn-pq4t.n7e.xano.io/api:5xvncF1S/units/{id}/hold';
-  const API_ENDPOINT = 'https://bol-server-prod0.red-i.co.za/api/reservationSession/start?manualRedirect=true';
-  // const API_ENDPOINT = 'https://bol-server-test0.red-i.co.za/api/reservationSession/start?manualRedirect=true';
+  /* 19 Sep 2026: POINTED AT BOL TEST while the reserve handoff is verified. Swap the two
+     lines back - prod0 uncommented, test0 commented - before v2 goes in front of buyers.
+     v1 (/unit-selection) is unaffected and stays on prod0. */
+  // const API_ENDPOINT = 'https://bol-server-prod0.red-i.co.za/api/reservationSession/start?manualRedirect=true';
+  const API_ENDPOINT = 'https://bol-server-test0.red-i.co.za/api/reservationSession/start?manualRedirect=true';
   const ACCOUNT_CODE = 'evening-shade-properties-109';
   const DEVELOPMENT_CODE = 'oakhills-estate';
   const FORM_ID = 'wf-form-reserve-unit-v2';
