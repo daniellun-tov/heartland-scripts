@@ -272,7 +272,9 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
 .unit-filter_map .site-plan_toolbar{position:absolute;top:.75rem;right:.75rem;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;pointer-events:none;max-width:calc(100% - 1.5rem)}
 .unit-filter_map .site-plan_toolbar>*{pointer-events:auto}
 .unit-filter_map .site-plan_colourby{background:#fff;border-radius:999px;box-shadow:0 4px 14px rgba(21,23,20,.15)}
-.unit-filter_map .site-plan_legend{background:rgba(255,255,255,.92);border-radius:999px;padding:.45rem 1.1rem;box-shadow:0 4px 14px rgba(21,23,20,.12);font-size:.8125rem}
+/* the pill is as wide as its contents and no wider, so the items sit on one
+   line until the screen runs out and then wrap */
+.unit-filter_map .site-plan_legend{width:max-content;max-width:100%;background:rgba(255,255,255,.92);border-radius:999px;padding:.45rem 1.1rem;box-shadow:0 4px 14px rgba(21,23,20,.12);font-size:.8125rem}
 @media (min-width:992px){
   /* the brand row is a fixed track: the plan and list span rows 1-2, and an auto track would grow to their content */
   .unit-filter_component{grid-template-columns:19rem minmax(0,1fr) 20rem;grid-template-rows:6.5rem minmax(0,1fr) auto;grid-template-areas:"brand main list" "filters main list" "footer footer footer"}
@@ -281,12 +283,13 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .unit-filter_brand,.unit-filter_filters{border-right:1px solid var(--oh-line)}
   .site-plan_list-wrap{border-left:1px solid var(--oh-line)}
   .unit-filter_mobile-toolbar,.unit-filter_mobile-map-meta{display:none}
-  /* The legend is a real pill, so it must never wrap inside itself: it is compact
-     (tighter than the Designer's 1.25rem gap) and nowrap, and the TOOLBAR wraps
-     instead - on a narrow desktop the legend drops onto its own line under the
-     toggle, still right-aligned, rather than becoming a two-row squircle. */
-  .unit-filter_map .site-plan_legend{font-size:.75rem;padding:.4rem 1rem;flex:0 0 auto}
-  .unit-filter_map .site-plan_legend-group{column-gap:.6rem;flex-wrap:nowrap}
+  /* The legend hugs its items (see the base rule) and is compact - tighter than
+     the Designer's 1.25rem gap. It can shrink, so the order as the window
+     narrows is: one row beside the toggle, then its own row under it (the
+     toolbar wraps first, since the pill's hypothetical size is its content
+     width), then the items wrap inside the pill. */
+  .unit-filter_map .site-plan_legend{font-size:.75rem;padding:.4rem 1rem;flex:0 1 auto}
+  .unit-filter_map .site-plan_legend-group{column-gap:.6rem;row-gap:.25rem;flex-wrap:wrap}
   .unit-filter_map .site-plan_legend-item{gap:.35rem}
   .unit-filter_map .site-plan_legend .site-plan_legend-count{font-size:.6875rem}
   .unit-filter_map .site-plan_colourby{flex:0 0 auto;margin-right:auto}
@@ -491,10 +494,10 @@ html:has(.page_wrap[data-oh-v2]) body{overflow:hidden;height:100%}
   .page_wrap.is-view-list .site-plan_colourby{display:none}
   /* the plan controls float on the map (as on desktop) so the map keeps the height:
      colour-by + legend top right, the level switch top left, zoom bottom right */
-  .unit-filter_map .site-plan_toolbar{top:.5rem;right:.5rem;gap:.35rem;max-width:calc(100% - 6rem)}
-  .unit-filter_map .site-plan_colourby{padding:.2rem}
+  .unit-filter_map .site-plan_toolbar{top:.5rem;right:.5rem;gap:.35rem;max-width:calc(100% - 1rem)}
+  .unit-filter_map .site-plan_colourby{padding:.2rem;max-width:calc(100% - 5rem)}
   .site-plan_colourby-btn{padding:.3rem .65rem;font-size:.75rem}
-  .unit-filter_map .site-plan_legend{padding:.35rem .8rem;border-radius:999px;font-size:.6875rem}
+  .unit-filter_map .site-plan_legend{padding:.35rem .8rem;border-radius:1.1rem;font-size:.6875rem}
   .unit-filter_map .site-plan_legend-group{column-gap:.6rem;row-gap:.2rem;justify-content:flex-end}
   .site-plan_legend-item{gap:.3rem;font-size:.6875rem}
   .site-plan_legend-swatch{width:.6rem;height:.6rem}
