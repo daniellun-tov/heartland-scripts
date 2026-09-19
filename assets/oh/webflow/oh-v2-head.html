@@ -1,3 +1,15 @@
+<!-- ROLLBACK 19 Sep 2026: v2 is pulled from live traffic while the BOL handoff is fixed.
+     Every visitor who lands here is sent to /unit-selection (v1). Append ?v2=1 to reach v2
+     for testing. REMOVE THIS BLOCK to put v2 back in front of buyers. -->
+<script>
+  (function () {
+    try {
+      if (/[?&]v2=1/.test(location.search)) return;
+      location.replace('/unit-selection' + location.search + location.hash);
+    } catch (e) {}
+  })();
+</script>
+
 <!-- Oak Hills unit selection v2 - page head custom code. The state CSS lives in the repo at
      assets/oh/oh-v2.css and is served from jsDelivr at a pinned commit, the same release path as
      heartland-oh.js in the footer: edit the file, push, paste the new SHA into both tags, publish.
@@ -13,4 +25,4 @@
     setTimeout(function () { if (!window.ohMapLoader) h.classList.remove('oh-reveal'); }, 8000);
   })();
 </script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@95755b25b3272f00735f061c59ba42450dc16993/assets/oh/oh-v2.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@75ffddb7953e8ad4f372b0a9e19c54905a5edc5d/assets/oh/oh-v2.css">
