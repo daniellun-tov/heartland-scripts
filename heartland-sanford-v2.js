@@ -1175,15 +1175,93 @@
       };
     }
 
-    /* ---- the places: Sanford + every section 06 row with coordinates */
+    /* ---- the places. Primary: the section 06 rows with coordinates - DOM pins with a label and
+       drive time. Secondary: every place in the points-of-interest modal whose name carries
+       data-lat / data-lng - small dots drawn by the map itself, whose names show only where they
+       fit (MapLibre's label collision), so the map thins itself out on a phone. */
     function places() {
-      return qsa("[data-lat][data-lng]").filter(function (el) { return el !== cfg && !!qs(".sd2_nearby_place", el); }).map(function (el) {
+      return qsa("[data-lat][data-lng]").filter(function (el) { return el !== cfg && !!qs(".sd2_nearby_place", el) && !el.closest("[data-sd2-poi]"); }).map(function (el) {
         var t = qs(".sd2_nearby_time", el);
         return { lat: num(el.getAttribute("data-lat")), lng: num(el.getAttribute("data-lng")),
           name: (qs(".sd2_nearby_place", el).textContent || "").trim(), time: t ? t.textContent.trim() : "" };
       }).filter(function (p) { return p.lat && p.lng; });
     }
+    function extras(skip) {
+      var seen = {};
+      skip.forEach(function (p) { seen[p.name.toLowerCase()] = 1; });
+      return qsa("[data-sd2-poi] .sd2_nearby_place[data-lat][data-lng]").map(function (el) {
+        var row = el.closest(".sd2_nearby_row") || el.parentNode;
+        var t = row ? qs(".sd2_nearby_time", row) : null;
+        return { lat: num(el.getAttribute("data-lat")), lng: num(el.getAttribute("data-lng")),
+          name: (el.textContent || "").trim(), time: t ? t.textContent.trim() : "" };
+      }).filter(function (p) {
+        var k = p.name.toLowerCase();
+        if (!p.lat || !p.lng || seen[k]) { return false; }
+        seen[k] = 1; return true;
+      });
+    }
+    function geo(list) {
+      return { type: "FeatureCollection", features: list.map(function (p, i) {
+        return { type: "Feature", id: i, geometry: { type: "Point", coordinates: [p.lng, p.lat] },
+          properties: { name: p.name, time: p.time, rank: i, img: p.img || "" } };
+      }) };
+    }
     function el(tag, cl, text) { var e = d.createElement(tag); e.className = cl; if (text) { e.textContent = text; } return e; }
+
+    /* Secondary places. The DOM pins (Sanford + section 06) sit above the canvas, where the
+       map's label collision cannot see them, so each one also gets an invisible "blocker"
+       symbol the exact size of its pin: the small labels then give way to the big ones instead
+       of sliding underneath them. Tapping a dot always shows its name. */
+    function secondary(ml, list, doms) {
+      if (!map) { return; }
+      var small = w.matchMedia("(max-width: 767px)").matches;
+      var blk = doms.map(function (o, i) {
+        var pt = map.project(o.ll), r = o.el.getBoundingClientRect(), c = map.getCanvas().getBoundingClientRect();
+        qsa("*", o.el).forEach(function (k) {
+          var q = k.getBoundingClientRect();
+          if (q.width && q.height) { r = { left: Math.min(r.left, q.left), top: Math.min(r.top, q.top), right: Math.max(r.right, q.right), bottom: Math.max(r.bottom, q.bottom) }; }
+        });
+        // anchored on the pin's point: "bottom" when the whole pin is above it (the places),
+        // "center" with a box mirrored around it when it straddles it (Sanford's name tag)
+        var L = r.left - c.left - pt.x, R = r.right - c.left - pt.x, T = r.top - c.top - pt.y, B = r.bottom - c.top - pt.y;
+        var above = B <= 8, W, H;
+        if (above) { W = 2 * Math.max(-L, R); H = -T; } else { W = 2 * Math.max(-L, R); H = 2 * Math.max(-T, B); }
+        W = Math.max(1, Math.ceil(W)); H = Math.max(1, Math.ceil(H));
+        var id = "sd2-blk-" + i;
+        if (!map.hasImage(id)) { map.addImage(id, { width: W, height: H, data: new Uint8Array(W * H * 4) }); }
+        return { lat: o.ll[1], lng: o.ll[0], name: "", time: "", img: id, anchor: above ? "bottom" : "center" };
+      });
+      var bf = geo(blk);
+      bf.features.forEach(function (f, i) { f.properties.anchor = blk[i].anchor; });
+      map.addSource("sd2-more", { type: "geojson", data: geo(list) });
+      map.addSource("sd2-blk", { type: "geojson", data: bf });
+      map.addLayer({ id: "sd2-more-dot", type: "circle", source: "sd2-more",
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 2.5, 14, 4, 17, 5.5],
+          "circle-color": "#FCFAF7", "circle-stroke-color": C.clay, "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 15, 2] } });
+      map.addLayer({ id: "sd2-more-label", type: "symbol", source: "sd2-more", minzoom: small ? 11.5 : 12.3,
+        layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Regular"], "text-size": small ? 10 : 11,
+          "text-max-width": small ? 7 : 9, "text-line-height": 1.15, "text-padding": small ? 6 : 4,
+          "text-variable-anchor": ["left", "right", "top", "bottom"], "text-radial-offset": 0.75, "text-justify": "auto",
+          "symbol-sort-key": ["get", "rank"] },
+        paint: { "text-color": C.label, "text-halo-color": C.halo, "text-halo-width": 1.6 } });
+      // added last, so placed first: the pins claim their space before any small label does
+      map.addLayer({ id: "sd2-blk", type: "symbol", source: "sd2-blk",
+        layout: { "icon-image": ["get", "img"], "icon-anchor": ["get", "anchor"],
+          "icon-allow-overlap": true, "icon-ignore-placement": false, "icon-padding": 2 },
+        paint: { "icon-opacity": 0 } });
+      var tip = null;
+      map.on("click", "sd2-more-dot", function (e) {
+        var f = e.features && e.features[0]; if (!f) { return; }
+        if (tip) { tip.remove(); }
+        var box = el("div", "sd2_mk_tip");
+        box.appendChild(el("span", "sd2_mk_tip_name", f.properties.name));
+        if (f.properties.time) { box.appendChild(el("span", "sd2_mk_time", f.properties.time)); }
+        tip = new ml.Popup({ closeButton: false, offset: 10, className: "sd2_mk_pop", maxWidth: "220px" })
+          .setLngLat(f.geometry.coordinates).setDOMContent(box).addTo(map);
+      });
+      map.on("mouseenter", "sd2-more-dot", function () { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "sd2-more-dot", function () { map.getCanvas().style.cursor = ""; });
+    }
 
     var map = null;
     function build(host) {
@@ -1211,7 +1289,8 @@
         home.style.zIndex = "2";   // the home always sits above a neighbouring label
         var b = new ml.LngLatBounds([lng, lat], [lng, lat]);
         var small = w.matchMedia("(max-width: 767px)").matches;
-        places().forEach(function (p) {
+        var prim = places(), doms = [{ el: home, ll: [lng, lat] }];
+        prim.forEach(function (p) {
           // Label sits centred above its dot, so it can never run off either edge of the view
           // (the fit padding below leaves half a label's width on each side).
           var m = el("div", "sd2_mk_poi");
@@ -1220,23 +1299,34 @@
           m.appendChild(tx);
           m.appendChild(el("span", "sd2_mk_dot"));
           new ml.Marker({ element: m, anchor: "bottom", offset: [0, 6] }).setLngLat([p.lng, p.lat]).addTo(map);
+          doms.push({ el: m, ll: [p.lng, p.lat] });
           b.extend([p.lng, p.lat]);
           // on wide screens, mirror each place through Sanford so the view is centred on the home;
           // on a phone the width is too precious - just fit the places tightly.
           if (!small) { b.extend([2 * lng - p.lng, 2 * lat - p.lat]); }
         });
         map.fitBounds(b, { padding: small ? { top: 110, bottom: 70, left: 95, right: 75 } : { top: 110, bottom: 100, left: 120, right: 120 }, maxZoom: 14.5, duration: 0 });
-        log("map ready");
+        var more = extras(prim);
+        if (more.length) { map.once("load", function () { secondary(ml, more, doms); }); }
+        log("map ready", prim.length + " + " + more.length + " places");
       }).catch(function (err) { log("map fallback", err); inject(host); });
     }
 
+    // Section 07 is the street map itself: it builds as it comes within half a screen of view.
+    // (The old aerial toggle below still works if the overlay is ever put back.)
     var aerial = qs(".sd2_aerial_map");
-    if (aerial && "IntersectionObserver" in w && webgl()) {
+    function host() { return qs(".sd2_aerial_map_host", aerial) || aerial; }
+    var auto = aerial && !qs("[data-sd2-aerial-toggle]");
+    if (aerial && "IntersectionObserver" in w) {
       var io = new IntersectionObserver(function (es) {
-        if (es.some(function (e) { return e.isIntersecting; })) { io.disconnect(); loadML().catch(function () {}); }
-      }, { rootMargin: "100% 0px" });
-      io.observe(aerial.parentNode || aerial);
-    }
+        es.forEach(function (e) {
+          if (!e.isIntersecting) { return; }
+          if (e.target === aerial) { io.unobserve(aerial); build(host()); }
+          else { io.unobserve(e.target); if (webgl()) { loadML().catch(function () {}); } }
+        });
+      }, { rootMargin: "50% 0px" });
+      if (auto) { io.observe(aerial); } else { io.observe(aerial.parentNode || aerial); }
+    } else if (auto) { build(host()); }
     qsa("[data-sd2-map-load]").forEach(function (b) {
       on(b, "click", function (e) {
         e.preventDefault();
