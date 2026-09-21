@@ -66,6 +66,36 @@
   function money(n) { return "R" + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
   function short(n) { return "R" + (n / 1000000).toFixed(2).replace(/0$/, "").replace(/\.0$/, "") + "m"; }
 
+  /* PHASE. The page says which phase it is in, on .sd2_page:
+       data-sd2-phase="prelaunch"   waitlist, countdown, gated availability + pricing
+       data-sd2-launch="2026-09-25T12:00:00+02:00"   what the countdown counts to
+       data-sd2-ms-plan="pln_..."   the Memberstack plan a waitlist sign-up joins
+     Launch day is one attribute: set the phase to anything else ("live") and publish. The
+     reservation hand-off comes back, prices are per home again and nothing is gated. */
+  var PRE = (PAGE.getAttribute("data-sd2-phase") || "").toLowerCase() === "prelaunch";
+  var LAUNCH = Date.parse(PAGE.getAttribute("data-sd2-launch") || "") || 0;
+  var MS_PLAN = PAGE.getAttribute("data-sd2-ms-plan") || "";
+  if (PRE) {
+    d.documentElement.classList.add("sd2-prelaunch");
+    /* heartland-reserve.js arms itself on [data-hl-entry] and then owns every submit of
+       #reservation-form (posts to Xano, sends the buyer to /reserve-flow). Before launch
+       that form is the waitlist, so the marker is parked here. This runs while the page
+       is still parsing and the reserve script binds on DOMContentLoaded, so it finds no
+       marker and stands aside. At launch nothing needs undoing: the phase changes and the
+       marker is simply left alone. */
+    qsa("[data-hl-entry]").forEach(function (el) {
+      el.setAttribute("data-hl-entry-paused", el.getAttribute("data-hl-entry") || "");
+      el.removeAttribute("data-hl-entry");
+    });
+  }
+  /* The development's "from" price: the cheapest home still available. Before launch it is
+     the only price the page shows — per-home prices are released at launch. */
+  function fromPrice() {
+    var av = UNITS.filter(function (u) { return u.status === "Available" && u.price; });
+    var pool = av.length ? av : UNITS.filter(function (u) { return u.price; });
+    return pool.length ? Math.min.apply(null, pool.map(function (u) { return u.price; })) : 0;
+  }
+
   /* Scrolling is the browser's job. Anything with a destination on this page is a plain
      <a href="#id">; this helper is only for jumps JS starts itself (picking a home on a
      phone). Both land the same way, because html{scroll-padding-top} owns the nav offset
@@ -460,7 +490,8 @@
       if (c) { c.textContent = us.length + (us.length === 1 ? " home" : " homes") + " · " + av.length + " available"; }
       var f = qs(".sd2_type_from_val", t.el);
       if (f) {
-        var m = av.length ? Math.min.apply(null, av.map(function (u) { return u.price || Infinity; })) : 0;
+        var pool = av.length ? av : (PRE ? us : []);
+        var m = pool.length ? Math.min.apply(null, pool.map(function (u) { return u.price || Infinity; })) : 0;
         f.textContent = m && isFinite(m) ? money(m) : "on consultation";
       }
       var fb = qs(".sd2_filter[data-filter=\"" + k + "\"]");
@@ -500,7 +531,7 @@
           b.classList.toggle("is-reserved", u.status === "Reserved");
           b.classList.toggle("is-sold", u.status === "Sold");
           var sub = qs(".sd2_strip_sub", b);
-          if (sub) { sub.textContent = u.status === "Available" ? (u.price ? short(u.price) : "Type " + u.letter) : u.status; }
+          if (sub) { sub.textContent = u.status === "Available" ? (u.price && !PRE ? short(u.price) : "Type " + u.letter) : u.status; }
         }
       }
       if (u.detail) {
@@ -514,13 +545,14 @@
         if (lead) { lead.textContent = u.status === "Sold" ? "" : "Starting at"; }
         var price = qs("[data-sd2-detail=price]", u.detail);
         if (price && u.status === "Sold") { price.textContent = "Sold"; }
+        else if (price && PRE) { price.textContent = "Priced at launch"; price.classList.add("is-pending"); }
         var cta = qs("[data-sd2-detail=cta]", u.detail);
-        if (cta) {
+        if (cta && !PRE) {
           cta.textContent = u.status === "Sold" ? "Sold — see other homes" : u.status === "Reserved" ? "Join the waiting list" : "Reserve home " + u.n;
           cta.setAttribute("href", u.status === "Sold" ? "#sd2-select" : "#sd2-reserve");
         }
         var tlink = qs("[data-sd2-detail=type-link]", u.detail);
-        if (tlink) { tlink.textContent = "Type " + u.letter + " details"; }
+        if (tlink) { tlink.textContent = "Type " + u.letter + " Details"; }
         // Bring type-level facts into the card (bedrooms / bathrooms / parking).
         var t = TYPES[u.typeSlug];
         if (t) {
@@ -576,6 +608,9 @@
     if (!u) { return; }
     qsa("[data-sd2-selected]").forEach(function (el) {
       var k = el.getAttribute("data-sd2-selected");
+      // Before launch the sticky bar carries the countdown and nothing quotes a home's price
+      // or holds it; the waitlist module paints those places instead.
+      if (PRE && (el.closest("[data-sd2-bar]") || /^(price|cta|ref|note|home-type)$/.test(k))) { return; }
       if (k === "n") { el.textContent = u.n; }
       else if (k === "type") { el.textContent = "Type " + u.letter; }
       else if (k === "type-line") { el.textContent = "Type " + u.letter + (TYPES[u.typeSlug] && TYPES[u.typeSlug].desc ? " · " + TYPES[u.typeSlug].desc.toLowerCase() : ""); }
@@ -585,6 +620,7 @@
       else if (k === "ref") { el.textContent = "SH-" + (u.no.length < 2 ? "0" + u.no : u.no); }
       else if (k === "note") { el.textContent = "We hold home " + u.n + " for 14 days from receipt of the deposit."; }
     });
+    if (PRE) { return; }
     var hidden = qs("#reservation-form input[name=\"Unit ID\"]");
     if (hidden) { hidden.value = u.name || u.slug; }
     var submit = qs("#reservation-form input[type=submit], #reservation-form button[type=submit]");
@@ -885,6 +921,9 @@
       var t = TYPES[slug], src = t ? t.vr : "";
       var msg = qs(".sd2_vr_msg", vrFrame), iframe = qs("iframe", vrFrame), title = qs("[data-sd2-vr-title]", vrFrame);
       if (title && t) { title.textContent = "Type " + t.letter + " walkthrough"; }
+      // A "coming soon" overlay in the frame means the tours are not open yet: don't pull a
+      // multi-megabyte XR scene in underneath something nobody can click through.
+      if (qs(".sd2_soon", vrFrame)) { src = ""; }
       if (src) {
         if (!iframe) {
           iframe = d.createElement("iframe");
@@ -928,6 +967,7 @@
       var seen = {};
       PRICES = [];
       UNITS.forEach(function (u) { if (u.price && !seen[u.price]) { seen[u.price] = 1; PRICES.push(u.price); } });
+      if (PRE) { PRICES = fromPrice() ? [fromPrice()] : []; }
       PRICES.sort(function (a, b) { return a - b; });
       qsa("input[data-calc=price]").forEach(function (inp) {
         if (!PRICES.length) { return; }
@@ -953,6 +993,7 @@
     function paintFinance() {
       var u = SEL.selected && unitBy(SEL.selected);
       var price = CALC.touched && CALC.price ? CALC.price : (u ? u.price : 0);
+      if (PRE) { price = fromPrice(); u = null; }
       if (!price) { return; }
       var dep = Math.round(price * CALC.dep / 100), loan = price - dep, m = monthly(price, CALC.dep, CALC.rate, CALC.years);
       qsa("[data-sd2-fin]").forEach(function (el) {
@@ -968,7 +1009,7 @@
         else if (k === "home") { el.textContent = u ? "Home " + u.n : ""; }
         else if (k === "levies") { el.textContent = u && u.detail ? text(qs("[data-sd2-detail=levies]", u.detail)) : ""; }
         else if (k === "rates") { el.textContent = u && u.detail ? text(qs("[data-sd2-detail=rates]", u.detail)) : ""; }
-        else if (k === "note") { el.textContent = "Based on " + (u ? "home " + u.n : "the selected home") + " at " + money(price) + ", " + CALC.dep + "% deposit, " + CALC.rate + "% over " + CALC.years + " years. Indicative only."; }
+        else if (k === "note") { el.textContent = "Based on " + (PRE ? "the from price of " + money(price) : (u ? "home " + u.n : "the selected home") + " at " + money(price)) + ", " + CALC.dep + "% deposit, " + CALC.rate + "% over " + CALC.years + " years. Indicative only."; }
       });
       // "+ est. levies & rates" only when the CMS has figures for this home.
       var lev = qs("[data-sd2-fin=levies]"), rat = qs("[data-sd2-fin=rates]"), sub = qs(".sd2_calc_sub");
@@ -1050,6 +1091,512 @@
     });
   })();
 
+  /* ----------------------------------------------------------- 15. pre-launch: countdown, waitlist, gate
+
+     Everything here is off unless the page says data-sd2-phase="prelaunch".
+
+     THE WAITLIST IS MEMBERSTACK. Joining is a passwordless sign-up (email + optional mobile,
+     then a 6-digit code) onto the Sanford Heart plan; the homes someone wants live on the
+     member as "waitlist-homes", the date as "waitlist-joined". Being on that plan is what
+     lifts the blur off the availability selector and the prices.
+
+     The section 09 form (#reservation-form) stays a native Webflow form: once Memberstack
+     has the member, the same submit is let through to Webflow, so the sales team keeps its
+     form notification and submissions export. A join from anywhere else on the page
+     (hero, nav, the gate, a home's card) finishes by filling that form and submitting it
+     too, so every new waitlist member reaches the team the same way.
+
+     The blur is presentation, not security: prices are in the page source for anyone who
+     reads HTML. Per-home prices are hidden in the page itself before launch (the detail
+     cards say "Priced at launch"); only the development's from-price is ever painted.
+
+     Memberstack calls are the DOM package's own: sendMemberSignupPasswordlessEmail,
+     signupMemberPasswordless, sendMemberLoginPasswordlessEmail, loginMemberPasswordless,
+     addPlan, updateMember, getCurrentMember. None of them redirect, so the app's global
+     "after signup" redirect and the plan's own redirect never fire from this page. */
+  (function prelaunch() {
+    if (!PRE) { return; }
+    var html = d.documentElement;
+    var ST = { ms: null, member: null, onList: false, homes: [], pendingHomes: [], email: "", phone: "",
+               mode: "signup", after: null, busy: false, pass: false };
+
+    /* ---------------- countdown */
+    // Spelled out by hand: Intl's short month is "Sept" in some locales and "Sep" in others.
+    var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    function launchLabel(long) {
+      if (!LAUNCH) { return ""; }
+      // Always Johannesburg time (UTC+2, no daylight saving), whatever the visitor's clock says.
+      var dt = new Date(LAUNCH + 2 * 3600 * 1000);
+      var day = DAYS[dt.getUTCDay()], mon = MONTHS[dt.getUTCMonth()];
+      var time = pad(dt.getUTCHours()) + ":" + pad(dt.getUTCMinutes());
+      return long ? day + " " + dt.getUTCDate() + " " + mon + " · " + time
+                  : day.slice(0, 3) + " " + dt.getUTCDate() + " " + mon.slice(0, 3) + " · " + time;
+    }
+    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    function tick() {
+      var left = Math.max(0, LAUNCH - Date.now());
+      var s = Math.floor(left / 1000), dd = Math.floor(s / 86400), hh = Math.floor(s % 86400 / 3600),
+          mm = Math.floor(s % 3600 / 60), ss = s % 60;
+      qsa("[data-sd2-cd]").forEach(function (el) {
+        var k = el.getAttribute("data-sd2-cd");
+        el.textContent = k === "d" ? pad(dd) : k === "h" ? pad(hh) : k === "m" ? pad(mm) : pad(ss);
+      });
+      var live = LAUNCH && left <= 0;
+      html.classList.toggle("sd2-launched", !!live);
+      qsa("[data-sd2-launch-label]").forEach(function (el) {
+        var long = el.getAttribute("data-sd2-launch-label") !== "short";
+        el.textContent = live ? "Sanford Heart is live" : (long ? "Launching " : "") + launchLabel(long);
+      });
+      // The sticky bar trades the selected home for the countdown before launch.
+      var bar = qs("[data-sd2-bar]");
+      if (bar) {
+        var no = qs(".sd2_bar_no", bar), ty = qs(".sd2_bar_type", bar), pr = qs(".sd2_bar_price", bar);
+        if (no) { no.textContent = "SH"; }
+        if (ty) { ty.textContent = live ? "Sanford Heart is live" : "Launching in"; }
+        if (pr) { pr.textContent = live ? "" : (dd ? dd + "d " : "") + pad(hh) + "h " + pad(mm) + "m " + pad(ss) + "s"; }
+      }
+      return live;
+    }
+    if (LAUNCH) { tick(); var cdTimer = setInterval(function () { if (tick()) { clearInterval(cdTimer); } }, 1000); }
+
+    /* ---------------- prices: only ever the from-price, blurred until you're on the list */
+    function paintPrices() {
+      var f = fromPrice();
+      qsa("[data-sd2-count=from-price], .sd2_type_from_val, [data-sd2-wl=from], [data-sd2-fin], .sd2_calc_row_val, .sd2_calc_big")
+        .forEach(function (el) { el.setAttribute("data-sd2-price", ""); });
+      qsa("[data-sd2-wl=from]").forEach(function (el) { el.textContent = f ? money(f) : "On consultation"; });
+    }
+    /* Delegated clicks below listen in the CAPTURE phase on document. nativeAnchors() stops
+       propagation at every in-page link in the bubble phase, so a bubble listener up here
+       would never hear a click on an <a href="#sd2-reserve">. */
+    // A blurred price is a door, not a dead end.
+    on(d, "click", function (e) {
+      var p = e.target.closest && e.target.closest("[data-sd2-price]");
+      if (!p || html.classList.contains("sd2-member")) { return; }
+      e.preventDefault();
+      openAuth("email");
+    }, true);
+
+    /* ---------------- Memberstack */
+    function whenMs(cb) {
+      var t0 = Date.now();
+      (function poll() {
+        if (w.$memberstackDom) { ST.ms = w.$memberstackDom; cb(ST.ms); return; }
+        if (Date.now() - t0 > 12000) { log("memberstack never arrived"); cb(null); return; }
+        setTimeout(poll, 80);
+      })();
+    }
+    function onPlan(m) {
+      return !!(m && (m.planConnections || []).some(function (p) {
+        return p.planId === MS_PLAN && p.active !== false && String(p.status || "").toUpperCase() !== "CANCELED";
+      }));
+    }
+    function homesFrom(str) {
+      var out = [];
+      String(str || "").replace(/\d+/g, function (n) { n = String(parseInt(n, 10)); if (out.indexOf(n) < 0) { out.push(n); } });
+      return out.sort(function (a, b) { return a - b; });
+    }
+    var homesLabel = function (list) { return list.length ? list.map(function (n) { return "Home " + n; }).join(", ") : ""; };
+
+    function setMember(m) {
+      ST.member = m || null;
+      ST.onList = onPlan(m);
+      ST.homes = m && m.customFields ? homesFrom(m.customFields["waitlist-homes"]) : [];
+      html.classList.toggle("sd2-member", ST.onList);
+      html.classList.toggle("sd2-signed-in", !!m);
+      html.classList.add("sd2-auth-known");
+      paintWaitlist();
+    }
+
+    function msError(err) {
+      var code = err && err.code ? String(err.code) : "";
+      var msg = err && err.message ? String(err.message) : "";
+      if (/invalid-token|expired/i.test(code + msg)) { return "That code didn't work. Check the latest email, or send a new one."; }
+      if (/disposable/i.test(code + msg)) { return "Please use a personal or work email address."; }
+      if (/invalid-email/i.test(code) || /valid email/i.test(msg)) { return "That email address doesn't look right."; }
+      if (/rate|too many/i.test(code + msg)) { return "Too many attempts. Wait a minute and try again."; }
+      return msg || "Something went wrong. Please try again.";
+    }
+
+    // Everything a new or returning member should carry, merged over what they already have.
+    function memberFields(extra) {
+      var cf = {};
+      var have = ST.member && ST.member.customFields ? ST.member.customFields : {};
+      var homes = homesFrom([ (have["waitlist-homes"] || ""), (extra.homes || []).join(",") ].join(","));
+      if (extra.replaceHomes) { homes = extra.homes.slice(); }
+      cf["waitlist-homes"] = homesLabel(homes);
+      if (!have["waitlist-joined"]) { cf["waitlist-joined"] = new Date().toISOString().slice(0, 10); }
+      if (extra.phone) { cf["mobile-number"] = extra.phone; }
+      if (extra.first) { cf["first-name"] = extra.first; }
+      if (extra.last) { cf["last-name"] = extra.last; }
+      return cf;
+    }
+
+    // Signed-in member: make sure they're on the plan, then write the fields.
+    function saveMember(extra) {
+      var ms = ST.ms, chain = Promise.resolve();
+      if (!onPlan(ST.member) && MS_PLAN) {
+        chain = chain.then(function () { return ms.addPlan({ planId: MS_PLAN }); })
+          .catch(function (e) { log("addPlan", e && e.message); });
+      }
+      return chain.then(function () { return ms.updateMember({ customFields: memberFields(extra) }); })
+        .then(function () { return ms.getCurrentMember(); })
+        .then(function (r) { setMember(r && r.data); return r && r.data; });
+    }
+
+    /* ---------------- the sign-up dialog */
+    var auth = qs("[data-sd2-auth]");
+    var lastFocus = null;
+    function authErr(msg) {
+      qsa("[data-sd2-auth-error]", auth).forEach(function (el) { el.textContent = msg || ""; el.style.display = msg ? "" : "none"; });
+    }
+    function step(name) {
+      if (!auth) { return; }
+      qsa("[data-sd2-auth-step]", auth).forEach(function (el) {
+        el.style.display = el.getAttribute("data-sd2-auth-step") === name ? "" : "none";
+      });
+      authErr("");
+      var f = qs("[data-sd2-auth-step=\"" + name + "\"] input:not([type=hidden])", auth);
+      if (f) { setTimeout(function () { try { f.focus({ preventScroll: true }); } catch (e) { f.focus(); } }, 60); }
+    }
+    function paintAuthHomes() {
+      qsa("[data-sd2-auth-homes]", auth).forEach(function (el) {
+        el.textContent = ST.pendingHomes.length ? "Joining for " + homesLabel(ST.pendingHomes) : "";
+        el.style.display = ST.pendingHomes.length ? "" : "none";
+      });
+    }
+    function openAuth(name, opts) {
+      opts = opts || {};
+      if (!auth) { return; }
+      ST.pendingHomes = opts.homes || ST.pendingHomes || [];
+      ST.after = opts.after || null;
+      lastFocus = d.activeElement;
+      paintAuthHomes();
+      auth.classList.add("is-open");
+      auth.setAttribute("aria-hidden", "false");
+      html.classList.add("sd2-auth-open");
+      step(name || "email");
+    }
+    function closeAuth() {
+      if (!auth) { return; }
+      auth.classList.remove("is-open");
+      auth.setAttribute("aria-hidden", "true");
+      html.classList.remove("sd2-auth-open");
+      if (lastFocus && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) {} }
+    }
+    function busy(btn, on_, label) {
+      if (!btn) { return; }
+      if (on_) { btn.setAttribute("data-label", btn.textContent); btn.textContent = label || "One moment…"; btn.disabled = true; }
+      else { btn.textContent = btn.getAttribute("data-label") || btn.textContent; btn.disabled = false; }
+    }
+
+    function codeSentTo(email) {
+      qsa("[data-sd2-auth-step=code] .sd2_auth_text", auth).forEach(function (el) {
+        el.textContent = "We've sent a 6-digit code to " + email + ". It's valid for 10 minutes.";
+      });
+    }
+    // Step 1: send the code. A new email gets a sign-up code; one Memberstack already knows
+    // gets a login code instead, without the visitor having to know which they are.
+    function sendCode(email) {
+      var ms = ST.ms;
+      if (!ms) { return Promise.reject({ message: "Sign-up is still loading. Try again in a moment." }); }
+      ST.email = email;
+      return ms.sendMemberSignupPasswordlessEmail({ email: email })
+        .then(function () { ST.mode = "signup"; })
+        .catch(function (err) {
+          if (/already|in-use|exists/i.test((err && err.code || "") + " " + (err && err.message || ""))) {
+            return ms.sendMemberLoginPasswordlessEmail({ email: email }).then(function () { ST.mode = "login"; });
+          }
+          throw err;
+        });
+    }
+    // Step 2: verify, then join the plan and write the fields.
+    function verify(code) {
+      var ms = ST.ms, extra = { homes: ST.pendingHomes, phone: ST.phone, first: ST.first, last: ST.last };
+      if (ST.mode === "signup") {
+        return ms.signupMemberPasswordless({
+          email: ST.email, passwordlessToken: code,
+          plans: MS_PLAN ? [{ planId: MS_PLAN }] : [],
+          customFields: memberFields(extra)
+        }).then(function (r) { setMember(r && r.data && (r.data.member || r.data)); return ms.getCurrentMember(); })
+          .then(function (r) { setMember(r && r.data); });
+      }
+      return ms.loginMemberPasswordless({ email: ST.email, passwordlessToken: code })
+        .then(function (r) { setMember(r && r.data && (r.data.member || r.data)); return saveMember(extra); });
+    }
+
+    if (auth) {
+      auth.setAttribute("aria-hidden", "true");
+      // The dialog's <button>s are DOM elements, which carry no text in the Designer.
+      var LABELS = { email: "Continue", code: "Verify & Continue" };
+      qsa("[data-sd2-auth-form]", auth).forEach(function (f) {
+        var b = qs("button[type=submit]", f);
+        if (b && !text(b)) { b.textContent = b.getAttribute("data-label") || LABELS[f.getAttribute("data-sd2-auth-form")] || "Continue"; }
+      });
+      qsa("button[data-sd2-auth-close]", auth).forEach(function (b) { if (!text(b)) { b.textContent = "\u00d7"; } });
+      qsa("[data-sd2-auth-close]", auth).forEach(function (b) { on(b, "click", function (e) { e.preventDefault(); closeAuth(); }); });
+      on(d, "keydown", function (e) { if (e.key === "Escape" && auth.classList.contains("is-open")) { closeAuth(); } });
+      qsa("[data-sd2-auth-back]", auth).forEach(function (b) { on(b, "click", function (e) { e.preventDefault(); step("email"); }); });
+      qsa("[data-sd2-auth-resend]", auth).forEach(function (b) {
+        on(b, "click", function (e) {
+          e.preventDefault();
+          if (!ST.email) { step("email"); return; }
+          sendCode(ST.email).then(function () { authErr("A new code is on its way."); }).catch(function (err) { authErr(msError(err)); });
+        });
+      });
+      qsa("[data-sd2-auth-go]", auth).forEach(function (b) {
+        on(b, "click", function () { closeAuth(); });
+      });
+      var fEmail = qs("[data-sd2-auth-form=email]", auth), fCode = qs("[data-sd2-auth-form=code]", auth);
+      on(fEmail, "submit", function (e) {
+        e.preventDefault();
+        var em = qs("input[type=email]", fEmail), ph = qs("input[type=tel]", fEmail), btn = qs("[type=submit]", fEmail);
+        var email = em ? String(em.value || "").trim() : "";
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { authErr("Enter your email address."); if (em) { em.focus(); } return; }
+        ST.phone = ph ? String(ph.value || "").trim() : "";
+        busy(btn, true, "Sending your code…");
+        sendCode(email).then(function () {
+          codeSentTo(email);
+          step("code");
+        }).catch(function (err) { authErr(msError(err)); })
+          .then(function () { busy(btn, false); });
+      });
+      on(fCode, "submit", function (e) {
+        e.preventDefault();
+        var inp = qs("input", fCode), btn = qs("[type=submit]", fCode);
+        var code = inp ? String(inp.value || "").replace(/\D/g, "") : "";
+        if (code.length !== 6) { authErr("Enter the 6-digit code from the email."); return; }
+        busy(btn, true, "Checking…");
+        verify(code).then(function () {
+          if (inp) { inp.value = ""; }
+          var then = ST.after; ST.after = null;
+          if (then) { closeAuth(); then(); return; }
+          notifyTeam();
+          step("done");
+        }).catch(function (err) { authErr(msError(err)); })
+          .then(function () { busy(btn, false); });
+      });
+      // The code box: digits only, and submit itself on the sixth.
+      var ci = fCode && qs("input", fCode);
+      on(ci, "input", function () {
+        var v = String(ci.value || "").replace(/\D/g, "").slice(0, 6);
+        if (ci.value !== v) { ci.value = v; }
+        if (v.length === 6 && fCode.requestSubmit) { fCode.requestSubmit(); }
+      });
+    }
+
+    /* ---------------- CTAs anywhere: [data-sd2-waitlist] (optionally data-sd2-homes="2,5") */
+    on(d, "click", function (e) {
+      var a = e.target.closest && e.target.closest("[data-sd2-waitlist], [data-sd2-signin]");
+      if (!a) { return; }
+      var homes = homesFrom(a.getAttribute("data-sd2-homes") || "");
+      if (ST.onList) {
+        // Already on the list: a CTA just takes you to the form, where homes can be changed.
+        if (homes.length) { e.preventDefault(); toggleHome(homes[0], true); }
+        return;
+      }
+      e.preventDefault();
+      if (ST.member) {   // signed in (another Heartland plan) but not on this list: one click
+        saveMember({ homes: homes }).then(function () { notifyTeam(); openAuth("done"); });
+        return;
+      }
+      openAuth("email", { homes: homes });
+    }, true);
+
+    /* ---------------- a home's card: join / add / remove */
+    function toggleHome(n, forceOn) {
+      n = String(n);
+      var has = ST.homes.indexOf(n) >= 0;
+      if (has && forceOn) { return Promise.resolve(); }
+      var list = has ? ST.homes.filter(function (x) { return x !== n; }) : ST.homes.concat([n]);
+      return saveMember({ homes: list, replaceHomes: true });
+    }
+    function paintDetailCtas() {
+      UNITS.forEach(function (u) {
+        var cta = u.detail && qs("[data-sd2-detail=cta]", u.detail);
+        if (!cta) { return; }
+        if (u.status !== "Available") { cta.style.display = "none"; return; }
+        cta.style.display = "";
+        var mine = ST.homes.indexOf(u.n) >= 0;
+        cta.classList.toggle("is-on-list", mine);
+        cta.textContent = !ST.onList ? "Join the Waitlist for Home " + u.n
+          : mine ? "On Your Waitlist ✓" : "Add Home " + u.n + " to Your Waitlist";
+        cta.setAttribute("href", "#sd2-reserve");
+        cta.setAttribute("data-sd2-home", u.n);
+      });
+    }
+    on(d, "click", function (e) {
+      var cta = e.target.closest && e.target.closest("[data-sd2-detail=cta][data-sd2-home]");
+      if (!cta) { return; }
+      e.preventDefault();
+      var n = cta.getAttribute("data-sd2-home");
+      if (!ST.onList) {
+        if (ST.member) { saveMember({ homes: [n] }).then(function () { notifyTeam(); openAuth("done"); }); return; }
+        openAuth("email", { homes: [n] });
+        return;
+      }
+      busy(cta, true, "Saving…");
+      toggleHome(n).catch(function (err) { log("toggle", err && err.message); })
+        .then(function () { busy(cta, false); chosen = ST.homes.slice(); paintWaitlist(); });
+    }, true);
+
+    /* ---------------- section 09: the waitlist form */
+    var form = qs("#reservation-form");
+    var picker = qs("[data-sd2-wl-picker]");
+    var chosen = [];
+    function paintPicker() {
+      if (!picker || !UNITS.length) { return; }
+      if (!picker.getAttribute("data-built")) {
+        picker.setAttribute("data-built", "1");
+        picker.innerHTML = "";
+        var lab = d.createElement("div");
+        lab.className = "sd2_wl_label";
+        lab.textContent = "Homes you're interested in (optional)";
+        picker.appendChild(lab);
+        var row = d.createElement("div");
+        row.className = "sd2_wl_chips";
+        row.setAttribute("role", "group");
+        row.setAttribute("aria-label", "Homes you're interested in");
+        UNITS.filter(function (u) { return u.status === "Available"; }).forEach(function (u) {
+          var b = d.createElement("button");
+          b.type = "button";
+          b.className = "sd2_wl_chip";
+          b.setAttribute("data-home", u.n);
+          b.setAttribute("aria-pressed", "false");
+          b.textContent = "Home " + u.n + " · Type " + u.letter;
+          on(b, "click", function () {
+            var i = chosen.indexOf(u.n);
+            if (i >= 0) { chosen.splice(i, 1); } else { chosen.push(u.n); }
+            paintPicker();
+          });
+          row.appendChild(b);
+        });
+        picker.appendChild(row);
+      }
+      qsa(".sd2_wl_chip", picker).forEach(function (b) {
+        var onIt = chosen.indexOf(b.getAttribute("data-home")) >= 0;
+        b.classList.toggle("is-active", onIt);
+        b.setAttribute("aria-pressed", onIt ? "true" : "false");
+      });
+      var hid = form && qs("input[name=\"Waitlist Homes\"], #sd2-unit-id", form);
+      if (hid) { hid.value = homesLabel(chosen.slice().sort(function (a, b) { return a - b; })); }
+      qsa("[data-sd2-wl=homes]").forEach(function (el) { el.textContent = chosen.length ? homesLabel(chosen) : "Any home"; });
+    }
+    function field(id) { return d.getElementById(id); }
+    function prepForm() {
+      if (!form) { return; }
+      form.setAttribute("data-name", "Sanford Waitlist");
+      form.setAttribute("name", "sanford-waitlist");
+      // Only the email is required to join; everything else is a courtesy.
+      [["sd2-first-name", "First name (optional)"], ["sd2-last-name", "Last name (optional)"],
+       ["sd2-contact-number", "Mobile (optional)"], ["sd2-message", "Anything we should know? (optional)"]].forEach(function (x) {
+        var el = field(x[0]);
+        if (el) { el.removeAttribute("required"); el.setAttribute("placeholder", x[1]); }
+      });
+      var em = field("sd2-email");
+      if (em) { em.setAttribute("placeholder", "Email address"); em.setAttribute("autocomplete", "email"); }
+      var ph = field("sd2-contact-number");
+      if (ph) { ph.setAttribute("autocomplete", "tel"); }
+      var hid = field("sd2-unit-id");
+      if (hid) { hid.setAttribute("name", "Waitlist Homes"); hid.setAttribute("data-name", "Waitlist Homes"); }
+      var sub = qs("input[type=submit]", form);
+      if (sub) { sub.value = "Join the Waitlist"; sub.setAttribute("data-wait", "Adding you to the list…"); }
+      var note = qs("[data-sd2-selected=note]", form);
+      if (note) { note.textContent = "No password, no payment. We'll email you a 6-digit code to confirm it's you."; }
+    }
+    function paintWaitlist() {
+      paintDetailCtas();
+      if (form) {
+        var em = field("sd2-email"), ph = field("sd2-contact-number"), fn = field("sd2-first-name"), ln = field("sd2-last-name");
+        var m = ST.member;
+        if (m && m.auth && em && !em.value) { em.value = m.auth.email || ""; }
+        if (m && m.customFields) {
+          if (ph && !ph.value && m.customFields["mobile-number"]) { ph.value = m.customFields["mobile-number"]; }
+          if (fn && !fn.value && m.customFields["first-name"]) { fn.value = m.customFields["first-name"]; }
+          if (ln && !ln.value && m.customFields["last-name"]) { ln.value = m.customFields["last-name"]; }
+        }
+        if (ST.onList && !form.getAttribute("data-seeded")) { form.setAttribute("data-seeded", "1"); chosen = ST.homes.slice(); }
+        var note = qs("[data-sd2-selected=note]", form);
+        if (note && ST.onList) { note.textContent = "You're on the list. Change your homes any time and update."; }
+        var sub = qs("input[type=submit]", form);
+        if (sub) { sub.value = ST.onList ? "Update My Waitlist" : "Join the Waitlist"; }
+      }
+      paintPicker();
+      qsa("[data-sd2-wl=status]").forEach(function (el) {
+        el.textContent = ST.onList ? (ST.homes.length ? "On the list · " + homesLabel(ST.homes) : "On the list") : "Not yet";
+      });
+    }
+
+    // Hand the (already Memberstack-saved) submission to Webflow's own form handler.
+    function nativeSubmit() {
+      if (!form) { return; }
+      ST.pass = true;
+      if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+    }
+    // A join from outside section 09 still reaches the team: fill the form and send it.
+    function notifyTeam() {
+      if (!form || form.getAttribute("data-notified")) { return; }
+      form.setAttribute("data-notified", "1");
+      var m = ST.member || {};
+      var em = field("sd2-email"), ph = field("sd2-contact-number");
+      if (em) { em.value = (m.auth && m.auth.email) || ST.email || em.value; }
+      if (ph && !ph.value) { ph.value = ST.phone || (m.customFields && m.customFields["mobile-number"]) || ""; }
+      chosen = ST.homes.slice();
+      paintPicker();
+      nativeSubmit();
+    }
+
+    // Capture on window runs before anything on document (heartland-reserve.js listens
+    // there) and before Webflow's own handler on the form.
+    w.addEventListener("submit", function (e) {
+      if (!form || e.target !== form) { return; }
+      if (ST.pass) { ST.pass = false; form.setAttribute("data-notified", "1"); return; }   // second pass: Webflow's turn
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (ST.busy) { return; }
+      var em = field("sd2-email");
+      var email = em ? String(em.value || "").trim() : "";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { if (em && em.reportValidity) { em.reportValidity(); } return; }
+      var extra = { homes: chosen.slice(), replaceHomes: ST.onList, phone: String((field("sd2-contact-number") || {}).value || "").trim(),
+                    first: String((field("sd2-first-name") || {}).value || "").trim(), last: String((field("sd2-last-name") || {}).value || "").trim() };
+      var sub = qs("input[type=submit]", form);
+      ST.busy = true;
+      if (sub) { sub.setAttribute("data-was", sub.value); sub.value = "One moment…"; }
+      function done() { ST.busy = false; if (sub) { sub.value = sub.getAttribute("data-was") || sub.value; } }
+      var mine = ST.member && ST.member.auth && String(ST.member.auth.email || "").toLowerCase() === email.toLowerCase();
+      if (mine) {
+        saveMember(extra).then(function () { done(); nativeSubmit(); }).catch(function (err) { done(); alertForm(msError(err)); });
+        return;
+      }
+      // Not signed in (or a different email): confirm the email first, then come back here.
+      ST.phone = extra.phone; ST.first = extra.first; ST.last = extra.last; ST.pendingHomes = extra.homes;
+      sendCode(email).then(function () {
+        done();
+        codeSentTo(email);
+        openAuth("code", { homes: extra.homes, after: function () { nativeSubmit(); } });
+      }).catch(function (err) { done(); alertForm(msError(err)); });
+    }, true);
+    function alertForm(msg) {
+      var note = form && qs("[data-sd2-selected=note]", form);
+      if (note) { note.textContent = msg; note.classList.add("is-error"); setTimeout(function () { note.classList.remove("is-error"); }, 6000); }
+    }
+
+    /* ---------------- boot */
+    prepForm();
+    // Every "join" on the page opens the same flow, whatever the Designer called it.
+    qsa(".sd2_bar_cta, a.sd2_inline-link[href=\"#sd2-reserve\"], .sd2_footer_link[href=\"#sd2-reserve\"]").forEach(function (a) {
+      if (/wait/i.test(text(a))) { a.setAttribute("data-sd2-waitlist", ""); }
+    });
+    d.addEventListener("sd2:catalogue", function () { paintPrices(); paintWaitlist(); });
+    whenMs(function (ms) {
+      if (!ms) { html.classList.add("sd2-auth-known"); return; }
+      ms.getCurrentMember().then(function (r) { setMember(r && r.data); }).catch(function () { setMember(null); });
+      if (ms.onAuthChange) { ms.onAuthChange(function (m) { setMember(m && (m.data || m)); }); }
+    });
+    w.SD2_WAITLIST = { state: ST, open: openAuth, close: closeAuth };
+  })();
+
   /* ----------------------------------------------------------- 14. boot the catalogue-driven parts */
   (function boot() {
     readTypes();
@@ -1065,6 +1612,80 @@
       if (!t) { a.style.display = "none"; return; }
       if (/^[\d\s()+-]{7,}$/.test(t)) { a.setAttribute("href", "tel:" + t.replace(/[^\d+]/g, "")); }
     });
+    /* Team: one CMS list (Teams, filtered to this property), shown in the Portal Group order
+       the owners' portal uses — Heartland, the builder, conveyancer & bond. Each card carries
+       its group as bound text ([data-sd2-team-group], hidden); the cards are sorted into one
+       labelled grid per group here. Someone added to a group in the CMS just appears. */
+    (function teamGroups() {
+      var host = qs(".sd2_team_host");
+      if (!host) { return; }
+      var items = qsa(".w-dyn-item", host);
+      if (!items.length) { return; }
+      var ORDER = [["Heartland", "Heartland Property Developers"], ["Builder", "The builder"], ["Conveyancer & Bond", "Conveyancing & bond"]];
+      var groups = {};
+      items.forEach(function (it) {
+        var g = text(qs("[data-sd2-team-group]", it)) || "Heartland";
+        (groups[g] = groups[g] || []).push(it);
+      });
+      var keys = ORDER.map(function (o) { return o[0]; }).concat(Object.keys(groups).filter(function (k) {
+        return !ORDER.some(function (o) { return o[0] === k; });
+      }));
+      var wrap = d.createElement("div");
+      wrap.className = "sd2_team_groups";
+      keys.forEach(function (k) {
+        if (!groups[k]) { return; }
+        var sec = d.createElement("div"); sec.className = "sd2_team_group";
+        var h = d.createElement("div"); h.className = "sd2_team_group_head";
+        var label = ORDER.filter(function (o) { return o[0] === k; })[0];
+        h.textContent = label ? label[1] : k;
+        var grid = d.createElement("div"); grid.className = "sd2_team_grid"; grid.setAttribute("role", "list");
+        groups[k].forEach(function (it) {
+          // The group heading already says "Heartland Property Developers".
+          if (k === "Heartland") { qsa(".sd2_team_company", it).forEach(function (c) { c.style.display = "none"; }); }
+          grid.appendChild(it);
+        });
+        sec.appendChild(h); sec.appendChild(grid); wrap.appendChild(sec);
+      });
+      var list = qs(".w-dyn-list", host);
+      host.insertBefore(wrap, list || null);
+      if (list) { list.style.display = "none"; }
+      // A card's website link only when the CMS has one.
+      qsa(".sd2_team_web", wrap).forEach(function (a) {
+        var href = a.getAttribute("href") || "";
+        if (!href || href === "#" || !text(a)) { a.style.display = "none"; }
+      });
+    })();
+
+    /* Supporting documents come from the property's docs item (Portal - Unit Docs). A row
+       whose "Coming soon" switch is on renders its .sd2_doc_soon tag; that row is not a
+       download. A row with no file behind it is treated the same way. */
+    qsa(".sd2_text_doc-link").forEach(function (a) {
+      var href = a.getAttribute("href") || "";
+      var soon = !!qs(".sd2_doc_soon", a) || !href || href === "#";
+      a.classList.toggle("is-soon", soon);
+      if (soon) {
+        a.removeAttribute("href");
+        a.setAttribute("aria-disabled", "true");
+        a.setAttribute("title", "Coming soon");
+      } else {
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noopener");
+      }
+    });
+
+    /* The home-loan application link lives on the Portal - Dashboards item (Pre-qualification
+       Link) and is bound on "Start Your Application". The calculator's "Get Pre-Qualified"
+       sits outside any Collection List, so it borrows that href. */
+    var evo = qs("[data-sd2-evo-src]");
+    var evoHref = evo ? evo.getAttribute("href") : "";
+    if (evoHref && evoHref !== "#") {
+      qsa("[data-sd2-evo], [data-sd2-evo-src]").forEach(function (a) {
+        a.setAttribute("href", evoHref);
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noopener");
+      });
+    }
+
     // Let the other modules know which home is selected (upgrades filter, finance).
     var lastSel = null;
     setInterval(function () {

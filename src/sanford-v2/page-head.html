@@ -12,6 +12,11 @@
 <link rel="preload" as="font" type="font/woff2" crossorigin href="https://webflow-files-prod.global.ssl.fastly.net/61110f294933f9d0faf6d77f/fonts/6aab8a92fbccf47717872c7c-Manrope-Regular.woff2">
 <link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6aaaaaccb498ff08c62f9876_sd2-hero-poster-16x9.jpg" media="(min-width: 768px)">
 <link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6aaaaaccb498ff08c62f988c_sd2-hero-poster-9x16.jpg" media="(max-width: 767px)">
+<!-- Memberstack (the Heartland app) - the pre-launch waitlist is a passwordless sign-up onto the
+     Sanford Heart plan. Deferred: nothing on this page needs it before first paint, and the
+     bundle waits for window.$memberstackDom. webflow.io domains run in Memberstack's SANDBOX
+     mode, so staging sign-ups never touch live members. -->
+<script data-memberstack-app="app_cmmoyq2ln006j0ssyfcttbd9q" src="https://static.memberstack.com/scripts/v2/memberstack.js" type="text/javascript" defer></script>
 <script>
   (function (h) {
     h.classList.add('sd2-js');
@@ -178,6 +183,59 @@
   /* sticky bar + upgrade tags */
   .sd2_bar{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
   .sd2_option_tags:has(.sd2_option_tag_std:not(.w-condition-invisible)) .sd2_option_tag{display:none}
+
+  /* ---------------- pre-launch (html.sd2-prelaunch is set by the bundle from data-sd2-phase) */
+  html:not(.sd2-prelaunch) .sd2_gate,html:not(.sd2-prelaunch) .sd2_countdown{display:none}
+  /* The availability selector and every price stay blurred until you're on the waitlist.
+     Presentation, not security: the source still carries the from-price. */
+  .sd2_select_grid{position:relative}
+  html.sd2-prelaunch .sd2_select_grid > :not(.sd2_gate),html.sd2-prelaunch #sd2-select .sd2_filters,html.sd2-prelaunch #sd2-select .sd2_legend,html.sd2-prelaunch [data-sd2-price]{transition:filter .7s cubic-bezier(.2,.7,.2,1)}
+  html.sd2-prelaunch:not(.sd2-member) .sd2_select_grid > :not(.sd2_gate),
+  html.sd2-prelaunch:not(.sd2-member) #sd2-select .sd2_filters,
+  html.sd2-prelaunch:not(.sd2-member) #sd2-select .sd2_legend{filter:blur(16px) saturate(.8);pointer-events:none;user-select:none}
+  html.sd2-prelaunch:not(.sd2-member) [data-sd2-price]{filter:blur(7px);cursor:pointer;user-select:none}
+  html.sd2-member .sd2_gate{display:none}
+  .sd2_gate_card{-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%)}
+  html:not(.sd2-auth-known) .sd2_gate_card{opacity:.001}
+  .sd2_gate_card{transition:opacity .5s ease}
+  .sd2_countdown_cell{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  .sd2_countdown_num{font-variant-numeric:tabular-nums}
+  html.sd2-launched .sd2_countdown_grid{display:none}
+
+  /* sign-up dialog */
+  .sd2_auth.is-open{display:flex;animation:sd2-fade-in .35s ease both}
+  .sd2_auth.is-open .sd2_auth_panel{animation:sd2-rise .45s cubic-bezier(.2,.7,.2,1) both}
+  @keyframes sd2-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+  html.sd2-auth-open,html.sd2-auth-open body{overflow:hidden}
+  .sd2_auth_backdrop{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  .sd2_auth_input:focus{border-color:#A9754B;outline:none;box-shadow:0 0 0 3px rgba(169,117,75,.15)}
+  .sd2_auth_input::placeholder{color:rgba(28,26,23,.4)}
+  .sd2_auth_submit:disabled{opacity:.6;cursor:progress}
+  .sd2_auth_close:focus-visible,.sd2_auth_submit:focus-visible{outline:2px solid #A9754B;outline-offset:3px}
+
+  /* waitlist form: home chips (built by the bundle from the Units list) */
+  .sd2_wl_label{font-size:.75rem;letter-spacing:.06em;color:rgba(246,243,238,.6);margin:.25rem 0 .625rem}
+  .sd2_wl_chips{display:flex;flex-wrap:wrap;gap:.5rem}
+  .sd2_wl_chip{appearance:none;-webkit-appearance:none;border:1px solid rgba(246,243,238,.28);background:transparent;color:#F6F3EE;border-radius:999px;padding:.5rem .875rem;font:inherit;font-size:.78rem;line-height:1.2;cursor:pointer;transition:background-color .25s,border-color .25s,color .25s}
+  .sd2_wl_chip:hover{border-color:#C79A6E}
+  .sd2_wl_chip.is-active{background-color:#C79A6E;border-color:#C79A6E;color:#1C1A17}
+  .sd2_form_note.is-error{color:#E8A89E}
+  [data-sd2-detail=cta].is-on-list{background-color:#A9754B;color:#FCFAF7}
+  .sd2_price.is-pending{opacity:.72}
+
+  /* team, grouped by the bundle from each card's Portal Group */
+  .sd2_team_groups{display:grid;gap:2.75rem}
+  .sd2_team_group_head{font-family:var(--_sanford-v2---sd2-font-accent);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:#A9754B;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid rgba(28,26,23,.12)}
+  .sd2_team_group_label{display:none}
+
+  /* street map: "Back to Aerial" is sticky, clearing the fixed nav. overflow:hidden on the
+     media box would make IT the sticky button's scroll container (so it would never stick);
+     clip crops the same way without creating one. */
+  .sd2_aerial_media{overflow:clip}
+
+  /* supporting documents: a "Coming soon" row is not a download */
+  .sd2_text_doc-link.is-soon{cursor:default;border-bottom-style:dashed;color:rgba(28,26,23,.55)}
+  .sd2_text_doc-link.is-soon .sd2_doc_icon{opacity:.35}
 
   /* forms */
   .sd2_input::placeholder{color:rgba(246,243,238,.45)}
