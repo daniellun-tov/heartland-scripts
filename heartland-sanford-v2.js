@@ -67,14 +67,27 @@
   function short(n) { return "R" + (n / 1000000).toFixed(2).replace(/0$/, "").replace(/\.0$/, "") + "m"; }
 
   /* PHASE. The page says which phase it is in, on .sd2_page:
-       data-sd2-phase="prelaunch"   waitlist, countdown, gated availability + pricing
-       data-sd2-launch="2026-09-25T12:00:00+02:00"   what the countdown counts to
-       data-sd2-ms-plan="pln_..."   the Memberstack plan a waitlist sign-up joins
-     Launch day is one attribute: set the phase to anything else ("live") and publish. The
-     reservation hand-off comes back, prices are per home again and nothing is gated. */
-  var PRE = (PAGE.getAttribute("data-sd2-phase") || "").toLowerCase() === "prelaunch";
+       data-sd2-phase="prelaunch"   waitlist + countdown until data-sd2-launch, then it flips to
+                                    live BY ITSELF at that moment - no publish needed
+       data-sd2-phase="live"        live now, whatever the date
+       data-sd2-launch="2026-10-02T12:00:00+02:00"   the launch moment (the countdown and the flip)
+       data-sd2-gate="off"          optional: open availability and prices to everyone once live
+                                    (default: members only, before AND after launch)
+       data-sd2-ms-plan="pln_..."   the Memberstack plan a sign-up joins
+     Live is the page as it was before the waitlist: per-home prices, "Reserve home N", the
+     section 09 reservation hand-off to /reserve-flow. The gate stays: until you sign up or sign
+     in, the availability selector is blurred and every price is a "Sign up to see pricing" prompt.
+     Preview either phase on any date with ?sd2_phase=live or ?sd2_phase=prelaunch. */
+  var PHASE = (PAGE.getAttribute("data-sd2-phase") || "").toLowerCase();
   var LAUNCH = Date.parse(PAGE.getAttribute("data-sd2-launch") || "") || 0;
   var MS_PLAN = PAGE.getAttribute("data-sd2-ms-plan") || "";
+  var PHASED = PHASE === "prelaunch" || PHASE === "live";
+  var PRE = PHASE === "prelaunch" && !(LAUNCH && Date.now() >= LAUNCH);
+  var forced = /[?&]sd2_phase=(prelaunch|live)\b/.exec(w.location.search);
+  if (PHASED && forced) { PRE = forced[1] === "prelaunch"; }
+  var GATED = PHASED && (PRE || (PAGE.getAttribute("data-sd2-gate") || "").toLowerCase() !== "off");
+  if (GATED) { d.documentElement.classList.add("sd2-gated"); }
+  if (PHASED && !PRE) { d.documentElement.classList.add("sd2-live"); }
   if (PRE) {
     d.documentElement.classList.add("sd2-prelaunch");
     /* heartland-reserve.js arms itself on [data-hl-entry] and then owns every submit of
@@ -557,6 +570,7 @@
             row.parentNode.insertBefore(note, row.nextSibling);
           }
         }
+        if (price && !PRE && GATED && u.status !== "Sold") { price.setAttribute("data-sd2-price", ""); }
         var cta = qs("[data-sd2-detail=cta]", u.detail);
         if (cta && !PRE) {
           cta.textContent = u.status === "Sold" ? "Sold — see other homes" : u.status === "Reserved" ? "Join the waiting list" : "Reserve home " + u.n;
@@ -636,6 +650,9 @@
       else if (k === "ref") { el.textContent = "SH-" + (u.no.length < 2 ? "0" + u.no : u.no); }
       else if (k === "note") { el.textContent = "We hold home " + u.n + " for 14 days from receipt of the deposit."; }
     });
+    if (GATED && !PRE) {
+      qsa("[data-sd2-selected=price]").forEach(function (el) { el.setAttribute("data-sd2-price", ""); });
+    }
     d.dispatchEvent(new CustomEvent("sd2:selected", { detail: u }));
     if (PRE) { return; }
     var hidden = qs("#reservation-form input[name=\"Unit ID\"]");
@@ -1373,7 +1390,13 @@
      addPlan, updateMember, getCurrentMember. None of them redirect, so the app's global
      "after signup" redirect and the plan's own redirect never fire from this page. */
   (function prelaunch() {
-    if (!PRE) { return; }
+    if (!GATED) { return; }
+    /* Live (after launch, or data-sd2-phase="live"): the same sign-up and the same gate, but no
+       countdown, no waitlist form and no waitlist wording. Section 09 is the reservation
+       again (heartland-reserve.js owns it) - except that a visitor who hasn't signed up is
+       asked to first. The Designer's copy is the pre-launch copy; LIVE_COPY below swaps it,
+       and any element can carry its own data-sd2-live-text (and data-sd2-live-href) instead. */
+    var LIVE = !PRE;
     var html = d.documentElement;
     var ST = { ms: null, member: null, onList: false, homes: [], pendingHomes: [], email: "", phone: "",
                mode: "signup", after: null, busy: false, pass: false };
@@ -1416,7 +1439,17 @@
       }
       return live;
     }
-    if (LAUNCH) { tick(); var cdTimer = setInterval(function () { if (tick()) { clearInterval(cdTimer); } }, 1000); }
+    if (PRE && LAUNCH) { tick(); var cdTimer = setInterval(function () { if (tick()) { clearInterval(cdTimer); flip(); } }, 1000); }
+    /* The scheduled flip. The phase is decided when the page loads, so a visitor who has it open
+       at launch gets a fresh load - unless they're mid sign-up or typing in a form, in which case
+       it waits until they're done. */
+    function flip() {
+      if (forced) { return; }
+      var a = d.activeElement;
+      var typing = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && String(a.value || "").length;
+      if (html.classList.contains("sd2-auth-open") || typing || ST.busy) { setTimeout(flip, 4000); return; }
+      w.location.reload();
+    }
 
     /* ---------------- prices: only ever the from-price, and only once you're on the list.
        Until then the head CSS swaps each value for "Join waitlist to see pricing" (the headline
@@ -1681,6 +1714,7 @@
       return saveMember({ homes: list, replaceHomes: true });
     }
     function paintDetailCtas() {
+      if (LIVE) { return; }
       UNITS.forEach(function (u) {
         var cta = u.detail && qs("[data-sd2-detail=cta]", u.detail);
         if (!cta) { return; }
@@ -1695,6 +1729,7 @@
       });
     }
     on(d, "click", function (e) {
+      if (LIVE) { return; }
       var cta = e.target.closest && e.target.closest("[data-sd2-detail=cta][data-sd2-home]");
       if (!cta) { return; }
       e.preventDefault();
@@ -1719,7 +1754,7 @@
     var picker = qs("[data-sd2-wl-picker]");
     var chosen = [];
     function paintPicker() {
-      if (!picker || !UNITS.length) { return; }
+      if (LIVE || !picker || !UNITS.length) { return; }
       if (!picker.getAttribute("data-built")) {
         picker.setAttribute("data-built", "1");
         picker.innerHTML = "";
@@ -1788,6 +1823,7 @@
       if (note) { note.textContent = "No password, no payment. We'll email you a 6-digit code to confirm it's you."; }
     }
     function paintWaitlist() {
+      if (LIVE) { paintLive(); return; }
       paintDetailCtas();
       if (form) {
         var em = field("sd2-email"), ph = field("sd2-contact-number"), fn = field("sd2-first-name"), ln = field("sd2-last-name");
@@ -1822,6 +1858,8 @@
     // A join from outside section 09 still reaches the team: fill the form and send it.
     // force: send again even if this visit already notified (a home added or removed later).
     function notifyTeam(force) {
+      // After launch section 09 is the reservation form - sign-ups live in Memberstack only.
+      if (LIVE) { return; }
       if (!form || (!force && form.getAttribute("data-notified"))) { return; }
       form.setAttribute("data-notified", "1");
       var m = ST.member || {};
@@ -1837,6 +1875,22 @@
     // there) and before Webflow's own handler on the form.
     w.addEventListener("submit", function (e) {
       if (!form || e.target !== form) { return; }
+      if (LIVE) {
+        // A reservation is for registered buyers: sign up first, then the same submit goes
+        // on to heartland-reserve.js untouched.
+        if (ST.onList || ST.pass) { ST.pass = false; return; }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        var em0 = field("sd2-email");
+        var email0 = em0 ? String(em0.value || "").trim() : "";
+        var again = function () { ST.pass = true; if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); } };
+        if (ST.member) { saveMember({}).then(again); return; }
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email0)) {
+          sendCode(email0).then(function () { codeSentTo(email0); openAuth("code", { after: again }); })
+            .catch(function (err) { alertForm(msError(err)); });
+        } else { openAuth("email", { after: again }); }
+        return;
+      }
       if (ST.pass) { ST.pass = false; form.setAttribute("data-notified", "1"); return; }   // second pass: Webflow's turn
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -1868,12 +1922,99 @@
       if (note) { note.textContent = msg; note.classList.add("is-error"); setTimeout(function () { note.classList.remove("is-error"); }, 6000); }
     }
 
+    /* ---------------- live copy: the Designer holds the pre-launch words; these are the live
+       ones. [selector, text, href]. An element's own data-sd2-live-text / data-sd2-live-href
+       win over this table, so copy can move to the Designer one element at a time. */
+    var LIVE_COPY = [
+      [".sd2_hero [data-sd2-waitlist], .sd2_hero_actions [data-sd2-waitlist]", "View Availability", "#sd2-select"],
+      ["a.sd2_inline-link[href=\"#sd2-reserve\"]", "Reserve first", "#sd2-reserve"],
+      [".sd2_footer_link[data-sd2-waitlist], .sd2_footer_link[href=\"#sd2-reserve\"]", "Reserve a home", "#sd2-reserve"],
+      [".sd2_gate .sd2_eyebrow", "Registered buyers"],
+      [".sd2_gate_text", "Availability and pricing are open to registered buyers. Signing up takes a minute: your email, and a 6-digit confirmation code. No password or payment required."],
+      [".sd2_gate [data-sd2-waitlist]", "Sign Up to View"],
+      [".sd2_gate_link", "Already registered? Sign in"],
+      ["#sd2-reserve .sd2_display", "R3 000 holds a home for 7 days."],
+      [".sd2_reserve_lead", "Fully refundable. We'll send the plans, the finishes schedule and a payment reference within the hour."],
+      [".sd2_form_done .sd2_eyebrow", "Reservation received"],
+      ["[data-sd2-done-title]", "Your home is on hold."],
+      [".sd2_form_done_text", "We'll send the plans, the finishes schedule and a payment reference within the hour."],
+      [".sd2_soon_text", "Walk through Type A and Type B in 3D, on desktop, phone or headset. Registered buyers hear first when the tours go live."],
+      ["[data-sd2-auth-step=email] .sd2_eyebrow", "Registered buyers"],
+      ["[data-sd2-auth-step=email] .sd2_auth_title", "See every home."],
+      ["[data-sd2-auth-step=email] .sd2_auth_text", "Sign up to see availability and pricing for every home at Sanford Heart, and reserve yours."],
+      ["[data-sd2-auth-step=done] .sd2_eyebrow", "You're registered"],
+      ["[data-sd2-auth-step=done] .sd2_auth_text", "Availability and pricing are unlocked. Choose your home and reserve it when you're ready."]
+    ];
+    function liveCopy() {
+      LIVE_COPY.forEach(function (r) {
+        qsa(r[0]).forEach(function (el) {
+          if (el.getAttribute("data-sd2-live-done")) { return; }
+          el.setAttribute("data-sd2-live-done", "1");
+          el.textContent = el.getAttribute("data-sd2-live-text") || r[1];
+          var href = el.getAttribute("data-sd2-live-href") || r[2];
+          if (href) { el.setAttribute("href", href); el.removeAttribute("data-sd2-waitlist"); }
+        });
+      });
+      qsa("[data-sd2-live-text]:not([data-sd2-live-done])").forEach(function (el) {
+        el.textContent = el.getAttribute("data-sd2-live-text");
+        if (el.getAttribute("data-sd2-live-href")) { el.setAttribute("href", el.getAttribute("data-sd2-live-href")); el.removeAttribute("data-sd2-waitlist"); }
+      });
+      // Section 09's summary goes back to the selected home: keep the eyebrow's number.
+      qsa("#sd2-reserve .sd2_eyebrow").forEach(function (el) {
+        if (!el.closest(".sd2_form_done")) { el.textContent = el.textContent.replace(/\u2014.*$/, "\u2014 Reserve"); }
+      });
+      var keys = { homes: ["Selected", "home-type"], from: ["Price", "price"] };
+      qsa("#sd2-reserve [data-sd2-wl]").forEach(function (v) {
+        var k = keys[v.getAttribute("data-sd2-wl")];
+        if (!k) { return; }
+        var key = v.parentNode && qs(".sd2_reserve_key", v.parentNode);
+        if (key) { key.textContent = k[0]; }
+        v.removeAttribute("data-sd2-wl");
+        v.setAttribute("data-sd2-selected", k[1]);
+      });
+      qsa("#sd2-reserve [data-sd2-launch-label]").forEach(function (v) {
+        var key = v.parentNode && qs(".sd2_reserve_key", v.parentNode);
+        if (key) { key.textContent = "Reference"; }
+        v.removeAttribute("data-sd2-launch-label");
+        v.setAttribute("data-sd2-selected", "ref");
+      });
+      if (picker) { picker.style.display = "none"; }
+      var sub = form && qs("input[type=submit]", form);
+      if (sub && /wait/i.test(sub.value)) { sub.value = "Reserve this home"; }
+    }
+    // Live CTAs: members go straight to reserving; everyone else is sent to sign up.
+    function paintLive() {
+      qsa(".sd2_nav_cta, .sd2_bar_cta").forEach(function (a) {
+        if (ST.onList) {
+          a.textContent = a.classList.contains("sd2_bar_cta") ? "Reserve" : "Reserve a Home";
+          a.setAttribute("href", "#sd2-reserve");
+          a.removeAttribute("data-sd2-waitlist");
+        } else {
+          a.textContent = "Sign Up to View";
+          a.setAttribute("href", "#sd2-select");
+          a.setAttribute("data-sd2-waitlist", "");
+        }
+      });
+      if (form) {
+        var em = field("sd2-email"), ph = field("sd2-contact-number"), fn = field("sd2-first-name"), ln = field("sd2-last-name");
+        var m = ST.member;
+        if (m && m.auth && em && !em.value) { em.value = m.auth.email || ""; }
+        if (m && m.customFields) {
+          if (ph && !ph.value && m.customFields["mobile-number"]) { ph.value = m.customFields["mobile-number"]; }
+          if (fn && !fn.value && m.customFields["first-name"]) { fn.value = m.customFields["first-name"]; }
+          if (ln && !ln.value && m.customFields["last-name"]) { ln.value = m.customFields["last-name"]; }
+        }
+      }
+    }
+
     /* ---------------- boot */
-    prepForm();
-    // Every "join" on the page opens the same flow, whatever the Designer called it.
-    qsa(".sd2_bar_cta, a.sd2_inline-link[href=\"#sd2-reserve\"], .sd2_footer_link[href=\"#sd2-reserve\"]").forEach(function (a) {
-      if (/wait/i.test(text(a))) { a.setAttribute("data-sd2-waitlist", ""); }
-    });
+    if (LIVE) { liveCopy(); paintSelected(); } else {
+      prepForm();
+      // Every "join" on the page opens the same flow, whatever the Designer called it.
+      qsa(".sd2_bar_cta, a.sd2_inline-link[href=\"#sd2-reserve\"], .sd2_footer_link[href=\"#sd2-reserve\"]").forEach(function (a) {
+        if (/wait/i.test(text(a))) { a.setAttribute("data-sd2-waitlist", ""); }
+      });
+    }
     d.addEventListener("sd2:catalogue", function () { paintPrices(); paintWaitlist(); });
     whenMs(function (ms) {
       if (!ms) { html.classList.add("sd2-auth-known"); return; }
@@ -2018,7 +2159,7 @@
       if (w.$memberstackDom) {
         ms = w.$memberstackDom;
         ms.getCurrentMember().then(function (r) { setM(r && r.data); }).catch(function () { setM(null); });
-        if (!PRE && ms.onAuthChange) { ms.onAuthChange(function (m) { setM(m && (m.data || m)); }); }
+        if (!GATED && ms.onAuthChange) { ms.onAuthChange(function (m) { setM(m && (m.data || m)); }); }
         return;
       }
       if (Date.now() - t0 < 15000) { setTimeout(function () { poll(t0); }, 150); }
