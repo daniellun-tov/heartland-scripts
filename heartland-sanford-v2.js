@@ -1160,21 +1160,29 @@
     }
     if (LAUNCH) { tick(); var cdTimer = setInterval(function () { if (tick()) { clearInterval(cdTimer); } }, 1000); }
 
-    /* ---------------- prices: only ever the from-price, blurred until you're on the list */
+    /* ---------------- prices: only ever the from-price, and only once you're on the list.
+       Until then the head CSS swaps each value for "Join waitlist to see pricing" (the headline
+       prices) or a dash (figures derived from the price), so the calculator can't give it away. */
     function paintPrices() {
       var f = fromPrice();
-      qsa("[data-sd2-count=from-price], .sd2_type_from_val, [data-sd2-wl=from], [data-sd2-fin], .sd2_calc_row_val, .sd2_calc_big")
+      qsa("[data-sd2-count=from-price], .sd2_type_from_val, [data-sd2-wl=from], .sd2_fin_val[data-sd2-fin=price], .sd2_fin_note")
         .forEach(function (el) { el.setAttribute("data-sd2-price", ""); });
+      qsa("[data-sd2-fin], .sd2_calc_row_val, .sd2_calc_big").forEach(function (el) {
+        if (el.hasAttribute("data-sd2-price") || /^(home|rate|years|dep-pct)$/.test(el.getAttribute("data-sd2-fin") || "")) { return; }
+        el.setAttribute("data-sd2-price", "derived");
+      });
       qsa("[data-sd2-wl=from]").forEach(function (el) { el.textContent = f ? money(f) : "On consultation"; });
     }
     /* Delegated clicks below listen in the CAPTURE phase on document. nativeAnchors() stops
        propagation at every in-page link in the bubble phase, so a bubble listener up here
        would never hear a click on an <a href="#sd2-reserve">. */
-    // A blurred price is a door, not a dead end.
+    // A hidden price is a door, not a dead end - and so is the bond calculator, which is
+    // nothing but prices until you're on the list.
     on(d, "click", function (e) {
-      var p = e.target.closest && e.target.closest("[data-sd2-price]");
+      var p = e.target.closest && e.target.closest("[data-sd2-price], [data-sd2-calc-open]");
       if (!p || html.classList.contains("sd2-member")) { return; }
       e.preventDefault();
+      e.stopPropagation();
       openAuth("email");
     }, true);
 

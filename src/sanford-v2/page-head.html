@@ -189,11 +189,18 @@
   /* The availability selector and every price stay blurred until you're on the waitlist.
      Presentation, not security: the source still carries the from-price. */
   .sd2_select_grid{position:relative}
-  html.sd2-prelaunch .sd2_select_grid > :not(.sd2_gate),html.sd2-prelaunch #sd2-select .sd2_filters,html.sd2-prelaunch #sd2-select .sd2_legend,html.sd2-prelaunch [data-sd2-price]{transition:filter .7s cubic-bezier(.2,.7,.2,1)}
+  html.sd2-prelaunch .sd2_select_grid > :not(.sd2_gate),html.sd2-prelaunch #sd2-select .sd2_filters,html.sd2-prelaunch #sd2-select .sd2_legend{transition:filter .7s cubic-bezier(.2,.7,.2,1)}
   html.sd2-prelaunch:not(.sd2-member) .sd2_select_grid > :not(.sd2_gate),
   html.sd2-prelaunch:not(.sd2-member) #sd2-select .sd2_filters,
   html.sd2-prelaunch:not(.sd2-member) #sd2-select .sd2_legend{filter:blur(16px) saturate(.8);pointer-events:none;user-select:none}
-  html.sd2-prelaunch:not(.sd2-member) [data-sd2-price]{filter:blur(7px);cursor:pointer;user-select:none}
+  /* Prices are not blurred: the value collapses to nothing and a prompt takes its place.
+     font-size:0 hides the text in whatever style the slot has; the ::after sets its own size
+     in rem, inherits the slot's colour, and underlines in clay. Derived figures show a dash. */
+  html.sd2-prelaunch:not(.sd2-member) [data-sd2-price]{font-size:0 !important;letter-spacing:0 !important;cursor:pointer;user-select:none}
+  html.sd2-prelaunch:not(.sd2-member) [data-sd2-price]::after{content:"Join waitlist to see pricing";display:inline-block;font-family:Manrope,sans-serif;font-size:.8125rem;font-weight:500;line-height:1.4;letter-spacing:.01em;text-transform:none;font-style:normal;color:inherit;text-decoration:underline;text-decoration-color:#C79A6E;text-decoration-thickness:1px;text-underline-offset:4px;transition:text-decoration-color .25s ease}
+  html.sd2-prelaunch:not(.sd2-member) [data-sd2-price]:hover::after{text-decoration-color:currentColor}
+  html.sd2-prelaunch:not(.sd2-member) [data-sd2-price=derived]::after{content:"—";font-size:1rem;text-decoration:none;opacity:.45}
+  html.sd2-prelaunch:not(.sd2-member) .sd2_fin_note[data-sd2-price]::after{content:"Join waitlist to see pricing and repayments"}
   html.sd2-member .sd2_gate{display:none}
   .sd2_gate_card{-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%)}
   html:not(.sd2-auth-known) .sd2_gate_card{opacity:.001}
