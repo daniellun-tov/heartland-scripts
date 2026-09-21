@@ -1401,7 +1401,7 @@
       var cf = {};
       var have = ST.member && ST.member.customFields ? ST.member.customFields : {};
       var homes = homesFrom([ (have["waitlist-homes"] || ""), (extra.homes || []).join(",") ].join(","));
-      if (extra.replaceHomes) { homes = extra.homes.slice(); }
+      if (extra.replaceHomes) { homes = homesFrom((extra.homes || []).join(",")); }
       cf["waitlist-homes"] = homesLabel(homes);
       if (!have["waitlist-joined"]) { cf["waitlist-joined"] = new Date().toISOString().slice(0, 10); }
       if (extra.phone) { cf["mobile-number"] = extra.phone; }
@@ -1614,7 +1614,12 @@
         return;
       }
       busy(cta, true, "Saving…");
-      toggleHome(n).catch(function (err) { log("toggle", err && err.message); })
+      toggleHome(n).then(function () {
+        // The team works from the form submissions, so every change to a member's homes is
+        // sent through section 09 too - not just the first join.
+        chosen = ST.homes.slice();
+        notifyTeam(true);
+      }).catch(function (err) { log("toggle", err && err.message); })
         .then(function () { busy(cta, false); chosen = ST.homes.slice(); paintWaitlist(); });
     }, true);
 
@@ -1724,8 +1729,9 @@
       if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
     }
     // A join from outside section 09 still reaches the team: fill the form and send it.
-    function notifyTeam() {
-      if (!form || form.getAttribute("data-notified")) { return; }
+    // force: send again even if this visit already notified (a home added or removed later).
+    function notifyTeam(force) {
+      if (!form || (!force && form.getAttribute("data-notified"))) { return; }
       form.setAttribute("data-notified", "1");
       var m = ST.member || {};
       var em = field("sd2-email"), ph = field("sd2-contact-number");
@@ -1926,6 +1932,39 @@
       }
       if (Date.now() - t0 < 15000) { setTimeout(function () { poll(t0); }, 150); }
     })(Date.now());
+    paint();
+  })();
+
+  /* ----------------------------------------------------------- 18. feature icons (home cards)
+     Each .sd2_feature gets a line icon chosen from its text (bed, bath, garden, patio, garage,
+     pool, study, solar). The Designer's check icon stays as the fallback for anything else. */
+  (function featureIcons() {
+    var P = {
+      bed: '<path d="M3 18v-6.5A1.5 1.5 0 0 1 4.5 10h15a1.5 1.5 0 0 1 1.5 1.5V18M3 15h18M6 10V7.5A1.5 1.5 0 0 1 7.5 6h9A1.5 1.5 0 0 1 18 7.5V10M3 18v2M21 18v2"/>',
+      bath: '<path d="M3.5 12h17v1.5a5.5 5.5 0 0 1-5.5 5.5H9a5.5 5.5 0 0 1-5.5-5.5V12zM6 12V6.5A2.5 2.5 0 0 1 8.5 4c1.3 0 2.3.9 2.5 2.1M8 19l-1 2M16 19l1 2"/>',
+      garden: '<path d="M5 20c0-8.5 5.5-14 15-15 0 9.5-5.5 15-14 15M5 20c2.5-4.5 6-8 10.5-10.5"/>',
+      patio: '<circle cx="12" cy="12" r="3.5"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>',
+      garage: '<path d="M5 16.5V12l1.8-4.3A1.5 1.5 0 0 1 8.2 6.8h7.6a1.5 1.5 0 0 1 1.4.9L19 12v4.5M4.5 16.5h15M6 16.5V19M18 16.5V19M5 12h14"/><path d="M8 14.2h.01M16 14.2h.01" stroke-width="2.2"/>',
+      pool: '<path d="M3 17c1.5 1.2 3 1.2 4.5 0s3-1.2 4.5 0 3 1.2 4.5 0 3-1.2 4.5 0M3 13c1.5 1.2 3 1.2 4.5 0s3-1.2 4.5 0 3 1.2 4.5 0 3-1.2 4.5 0M8 11V5.5a1.5 1.5 0 0 1 3 0M13 11V5.5a1.5 1.5 0 0 1 3 0"/>',
+      study: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5v-13zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5v-13z"/>',
+      solar: '<path d="M4 18h16l-2-8H6l-2 8zM9 10l-1 8M15 10l1 8M5 14h14M12 3v3M7.5 4.5 9 6M16.5 4.5 15 6"/>'
+    };
+    var RULES = [[/bed/i, "bed"], [/bath|shower/i, "bath"], [/garden|lawn|landscap/i, "garden"], [/patio|terrace|deck|braai|balcon/i, "patio"],
+      [/garage|carport|parking/i, "garage"], [/pool/i, "pool"], [/study|office/i, "study"], [/solar|inverter|battery/i, "solar"]];
+    function paint() {
+      qsa(".sd2_feature").forEach(function (f) {
+        var ic = qs(".sd2_feature_icon", f), tx = qs(".sd2_feature_text", f);
+        if (!ic || !tx) { return; }
+        var t = tx.textContent || "", key = "";
+        RULES.some(function (r) { if (r[0].test(t)) { key = r[1]; return true; } return false; });
+        if (!key) { ic.removeAttribute("data-icon"); ic.innerHTML = ""; return; }
+        if (ic.getAttribute("data-icon") === key) { return; }
+        ic.setAttribute("data-icon", key);
+        ic.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + P[key] + "</svg>";
+      });
+    }
+    d.addEventListener("sd2:catalogue", paint);
+    d.addEventListener("sd2:selected", paint);
     paint();
   })();
 

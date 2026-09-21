@@ -277,6 +277,11 @@
     html.sd2-member .sd2_bar_price{white-space:nowrap}
   }
 
+  /* home-card features: line icons from the bundle replace the check */
+  .sd2_feature_icon[data-icon]{background-image:none}
+  .sd2_feature_icon svg{display:block;width:100%;height:100%}
+  .sd2_features > .sd2_feature:last-child:nth-child(odd){grid-column:1 / -1}
+
   /* team, grouped by the bundle from each card's Portal Group */
   .sd2_team_groups{display:grid;gap:2.75rem}
   .sd2_team_group_head{font-family:var(--_sanford-v2---sd2-font-accent);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:#A9754B;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid rgba(28,26,23,.12)}
