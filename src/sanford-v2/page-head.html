@@ -260,6 +260,15 @@
   .sd2_fav_item span{display:block;margin-top:.2rem;color:rgba(28,26,23,.55);font-size:.75rem;font-weight:400}
   .sd2_fav_item:hover,.sd2_fav_x:hover{background:rgba(28,26,23,.06)}
   .sd2_fav_x{appearance:none;width:2rem;height:2rem;border:0;border-radius:50%;background:transparent;color:rgba(28,26,23,.45);font-size:1rem;cursor:pointer}
+  /* the saved-home heart on masterplan pins and strip cards */
+  .sd2_fav_mark{display:none;position:absolute;place-items:center;width:18px;height:18px;border-radius:50%;background:#F6F3EE;color:#A9754B;box-shadow:0 2px 8px rgba(28,26,23,.3);pointer-events:none}
+  .sd2_fav_mark svg{width:11px;height:11px}
+  .sd2_fav_mark path{fill:currentColor}
+  .is-fav > .sd2_fav_mark{display:grid;animation:sd2-fav-pop .45s cubic-bezier(.2,.7,.2,1)}
+  .sd2_pin > .sd2_fav_mark{top:-7px;right:-7px}
+  .sd2_strip_btn{position:relative}
+  .sd2_strip_btn > .sd2_fav_mark{top:.5rem;right:.5rem;box-shadow:none;background:rgba(169,117,75,.16)}
+  .sd2_strip_btn.is-active > .sd2_fav_mark{background:rgba(169,117,75,.14)}
   @media screen and (max-width: 767px){
     .sd2_bar_favs{margin-right:.375rem;gap:.25rem}
     .sd2_fav_btn{width:2.25rem;height:2.25rem}

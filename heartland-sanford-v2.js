@@ -1872,6 +1872,17 @@
         row.appendChild(item); row.appendChild(x); pop.appendChild(row);
       });
       if (!favs.length) { closePop(); }
+      // The same heart marks each saved home on the masterplan pin and its strip card.
+      units().forEach(function (fu) {
+        var fav = favs.indexOf(String(fu.n)) >= 0;
+        [fu.pin, fu.strip && qs(".sd2_strip_btn", fu.strip)].forEach(function (host) {
+          if (!host) { return; }
+          var m = qs(".sd2_fav_mark", host);
+          if (!m && fav) { m = mk("span", "sd2_fav_mark"); m.setAttribute("aria-hidden", "true"); m.innerHTML = HEART; host.appendChild(m); }
+          host.classList.toggle("is-fav", fav);
+          if (fav) { host.setAttribute("title", "Saved to your favourites"); } else { host.removeAttribute("title"); }
+        });
+      });
     }
     function save(prev) {
       if (!ms || !member) { return; }
