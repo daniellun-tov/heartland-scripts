@@ -248,6 +248,27 @@
      clip crops the same way without creating one. */
   .sd2_aerial_media{overflow:clip}
 
+  /* street map (MapLibre + OpenFreeMap, built by the bundle): markers and controls */
+  .sd2_aerial_map_host .maplibregl-canvas{outline:none}
+  .sd2_mk{position:relative;display:flex;flex-direction:column;align-items:center;pointer-events:none}
+  .sd2_mk_pin{position:relative;display:flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;border:2px solid #FCFAF7;border-radius:50%;background:#5B6152;box-shadow:0 10px 24px rgba(28,26,23,.32)}
+  .sd2_mk_pin::after{content:"";position:absolute;left:50%;bottom:-9px;margin-left:-6px;border:6px solid transparent;border-top:8px solid #FCFAF7;border-bottom:0}
+  .sd2_mk_mono{color:#FCFAF7;font-family:var(--_sanford-v2---sd2-font-accent),Righteous,sans-serif;font-size:.95rem;letter-spacing:.04em;line-height:1}
+  .sd2_mk_name{position:absolute;left:50%;top:calc(100% + .75rem);transform:translateX(-50%);padding:.4rem .65rem;border-radius:999px;background:#1C1A17;color:#F6F3EE;font:500 .625rem/1 Manrope,sans-serif;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap}
+  .sd2_mk_poi{display:flex;align-items:center;gap:.45rem}
+  .sd2_mk_poi.is-east{flex-direction:row-reverse}
+  .sd2_mk_dot{flex:none;width:12px;height:12px;border-radius:50%;background:#A9754B;box-shadow:0 0 0 3px #FCFAF7,0 2px 8px rgba(28,26,23,.3)}
+  .sd2_mk_text{padding:.32rem .6rem;border-radius:999px;background:rgba(252,250,247,.95);box-shadow:0 4px 14px rgba(28,26,23,.14);color:#1C1A17;font:500 .6875rem/1.2 Manrope,sans-serif;white-space:nowrap}
+  .sd2_mk_time{margin-left:.4rem;color:#A9754B}
+  .sd2_aerial_map .maplibregl-ctrl-group{border-radius:.625rem;box-shadow:0 6px 18px rgba(28,26,23,.16)}
+  .sd2_aerial_map .maplibregl-ctrl-attrib{font:400 .625rem/1.4 Manrope,sans-serif;color:rgba(28,26,23,.6)}
+  .sd2_aerial_map .maplibregl-ctrl-attrib a{color:inherit}
+  .sd2_aerial_map .maplibregl-cooperative-gesture-screen{font-family:Manrope,sans-serif;background:rgba(28,26,23,.55)}
+  @media screen and (max-width: 767px){
+    .sd2_mk_text{font-size:.625rem;padding:.28rem .5rem}
+    .sd2_mk_name{font-size:.5625rem}
+  }
+
   /* supporting documents: a "Coming soon" row is not a download */
   .sd2_text_doc-link.is-soon{cursor:default;border-bottom-style:dashed;color:rgba(28,26,23,.55)}
   .sd2_text_doc-link.is-soon .sd2_doc_icon{opacity:.35}

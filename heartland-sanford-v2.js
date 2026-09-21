@@ -1048,11 +1048,49 @@
     paintFinance();
   })();
 
-  /* ----------------------------------------------------------- 13. maps (click-to-load, no third-party bytes until asked) */
+  /* ----------------------------------------------------------- 13. maps (click-to-load, no third-party bytes until asked)
+
+     "Show on Street Map" in section 07 opens a MapLibre GL map on OpenFreeMap vector tiles
+     (free, no key, no cookies; OSM attribution shown in the corner). The style is built here,
+     not loaded: only the layers worth seeing - water, parks, roads ranked by importance, suburb
+     names and major road names - in Sanford's cream / sand / clay palette. No POIs from the
+     tiles; the only places on the map are Sanford Heart and the section 06 rows that carry
+     data-lat / data-lng (edit those in the Designer and the map follows).
+
+     MapLibre (UMD, pinned + SRI) is fetched when the section comes within a screen of view, so
+     the click is instant; nothing loads for visitors who never get there. No WebGL, or the
+     library fails to load -> the old OpenStreetMap iframe. */
   (function maps() {
     var lat = -25.7915, lng = 28.2430;
     var cfg = qs("[data-sd2-geo]");
     if (cfg) { lat = num(cfg.getAttribute("data-lat")) || lat; lng = num(cfg.getAttribute("data-lng")) || lng; }
+    var ML = {
+      js: "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js",
+      jsSri: "sha384-5+cfbwT0iiub6VsQAdn6yz16nr6sDiQoHx6tm4O8OVYXHYOxcffFmCJBL0dgdvGp",
+      css: "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css",
+      cssSri: "sha384-uTttxo/aOKbdE5RlD/SPzSDoDmNvGlUYPjONi2MN/b7c9HPSvW07OIuyP7uL6jxK"
+    };
+    var mlP = null;
+    function loadML() {
+      if (w.maplibregl) { return Promise.resolve(w.maplibregl); }
+      if (mlP) { return mlP; }
+      mlP = new Promise(function (res, rej) {
+        var l = d.createElement("link");
+        l.rel = "stylesheet"; l.href = ML.css; l.integrity = ML.cssSri; l.crossOrigin = "anonymous";
+        d.head.appendChild(l);
+        var sc = d.createElement("script");
+        sc.src = ML.js; sc.integrity = ML.jsSri; sc.crossOrigin = "anonymous"; sc.async = true;
+        sc.onload = function () { if (w.maplibregl) { res(w.maplibregl); } else { rej(new Error("maplibre missing")); } };
+        sc.onerror = rej;
+        d.head.appendChild(sc);
+      });
+      mlP.catch(function () { mlP = null; });
+      return mlP;
+    }
+    function webgl() {
+      try { var c = d.createElement("canvas"); return !!(w.WebGL2RenderingContext && c.getContext("webgl2")) || !!c.getContext("webgl"); } catch (e) { return false; }
+    }
+
     function osm() {
       var dLat = 0.006, dLng = 0.009;
       var bbox = [lng - dLng, lat - dLat, lng + dLng, lat + dLat].join("%2C");
@@ -1068,22 +1106,134 @@
       f.src = osm();
       host.appendChild(f);
     }
+
+    /* ---- the style: Sanford's palette over OpenMapTiles layers */
+    var C = { bg: "#EEE9E1", park: "#DDE0CE", green: "#E3E3D5", water: "#C9D4D2", bld: "#E6DFD5",
+      minor: "#FBF8F3", mid: "#FFFFFF", midCase: "#DDD3C6", major: "#FFFDF9", majorCase: "#D2BFA8",
+      mw: "#EBD3B5", mwCase: "#C79A6E", label: "#6E6458", place: "#9A8D7E", halo: "#F6F3EE", clay: "#A9754B" };
+    function wz(a, b) { return ["interpolate", ["exponential", 1.6], ["zoom"], 10, a, 17, b]; }
+    function cls(list) { return ["match", ["get", "class"], list, true, false]; }
+    function road(id, list, color, width, minzoom) {
+      return { id: id, type: "line", source: "omt", "source-layer": "transportation", minzoom: minzoom || 0,
+        filter: ["all", cls(list), ["!=", ["get", "brunnel"], "tunnel"]],
+        layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": color, "line-width": width } };
+    }
+    function style() {
+      var F = ["Noto Sans Regular"], FB = ["Noto Sans Bold"];
+      return {
+        version: 8,
+        glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+        sources: { omt: { type: "vector", url: "https://tiles.openfreemap.org/planet",
+          attribution: '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">&copy; OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' } },
+        layers: [
+          { id: "bg", type: "background", paint: { "background-color": C.bg } },
+          { id: "green", type: "fill", source: "omt", "source-layer": "landcover", filter: cls(["wood", "grass", "scrub"]), paint: { "fill-color": C.green, "fill-opacity": 0.8 } },
+          { id: "park", type: "fill", source: "omt", "source-layer": "park", paint: { "fill-color": C.park, "fill-opacity": 0.9 } },
+          { id: "water", type: "fill", source: "omt", "source-layer": "water", paint: { "fill-color": C.water } },
+          { id: "waterway", type: "line", source: "omt", "source-layer": "waterway", minzoom: 12, paint: { "line-color": C.water, "line-width": ["interpolate", ["linear"], ["zoom"], 12, 0.6, 17, 2.5] } },
+          { id: "building", type: "fill", source: "omt", "source-layer": "building", minzoom: 14.5, paint: { "fill-color": C.bld, "fill-opacity": ["interpolate", ["linear"], ["zoom"], 14.5, 0, 15.5, 0.9] } },
+          road("minor", ["minor", "service"], C.minor, wz(0.2, 6), 12.5),
+          road("mid-case", ["secondary", "tertiary"], C.midCase, wz(1, 12), 10.5),
+          road("mid", ["secondary", "tertiary"], C.mid, wz(0.6, 10), 10.5),
+          road("major-case", ["primary", "trunk"], C.majorCase, wz(1.5, 15)),
+          road("major", ["primary", "trunk"], C.major, wz(1, 12.5)),
+          road("mw-case", ["motorway"], C.mwCase, wz(1.8, 17)),
+          road("mw", ["motorway"], C.mw, wz(1.2, 14)),
+          { id: "place", type: "symbol", source: "omt", "source-layer": "place", minzoom: 11,
+            filter: cls(["suburb", "neighbourhood", "quarter"]),
+            layout: { "text-field": ["upcase", ["get", "name"]], "text-font": F, "text-size": ["interpolate", ["linear"], ["zoom"], 11, 9, 15, 11],
+              "text-letter-spacing": 0.2, "text-max-width": 7, "text-padding": 6 },
+            paint: { "text-color": C.place, "text-halo-color": C.halo, "text-halo-width": 1.4 } },
+          { id: "road-name", type: "symbol", source: "omt", "source-layer": "transportation_name", minzoom: 12.5,
+            filter: cls(["motorway", "trunk", "primary", "secondary"]),
+            layout: { "symbol-placement": "line", "text-field": ["coalesce", ["get", "name"], ""], "text-font": F,
+              "text-size": ["interpolate", ["linear"], ["zoom"], 12.5, 9.5, 16, 12], "text-letter-spacing": 0.03, "symbol-spacing": 320 },
+            paint: { "text-color": C.label, "text-halo-color": C.minor, "text-halo-width": 1.6 } },
+          { id: "road-ref", type: "symbol", source: "omt", "source-layer": "transportation_name", minzoom: 9,
+            filter: ["all", cls(["motorway", "trunk"]), ["has", "ref"]],
+            layout: { "symbol-placement": "line", "text-field": ["get", "ref"], "text-font": FB, "text-size": 10,
+              "text-rotation-alignment": "viewport", "symbol-spacing": 420, "text-letter-spacing": 0.06 },
+            paint: { "text-color": "#FCFAF7", "text-halo-color": C.clay, "text-halo-width": 3.5 } }
+        ]
+      };
+    }
+
+    /* ---- the places: Sanford + every section 06 row with coordinates */
+    function places() {
+      return qsa("[data-lat][data-lng]").filter(function (el) { return el !== cfg && !!qs(".sd2_nearby_place", el); }).map(function (el) {
+        var t = qs(".sd2_nearby_time", el);
+        return { lat: num(el.getAttribute("data-lat")), lng: num(el.getAttribute("data-lng")),
+          name: (qs(".sd2_nearby_place", el).textContent || "").trim(), time: t ? t.textContent.trim() : "" };
+      }).filter(function (p) { return p.lat && p.lng; });
+    }
+    function el(tag, cl, text) { var e = d.createElement(tag); e.className = cl; if (text) { e.textContent = text; } return e; }
+
+    var map = null;
+    function build(host) {
+      if (map) { map.resize(); return; }
+      if (!webgl()) { inject(host); return; }
+      loadML().then(function (ml) {
+        if (map) { return; }
+        // MapLibre sets position:relative on its container, which would collapse the absolutely
+        // positioned host to zero height - so the map gets its own filling box inside it.
+        var box = d.createElement("div");
+        box.className = "sd2_map_gl";
+        box.style.cssText = "position:absolute;top:0;right:0;bottom:0;left:0";
+        host.appendChild(box);
+        map = new ml.Map({
+          container: box, style: style(), center: [lng, lat], zoom: 13.5, minZoom: 10, maxZoom: 17.5,
+          attributionControl: { compact: true }, cooperativeGestures: true,
+          dragRotate: false, pitchWithRotate: false, touchPitch: false, renderWorldCopies: false
+        });
+        map.touchZoomRotate.disableRotation();
+        map.addControl(new ml.NavigationControl({ showCompass: false }), "bottom-right");
+        var home = el("div", "sd2_mk");
+        var pin = el("div", "sd2_mk_pin"); pin.appendChild(el("div", "sd2_mk_mono", "SH"));
+        home.appendChild(pin); home.appendChild(el("div", "sd2_mk_name", "Sanford Heart"));
+        new ml.Marker({ element: home, anchor: "bottom" }).setLngLat([lng, lat]).addTo(map);
+        home.style.zIndex = "2";   // the home always sits above a neighbouring label
+        var b = new ml.LngLatBounds([lng, lat], [lng, lat]);
+        places().forEach(function (p) {
+          // Labels point away from Sanford, so places east of it read leftwards and never run
+          // off the right edge of a narrow screen.
+          var east = p.lng > lng;
+          var m = el("div", "sd2_mk_poi" + (east ? " is-east" : ""));
+          m.appendChild(el("span", "sd2_mk_dot"));
+          var tx = el("span", "sd2_mk_text", p.name);
+          if (p.time) { tx.appendChild(el("span", "sd2_mk_time", p.time)); }
+          m.appendChild(tx);
+          new ml.Marker({ element: m, anchor: east ? "right" : "left", offset: [east ? 6 : -6, 0] }).setLngLat([p.lng, p.lat]).addTo(map);
+          // mirror each place through Sanford so the fitted view is centred on the home
+          b.extend([p.lng, p.lat]);
+          b.extend([2 * lng - p.lng, 2 * lat - p.lat]);
+        });
+        var small = w.matchMedia("(max-width: 767px)").matches;
+        map.fitBounds(b, { padding: small ? { top: 70, bottom: 50, left: 16, right: 16 } : { top: 90, bottom: 90, left: 60, right: 60 }, maxZoom: 14.5, duration: 0 });
+        log("map ready");
+      }).catch(function (err) { log("map fallback", err); inject(host); });
+    }
+
+    var aerial = qs(".sd2_aerial_map");
+    if (aerial && "IntersectionObserver" in w && webgl()) {
+      var io = new IntersectionObserver(function (es) {
+        if (es.some(function (e) { return e.isIntersecting; })) { io.disconnect(); loadML().catch(function () {}); }
+      }, { rootMargin: "100% 0px" });
+      io.observe(aerial.parentNode || aerial);
+    }
     qsa("[data-sd2-map-load]").forEach(function (b) {
       on(b, "click", function (e) {
         e.preventDefault();
-        var host = b.closest(".sd2_loc_map");
-        inject(host);
+        inject(b.closest(".sd2_loc_map"));
         b.style.display = "none";
       });
     });
-    var aerial = qs(".sd2_aerial_map");
     qsa("[data-sd2-aerial-toggle]").forEach(function (b) {
       on(b, "click", function (e) {
         e.preventDefault();
         if (!aerial) { return; }
         var open = !aerial.classList.contains("is-open");
-        if (open) { inject(qs(".sd2_aerial_map_host", aerial) || aerial); }
         aerial.classList.toggle("is-open", open);
+        if (open) { build(qs(".sd2_aerial_map_host", aerial) || aerial); }
         qsa("[data-sd2-aerial-toggle][data-label-open]").forEach(function (x) {
           x.textContent = open ? x.getAttribute("data-label-open") : x.getAttribute("data-label-closed");
         });
