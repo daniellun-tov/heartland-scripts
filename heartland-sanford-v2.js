@@ -617,11 +617,16 @@
   function paintSelected() {
     var u = SEL.selected && unitBy(SEL.selected);
     if (!u) { return; }
+    var member = d.documentElement.classList.contains("sd2-member");
     qsa("[data-sd2-selected]").forEach(function (el) {
       var k = el.getAttribute("data-sd2-selected");
-      // Before launch the sticky bar carries the countdown and nothing quotes a home's price
-      // or holds it; the waitlist module paints those places instead.
-      if (PRE && (el.closest("[data-sd2-bar]") || /^(price|cta|ref|note|home-type)$/.test(k))) { return; }
+      var inBar = !!el.closest("[data-sd2-bar]");
+      // Before launch the sticky bar carries the countdown for visitors; a waitlist member sees
+      // the selected home there instead (with a "from" price), so it can be favourited.
+      // Nothing else quotes a home's price or holds it; the waitlist module paints those.
+      if (PRE && inBar && !member) { return; }
+      if (PRE && inBar && k === "price") { el.textContent = u.price ? "From " + money(u.price) : ""; return; }
+      if (PRE && !inBar && /^(price|cta|ref|note|home-type)$/.test(k)) { return; }
       if (k === "n") { el.textContent = u.n; }
       else if (k === "type") { el.textContent = "Type " + u.letter; }
       else if (k === "type-line") { el.textContent = "Type " + u.letter + (TYPES[u.typeSlug] && TYPES[u.typeSlug].desc ? " · " + TYPES[u.typeSlug].desc.toLowerCase() : ""); }
@@ -631,6 +636,7 @@
       else if (k === "ref") { el.textContent = "SH-" + (u.no.length < 2 ? "0" + u.no : u.no); }
       else if (k === "note") { el.textContent = "We hold home " + u.n + " for 14 days from receipt of the deposit."; }
     });
+    d.dispatchEvent(new CustomEvent("sd2:selected", { detail: u }));
     if (PRE) { return; }
     var hidden = qs("#reservation-form input[name=\"Unit ID\"]");
     if (hidden) { hidden.value = u.name || u.slug; }
@@ -1311,7 +1317,7 @@
       });
       // The sticky bar trades the selected home for the countdown before launch.
       var bar = qs("[data-sd2-bar]");
-      if (bar) {
+      if (bar && !html.classList.contains("sd2-member")) {
         var no = qs(".sd2_bar_no", bar), ty = qs(".sd2_bar_type", bar), pr = qs(".sd2_bar_price", bar);
         if (no) { no.textContent = "SH"; }
         if (ty) { ty.textContent = live ? "Sanford Heart is live" : "Launching in"; }
@@ -1376,6 +1382,8 @@
       html.classList.toggle("sd2-signed-in", !!m);
       html.classList.add("sd2-auth-known");
       paintWaitlist();
+      paintSelected();
+      d.dispatchEvent(new CustomEvent("sd2:member", { detail: ST.member }));
     }
 
     function msError(err) {
@@ -1701,6 +1709,7 @@
         if (sub) { sub.value = ST.onList ? "Update My Waitlist" : "Join the Waitlist"; }
       }
       paintPicker();
+      qsa(".sd2_bar_cta, .sd2_nav_cta").forEach(function (a) { a.textContent = ST.onList ? "My Waitlist" : "Join the Waitlist"; });
       qsa("[data-sd2-wl=status]").forEach(function (el) {
         el.textContent = ST.onList ? (ST.homes.length ? "On the list · " + homesLabel(ST.homes) : "On the list") : "Not yet";
       });
@@ -1709,6 +1718,8 @@
     // Hand the (already Memberstack-saved) submission to Webflow's own form handler.
     function nativeSubmit() {
       if (!form) { return; }
+      var dt = qs("[data-sd2-done-title]");
+      if (dt && ST.onList && form.getAttribute("data-notified")) { dt.textContent = "Your waitlist is updated."; }
       ST.pass = true;
       if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
     }
@@ -1806,6 +1817,105 @@
     }, true);
     on(d, "keydown", function (e) { if (e.key === "Escape") { close(); } });
     w.SD2_POI = { open: open, close: close };
+  })();
+
+  /* ----------------------------------------------------------- 17. favourites (floating bar)
+     A signed-in member can heart homes. The heart in the sticky bar toggles the home that is
+     selected on the plan; the count beside it opens a small list of saved homes (tap one to
+     select it, x to remove it). Saved on the member as the Memberstack custom field
+     "favourite-homes" ("Home 2, Home 5"), so the sales team sees them too. Hidden for anyone
+     who is not signed in. */
+  (function favourites() {
+    var bar = qs("[data-sd2-bar]");
+    if (!bar) { return; }
+    var FIELD = "favourite-homes";
+    var ms = null, member = null, favs = [];
+    var HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20.3s-7.4-4.5-9.2-9C1.5 8 3.4 4.6 6.9 4.6c2.1 0 3.6 1.2 4.3 2.4l.8 1.3.8-1.3c.7-1.2 2.2-2.4 4.3-2.4 3.5 0 5.4 3.4 4.1 6.7-1.8 4.5-9.2 9-9.2 9z"/></svg>';
+    function mk(tag, cl, txt) { var e = d.createElement(tag); e.className = cl; if (txt) { e.textContent = txt; } return e; }
+    var wrap = mk("div", "sd2_bar_favs");
+    var btn = mk("button", "sd2_fav_btn"); btn.type = "button"; btn.innerHTML = HEART;
+    var count = mk("button", "sd2_fav_count"); count.type = "button"; count.hidden = true;
+    count.setAttribute("aria-haspopup", "true"); count.setAttribute("aria-expanded", "false");
+    var pop = mk("div", "sd2_fav_pop"); pop.setAttribute("role", "menu");
+    wrap.appendChild(btn); wrap.appendChild(count); wrap.appendChild(pop);
+    var cta = qs(".sd2_bar_cta", bar);
+    if (cta) { cta.parentNode.insertBefore(wrap, cta); } else { bar.appendChild(wrap); }
+
+    function nums(v) { var seen = {}; return (String(v || "").match(/\d+/g) || []).filter(function (n) { n = String(+n); if (seen[n]) { return false; } seen[n] = 1; return true; }).map(function (n) { return String(+n); }); }
+    function units() { return (w.SD2 && w.SD2.units()) || []; }
+    function unitN(n) { return units().filter(function (u) { return String(u.n) === String(n); })[0]; }
+    function current() { var s = w.SD2 && w.SD2.state.selected; return s ? units().filter(function (u) { return u.slug === s; })[0] : null; }
+
+    function paint() {
+      var u = current(), isOn = !!(u && favs.indexOf(String(u.n)) >= 0);
+      btn.classList.toggle("is-on", isOn);
+      btn.setAttribute("aria-pressed", isOn ? "true" : "false");
+      btn.setAttribute("aria-label", u ? (isOn ? "Remove Home " + u.n + " from favourites" : "Save Home " + u.n + " to favourites") : "Select a home to save it");
+      btn.disabled = !u;
+      count.hidden = !favs.length;
+      count.textContent = favs.length ? String(favs.length) : "";
+      count.setAttribute("aria-label", favs.length + " saved " + (favs.length === 1 ? "home" : "homes"));
+      pop.innerHTML = "";
+      pop.appendChild(mk("p", "sd2_fav_pop_title", "Saved homes"));
+      favs.forEach(function (n) {
+        var fu = unitN(n);
+        var row = mk("div", "sd2_fav_row");
+        var item = mk("button", "sd2_fav_item", "Home " + n); item.type = "button"; item.setAttribute("role", "menuitem");
+        if (fu) { item.appendChild(mk("span", "", "Type " + fu.letter + " · " + fu.status)); }
+        on(item, "click", function () {
+          closePop();
+          if (fu && w.SD2) { w.SD2.pick(fu.slug, false); }
+          var sel = d.getElementById("sd2-select"); if (sel) { sel.scrollIntoView({ behavior: "smooth", block: "start" }); }
+        });
+        var x = mk("button", "sd2_fav_x", "×"); x.type = "button"; x.setAttribute("aria-label", "Remove Home " + n);
+        on(x, "click", function (e) { e.stopPropagation(); toggle(n); });
+        row.appendChild(item); row.appendChild(x); pop.appendChild(row);
+      });
+      if (!favs.length) { closePop(); }
+    }
+    function save(prev) {
+      if (!ms || !member) { return; }
+      var cf = {}; cf[FIELD] = favs.map(function (n) { return "Home " + n; }).join(", ");
+      ms.updateMember({ customFields: cf }).catch(function (err) { log("favourites", err && err.message); favs = prev; paint(); });
+    }
+    function toggle(n) {
+      n = String(n);
+      var prev = favs.slice(), i = favs.indexOf(n);
+      if (i >= 0) { favs.splice(i, 1); } else { favs.push(n); favs.sort(function (a, b) { return a - b; }); }
+      paint(); save(prev);
+    }
+    function openPop() { if (!favs.length) { return; } pop.classList.add("is-open"); count.setAttribute("aria-expanded", "true"); }
+    function closePop() { pop.classList.remove("is-open"); count.setAttribute("aria-expanded", "false"); }
+
+    on(btn, "click", function () {
+      var u = current(); if (!u) { return; }
+      if (!member) { if (w.SD2_WAITLIST) { w.SD2_WAITLIST.open("email"); } return; }
+      var adding = favs.indexOf(String(u.n)) < 0;
+      toggle(u.n);
+      if (adding) { btn.classList.remove("is-pop"); void btn.offsetWidth; btn.classList.add("is-pop"); }
+    });
+    on(count, "click", function () { if (pop.classList.contains("is-open")) { closePop(); } else { openPop(); } });
+    on(d, "click", function (e) { if (!wrap.contains(e.target)) { closePop(); } }, true);
+    on(d, "keydown", function (e) { if (e.key === "Escape") { closePop(); } });
+
+    function setM(m) {
+      member = m || null;
+      favs = member && member.customFields ? nums(member.customFields[FIELD]) : [];
+      paint();
+    }
+    d.addEventListener("sd2:selected", paint);
+    d.addEventListener("sd2:catalogue", paint);
+    d.addEventListener("sd2:member", function (e) { setM(e.detail); });
+    (function poll(t0) {
+      if (w.$memberstackDom) {
+        ms = w.$memberstackDom;
+        ms.getCurrentMember().then(function (r) { setM(r && r.data); }).catch(function () { setM(null); });
+        if (!PRE && ms.onAuthChange) { ms.onAuthChange(function (m) { setM(m && (m.data || m)); }); }
+        return;
+      }
+      if (Date.now() - t0 < 15000) { setTimeout(function () { poll(t0); }, 150); }
+    })(Date.now());
+    paint();
   })();
 
   /* ----------------------------------------------------------- 14. boot the catalogue-driven parts */

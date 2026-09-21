@@ -238,6 +238,36 @@
   [data-sd2-detail=cta].is-on-list{background-color:#A9754B;color:#FCFAF7}
   .sd2_price_note{margin:.35rem 0 0;font-size:.75rem;line-height:1.45;color:rgba(28,26,23,.55)}
 
+  /* favourites in the sticky bar (signed-in members only; built by the bundle) */
+  .sd2_bar_favs{position:relative;display:none;align-items:center;gap:.375rem;margin-left:auto;margin-right:.625rem}
+  html.sd2-signed-in .sd2_bar_favs{display:flex}
+  .sd2_fav_btn{appearance:none;display:grid;place-items:center;width:2.5rem;height:2.5rem;padding:0;border:1px solid rgba(246,243,238,.22);border-radius:50%;background:transparent;color:rgba(246,243,238,.8);cursor:pointer;transition:color .25s,border-color .25s,transform .35s cubic-bezier(.2,.7,.2,1)}
+  .sd2_fav_btn path{fill:transparent;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round;transition:fill .25s}
+  .sd2_fav_btn:hover{border-color:#C79A6E;color:#F6F3EE}
+  .sd2_fav_btn.is-on{border-color:#C79A6E;color:#C79A6E}
+  .sd2_fav_btn.is-on path{fill:currentColor}
+  .sd2_fav_btn.is-pop{animation:sd2-fav-pop .45s cubic-bezier(.2,.7,.2,1)}
+  @keyframes sd2-fav-pop{40%{transform:scale(1.18)}100%{transform:scale(1)}}
+  .sd2_fav_btn:disabled{opacity:.35;cursor:default}
+  .sd2_fav_btn:focus-visible,.sd2_fav_count:focus-visible{outline:2px solid #C79A6E;outline-offset:2px}
+  .sd2_fav_count{appearance:none;min-width:1.75rem;height:1.75rem;padding:0 .55rem;border:0;border-radius:999px;background:rgba(246,243,238,.12);color:#F6F3EE;font:600 .75rem/1 Manrope,sans-serif;cursor:pointer}
+  .sd2_fav_count[hidden]{display:none}
+  .sd2_fav_pop{position:absolute;right:0;bottom:calc(100% + 1rem);display:none;min-width:14rem;padding:.375rem;border-radius:.75rem;background:#F6F3EE;color:#1C1A17;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+  .sd2_fav_pop.is-open{display:block;animation:sd2-rise .3s cubic-bezier(.2,.7,.2,1) both}
+  .sd2_fav_pop_title{margin:0;padding:.6rem .625rem .4rem;color:#A9754B;font:500 .625rem/1 Manrope,sans-serif;letter-spacing:.16em;text-transform:uppercase}
+  .sd2_fav_row{display:flex;align-items:center}
+  .sd2_fav_item{flex:1;appearance:none;padding:.55rem .625rem;border:0;border-radius:.5rem;background:transparent;color:#1C1A17;font:500 .875rem/1.2 Manrope,sans-serif;text-align:left;cursor:pointer}
+  .sd2_fav_item span{display:block;margin-top:.2rem;color:rgba(28,26,23,.55);font-size:.75rem;font-weight:400}
+  .sd2_fav_item:hover,.sd2_fav_x:hover{background:rgba(28,26,23,.06)}
+  .sd2_fav_x{appearance:none;width:2rem;height:2rem;border:0;border-radius:50%;background:transparent;color:rgba(28,26,23,.45);font-size:1rem;cursor:pointer}
+  @media screen and (max-width: 767px){
+    .sd2_bar_favs{margin-right:.375rem;gap:.25rem}
+    .sd2_fav_btn{width:2.25rem;height:2.25rem}
+    .sd2_fav_pop{right:-4rem}
+    html.sd2-member .sd2_bar_type{display:none}
+    html.sd2-member .sd2_bar_price{white-space:nowrap}
+  }
+
   /* team, grouped by the bundle from each card's Portal Group */
   .sd2_team_groups{display:grid;gap:2.75rem}
   .sd2_team_group_head{font-family:var(--_sanford-v2---sd2-font-accent);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:#A9754B;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid rgba(28,26,23,.12)}
