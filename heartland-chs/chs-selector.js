@@ -17,6 +17,7 @@
      3. stacks both floors so ground and first are visible at once
      4. shows one apartment at a time (all six share the same five plots)
      5. fills the panel, prefills the form, draws the snapshot
+     6. switches the form between Reserve and Enquire only
 
    Styling lives in these Webflow classes — edit them in the Designer:
      chs_selector_wrap  chs_floors_switch  chs_floors_tab (+ is-chs-active)
@@ -71,7 +72,7 @@
 
   // bands: each floor's vertical slice of the stacked stage, 0-1 of stage height.
   // Measured from the plan images themselves - no hardcoded dimensions.
-  var state = { apartment: null, selectedId: null, beds: [], bands: null, sig: '', all: {} };
+  var state = { apartment: null, selectedId: null, beds: [], bands: null, sig: '', all: {}, mode: 'reserve' };
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
@@ -672,6 +673,7 @@
     // The snapshot only means anything next to a chosen bed.
     var snap = $('[data-chs="snapshot"]');
     if (snap) snap.classList.toggle(STATE_CLASS.hidden, !picked);
+    paintMode();
   }
 
   function fillPanel(bed) {
@@ -693,6 +695,69 @@
     put(p, 'sharing',   bed.share === '1' ? 'Private room' : 'You would share with 1 other');
     put(p, 'gender',    bed.gender ? bed.gender + ' apartment' : '');
     paintPanelState(true);
+  }
+
+  /* ---------- reserve or enquire only ------------------------------------
+     One form, two modes. "Reserve" is the original flow: Make flips the bed
+     to Reserved and the student goes on to the lease application. "Enquire
+     only" posts the same form with nothing reserved and no hand-off - the
+     student sees Webflow's thank-you block instead. Works with or without a
+     bed chosen.
+
+     Everything that differs lives on the Webflow elements:
+       data-chs="enquire-cta"       any element that opens the form to enquire
+       data-chs-enquire="…"         text (or input value) used in enquire mode;
+                                    the reserve-mode original is stashed in
+                                    data-chs-reserve on first swap. On the
+                                    `automation` input this is what keeps Make's
+                                    router from reserving the bed.
+       data-chs-mode="reserve|enquire"   shown only in that mode
+       data-chs-mode-needs-bed      ...and only while a bed is chosen
+     The form carries data-chs-form-mode so the hand-off can read it.      */
+  var MODE = { reserve: 'reserve', enquire: 'enquire' };
+
+  // The hidden inputs fillForm() writes. Cleared when no bed is chosen so an
+  // enquiry never carries a stale bed.
+  var BED_FIELDS = ['bed-item-id', 'bed-name', 'bed-number', 'unit-number', 'room',
+                    'room-type', 'floor', 'gender', 'rate', 'bed-link'];
+
+  function swapModeText(el, enquire) {
+    var isInput = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA';
+    if (!el.hasAttribute('data-chs-reserve')) {
+      el.setAttribute('data-chs-reserve', isInput ? el.value : el.textContent);
+    }
+    var v = el.getAttribute(enquire ? 'data-chs-enquire' : 'data-chs-reserve') || '';
+    if (isInput) { if (el.value !== v) el.value = v; }
+    else if (el.textContent !== v) el.textContent = v;
+  }
+
+  function paintMode() {
+    var enquire = state.mode === MODE.enquire;
+    var picked  = !!state.selectedId;
+    var form = $('[data-chs="reserve-form"]');
+
+    $$('[data-chs-enquire]').forEach(function (el) { swapModeText(el, enquire); });
+    $$('[data-chs-mode]').forEach(function (el) {
+      var show = el.getAttribute('data-chs-mode') === state.mode &&
+                 (picked || !el.hasAttribute('data-chs-mode-needs-bed'));
+      el.classList.toggle(STATE_CLASS.hidden, !show);
+    });
+
+    if (!form) return;
+    form.setAttribute('data-chs-form-mode', state.mode);
+    if (!picked) {
+      BED_FIELDS.forEach(function (n) {
+        var i = form.querySelector('[name="' + n + '"]');
+        if (i) i.value = '';
+      });
+      // A reservation needs a bed; an enquiry does not.
+      if (!enquire) form.classList.remove(STATE_CLASS.shown);
+    }
+  }
+
+  function setMode(mode) {
+    state.mode = mode === MODE.enquire ? MODE.enquire : MODE.reserve;
+    paintMode();
   }
 
   /* "Reserve this bed" in the panel: bring the form up and put the cursor in
@@ -836,7 +901,18 @@
       window.location.assign(url);
     }
 
+    var ownRedirect = form.getAttribute('data-redirect');
+
     form.addEventListener('submit', function () {
+      // Enquire only: no lease hand-off - let Webflow show its thank-you.
+      if (form.getAttribute('data-chs-form-mode') === MODE.enquire) {
+        target = '';
+        release();
+        if (ownRedirect) form.setAttribute('data-redirect', ownRedirect);
+        else form.removeAttribute('data-redirect');
+        try { var wfe = window.jQuery && window.jQuery.data(form, 'w-form'); if (wfe) wfe.redirect = ownRedirect || ''; } catch (e) {}
+        return;
+      }
       var url = leaseUrl(form);
       if (!url) return;
       // Webflow reads the redirect it cached at init, not the attribute -
@@ -998,8 +1074,14 @@
     // Delegated so it survives Finsweet re-rendering the list.
     document.addEventListener('click', function (e) {
       var t = e.target;
+      var enq = t.closest ? t.closest('[data-chs="enquire-cta"]') : null;
+      if (enq) { e.preventDefault(); setMode(MODE.enquire); goToForm(); return; }
       var cta = t.closest ? t.closest('[data-chs="reserve-cta"]') : null;
-      if (cta) { e.preventDefault(); goToForm(); return; }
+      if (cta) {
+        e.preventDefault();
+        if (!state.selectedId) return;          // nothing to reserve yet
+        setMode(MODE.reserve); goToForm(); return;
+      }
       var item = t.closest ? t.closest('[data-chs="bed-item"]') : null;
       var bed  = item && bedFor(item);
       if (bed) { e.preventDefault(); select(bed.id); }
@@ -1032,6 +1114,7 @@
     }
 
     armHandoff($('[data-chs="reserve-form"]'));
+    paintMode();
 
     // Both floors are always on screen now; clear any legacy inline hiding.
     $$('[data-chs-plan]').forEach(function (img) { img.style.display = ''; });
@@ -1064,6 +1147,6 @@
 
   window.CHSSelector = {
     refresh: refresh, select: select, setApartment: setApartment,
-    apartments: apartmentsPresent, state: state
+    apartments: apartmentsPresent, state: state, setMode: setMode
   };
 })();
