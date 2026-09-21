@@ -1316,7 +1316,8 @@
     // (The old aerial toggle below still works if the overlay is ever put back.)
     var aerial = qs(".sd2_aerial_map");
     function host() { return qs(".sd2_aerial_map_host", aerial) || aerial; }
-    var auto = aerial && !qs("[data-sd2-aerial-toggle]");
+    // auto when the map layer is shown by the Designer (no aerial picture over it)
+    var auto = !!aerial && w.getComputedStyle(aerial).display !== "none";
     if (aerial && "IntersectionObserver" in w) {
       var io = new IntersectionObserver(function (es) {
         es.forEach(function (e) {
