@@ -1605,6 +1605,39 @@
     w.SD2_WAITLIST = { state: ST, open: openAuth, close: closeAuth };
   })();
 
+  /* ----------------------------------------------------------- 16. points of interest modal
+     Section 06 lists the six key places; "See All Points of Interest" opens [data-sd2-poi], a
+     native Webflow block holding the full list. Open/close only - the content lives in the
+     Designer. Delegated in the CAPTURE phase (see nativeAnchors: in-page links stop
+     propagation in the bubble phase). */
+  (function poi() {
+    var modal = qs("[data-sd2-poi]");
+    if (!modal) { return; }
+    var html = d.documentElement, last = null;
+    function open(from) {
+      last = from || d.activeElement;
+      modal.classList.add("is-open");
+      html.classList.add("sd2-poi-open");
+      var c = qs("a[data-sd2-poi-close]", modal);
+      if (c) { setTimeout(function () { try { c.focus({ preventScroll: true }); } catch (e) {} }, 60); }
+    }
+    function close() {
+      if (!modal.classList.contains("is-open")) { return; }
+      modal.classList.remove("is-open");
+      html.classList.remove("sd2-poi-open");
+      if (last && last.focus) { try { last.focus({ preventScroll: true }); } catch (e) {} }
+    }
+    on(d, "click", function (e) {
+      var t = e.target.closest && e.target.closest("[data-sd2-poi-open], [data-sd2-poi-close]");
+      if (!t) { return; }
+      e.preventDefault();
+      e.stopPropagation();
+      if (t.hasAttribute("data-sd2-poi-open")) { open(t); } else { close(); }
+    }, true);
+    on(d, "keydown", function (e) { if (e.key === "Escape") { close(); } });
+    w.SD2_POI = { open: open, close: close };
+  })();
+
   /* ----------------------------------------------------------- 14. boot the catalogue-driven parts */
   (function boot() {
     readTypes();

@@ -220,6 +220,14 @@
   .sd2_auth_submit:disabled{opacity:.6;cursor:progress}
   .sd2_auth_close:focus-visible,.sd2_auth_submit:focus-visible{outline:2px solid #A9754B;outline-offset:3px}
 
+  /* points of interest modal (section 06 "See All Points of Interest") */
+  .sd2_poi.is-open{display:flex;animation:sd2-fade-in .3s ease both}
+  .sd2_poi.is-open .sd2_poi_panel{animation:sd2-rise .45s cubic-bezier(.2,.7,.2,1) both}
+  html.sd2-poi-open,html.sd2-poi-open body{overflow:hidden}
+  .sd2_poi_backdrop{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  .sd2_poi_group .sd2_nearby_row:last-child{border-bottom:0}
+  .sd2_poi_link:focus-visible{outline:2px solid #A9754B;outline-offset:3px}
+
   /* waitlist form: home chips (built by the bundle from the Units list) */
   .sd2_wl_label{font-size:.75rem;letter-spacing:.06em;color:rgba(246,243,238,.6);margin:.25rem 0 .625rem}
   .sd2_wl_chips{display:flex;flex-wrap:wrap;gap:.5rem}
