@@ -648,7 +648,7 @@
       else if (k === "home-type") { el.textContent = "Home " + u.n + " · Type " + u.letter; }
       else if (k === "cta") { el.textContent = "Reserve home " + u.n; }
       else if (k === "ref") { el.textContent = "SH-" + (u.no.length < 2 ? "0" + u.no : u.no); }
-      else if (k === "note") { el.textContent = "We hold home " + u.n + " for 14 days from receipt of the deposit."; }
+      else if (k === "note") { el.textContent = "We hold home " + u.n + " for 7 days from receipt of the reservation fee."; }
     });
     if (GATED && !PRE) {
       qsa("[data-sd2-selected=price]").forEach(function (el) { el.setAttribute("data-sd2-price", ""); });
