@@ -56,6 +56,29 @@ const key = async (p, k, mods) => {
   await p.waitForTimeout(60);
 };
 
+/* THE DEVELOPMENT SWITCHER, 21 Sep: one picker in the header scopes every tab. The
+   Inventory tab's own select was one of four places a development used to be chosen. */
+const attr = (p, sel, a) => p.evaluate(o => {
+  const e = document.getElementById("hl-console-host").shadowRoot.querySelector(o.s);
+  return e ? e.getAttribute(o.a) : null;
+}, { s: sel, a });
+const pickDev = async (p, slug) => {
+  await p.evaluate(v => {
+    const el = document.getElementById("hl-console-host").shadowRoot.getElementById("devPick");
+    el.value = v; el.dispatchEvent(new Event("change"));
+  }, slug);
+  await p.waitForTimeout(450);
+};
+/* Phases, Types, Renders and Fields are sub-tabs of Developments since 21 Sep, not drawers
+   opened from Inventory. */
+const openSetup = async (p, sub) => {
+  await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot.getElementById("tabDev").click());
+  await p.waitForTimeout(300);
+  await p.evaluate(k => document.getElementById("hl-console-host").shadowRoot
+    .querySelector('[data-dsub="' + k + '"]').click(), sub);
+  await p.waitForTimeout(450);
+};
+
 (async () => {
   const browser = await chromium.launch();
   const openGrid = async () => {
@@ -66,8 +89,7 @@ const key = async (p, k, mods) => {
     await p.waitForTimeout(500);
     await clickId(p, "tabInv");
     await p.waitForTimeout(300);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(350);
+    await pickDev(p, "stellenbosch");
     return { ctx, p };
   };
 
@@ -228,30 +250,24 @@ const key = async (p, k, mods) => {
     });
     await p.waitForTimeout(120);
 
-    await clickId(p, "invReview");
-    await p.waitForTimeout(400);
-    const sent = await p.evaluate(() => window.__BULK_POSTED);
-    ok("Review asks for a dry run", sent.dry_run === true, sent);
-    ok("and sends both homes", (sent.changes || []).length === 2, sent.changes);
-    ok("the preview shows one to change", /1 to change/.test(await txt(p, ".gpreview-counts") || ""));
-    ok("and one refused", /1 refused/.test(await txt(p, ".gpreview-counts") || ""));
-    ok("naming the reason", /between 0 and 100/.test(await txt(p, ".gpreview-list") || ""));
-    ok("nothing was written", (await p.evaluate(() => window.__BULK_POSTED.dry_run)) === true);
-
-    // A reason is required before it will commit.
-    await clickId(p, "invBulkGo");
-    await p.waitForTimeout(150);
-    ok("saving without a reason is refused in the browser",
-      /unauditable/.test(await txt(p, "#invBulkErr") || ""));
-    ok("and still nothing has been written",
-      (await p.evaluate(() => window.__BULK_POSTED.dry_run)) === true);
-
-    await set(p, "invBulkReason", "Areas from the surveyor's schedule.");
-    await clickId(p, "invBulkGo");
-    await p.waitForTimeout(500);
+    /* ONE STEP SINCE 21 SEP. Save writes; there is no Review in front of it and no reason
+       box. The server's per-row answer comes back from the real write. */
+    ok("the bar offers Save, naming the count, and no Review",
+      /Save 2 changes/.test(await txt(p, "#invGridSave") || "") && (await count(p, "#invReview")) === 0,
+      await txt(p, "#invGridSave"));
+    await clickId(p, "invGridSave");
+    await p.waitForTimeout(600);
     const done = await p.evaluate(() => window.__BULK_POSTED);
-    ok("committing sends the reason", /surveyor/.test(done.reason || ""), done.reason);
-    ok("and is no longer a dry run", !done.dry_run);
+    ok("one click writes - it is not a dry run", done && !done.dry_run, done);
+    ok("and sends both homes", (done.changes || []).length === 2, done.changes);
+    ok("with a reason the server can file, not one the person had to type",
+      /sales console/.test(done.reason || ""), done.reason);
+    ok("what did not save is listed, and only that",
+      /1 home not saved/.test(await txt(p, ".gpreview h2") || "") && (await count(p, ".gpreview .gp-row")) === 1,
+      await txt(p, ".gpreview"));
+    ok("naming the reason, against the padded label", /between 0 and 100/.test(await txt(p, ".gpreview-list") || "") &&
+      (await txt(p, ".gpreview-list .gp-unit")) === "02", await txt(p, ".gpreview-list"));
+    ok("the toast says something did not save", /1 row not saved/.test(await txt(p, "#toast") || ""), await txt(p, "#toast"));
     ok("the refused home keeps its edit so it can be fixed",
       /1 unsaved change/.test(await txt(p, ".gbar") || ""), await txt(p, ".gbar"));
     ok("no page errors", p.__errs.length === 0, p.__errs);
@@ -305,14 +321,15 @@ const key = async (p, k, mods) => {
       i.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     });
     await p.waitForTimeout(120);
-    await clickId(p, "invReview");
-    await p.waitForTimeout(400);
+    await clickId(p, "invGridSave");
+    await p.waitForTimeout(600);
     const sent = await p.evaluate(() => window.__BULK_POSTED);
     ok("the change carries the plain number, not the label",
       sent.changes[0].unit_number === "1", sent.changes[0]);
-    ok("and the preview still shows the label",
-      (await txt(p, ".gpreview-list") || "").indexOf("01") === 0,
-      await txt(p, ".gpreview-list"));
+    /* A CLEAN SAVE IS A TOAST, not a card with a Close button to dismiss good news. */
+    ok("a clean save draws no result card", (await count(p, ".gpreview")) === 0);
+    ok("and says so in the toast", /Saved 1 home/.test(await txt(p, "#toast") || ""), await txt(p, "#toast"));
+    ok("and the bar goes, because nothing is left unsaved", (await count(p, ".gbar")) === 0);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }

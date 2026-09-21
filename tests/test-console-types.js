@@ -38,7 +38,31 @@ const set = (p, id, value) => p.evaluate(a => {
   el.dispatchEvent(new Event(el.tagName === "SELECT" ? "change" : "input"));
 }, { id, value });
 const posted = (p) => p.evaluate(() => window.__TYP_POSTED || null);
-const drawer = (p) => txt(p, "#drawer");
+/* The Types sub-tab of Developments since 21 Sep, where it used to be a drawer. */
+const drawer = (p) => txt(p, "#devPanel");
+
+/* THE DEVELOPMENT SWITCHER, 21 Sep: one picker in the header scopes every tab. The
+   Inventory tab's own select was one of four places a development used to be chosen. */
+const attr = (p, sel, a) => p.evaluate(o => {
+  const e = document.getElementById("hl-console-host").shadowRoot.querySelector(o.s);
+  return e ? e.getAttribute(o.a) : null;
+}, { s: sel, a });
+const pickDev = async (p, slug) => {
+  await p.evaluate(v => {
+    const el = document.getElementById("hl-console-host").shadowRoot.getElementById("devPick");
+    el.value = v; el.dispatchEvent(new Event("change"));
+  }, slug);
+  await p.waitForTimeout(450);
+};
+/* Phases, Types, Renders and Fields are sub-tabs of Developments since 21 Sep, not drawers
+   opened from Inventory. */
+const openSetup = async (p, sub) => {
+  await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot.getElementById("tabDev").click());
+  await p.waitForTimeout(300);
+  await p.evaluate(k => document.getElementById("hl-console-host").shadowRoot
+    .querySelector('[data-dsub="' + k + '"]').click(), sub);
+  await p.waitForTimeout(450);
+};
 
 (async () => {
   const browser = await chromium.launch();
@@ -53,33 +77,26 @@ const drawer = (p) => txt(p, "#drawer");
   const openTypes = async (p) => {
     await clickId(p, "tabInv");
     await p.waitForTimeout(250);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(300);
-    await clickId(p, "invTypOpen");
-    await p.waitForTimeout(350);
+    await pickDev(p, "stellenbosch");
+    await openSetup(p, "types");
   };
 
   // ── 1. the button, before anybody opens anything ────────────────────────
   {
     const { ctx, p } = await open("?role=admin");
-    console.log("1. the panel button");
+    console.log("1. where Types lives");
     await clickId(p, "tabInv");
     await p.waitForTimeout(250);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(300);
-    ok("the Inventory tab has a Types button", (await count(p, "#invTypOpen")) === 1);
-    const label = await txt(p, "#invTypOpen");
-    /* IT DESCRIBES ITSELF BEFORE IT IS OPENED, from the grid read - so a person can see
-       whether this development has been set up without spending a click on it. Only the
-       ACTIVE types count: the retired one is in the register and not in the offering. */
-    ok("it says how many types and how many ways of building them",
-      /2 types/.test(label) && /3 ways/.test(label), label);
+    await pickDev(p, "stellenbosch");
+    /* SINCE 21 SEP TYPES IS A SUB-TAB OF DEVELOPMENTS, not a button on Inventory. */
+    ok("the Inventory tab no longer carries a Types button", (await count(p, "#invTypOpen")) === 0);
+    await openSetup(p, "types");
     /* Order is not decoration: a phase decides WHEN stock goes out, a type decides what the
-       stock IS, a field decides what gets recorded about it. Renders (10 Sep) are the pictures
-       OF a type, so they sit against Types. */
-    const bar = await all(p, ".panel-bar .panel-btn b");
-    ok("it sits between Phases and Fields, with Renders against it",
-      bar.join(",") === "Phases,Types,Renders,Fields", bar);
+       stock IS, a field decides what gets recorded about it. Renders are the pictures OF a
+       type, so they sit against Types. */
+    const bar = await all(p, "#viewDev [data-dsub]");
+    ok("it sits between Phases and Fields, with Renders against it, after Details and Features",
+      bar.join(",") === "Details,Features,Phases,Types,Renders,Fields", bar);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -89,7 +106,7 @@ const drawer = (p) => txt(p, "#drawer");
     const { ctx, p } = await open("?role=admin");
     console.log("2. the register");
     await openTypes(p);
-    ok("the drawer is titled for both levels", (await txt(p, "#drawer h1")) === "Types and variants");
+    ok("the Types sub-tab is the one showing", (await attr(p, '[data-dsub="types"]', "aria-selected")) === "true");
     /* A REGISTER LISTS EVERYTHING AND SAYS WHICH IS WHICH. Filtering the retired ones out
        here is how the console ends up with a Bring back button for something it cannot show. */
     ok("all three types are listed, the retired one included",
@@ -131,7 +148,7 @@ const drawer = (p) => txt(p, "#drawer");
     const { ctx, p } = await open("?role=admin");
     console.log("4. integrity");
     await openTypes(p);
-    ok("a sound register shows no warning", (await count(p, "#drawer .err")) === 0);
+    ok("a sound register shows no warning", (await count(p, "#devPanel .err")) === 0);
     await ctx.close();
   }
 
@@ -141,17 +158,19 @@ const drawer = (p) => txt(p, "#drawer");
        not hypothetical: it is exactly what import_sv_inventory left on the synthetic
        unassigned type, and nothing had ever looked. Broken BEFORE the first read, because
        the drawer deliberately reuses what it already has for the same development. */
-    await clickId(p, "tabInv");
-    await p.waitForTimeout(250);
     await p.evaluate(() => {
       window.__TYP_SV.types[0].variants.forEach(v => { v.is_default = false; });
     });
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(300);
-    await clickId(p, "invTypOpen");
-    await p.waitForTimeout(400);
-    const warn = await txt(p, "#drawer .err");
+    await openTypes(p);
+    const warn = await txt(p, "#devPanel .err");
     ok("a register that does not add up says so, at the top", warn !== null, warn);
+    /* And the header's Refresh re-reads the open register: mended in the data, the warning
+       goes on the next Refresh without leaving the sub-tab. */
+    await p.evaluate(() => { window.__TYP_SV.types[0].variants[0].is_default = true; });
+    await clickId(p, "refresh");
+    await p.waitForTimeout(700);
+    ok("Refresh re-reads the register it is showing", (await count(p, "#devPanel .err")) === 0,
+      await txt(p, "#devPanel .err"));
     ok("and names the invariant rather than saying 'error'",
       /no default variant/.test(warn || ""), warn);
     ok("and says what it costs", /cannot be shown/.test(warn || ""), warn);
@@ -249,44 +268,31 @@ const drawer = (p) => txt(p, "#drawer");
       await p.evaluate(() => [...document.getElementById("hl-console-host")
         .shadowRoot.querySelectorAll("#typMoveTo optgroup")].map(o => o.label).join("|")));
 
-    /* THREE GUARDS, AND NONE OF THEM MAY BE SKIPPED. Each catches a different mistake, and
-       none of them may let a write through on its own. */
+    /* ONE GUARD SINCE 21 SEP: a destination. The reason box and the code typed back were a
+       second and third confirmation of the same click; the button now NAMES the variant, the
+       count and the destination, so the one click is an informed one. */
     await click(p, '[data-typv-movesave="11"]');
     await p.waitForTimeout(250);
     ok("no destination is refused here, before the server is troubled",
-      /Choose where these homes should go/i.test(await txt(p, "#drawer .err") || ""),
-      await txt(p, "#drawer .err"));
+      /Choose where these homes should go/i.test(await txt(p, "#devPanel .err") || ""),
+      await txt(p, "#devPanel .err"));
 
+    ok("and nothing has been sent", (await posted(p)) === undefined || (await posted(p)).reassign_to === undefined,
+      await posted(p));
     await set(p, "typMoveTo", "12");
     await p.waitForTimeout(250);
-    await click(p, '[data-typv-movesave="11"]');
-    await p.waitForTimeout(250);
-    ok("and so is no reason", /Give a reason/i.test(await txt(p, "#drawer .err") || ""),
-      await txt(p, "#drawer .err"));
-
-    await set(p, "typMoveWhy", "created by mistake");
-    await set(p, "typMoveConfirm", "A2");
-    await click(p, '[data-typv-movesave="11"]');
-    await p.waitForTimeout(250);
-    /* THE ONE THAT CATCHES THE WRONG ROW. A2 is the variant next door and every other check
-       here would have passed on it. */
-    ok("typing a neighbouring variant's code does not confirm this one",
-      /Type the variant's code \(A1\)/.test(await txt(p, "#drawer .err") || ""),
-      await txt(p, "#drawer .err"));
-    ok("and nothing has been sent through any of that",
-      (await posted(p)) === undefined || (await posted(p)).reassign_to === undefined,
-      await posted(p));
-
-    await set(p, "typMoveConfirm", "a1");
+    ok("there is no reason box and no code to type", (await count(p, "#typMoveWhy, #typMoveConfirm")) === 0);
+    const btn = await txt(p, '[data-typv-movesave="11"]');
+    ok("the button says what the click will do: how many, where to, and what goes",
+      /Move 6 homes/.test(btn || "") && /A2/.test(btn || "") && /remove A1/.test(btn || ""), btn);
     await click(p, '[data-typv-movesave="11"]');
     await p.waitForTimeout(800);
     const sent = await posted(p);
-    ok("the code is matched case-insensitively", sent && sent.variant_id === 11, sent);
+    ok("one click sends it", sent && sent.variant_id === 11, sent);
     ok("it sends the destination, not a bare retire",
       sent && sent.reassign_to === 12, sent);
-    ok("with a reason carrying what was typed and what it did",
-      sent && /created by mistake/.test(sent.reason) && /moved 6 homes/.test(sent.reason),
-      sent && sent.reason);
+    ok("with a reason saying what it did, written for the person",
+      sent && /moved 6 homes/.test(sent.reason) && /A1/.test(sent.reason), sent && sent.reason);
     ok("the form closes on success", (await count(p, ".typ-move")) === 0);
     /* THE HOMES ACTUALLY MOVED. A console that sent reassign_to and a fixture that ignored
        it would agree perfectly with each other and be wrong together, so this reads the
@@ -339,29 +345,24 @@ const drawer = (p) => txt(p, "#drawer");
     await p.waitForTimeout(300);
     await p.evaluate(() => { window.__TYP_FAILS = true; });
     await set(p, "typMoveTo", "12");
-    await set(p, "typMoveWhy", "tidying up");
-    await set(p, "typMoveConfirm", "A1");
     await click(p, '[data-typv-movesave="11"]');
     await p.waitForTimeout(700);
     ok("a refusal is rendered in the server's words",
-      /Only a manager or an admin/.test(await txt(p, "#drawer .err") || ""),
-      await txt(p, "#drawer .err"));
-    /* The refusal is an instruction to change something; closing the form would throw away
-       the reason somebody wrote by hand. */
-    ok("and the form stays open with what was typed still in it",
+      /Only a manager or an admin/.test(await txt(p, "#devPanel .err") || ""),
+      await txt(p, "#devPanel .err"));
+    /* The refusal is an instruction to change something; closing the form would throw the
+       choice away. */
+    ok("and the form stays open with the destination still chosen",
       (await count(p, ".typ-move")) === 1 &&
       (await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot
-        .getElementById("typMoveWhy").value)) === "tidying up");
+        .getElementById("typMoveTo").value)) === "12");
 
     /* A HALF-FILLED CONFIRMATION BOX NAMES A VARIANT ON THE DEVELOPMENT BEING LEFT. Carried
        across, the code typed into it would confirm nothing, and the count in the heading
        would describe another development's homes. */
     await p.evaluate(() => { window.__TYP_FAILS = false; });
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(400);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(400);
-    await openTypes(p);
+    await pickDev(p, "polaris");
+    await pickDev(p, "stellenbosch");
     ok("switching development throws the move form away",
       (await count(p, ".typ-move")) === 0);
     ok("no page errors", p.__errs.length === 0, p.__errs);
@@ -401,7 +402,7 @@ const drawer = (p) => txt(p, "#drawer");
     await set(p, "typTypeCode", "a");
     await clickId(p, "typTypeAdd");
     await p.waitForTimeout(500);
-    const err = await txt(p, "#drawer .err");
+    const err = await txt(p, "#devPanel .err");
     /* Case-insensitively, and against RETIRED rows too - the code is the upsert key, so a
        reused one would quietly write over a row somebody switched off. */
     ok("a duplicate code is refused", /already uses that code/.test(err || ""), err);
@@ -414,7 +415,7 @@ const drawer = (p) => txt(p, "#drawer");
     await set(p, "typTypeCode", "");
     await clickId(p, "typTypeAdd");
     await p.waitForTimeout(300);
-    const err2 = await txt(p, "#drawer .err");
+    const err2 = await txt(p, "#devPanel .err");
     ok("a missing code is caught before the request", /needs a name and a code/.test(err2 || ""), err2);
     ok("and warns that it is permanent", /never be changed/.test(err2 || ""), err2);
     ok("no page errors", p.__errs.length === 0, p.__errs);
@@ -693,7 +694,7 @@ const drawer = (p) => txt(p, "#drawer");
        drawing them as an error would make somebody go looking for a break that is not there. */
     ok("it says nothing is broken", /nothing broken/i.test(tidy), tidy);
     ok("it is NOT drawn as the register-does-not-add-up error",
-      (await count(p, "#drawer .err")) === 0);
+      (await count(p, "#devPanel .err")) === 0);
     /* It also mentions the legacy stored from-price nothing reads. */
     ok("and the stored from-price nothing reads", /nothing reads/.test(tidy), tidy);
     const wrap = await p.evaluate(() => {
@@ -726,7 +727,7 @@ const drawer = (p) => txt(p, "#drawer");
     await set(p, "typf_11_bedrooms", "three");
     await click(p, "[data-typv-save]");
     await p.waitForTimeout(300);
-    const err = await txt(p, "#drawer .err");
+    const err = await txt(p, "#devPanel .err");
     ok("it is refused before the request", /must be a number/.test(err || ""), err);
     ok("and names the field", /Beds/.test(err || ""), err);
     /* The reason is worth saying out loud: an empty box hands the figure back to the type,
@@ -750,7 +751,7 @@ const drawer = (p) => txt(p, "#drawer");
     await set(p, "typt_1_total_area_sqm", "two hundred");
     await click(p, "[data-typt-save]");
     await p.waitForTimeout(300);
-    const err = await txt(p, "#drawer .err");
+    const err = await txt(p, "#devPanel .err");
     ok("the type form refuses it too", /must be a number/.test(err || ""), err);
     ok("and names the field", /Total/.test(err || ""), err);
     ok("nothing was sent", (await posted(p)) === null);
@@ -760,7 +761,7 @@ const drawer = (p) => txt(p, "#drawer");
     await set(p, "typt_1_name", "  ");
     await click(p, "[data-typt-save]");
     await p.waitForTimeout(300);
-    ok("and an emptied name is refused", /needs a name/.test(await txt(p, "#drawer .err") || ""));
+    ok("and an emptied name is refused", /needs a name/.test(await txt(p, "#devPanel .err") || ""));
     ok("still nothing sent", (await posted(p)) === null);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
@@ -914,39 +915,25 @@ const drawer = (p) => txt(p, "#drawer");
     await ctx.close();
   }
 
-  // ── 16. the drawer behaves like the others ──────────────────────────────
+  // ── 16. one sub-tab at a time ───────────────────────────────────────────
   {
     const { ctx, p } = await open("?role=admin");
-    console.log("16. the drawer");
+    console.log("16. the sub-tabs");
     await openTypes(p);
-    ok("it opens over a scrim", (await p.evaluate(() =>
-      document.getElementById("hl-console-host").shadowRoot.getElementById("scrim").classList.contains("open"))) === true);
-    ok("only one panel is open at a time",
-      (await count(p, ".panel-btn[aria-expanded='true']")) === 1);
-    await clickId(p, "invFldOpen");
-    await p.waitForTimeout(300);
-    ok("opening Fields replaces it rather than stacking",
-      (await txt(p, "#drawer h1")) === "Fields" && (await count(p, ".typ-type")) === 0);
-    await clickId(p, "invTypOpen");
-    await p.waitForTimeout(300);
-    ok("and back again", (await txt(p, "#drawer h1")) === "Types and variants");
-    await clickId(p, "close");
-    await p.waitForTimeout(200);
-    /* Closing HIDES the drawer rather than emptying it - the markup stays until the next
-       render, which is how every panel in this console behaves. Asserting on the markup
-       would be asserting on an implementation detail and would pass for the wrong reason. */
-    const shut = await p.evaluate(() => {
-      const r = document.getElementById("hl-console-host").shadowRoot;
-      return {
-        drawer: r.getElementById("drawer").classList.contains("open"),
-        scrim: r.getElementById("scrim").classList.contains("open"),
-        hidden: r.getElementById("drawer").getAttribute("aria-hidden")
-      };
-    });
-    ok("Close shuts it", shut.drawer === false && shut.scrim === false, shut);
-    ok("and hides it from a screen reader too", shut.hidden === "true", shut);
-    ok("and the button stops saying it is open",
-      (await count(p, ".panel-btn[aria-expanded='true']")) === 0);
+    ok("it is on the page, not over a scrim", (await p.evaluate(() =>
+      document.getElementById("hl-console-host").shadowRoot.getElementById("scrim").classList.contains("open"))) === false);
+    ok("only one sub-tab is selected", (await count(p, "#viewDev [data-dsub][aria-selected='true']")) === 1);
+    await click(p, '[data-dsub="fields"]');
+    await p.waitForTimeout(400);
+    ok("choosing Fields replaces it rather than stacking",
+      (await attr(p, '[data-dsub="fields"]', "aria-selected")) === "true" && (await count(p, ".typ-type")) === 0);
+    await click(p, '[data-dsub="types"]');
+    await p.waitForTimeout(400);
+    ok("and back again", (await count(p, ".typ-type")) === 3);
+    /* The sub-tab is remembered, so coming back to Developments lands where you were. */
+    await clickId(p, "tabInv"); await p.waitForTimeout(250);
+    await clickId(p, "tabDev"); await p.waitForTimeout(400);
+    ok("leaving and coming back lands on Types again", (await count(p, ".typ-type")) === 3);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -957,23 +944,14 @@ const drawer = (p) => txt(p, "#drawer");
     console.log("17. switching development");
     await openTypes(p);
     ok("Stellenbosch's register is showing", (await count(p, ".typ-type")) === 3);
-    /* SWITCHING DEVELOPMENT CLOSES THE DRAWER, the same as Phases and Fields - one
-       development's types drawn over another's stock is the kind of thing somebody acts on. */
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(400);
-    ok("switching closes it", (await p.evaluate(() =>
-      document.getElementById("hl-console-host").shadowRoot
-        .getElementById("drawer").classList.contains("open"))) === false);
-    await clickId(p, "invTypOpen");
-    await p.waitForTimeout(400);
-    /* And the register it shows is the NEW development's, not the one it had loaded. The
-       open check would refetch anyway, but the stale one must not be rendered first. */
-    ok("re-opening shows the new development's register",
+    /* SWITCHING DEVELOPMENT RE-READS THE REGISTER. One development's types drawn under
+       another's name is the kind of thing somebody acts on. */
+    await pickDev(p, "polaris");
+    ok("the switch shows the new development's register",
       (await count(p, ".typ-type")) === 1);
     const body = await drawer(p);
     ok("with its own type, not the last one's", /Polaris Heart B/.test(body), body.slice(0, 300));
-    ok("and the button agrees with the drawer",
-      /1 type, 1 way/.test(await txt(p, "#invTypOpen")), await txt(p, "#invTypOpen"));
+    ok("and the heading names it", (await txt(p, "#viewDev .page-head h2")) === "Polaris");
     /* AN IMPORTED ROW CANNOT BE REMOVED FOR GOOD. The next import writes it back with a new
        id while anything pointing at the old one orphans - so deleting it does not remove the
        type, it launders it into a different row. The button is simply not there. */

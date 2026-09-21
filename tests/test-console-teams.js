@@ -167,8 +167,10 @@ const last = (p) => p.evaluate(() => window.__TEAMS_POSTED);
     console.log("4. who sees it");
     const hidden = (id) => p.evaluate(i => document.getElementById("hl-console-host").shadowRoot.getElementById(i).hidden, id);
     ok("a manager is offered Teams", (await hidden("tabTeams")) === false);
-    ok("but not the accounts list, and not Developments",
-      (await hidden("tabTeam")) === true && (await hidden("tabDev")) === true);
+    /* Developments is a manager's tab too since 21 Sep - its Phases, Types, Renders and
+       Fields sub-tabs; Details and Features stay admin (test-console-dev). */
+    ok("but not the accounts list, and Developments without its admin sub-tabs",
+      (await hidden("tabTeam")) === true && (await hidden("tabDev")) === false);
     ok("and the group they sit in is shown, since it now holds something for them",
       (await hidden("sideAdmin")) === false);
     await clickId(p, "tabTeams"); await p.waitForTimeout(450);

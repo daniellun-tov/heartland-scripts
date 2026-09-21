@@ -33,6 +33,29 @@ const set = (p, id, value) => p.evaluate(a => {
 const clickId = (p, id) => p.evaluate(i =>
   document.getElementById("hl-console-host").shadowRoot.getElementById(i).click(), id);
 
+/* THE DEVELOPMENT SWITCHER, 21 Sep: one picker in the header scopes every tab. The
+   Inventory tab's own select was one of four places a development used to be chosen. */
+const attr = (p, sel, a) => p.evaluate(o => {
+  const e = document.getElementById("hl-console-host").shadowRoot.querySelector(o.s);
+  return e ? e.getAttribute(o.a) : null;
+}, { s: sel, a });
+const pickDev = async (p, slug) => {
+  await p.evaluate(v => {
+    const el = document.getElementById("hl-console-host").shadowRoot.getElementById("devPick");
+    el.value = v; el.dispatchEvent(new Event("change"));
+  }, slug);
+  await p.waitForTimeout(450);
+};
+/* Phases, Types, Renders and Fields are sub-tabs of Developments since 21 Sep, not drawers
+   opened from Inventory. */
+const openSetup = async (p, sub) => {
+  await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot.getElementById("tabDev").click());
+  await p.waitForTimeout(300);
+  await p.evaluate(k => document.getElementById("hl-console-host").shadowRoot
+    .querySelector('[data-dsub="' + k + '"]').click(), sub);
+  await p.waitForTimeout(450);
+};
+
 (async () => {
   const browser = await chromium.launch();
   const open = async (q) => {
@@ -64,8 +87,7 @@ const clickId = (p, id) => p.evaluate(i =>
     const { ctx, p } = await open();
     console.log("2. prices that are not money");
     await openInv(p);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(250);
+    await pickDev(p, "stellenbosch");
     const warn = await txt(p, "#viewInv .inv-warn");
     ok("a banner says the prices are placeholders", /placeholder/i.test(warn || ""), warn);
     ok("it names the development", /Stellenbosch Village/.test(warn || ""), warn);
@@ -73,8 +95,7 @@ const clickId = (p, id) => p.evaluate(i =>
       (await count(p, "#viewInv .inv-ph")) === (await count(p, "#viewInv tbody tr")));
 
     // The CMS development must NOT be tarred with it.
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(250);
+    await pickDev(p, "polaris");
     /* Targeted at the PRICE banner by id. It used to count every .inv-warn on the screen,
        which meant the day availability grew a banner of its own this assertion went red
        about something it was never testing. */
@@ -89,8 +110,7 @@ const clickId = (p, id) => p.evaluate(i =>
     const { ctx, p } = await open();
     console.log("3. where a state comes from");
     await openInv(p);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(250);
+    await pickDev(p, "stellenbosch");
     /* 5 of the 12 are taken without a reservation. Each of those rows must say so -
        an agent phoning a buyer needs to know there is no deal behind the word. A sixth row
        is off the market for a different reason entirely - it is waiting on a release - and
@@ -103,8 +123,7 @@ const clickId = (p, id) => p.evaluate(i =>
     ok("and the screen explains it once, above the table",
       /without a reservation behind them/.test(await txt(p, "#viewInv") || ""));
 
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(250);
+    await pickDev(p, "polaris");
     ok("a home held by a real reservation is not flagged",
       (await count(p, "#viewInv .st-src")) === 0);
     ok("no page errors", p.__errs.length === 0, p.__errs);
@@ -116,8 +135,7 @@ const clickId = (p, id) => p.evaluate(i =>
     const { ctx, p } = await open();
     console.log("4. filtering");
     await openInv(p);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(250);
+    await pickDev(p, "stellenbosch");
     ok("all 12 rows to start", (await count(p, "#viewInv tbody tr")) === 12);
     await click(p, '[data-inv-state="available"]');
     await p.waitForTimeout(120);
@@ -148,8 +166,7 @@ const clickId = (p, id) => p.evaluate(i =>
     const { ctx, p } = await open();
     console.log("5. clicking through to the buyer");
     await openInv(p);
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(250);
+    await pickDev(p, "polaris");
     ok("the sold row names the buyer",
       /Mabitsela Mawasha/.test(await txt(p, "#viewInv tbody") || ""));
     /* Polaris has the inventory_edit module OFF, so nothing here offers the state editor. */
@@ -174,13 +191,11 @@ const clickId = (p, id) => p.evaluate(i =>
     const { ctx, p } = await open();
     console.log("6. setup completeness");
     await openInv(p);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(250);
+    await pickDev(p, "stellenbosch");
     const t = await txt(p, "#viewInv") || "";
     ok("it lists what is unset", /still owes/.test(t));
     ok("in words, not column names", /Occupational rental/.test(t) && !/occupational_rental_pct/.test(t));
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(250);
+    await pickDev(p, "polaris");
     ok("a complete development says nothing",
       !/still owes/.test(await txt(p, "#viewInv") || ""));
     ok("no page errors", p.__errs.length === 0, p.__errs);
@@ -192,8 +207,7 @@ const clickId = (p, id) => p.evaluate(i =>
     const { ctx, p } = await open();
     console.log("7. changing what a home says");
     await openInv(p);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(250);
+    await pickDev(p, "stellenbosch");
 
     ok("no editor until a home is picked", (await count(p, "#viewInv .inv-edit")) === 0);
     await click(p, '#viewInv [data-inv-edit="1"]');
@@ -217,15 +231,10 @@ const clickId = (p, id) => p.evaluate(i =>
       (await p.evaluate(() => document.getElementById("hl-console-host")
         .shadowRoot.getElementById("invSave").disabled)) === false);
 
-    // A reason is not optional, and the refusal happens before the round trip.
-    await clickId(p, "invSave");
-    await p.waitForTimeout(150);
-    ok("saving without a reason is refused",
-      /has to carry a reason/.test(await txt(p, "#invEditErr") || ""));
-    ok("and nothing was sent",
-      (await p.evaluate(() => window.__STATE_POSTED)) === undefined);
-
-    await set(p, "invReason", "Sold off-plan in the show house, 3 Sept.");
+    /* NO REASON BOX SINCE 21 SEP. Picking the state and pressing Save is the decision; the
+       event still records who, what and when. Reasons are kept for cancelling and deleting
+       a reservation. */
+    ok("there is no reason box", (await count(p, "#invReason")) === 0);
     await set(p, "invRef", "SV-2026-014");
     await clickId(p, "invSave");
     await p.waitForTimeout(400);
@@ -234,7 +243,7 @@ const clickId = (p, id) => p.evaluate(i =>
       sent.property_slug === "stellenbosch" && sent.state === "sold", sent);
     ok("and it sends the STORED number, not the padded label",
       sent.unit_number === "1", sent.unit_number);
-    ok("with the reason", /show house/.test(sent.reason || ""), sent);
+    ok("with a reason the server can file, written for the person", /sales console/.test(sent.reason || ""), sent);
     ok("and the reference", sent.external_ref === "SV-2026-014", sent);
     ok("the editor closed", (await count(p, "#viewInv .inv-edit")) === 0);
     /* Re-read from the server rather than patched locally, so the counts move with it. */
@@ -256,13 +265,11 @@ const clickId = (p, id) => p.evaluate(i =>
     const { ctx, p } = await open();
     console.log("8. when the server says no");
     await openInv(p);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(250);
+    await pickDev(p, "stellenbosch");
     await p.evaluate(() => { window.__STATE_FAILS = true; });
     await click(p, '#viewInv [data-inv-edit="2"]');
     await p.waitForTimeout(150);
     await click(p, '[data-inv-set="sold"]');
-    await set(p, "invReason", "Trying to mark a home that is already held.");
     await clickId(p, "invSave");
     await p.waitForTimeout(400);
     ok("the refusal is shown in the editor",
@@ -270,9 +277,7 @@ const clickId = (p, id) => p.evaluate(i =>
       await txt(p, "#invEditErr"));
     ok("the editor stays open so the typing is not lost",
       (await count(p, "#viewInv .inv-edit")) === 1);
-    ok("and the reason survives",
-      (await p.evaluate(() => document.getElementById("hl-console-host")
-        .shadowRoot.getElementById("invReason").value)).length > 0);
+    ok("and the chosen state survives", (await count(p, '[data-inv-set="sold"].is-on')) === 1);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -283,16 +288,13 @@ const clickId = (p, id) => p.evaluate(i =>
     console.log("9. the CMS warning");
     /* Polaris has the module off by default, which is the safe state. Turn it on through
        the real path, because that is how somebody would actually reach this warning. */
-    await clickId(p, "tabDev");
-    await p.waitForTimeout(250);
-    await click(p, '[data-feat-dev="polaris"]');
-    await p.waitForTimeout(150);
+    await pickDev(p, "polaris");
+    await openSetup(p, "features");
     await click(p, '[data-feat-key="inventory_edit"]');
     await p.waitForTimeout(400);
 
     await openInv(p);
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(250);
+    await pickDev(p, "polaris");
     await click(p, "#viewInv [data-inv-edit]");
     await p.waitForTimeout(150);
     ok("it says the CMS still owns this development's flag",
@@ -300,8 +302,7 @@ const clickId = (p, id) => p.evaluate(i =>
         (await txt(p, "#viewInv .inv-edit-warn")) || ""),
       await txt(p, "#viewInv .inv-edit-warn"));
 
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(250);
+    await pickDev(p, "stellenbosch");
     await click(p, "#viewInv [data-inv-edit]");
     await p.waitForTimeout(150);
     ok("a model-native development gets no such warning",
@@ -320,17 +321,14 @@ const clickId = (p, id) => p.evaluate(i =>
     const { ctx, p } = await open("?role=admin");
     console.log("the CMS availability mirror");
     await openInv(p);
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(300);
+    await pickDev(p, "polaris");
     await p.evaluate(() => { window.__CMS_WANT = { "6": "sold", "10": "sold" }; });
 
     ok("a CMS-backed development is offered the sync", (await count(p, "#cmsCheck")) === 1);
     /* Nothing to sync FROM on a development whose inventory lives here. */
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(300);
+    await pickDev(p, "stellenbosch");
     ok("a Xano-native one is not", (await count(p, "#cmsCheck")) === 0);
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(300);
+    await pickDev(p, "polaris");
 
     /* THE FIRST CLICK NEVER WRITES. A control that takes homes off the market on one press
        is not one anybody should have to trust. */
@@ -373,8 +371,7 @@ const clickId = (p, id) => p.evaluate(i =>
     const { ctx, p } = await open("?role=admin");
     console.log("the mirror never overrules a person");
     await openInv(p);
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(300);
+    await pickDev(p, "polaris");
     /* The CMS says sold; somebody recorded reserved here. The server refuses to touch it and
        reports the disagreement - and the panel must SHOW that rather than fold it into a
        count, because "the CMS and one of your people disagree about home 6" is the most
@@ -407,10 +404,8 @@ const clickId = (p, id) => p.evaluate(i =>
     await click(p, "#cmsCheck");
     await p.waitForTimeout(500);
     ok("a report is on screen", (await count(p, ".cms-plan")) === 1);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(300);
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(300);
+    await pickDev(p, "stellenbosch");
+    await pickDev(p, "polaris");
     ok("switching development throws the report away", (await count(p, ".cms-plan")) === 0);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
@@ -420,8 +415,7 @@ const clickId = (p, id) => p.evaluate(i =>
     const { ctx, p } = await open("?role=sales");
     console.log("the mirror is manager or admin");
     await openInv(p);
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(300);
+    await pickDev(p, "polaris");
     /* Hiding it is never the enforcement - the endpoint checks too - but a salesperson should
        not be shown a button that will be refused. */
     ok("a salesperson is not offered it", (await count(p, "#cmsCheck")) === 0);

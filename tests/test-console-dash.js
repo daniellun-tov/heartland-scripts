@@ -338,10 +338,11 @@ const gear = async p => {
     ok("unit count rides beside the value", s.prop[0].note === "10 units", s.prop[0].note);
 
     await p.evaluate(() => {
-      const sel = document.getElementById("hl-console-host").shadowRoot.getElementById("dprop");
+      // The development switcher, 21 Sep: one picker for the console, in the header.
+      const sel = document.getElementById("hl-console-host").shadowRoot.getElementById("devPick");
       sel.value = "polaris"; sel.dispatchEvent(new Event("change"));
     });
-    await p.waitForTimeout(80);
+    await p.waitForTimeout(500);
     s = await S(p);
     ok("KPIs narrow to that property", s.kpi["Reserved value"].note === "10 reservations",
       s.kpi["Reserved value"].note);

@@ -40,6 +40,25 @@ const pasteInto = (p, text) => p.evaluate(t => {
   grid.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
 }, text);
 
+/* THE DEVELOPMENT SWITCHER, 21 Sep: one picker in the header scopes every tab. The
+   Inventory tab's own select was one of four places a development used to be chosen. */
+const pickDev = async (p, slug) => {
+  await p.evaluate(v => {
+    const el = document.getElementById("hl-console-host").shadowRoot.getElementById("devPick");
+    el.value = v; el.dispatchEvent(new Event("change"));
+  }, slug);
+  await p.waitForTimeout(450);
+};
+/* Phases, Types, Renders and Fields are sub-tabs of Developments since 21 Sep, not drawers
+   opened from Inventory. */
+const openSetup = async (p, sub) => {
+  await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot.getElementById("tabDev").click());
+  await p.waitForTimeout(300);
+  await p.evaluate(k => document.getElementById("hl-console-host").shadowRoot
+    .querySelector('[data-dsub="' + k + '"]').click(), sub);
+  await p.waitForTimeout(450);
+};
+
 (async () => {
   const browser = await chromium.launch();
   const open = async (q) => {
@@ -77,10 +96,10 @@ const pasteInto = (p, text) => p.evaluate(t => {
     await ctx.close();
   }
 
-  // ── 2. a salesperson edits a status, reviews, saves ──────────────────────
+  // ── 2. a salesperson edits a status and saves - one step ─────────────────
   {
     const { ctx, p } = await open();
-    console.log("2. edit, review, save");
+    console.log("2. edit, save");
     await click(p, '[data-cell="701|status"]'); await p.waitForTimeout(100);
     await click(p, '[data-cell="701|status"]'); await p.waitForTimeout(150);
     ok("a second click opens the status picker, not a text box",
@@ -91,22 +110,35 @@ const pasteInto = (p, text) => p.evaluate(t => {
       (await count(p, '[data-cell="701|status"].is-dirty')) === 1 && /1 unsaved change/.test(await txt(p, ".gbar") || ""));
     ok("nothing sent yet", (await p.evaluate(() => window.__PL_POSTED)) === undefined);
 
-    await clickId(p, "plReview"); await p.waitForTimeout(400);
-    const dry = await p.evaluate(() => window.__PL_POSTED);
-    ok("Review is a dry run carrying the id and the field",
-      dry && dry.dry_run === true && dry.items.length === 1 && dry.items[0].id === 701 && dry.items[0].fields.status === "contacted", dry);
-    ok("the preview names the lead and the change", /LD-STE-001/.test(await txt(p, ".gpreview") || "") && /Status/.test(await txt(p, ".gpreview") || ""));
-    await clickId(p, "plBulkGo"); await p.waitForTimeout(150);
-    ok("saving without a reason is refused before the round trip", /Say why/.test(await txt(p, "#plBulkErr") || ""));
-    ok("and the dry run is still the last thing sent", (await p.evaluate(() => window.__PL_POSTED.dry_run)) === true);
-    await set(p, "plBulkReason", "Spoke to him this morning.");
-    await clickId(p, "plBulkGo"); await p.waitForTimeout(600);
+    /* ONE STEP SINCE 21 SEP: Save writes. No Review in front of it, no reason box. */
+    ok("the bar offers Save and no Review", (await count(p, "#plSave")) === 1 && (await count(p, "#plReview")) === 0);
+    await clickId(p, "plSave"); await p.waitForTimeout(600);
     const sent = await p.evaluate(() => window.__PL_POSTED);
-    ok("Save sends the same items with the reason and no dry_run",
-      sent && !sent.dry_run && sent.reason === "Spoke to him this morning." && sent.items[0].fields.status === "contacted", sent);
+    ok("one click sends the id and the field, as a write, with a reason the server can file",
+      sent && !sent.dry_run && /sales console/.test(sent.reason) && sent.items.length === 1 &&
+        sent.items[0].id === 701 && sent.items[0].fields.status === "contacted", sent);
     ok("the grid re-read the server: the cell reads Contacted and is clean",
       (await txt(p, '[data-cell="701|status"]')) === "Contacted" && (await count(p, '[data-cell="701|status"].is-dirty')) === 0);
-    ok("the saved report closes with Close", (await count(p, "#plBulkDone")) === 1);
+    ok("a clean save is a toast, with no card to dismiss",
+      /Saved 1 lead/.test(await txt(p, "#toast") || "") && (await count(p, "#plBulkDone")) === 0, await txt(p, "#toast"));
+
+    /* A MIXED SAVE: one row the server refuses, one it takes. Only the refused one is listed,
+       and it keeps its edit; the one that saved is simply saved. */
+    await click(p, '[data-cell="701|email"]'); await p.waitForTimeout(100);
+    await click(p, '[data-cell="701|email"]'); await p.waitForTimeout(150);
+    await set(p, "plCellInput", "not-an-email"); await keyOn(p, "plCellInput", "Enter"); await p.waitForTimeout(150);
+    await click(p, '[data-cell="704|phone"]'); await p.waitForTimeout(100);
+    await click(p, '[data-cell="704|phone"]'); await p.waitForTimeout(150);
+    await set(p, "plCellInput", "082 555 0101"); await keyOn(p, "plCellInput", "Enter"); await p.waitForTimeout(150);
+    await clickId(p, "plSave"); await p.waitForTimeout(700);
+    ok("a mixed save lists only the refused lead, with the server's reason",
+      /1 lead not saved/.test(await txt(p, ".gpreview h2") || "") && (await count(p, ".gpreview .gp-row")) === 1 &&
+        /LD-STE-001/.test(await txt(p, ".gpreview") || "") && /email/.test(await txt(p, ".gpreview") || ""),
+      await txt(p, ".gpreview"));
+    ok("the toast says so", /1 lead not saved/.test(await txt(p, "#toast") || ""), await txt(p, "#toast"));
+    ok("and the refused edit is still in the grid, the saved one is not",
+      /1 unsaved change/.test(await txt(p, ".gbar") || "") && (await count(p, '[data-cell="701|email"].is-dirty')) === 1,
+      await txt(p, ".gbar"));
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -126,9 +158,7 @@ const pasteInto = (p, text) => p.evaluate(t => {
     await set(p, "plBulkAssign", "6"); await p.waitForTimeout(150);
     ok("assigning writes two pending cells, shown by name",
       (await count(p, ".gcell.is-dirty")) === 2 && (await txt(p, '[data-cell="703|assigned_staff_id"]')) === "Danette");
-    await clickId(p, "plReview"); await p.waitForTimeout(400);
-    await set(p, "plBulkReason", "Danette is covering Stellenbosch this week.");
-    await clickId(p, "plBulkGo"); await p.waitForTimeout(600);
+    await clickId(p, "plSave"); await p.waitForTimeout(600);
     const sent = await p.evaluate(() => window.__PL_POSTED);
     ok("the write carries assigned_staff_id as a number for both",
       sent && sent.items.length === 2 && sent.items.every(i => i.fields.assigned_staff_id === 6), sent);
@@ -136,7 +166,7 @@ const pasteInto = (p, text) => p.evaluate(t => {
 
     await click(p, '[data-pl-pick="701"]'); await p.waitForTimeout(100);
     await set(p, "plBulkAssign", "__none"); await p.waitForTimeout(150);
-    await clickId(p, "plReview"); await p.waitForTimeout(400);
+    await clickId(p, "plSave"); await p.waitForTimeout(600);
     const un = await p.evaluate(() => window.__PL_POSTED);
     ok("Nobody is sent as unassign, never as an empty id", un && un.items[0].fields.unassign === true && !("assigned_staff_id" in un.items[0].fields), un);
     ok("no page errors", p.__errs.length === 0, p.__errs);
@@ -157,11 +187,17 @@ const pasteInto = (p, text) => p.evaluate(t => {
       (await p.evaluate(() => { const e = document.getElementById("hl-console-host").shadowRoot.getElementById("plCellInput"); return !!e; })) === true);
     await keyOn(p, "plCellInput", "Enter", { ctrlKey: true }); await p.waitForTimeout(150);
     ok("Ctrl+Enter commits both lines", (await count(p, '[data-cell="701|notes"].is-dirty')) === 1);
-    await clickId(p, "plReview"); await p.waitForTimeout(400);
+    await clickId(p, "plSave"); await p.waitForTimeout(600);
     const dry = await p.evaluate(() => window.__PL_POSTED);
     ok("the note goes to the server with its line break intact", dry && dry.items[0].fields.notes === "line one\nline two", dry);
-    await clickId(p, "plBulkCancel"); await clickId(p, "plDiscard"); await p.waitForTimeout(150);
-    ok("Discard clears it", (await count(p, ".gcell.is-dirty")) === 0);
+    // The cell still has focus from the edit above, so one click opens it.
+    await click(p, '[data-cell="701|notes"]'); await p.waitForTimeout(150);
+    await set(p, "plCellInput", "never mind");
+    await keyOn(p, "plCellInput", "Enter", { ctrlKey: true }); await p.waitForTimeout(150);
+    const before = await p.evaluate(() => JSON.stringify(window.__PL_POSTED));
+    await clickId(p, "plDiscard"); await p.waitForTimeout(150);
+    ok("Discard clears an unsaved edit and sends nothing",
+      (await count(p, ".gcell.is-dirty")) === 0 && JSON.stringify(await p.evaluate(() => window.__PL_POSTED)) === before);
 
     /* The round trip: a block carrying our header row is routed by lead, and a quoted cell
        carries a line break back in one piece. Sorted first, to prove position is not used. */
@@ -172,7 +208,7 @@ const pasteInto = (p, text) => p.evaluate(t => {
     ok("rows are matched by reference, whatever the sort",
       (await count(p, '[data-cell="701|status"].is-dirty')) === 1 && (await count(p, '[data-cell="704|notes"].is-dirty')) === 1);
     ok("the unknown reference is named rather than dropped", /LD-NOPE-001/.test(await txt(p, "#plMsg") || ""), await txt(p, "#plMsg"));
-    await clickId(p, "plReview"); await p.waitForTimeout(400);
+    await clickId(p, "plSave"); await p.waitForTimeout(600);
     const rt = await p.evaluate(() => window.__PL_POSTED);
     ok("a quoted cell with a line break comes back as one note",
       rt && rt.items.filter(i => i.id === 701)[0].fields.notes === "pasted\nfrom sheets", rt);
@@ -224,7 +260,7 @@ const pasteInto = (p, text) => p.evaluate(t => {
     await p.evaluate(() => { window.__PL_FAILS = "Only a manager or an admin can assign a lead."; });
     await click(p, '[data-cell="701|status"]'); await click(p, '[data-cell="701|status"]'); await p.waitForTimeout(150);
     await set(p, "plCellInput", "lost"); await keyOn(p, "plCellInput", "Enter"); await p.waitForTimeout(150);
-    await clickId(p, "plReview"); await p.waitForTimeout(400);
+    await clickId(p, "plSave"); await p.waitForTimeout(400);
     ok("a refused call is shown, and the edit is kept", /Only a manager/.test(await txt(p, "#plMsg") || "") && (await count(p, ".gcell.is-dirty")) === 1);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
@@ -250,22 +286,19 @@ const pasteInto = (p, text) => p.evaluate(t => {
       opts.some(o => /^7:Johan/.test(o)) && opts.some(o => /^5:/.test(o)) && opts.some(o => /^6:/.test(o)), opts);
 
     await set(p, "plCellInput", "7"); await keyOn(p, "plCellInput", "Enter"); await p.waitForTimeout(150);
-    await clickId(p, "plReview"); await p.waitForTimeout(400);
+    await clickId(p, "plSave"); await p.waitForTimeout(600);
     const sent = await p.evaluate(() => (window.__PL_POSTED || {}).items);
     ok("assigning them sends their id, not a refusal before the round trip",
       sent && sent.length === 1 && sent[0].fields.assigned_staff_id === 7, sent);
-    ok("and the server answers applied, one row, no refusal",
-      (await count(p, ".gpreview .gp-row")) === 1 && (await count(p, ".gp-row.is-bad")) === 0 &&
-      /1 to change/.test(await txt(p, ".gpreview-counts") || ""), await txt(p, ".gpreview-counts"));
-    await set(p, "plBulkReason", "handing it to Johan");
-    await clickId(p, "plBulkGo"); await p.waitForTimeout(500);
+    ok("and the server answers applied, no refusal listed", (await count(p, ".gpreview")) === 0 &&
+      /Saved 1 lead/.test(await txt(p, "#toast") || ""), await txt(p, "#toast"));
     const teamCell = await txt(p, '[data-cell="701|assigned_team_name"]');
     ok("the lead is theirs with NO team, because they are on none that sells this development",
       (await txt(p, '[data-cell="701|assigned_staff_id"]')) === "Johan" && (teamCell === "" || teamCell === "\u2014"),
       [await txt(p, '[data-cell="701|assigned_staff_id"]'), teamCell]);
 
     ok("no notice on a development a team does sell", (await count(p, ".pl-noteam")) === 0);
-    await set(p, "plProp", "sanford-heart"); await p.waitForTimeout(450);
+    await pickDev(p, "sanford-heart");
     ok("a development nobody sells says so, by name",
       (await count(p, ".pl-noteam")) === 1 && /Sanford/.test(await txt(p, ".pl-noteam") || ""), await txt(p, ".pl-noteam"));
     ok("and the way out is one button", (await count(p, "#plToTeams")) === 1);

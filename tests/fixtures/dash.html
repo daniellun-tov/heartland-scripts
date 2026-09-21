@@ -1762,12 +1762,17 @@
           return window.fetch(url, opts);
         }).then(function (r) { window.__FLD_SLOW_ONCE = false; return r; });
       }
-      var sv3 = window.__INV_SV;
+      /* PER DEVELOPMENT, as the endpoint is. Until 21 Sep this answered Stellenbosch's
+         register whatever was asked, which nothing noticed while the panel shut on every
+         switch; the Fields sub-tab now FOLLOWS a switch, so the stub has to be honest about
+         whose fields it returns. Only Stellenbosch has any. */
+      var fslug = (/[?&]property=([^&]+)/.exec(u) || [0, "stellenbosch"])[1];
+      var sv3 = fslug === "stellenbosch" ? window.__INV_SV : { fields: [], units: [] };
       var have = {};
       (sv3.fields || []).forEach(function (f) { have[f.field_key] = f; });
       return Promise.resolve({ ok: true, status: 200, text: function () {
         return Promise.resolve(JSON.stringify({
-          property_slug: "stellenbosch", property_name: "Stellenbosch Village",
+          property_slug: fslug, property_name: fslug === "stellenbosch" ? "Stellenbosch Village" : fslug,
           /* Sorted by display_order, exactly as the endpoint sorts it - a panel whose order
              came from array insertion would drift from the grid's column order. */
           fields: (sv3.fields || []).filter(function (f) { return f.is_active !== false; })
@@ -2340,7 +2345,19 @@
         : /[?&]fail=1/.test(location.search)
         ? { ok: false, status: 500, text: function () { return Promise.resolve('{"message":"boom"}'); } }
         : { ok: true, status: 200,
-            text: function () { return Promise.resolve(JSON.stringify(window.__FIXTURE)); } };
+            text: function () {
+              /* THE PROPERTY FILTER IS THE SERVER'S, as list_reservations applies it. Until
+                 21 Sep this stub ignored it, which nothing noticed while the Dashboard
+                 re-filtered in the browser; the header switcher scopes Deals through it. */
+              var ps = (/[?&]property=([^&]*)/.exec(u) || [0, ""])[1];
+              var body = window.__FIXTURE;
+              if (ps) {
+                body = JSON.parse(JSON.stringify(body));
+                body.items = body.items.filter(function (x) { return x.property_slug === ps; });
+                body.matched = body.items.length;
+              }
+              return Promise.resolve(JSON.stringify(body));
+            } };
       return new Promise(function (r) { setTimeout(function () { r(res); }, slow); });
     }
     if (u.indexOf("/staff/") !== -1) {

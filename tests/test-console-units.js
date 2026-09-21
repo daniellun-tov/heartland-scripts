@@ -36,6 +36,29 @@ const disabled = (p, id) => p.evaluate(i => {
 const exists = (p, id) => p.evaluate(i =>
   !!document.getElementById("hl-console-host").shadowRoot.getElementById(i), id);
 
+/* THE DEVELOPMENT SWITCHER, 21 Sep: one picker in the header scopes every tab. The
+   Inventory tab's own select was one of four places a development used to be chosen. */
+const attr = (p, sel, a) => p.evaluate(o => {
+  const e = document.getElementById("hl-console-host").shadowRoot.querySelector(o.s);
+  return e ? e.getAttribute(o.a) : null;
+}, { s: sel, a });
+const pickDev = async (p, slug) => {
+  await p.evaluate(v => {
+    const el = document.getElementById("hl-console-host").shadowRoot.getElementById("devPick");
+    el.value = v; el.dispatchEvent(new Event("change"));
+  }, slug);
+  await p.waitForTimeout(450);
+};
+/* Phases, Types, Renders and Fields are sub-tabs of Developments since 21 Sep, not drawers
+   opened from Inventory. */
+const openSetup = async (p, sub) => {
+  await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot.getElementById("tabDev").click());
+  await p.waitForTimeout(300);
+  await p.evaluate(k => document.getElementById("hl-console-host").shadowRoot
+    .querySelector('[data-dsub="' + k + '"]').click(), sub);
+  await p.waitForTimeout(450);
+};
+
 (async () => {
   const browser = await chromium.launch();
   const open = async (q) => {
@@ -48,7 +71,7 @@ const exists = (p, id) => p.evaluate(i =>
   };
   const openSv = async (p) => {
     await clickId(p, "tabInv"); await p.waitForTimeout(250);
-    await set(p, "invProp", "stellenbosch"); await p.waitForTimeout(300);
+    await pickDev(p, "stellenbosch");
   };
 
   // ── 1. who is offered it, and where ──────────────────────────────────────
@@ -57,7 +80,7 @@ const exists = (p, id) => p.evaluate(i =>
     console.log("1. who is offered it");
     await openSv(p);
     ok("a salesperson is not offered Add a home", !(await exists(p, "invAddOpen")));
-    await set(p, "invProp", "polaris"); await p.waitForTimeout(300);
+    await pickDev(p, "polaris");
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -65,7 +88,7 @@ const exists = (p, id) => p.evaluate(i =>
     const { ctx, p } = await open("?role=manager");
     await openSv(p);
     ok("a manager is, on a development that owns its stock", await exists(p, "invAddOpen"));
-    await set(p, "invProp", "polaris"); await p.waitForTimeout(300);
+    await pickDev(p, "polaris");
     ok("but not on a CMS-backed one - its rows are a nightly shadow", !(await exists(p, "invAddOpen")));
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
@@ -169,16 +192,13 @@ const exists = (p, id) => p.evaluate(i =>
     ok("and names the home in the development's convention",
       /03/.test(await txt(p, "#invRetire") || ""), await txt(p, "#invRetire"));
 
-    await clickId(p, "invRetire"); await p.waitForTimeout(150);
-    ok("retiring without a reason is refused before the round trip",
-      /carry a reason/.test(await txt(p, "#invEditErr") || ""));
-    ok("and nothing was sent", (await p.evaluate(() => window.__UNIT_DEL_POSTED)) === undefined);
-
-    await set(p, "invReason", "Plot merged into 4, per the amended SDP.");
+    /* ONE CLICK SINCE 21 SEP. Retiring is undone by Restore, so it asks for no reason. */
+    ok("there is no reason box", (await count(p, "#invReason")) === 0);
     await clickId(p, "invRetire"); await p.waitForTimeout(500);
     const ret = await p.evaluate(() => window.__UNIT_DEL_POSTED);
-    ok("retire sends the ROW ID and the reason, and neither hard nor restore",
-      ret && ret.unit_id === 103 && /amended SDP/.test(ret.reason) && ret.hard === undefined && ret.restore === undefined, ret);
+    ok("retire sends the ROW ID and a reason the server can file, and neither hard nor restore",
+      ret && ret.unit_id === 103 && /retired/.test(ret.reason) && ret.hard === undefined && ret.restore === undefined, ret);
+    ok("and says how to undo it", /brought back/.test(await txt(p, "#toast") || ""), await txt(p, "#toast"));
     ok("the editor closed", (await count(p, "#viewInv .inv-edit")) === 0);
     ok("the home left the grid", (await count(p, '#viewInv [data-inv-edit="3"]')) === 0);
     ok("All homes went 13 to 12", (await txt(p, '[data-inv-state=""] b')) === "12",
@@ -198,7 +218,6 @@ const exists = (p, id) => p.evaluate(i =>
     /* The native home: retire, then Remove needs the number typed back - a dialog is
        dismissed by the reflex that opened it. */
     await click(p, '#viewInv [data-inv-edit="13"]'); await p.waitForTimeout(150);
-    await set(p, "invReason", "Created by mistake.");
     await clickId(p, "invRetire"); await p.waitForTimeout(500);
     ok("the native home offers Remove once retired", (await count(p, '[data-inv-remove="150"]')) === 1);
     await click(p, '[data-inv-remove="150"]'); await p.waitForTimeout(150);
@@ -229,7 +248,6 @@ const exists = (p, id) => p.evaluate(i =>
     await openSv(p);
     await p.evaluate(() => { window.__UNIT_DEL_FAILS = "Somebody is part-way through reserving this home, so it cannot be retired, restored or removed while that hold is live."; });
     await click(p, '#viewInv [data-inv-edit="2"]'); await p.waitForTimeout(150);
-    await set(p, "invReason", "Trying.");
     await clickId(p, "invRetire"); await p.waitForTimeout(400);
     ok("the refusal is shown in the editor", /part-way through reserving/.test(await txt(p, "#invEditErr") || ""));
     ok("the editor stays open", (await count(p, "#viewInv .inv-edit")) === 1);

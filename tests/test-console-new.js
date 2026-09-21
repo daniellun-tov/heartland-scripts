@@ -227,24 +227,14 @@ async function fill(p, over) {
     ok("no reason, no request", (await p.evaluate(() => window.__DELETED)) === null);
     ok("and it says why", /Give a reason/.test(await txt(p, "#dxErr")), await txt(p, "#dxErr"));
 
-    // Reason but no typed confirmation.
+    /* THE REASON IS THE GATE, since 21 Sep. The reference typed back was a second
+       confirmation of the same decision; a reason is what the record keeps. */
+    ok("there is no reference to type back", (await p.evaluate(() => !!document.getElementById("hl-console-host")
+      .shadowRoot.getElementById("dxConfirm"))) === false);
     await set(p, "dxWhy", "Duplicate of RES-SAN-004.");
-    await click(p, "#dxGo"); await p.waitForTimeout(80);
-    ok("a reason alone is not enough", (await p.evaluate(() => window.__DELETED)) === null);
-    ok("it names what to type", /Type RES-/.test(await txt(p, "#dxErr")), await txt(p, "#dxErr"));
-
-    // A WRONG confirmation - the half that makes the next assertion mean something.
-    await set(p, "dxConfirm", "RES-SAN-999");
-    await click(p, "#dxGo"); await p.waitForTimeout(80);
-    ok("the wrong reference is refused", (await p.evaluate(() => window.__DELETED)) === null);
-
-    // The right one.
-    const want = await p.evaluate(() => document.getElementById("hl-console-host")
-      .shadowRoot.querySelector(".danger-sect .mono").textContent.trim());
-    await set(p, "dxConfirm", want);
     await click(p, "#dxGo"); await p.waitForTimeout(400);
     const d = await p.evaluate(() => window.__DELETED);
-    ok("now it sends", !!d, d);
+    ok("with a reason, it sends", !!d, d);
     ok("to the delete endpoint", d && /\/delete$/.test(d.url), d && d.url);
     ok("carrying the reason", d && d.body.reason === "Duplicate of RES-SAN-004.", d && d.body);
     // OFF unless ticked. This is the whole point of the default.
@@ -257,7 +247,7 @@ async function fill(p, over) {
     await ctx.close();
   }
 
-  // ── 8. the renumber is opt-in and asks a second time ─────────────────────
+  // ── 8. the renumber is opt-in, and ticking it is the decision ────────────
   {
     const { ctx, p } = await open("?role=admin");
     console.log("8. the renumber");
@@ -269,20 +259,14 @@ async function fill(p, over) {
       /means a different deal/.test(await txt(p, ".danger-sect")));
 
     await set(p, "dxWhy", "Rehearsal nobody saw.");
-    const want = await p.evaluate(() => document.getElementById("hl-console-host")
-      .shadowRoot.querySelector(".danger-sect .mono").textContent.trim());
-    await set(p, "dxConfirm", want);
     await set(p, "dxSeq", true);
-
-    // DISMISSED. A confirm the user backs out of must send nothing.
-    p.once("dialog", d => d.dismiss());
-    await click(p, "#dxGo"); await p.waitForTimeout(200);
-    ok("a dismissed confirm sends nothing", (await p.evaluate(() => window.__DELETED)) === null);
-
-    p.once("dialog", d => d.accept());
+    /* No dialog on top of the checkbox - the box carries its own warning. Recorded rather
+       than assumed: a dialog that did appear would be dismissed here and send nothing. */
+    let dialogs = 0;
+    p.on("dialog", dl => { dialogs++; dl.dismiss(); });
     await click(p, "#dxGo"); await p.waitForTimeout(400);
     const d = await p.evaluate(() => window.__DELETED);
-    ok("accepting sends it", !!d, d);
+    ok("one click sends it, with no dialog in between", !!d && dialogs === 0, { d, dialogs });
     ok("with resequence true", d && d.body.resequence === true, d && d.body);
     ok("and the count is reported back", /shifted/.test(await txt(p, "#who")), await txt(p, "#who"));
     ok("no page errors", p.__errs.length === 0, p.__errs);

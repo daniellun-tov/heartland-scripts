@@ -38,6 +38,25 @@ const set = (p, id, value) => p.evaluate(a => {
   el.dispatchEvent(new Event(el.tagName === "SELECT" ? "change" : "input"));
 }, { id, value });
 
+/* THE DEVELOPMENT SWITCHER, 21 Sep: one picker in the header scopes every tab. The
+   Inventory tab's own select was one of four places a development used to be chosen. */
+const pickDev = async (p, slug) => {
+  await p.evaluate(v => {
+    const el = document.getElementById("hl-console-host").shadowRoot.getElementById("devPick");
+    el.value = v; el.dispatchEvent(new Event("change"));
+  }, slug);
+  await p.waitForTimeout(450);
+};
+/* Phases, Types, Renders and Fields are sub-tabs of Developments since 21 Sep, not drawers
+   opened from Inventory. */
+const openSetup = async (p, sub) => {
+  await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot.getElementById("tabDev").click());
+  await p.waitForTimeout(300);
+  await p.evaluate(k => document.getElementById("hl-console-host").shadowRoot
+    .querySelector('[data-dsub="' + k + '"]').click(), sub);
+  await p.waitForTimeout(450);
+};
+
 (async () => {
   const browser = await chromium.launch();
   const open = async (q) => {
@@ -48,14 +67,10 @@ const set = (p, id, value) => p.evaluate(a => {
     await p.waitForTimeout(500);
     await clickId(p, "tabInv");
     await p.waitForTimeout(250);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(350);
+    await pickDev(p, "stellenbosch");
     return { ctx, p };
   };
-  const openPanel = async (p) => {
-    await clickId(p, "invFldOpen");
-    await p.waitForTimeout(400);
-  };
+  const openPanel = async (p) => { await openSetup(p, "fields"); };
 
   // ── 1. the development's own columns ────────────────────────────────────
   {
@@ -127,19 +142,16 @@ const set = (p, id, value) => p.evaluate(a => {
   {
     const { ctx, p } = await open();
     console.log("3. the panel");
-    /* A button in the bar above the grid, not a fold-out card. The stock stays on screen. */
-    ok("it starts as a button, with the drawer shut",
-      (await count(p, "#invFldOpen")) === 1 && (await count(p, "#drawer.open")) === 0);
-    ok("and says what is in use",
-      /4 in use, 3 shown as columns/.test(await txt(p, "#invFldOpen") || ""),
-      await txt(p, "#invFldOpen"));
+    /* SINCE 21 SEP FIELDS IS A SUB-TAB OF DEVELOPMENTS. Inventory is the stock and nothing
+       else; one line on it says where the setup went. */
+    ok("Inventory no longer carries the Fields button",
+      (await count(p, "#invFldOpen")) === 0 && (await count(p, "#viewInv .setup-link")) === 1);
     await openPanel(p);
-    ok("opening it uses the side drawer",
-      (await count(p, "#drawer.open")) === 1 && (await txt(p, "#drawer h1")) === "Fields");
-    ok("and the button says so", (await attr(p, "#invFldOpen", "aria-expanded")) === "true");
-    ok("the grid is still there behind it", (await count(p, "#viewInv tbody tr")) > 0);
+    ok("it opens as a sub-tab of Developments, on the page rather than in a drawer",
+      (await count(p, "#viewDev #devPanel")) === 1 && (await count(p, "#drawer.open")) === 0);
+    ok("and the sub-tab says so", (await attr(p, '[data-dsub="fields"]', "aria-selected")) === "true");
     ok("it lists every field this development has",
-      (await count(p, "#drawer .fld-row")) === 4);
+      (await count(p, "#devPanel .fld-row")) === 4);
     /* Four decisions, not one - showing your own team a figure and putting it on the website
        are different things. */
     ok("each offers four separate decisions",
@@ -194,8 +206,8 @@ const set = (p, id, value) => p.evaluate(a => {
     await click(p, '[data-fld-key="erf_number"][data-fld-flag="is_filterable"]');
     await p.waitForTimeout(500);
     ok("filtering on withheld data is refused, in the server's words",
-      /not public/.test(await txt(p, "#drawer .err") || ""),
-      await txt(p, "#drawer .err"));
+      /not public/.test(await txt(p, "#devPanel .err") || ""),
+      await txt(p, "#devPanel .err"));
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -240,8 +252,7 @@ const set = (p, id, value) => p.evaluate(a => {
   {
     const { ctx, p } = await open();
     console.log("7. a development that uses none");
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(400);
+    await pickDev(p, "polaris");
     const heads = await all(p, "#viewInv thead th");
     ok("no optional columns", !heads.includes("Aspect") && !heads.includes("Beds"), heads);
     const cells = await p.evaluate(() => {
@@ -251,7 +262,7 @@ const set = (p, id, value) => p.evaluate(a => {
       return { th, td };
     });
     ok("header and row still line up", cells.th === cells.td, cells);
-    ok("the panel still offers the menu", (await count(p, "#invFldOpen")) === 1);
+    ok("the grid still says where fields are set up", (await count(p, "#viewInv .setup-link")) === 1);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -259,16 +270,17 @@ const set = (p, id, value) => p.evaluate(a => {
   // ── 8. switching development ────────────────────────────────────────────
   {
     const { ctx, p } = await open();
-    console.log("8. switching development closes it");
+    console.log("8. switching development follows it");
     await openPanel(p);
-    ok("open on one", (await count(p, "#drawer.open")) === 1 && (await count(p, ".fld-row")) > 0);
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(400);
-    /* One development's columns over another's stock is the mistake worth preventing. */
-    ok("and shut on the next", (await count(p, "#drawer.open")) === 0);
-    ok("the button is back, unexpanded",
-      (await count(p, "#invFldOpen")) === 1 &&
-      (await attr(p, "#invFldOpen", "aria-expanded")) === "false");
+    ok("open on one", (await count(p, "#devPanel .fld-row")) === 4);
+    await pickDev(p, "polaris");
+    /* One development's columns over another's is the mistake worth preventing: the switch
+       re-reads the register rather than leaving Stellenbosch's fields on screen. */
+    ok("the next development's fields replace them", (await count(p, "#devPanel .fld-row")) === 0,
+      await count(p, "#devPanel .fld-row"));
+    ok("and the page names the development now showing",
+      (await txt(p, "#viewDev .page-head h2")) === "Polaris", await txt(p, "#viewDev .page-head h2"));
+    ok("still on the Fields sub-tab", (await attr(p, '[data-dsub="fields"]', "aria-selected")) === "true");
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -276,25 +288,15 @@ const set = (p, id, value) => p.evaluate(a => {
   // ── 9. closing it ───────────────────────────────────────────────────────
   {
     const { ctx, p } = await open();
-    console.log("9. it closes the way every drawer closes");
+    console.log("9. one sub-tab at a time");
     await openPanel(p);
-    await p.keyboard.press("Escape");
-    await p.waitForTimeout(150);
-    ok("Escape shuts it", (await count(p, "#drawer.open")) === 0);
-    await openPanel(p);
-    await clickId(p, "close");
-    await p.waitForTimeout(150);
-    ok("so does Close", (await count(p, "#drawer.open")) === 0);
-    await openPanel(p);
-    await clickId(p, "scrim");
-    await p.waitForTimeout(150);
-    ok("so does the scrim", (await count(p, "#drawer.open")) === 0);
-    /* Opening a reservation from the pipeline takes the drawer over. Only one thing in it. */
-    await openPanel(p);
-    await clickId(p, "invPhaseOpen");
-    await p.waitForTimeout(200);
-    ok("opening Phases replaces Fields in the same drawer",
-      (await txt(p, "#drawer h1")) === "Phases" && (await count(p, ".fld-row")) === 0);
+    await click(p, '[data-dsub="phases"]');
+    await p.waitForTimeout(300);
+    ok("choosing Phases replaces Fields on the page",
+      (await attr(p, '[data-dsub="phases"]', "aria-selected")) === "true" && (await count(p, ".fld-row")) === 0);
+    await click(p, '[data-dsub="fields"]');
+    await p.waitForTimeout(300);
+    ok("and choosing Fields brings them back", (await count(p, "#devPanel .fld-row")) === 4);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -306,7 +308,7 @@ const set = (p, id, value) => p.evaluate(a => {
     await openPanel(p);
     /* The thing that was missing: a field could be added and then never removed. The tick in
        the menu was an inert span, so the one place a person looked for the undo had none. */
-    ok("every field has a Remove", (await count(p, "#drawer [data-fld-retire]")) === 4 + 1);
+    ok("every field has a Remove", (await count(p, "#devPanel [data-fld-retire]")) === 4 + 1);
     ok("and the menu's tick is a pressed toggle, not a label",
       (await count(p, '.fld-add.is-have[data-fld-retire="bedrooms"]')) === 1);
     await click(p, '.fld-add.is-have[data-fld-retire="bedrooms"]');
@@ -315,18 +317,16 @@ const set = (p, id, value) => p.evaluate(a => {
     /* RETIRE IS A SET, NOT A DELETE. Values stay; the flags stop applying. */
     ok("it retires with a set, never a delete",
       sent.action === "set" && sent.is_active === false && sent.field_key === "bedrooms", sent);
-    ok("the field leaves the list", (await count(p, "#drawer .fld-row")) === 3);
+    ok("the field leaves the list", (await count(p, "#devPanel .fld-row")) === 3);
     ok("and its column leaves the grid",
       !(await all(p, "#viewInv thead th")).includes("Beds"), await all(p, "#viewInv thead th"));
     ok("and the menu offers it back, marked as retired rather than new",
       (await count(p, '[data-fld-adopt="bedrooms"]')) === 1 &&
       /\u21ba/.test(await txt(p, '[data-fld-adopt="bedrooms"]') || ""),
       await txt(p, '[data-fld-adopt="bedrooms"]'));
-    ok("the bar's count moved with it",
-      /3 in use/.test(await txt(p, "#invFldOpen") || ""), await txt(p, "#invFldOpen"));
     await click(p, '[data-fld-adopt="bedrooms"]');
     await p.waitForTimeout(700);
-    ok("adopting it back restores it", (await count(p, "#drawer .fld-row")) === 4 &&
+    ok("adopting it back restores it", (await count(p, "#devPanel .fld-row")) === 4 &&
       (await all(p, "#viewInv thead th")).includes("Beds"));
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
@@ -438,8 +438,8 @@ const set = (p, id, value) => p.evaluate(a => {
       await all(p, ".fld-row .fld-opt"));
     /* The grid reads the same registry, so a value added here is one the cell picker offers
        - that is the whole reason the panel owns this. */
-    await clickId(p, "close");
-    await p.waitForTimeout(150);
+    await clickId(p, "tabInv");
+    await p.waitForTimeout(300);
     await click(p, '[data-cell="1|aspect"]');
     await p.waitForTimeout(100);
     await click(p, '[data-cell="1|aspect"]');
@@ -471,8 +471,8 @@ const set = (p, id, value) => p.evaluate(a => {
     /* And the server refuses it, because an enum with no values is a field the grid refuses
        every value for. The console's job is to say so, not to pre-empt it. */
     ok("the server's refusal is shown in its own words",
-      /at least one allowed value/.test(await txt(p, "#drawer .err") || ""),
-      await txt(p, "#drawer .err"));
+      /at least one allowed value/.test(await txt(p, "#devPanel .err") || ""),
+      await txt(p, "#devPanel .err"));
     /* THE POINT OF THE REFUSAL IS THE INSTRUCTION IN IT, so throwing away what was typed
        while showing it would be the worst of both. */
     ok("and the box stays open", (await count(p, "#fldOptsText")) === 1);
@@ -486,10 +486,10 @@ const set = (p, id, value) => p.evaluate(a => {
     await click(p, '[data-fld-opts-save="aspect"]');
     await p.waitForTimeout(700);
     ok("removing a value homes already carry is refused, with the count",
-      /already carry values/.test(await txt(p, "#drawer .err") || "") &&
-      /6 homes/.test(await txt(p, "#drawer .err") || "") &&
-      /East-facing/.test(await txt(p, "#drawer .err") || ""),
-      await txt(p, "#drawer .err"));
+      /already carry values/.test(await txt(p, "#devPanel .err") || "") &&
+      /6 homes/.test(await txt(p, "#devPanel .err") || "") &&
+      /East-facing/.test(await txt(p, "#devPanel .err") || ""),
+      await txt(p, "#devPanel .err"));
     ok("and the box is still open on the list that was refused",
       (await count(p, "#fldOptsText")) === 1 &&
       (await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot

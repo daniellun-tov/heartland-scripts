@@ -30,6 +30,25 @@ const attr = (p, sel, a) => p.evaluate(x => {
   return e ? e.getAttribute(x.a) : null;
 }, { sel, a });
 
+/* THE DEVELOPMENT SWITCHER, 21 Sep: one picker in the header scopes every tab. The
+   Inventory tab's own select was one of four places a development used to be chosen. */
+const pickDev = async (p, slug) => {
+  await p.evaluate(v => {
+    const el = document.getElementById("hl-console-host").shadowRoot.getElementById("devPick");
+    el.value = v; el.dispatchEvent(new Event("change"));
+  }, slug);
+  await p.waitForTimeout(450);
+};
+/* Phases, Types, Renders and Fields are sub-tabs of Developments since 21 Sep, not drawers
+   opened from Inventory. */
+const openSetup = async (p, sub) => {
+  await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot.getElementById("tabDev").click());
+  await p.waitForTimeout(300);
+  await p.evaluate(k => document.getElementById("hl-console-host").shadowRoot
+    .querySelector('[data-dsub="' + k + '"]').click(), sub);
+  await p.waitForTimeout(450);
+};
+
 (async () => {
   const browser = await chromium.launch();
   const open = async (q) => {
@@ -42,29 +61,31 @@ const attr = (p, sel, a) => p.evaluate(x => {
   };
   const openPanel = async (p) => {
     await clickId(p, "tabInv"); await p.waitForTimeout(250);
-    await set(p, "invProp", "stellenbosch"); await p.waitForTimeout(300);
-    await clickId(p, "invMedOpen"); await p.waitForTimeout(350);
+    await pickDev(p, "stellenbosch");
+    await openSetup(p, "media");
   };
 
   // ── 1. the register, and who may write to it ─────────────────────────────
   {
-    const { ctx, p } = await open();
-    console.log("1. the register for a salesperson");
-    await clickId(p, "tabInv"); await p.waitForTimeout(250);
-    await set(p, "invProp", "stellenbosch"); await p.waitForTimeout(300);
-    ok("the bar offers a Renders panel", (await count(p, "#invMedOpen")) === 1);
-    ok("it describes itself before loading", /per type/.test(await txt(p, "#invMedOpen") || ""));
-    await clickId(p, "invMedOpen"); await p.waitForTimeout(350);
-    ok("the drawer opened on it", (await txt(p, "#drawer h1")) === "Renders and floor plans");
-    ok("and the bar button now carries the count",
-      /2 images across 3 types/.test(await txt(p, "#invMedOpen") || ""), await txt(p, "#invMedOpen"));
-    ok("every type is listed", (await count(p, "#drawer [data-med-typ]")) === 3);
+    /* SINCE 21 SEP RENDERS IS A SUB-TAB OF DEVELOPMENTS, and Developments is setup - a
+       manager's and an admin's. A salesperson reads the stock on Inventory and is offered
+       no setup at all. */
+    const a = await open();
+    console.log("1. the register");
+    await clickId(a.p, "tabInv"); await a.p.waitForTimeout(250);
+    ok("a salesperson has no Renders button on Inventory, and no Developments tab",
+      (await count(a.p, "#invMedOpen")) === 0 && (await attr(a.p, "#tabDev", "hidden")) !== null);
+    ok("nor a line pointing at setup they cannot open", (await count(a.p, "#viewInv .setup-link")) === 0);
+    await a.ctx.close();
+
+    const { ctx, p } = await open("?role=manager");
+    await openPanel(p);
+    ok("a manager finds it under Developments", (await attr(p, '[data-dsub="media"]', "aria-selected")) === "true");
+    ok("every type is listed", (await count(p, "#devPanel [data-med-typ]")) === 3);
     ok("type A shows its three rows, one of them marked retired",
       (await count(p, '[data-med-typ="1"] [data-med-row]')) === 3 &&
         (await count(p, '[data-med-typ="1"] .med-row.is-retired')) === 1);
     ok("a type with nothing says so", /No images yet/.test(await txt(p, '[data-med-typ="2"]') || ""));
-    ok("a salesperson is offered no Add, Retire or Restore",
-      (await count(p, "[data-med-open], [data-med-retire], [data-med-restore]")) === 0);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -85,13 +106,13 @@ const attr = (p, sel, a) => p.evaluate(x => {
       (await count(p, "#medSlot option")) === 16, await count(p, "#medSlot option"));
 
     await clickId(p, "medAdd"); await p.waitForTimeout(150);
-    ok("no slot is refused before the round trip", /which image/i.test(await txt(p, "#drawer .err") || ""));
+    ok("no slot is refused before the round trip", /which image/i.test(await txt(p, "#devPanel .err") || ""));
     ok("and nothing was sent", (await p.evaluate(() => window.__MED_POSTED)) === undefined);
 
     await set(p, "medSlot", "base-model");
     await set(p, "medUrl", "http://assets.example/b.jpg");
     await clickId(p, "medAdd"); await p.waitForTimeout(150);
-    ok("an http url is refused before the round trip", /https/.test(await txt(p, "#drawer .err") || ""));
+    ok("an http url is refused before the round trip", /https/.test(await txt(p, "#devPanel .err") || ""));
     ok("still nothing sent", (await p.evaluate(() => window.__MED_POSTED)) === undefined);
 
     await set(p, "medUrl", "https://assets.example/b-base.jpg");
@@ -104,7 +125,6 @@ const attr = (p, sel, a) => p.evaluate(x => {
         /base-model/.test(await txt(p, '[data-med-typ="2"] [data-med-row] .typ-name') || ""),
       await txt(p, '[data-med-typ="2"]'));
     ok("the form closed", (await count(p, "[data-med-form]")) === 0);
-    ok("the bar count moved", /3 images across 3 types/.test(await txt(p, "#invMedOpen") || ""));
 
     await click(p, '[data-med-retire="501"]'); await p.waitForTimeout(500);
     const ret = await p.evaluate(() => window.__MED_POSTED);
@@ -132,7 +152,7 @@ const attr = (p, sel, a) => p.evaluate(x => {
     await set(p, "medSlotCustom", "Street View");
     await set(p, "medUrl", "https://assets.example/street.jpg");
     await clickId(p, "medAdd"); await p.waitForTimeout(150);
-    ok("a slot with a space is refused before the round trip", /lower-case/.test(await txt(p, "#drawer .err") || ""));
+    ok("a slot with a space is refused before the round trip", /lower-case/.test(await txt(p, "#devPanel .err") || ""));
     await set(p, "medSlotCustom", "street-view");
     await clickId(p, "medAdd"); await p.waitForTimeout(500);
     const sent = await p.evaluate(() => window.__MED_POSTED);
@@ -143,7 +163,7 @@ const attr = (p, sel, a) => p.evaluate(x => {
     await set(p, "medSlot", "floorplan");
     await set(p, "medUrl", "https://assets.example/b.pdf");
     await clickId(p, "medAdd"); await p.waitForTimeout(400);
-    ok("the server refusal is shown in the drawer", /Webflow row/.test(await txt(p, "#drawer .err") || ""));
+    ok("the server refusal is shown in the drawer", /Webflow row/.test(await txt(p, "#devPanel .err") || ""));
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -153,11 +173,11 @@ const attr = (p, sel, a) => p.evaluate(x => {
     const { ctx, p } = await open("?role=manager");
     console.log("4. a type with a Webflow row");
     await clickId(p, "tabInv"); await p.waitForTimeout(250);
-    await set(p, "invProp", "polaris"); await p.waitForTimeout(300);
-    await clickId(p, "invMedOpen"); await p.waitForTimeout(350);
-    ok("the register lists the CMS types", (await count(p, "#drawer [data-med-typ]")) >= 1);
+    await pickDev(p, "polaris");
+    await openSetup(p, "media");
+    ok("the register lists the CMS types", (await count(p, "#devPanel [data-med-typ]")) >= 1);
     ok("a type with a Webflow row says where its images come from",
-      /from Webflow/.test(await txt(p, "#drawer [data-med-typ]") || ""), await txt(p, "#drawer [data-med-typ]"));
+      /from Webflow/.test(await txt(p, "#devPanel [data-med-typ]") || ""), await txt(p, "#devPanel [data-med-typ]"));
     ok("and offers no Add, whatever the role", (await count(p, "[data-med-open]")) === 0);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();

@@ -206,11 +206,23 @@
     "",
     "  /* ── header ───────────────────────────────────────────────────────────────── */",
     "  header.top {",
-    "    display:flex; align-items:flex-start; justify-content:space-between;",
-    "    gap:16px; flex-wrap:wrap; margin-bottom:14px;",
+    "    display:grid; grid-template-columns:196px minmax(0,1fr) auto; column-gap:30px;",
+    "    align-items:center; margin-bottom:18px;",
+    "  }",
+    "  @media (max-width: 900px) {",
+    "    header.top { display:flex; flex-wrap:wrap; gap:12px; }",
     "  }",
     "  header.top .row { align-items:center; }",
     "  .who { font-size:.8125rem; color:var(--ink-2); margin-top:2px; }",
+    "  /* The switcher is the one control that scopes every screen, so it gets a place of",
+    "     its own beside the lockup rather than a slot in any one tab's filter row. */",
+    "  .devpick { display:flex; flex-direction:column; gap:4px; max-width:300px; }",
+    "  .devpick-label {",
+    "    font-size:.6875rem; text-transform:uppercase; letter-spacing:var(--tracking);",
+    "    color:var(--ink-muted); font-weight:600;",
+    "  }",
+    "  .devpick select { font-weight:600; }",
+    "  @media (max-width: 900px) { .devpick { margin:0; min-width:0; flex:1 1 200px; } }",
     "",
     "  /* The lockup: mark on the left, the tool's name beside it. The mark is the",
     "     brand and the h1 is what this thing IS, so they sit on one line with room",
@@ -316,6 +328,30 @@
     "  .filters { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px; }",
     "  .filters .f { min-width:150px; }",
     "  .filters .f.grow { flex:1 1 220px; }",
+    "  .filters .spacer { flex:1 1 auto; }",
+    "",
+    "  /* ── page head and sub-tabs, 21 Sep ────────────────────────────────────────────",
+    "     One component for any screen with more than one concern on it. A long page of",
+    "     cards made every setting a scroll away; a tab row puts each concern one click",
+    "     away and on one screen. */",
+    "  .page-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:0 0 6px; }",
+    "  .page-head h2 { font-size:1.25rem; margin:0; }",
+    "  .page-meta { font-size:.8125rem; color:var(--ink-2); }",
+    "  .page-intro { font-size:.8125rem; color:var(--ink-2); margin:0 0 14px; max-width:72ch; }",
+    "  .subtabs {",
+    "    display:flex; gap:4px; border-bottom:1px solid var(--rule); margin:0 0 18px;",
+    "    overflow-x:auto; scrollbar-width:none;",
+    "  }",
+    "  .subtabs button {",
+    "    border:0; border-radius:0; background:none; padding:10px 14px; margin-bottom:-1px;",
+    "    color:var(--ink-2); font-weight:500; white-space:nowrap;",
+    "    border-bottom:2px solid transparent;",
+    "  }",
+    "  .subtabs button:hover:not(:disabled) { background:none; color:var(--ink); }",
+    "  .subtabs button[aria-selected=\"true\"] { color:var(--ink); font-weight:600; border-bottom-color:var(--brand); }",
+    "  /* Feature groups sit side by side on a wide screen instead of stacking into a scroll. */",
+    "  .feat-cols { display:grid; grid-template-columns:repeat(auto-fit, minmax(420px, 1fr)); gap:14px; align-items:start; }",
+    "  .feat-cols .feat-group { margin:0; }",
     "  /* A capped height so the head can stick. A pipeline is long and the column",
     "     names are what tell you which number you are reading. */",
     "  .tablewrap { overflow:auto; max-height:70vh; }",
@@ -375,6 +411,9 @@
     "  }",
     "  .drawer.open { transform:none; }",
     "  .drawer header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:4px; }",
+    "  .drawer [data-dtab].is-off { display:none; }",
+    "  .drawer .drawer-tabs { margin:12px 0 4px; position:sticky; top:-22px; background:var(--surface); z-index:2; }",
+    "  .drawer .drawer-tabs + [data-dtab] { margin-top:0; }",
     "  .dl { display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:.875rem; margin:10px 0 18px; }",
     "  .dl dt { color:var(--ink-2); }",
     "  .dl dd { margin:0; }",
@@ -916,12 +955,24 @@
     "  }",
     "  .gstate:hover { background:var(--surface-2); color:var(--ink); }",
     "  /* ── the bulk bar ─────────────────────────────────── */",
+    "  /* THE ACTION BAR sticks to the bottom of the window while there is a selection or an",
+    "     unsaved edit, so Save is never a scroll away from the cell just typed into. */",
     "  .gbar {",
     "    display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px;",
-    "    padding:10px 14px; border:1px solid var(--accent); border-radius:var(--radius-sm);",
-    "    background:var(--brand-soft);",
+    "    padding:10px 14px; border:1px solid var(--accent); border-radius:var(--radius);",
+    "    background:var(--surface); box-shadow:0 8px 28px var(--ring);",
+    "    position:sticky; bottom:16px; z-index:5;",
     "  }",
+    "  .gbar-sep { width:1px; align-self:stretch; background:var(--rule); }",
     "  .gbar .spacer { flex:1 1 auto; }",
+    "  .toast {",
+    "    position:fixed; left:50%; bottom:24px; z-index:60; transform:translate(-50%, 16px);",
+    "    background:var(--ink); color:var(--plane); padding:10px 16px; border-radius:var(--radius);",
+    "    font-size:.875rem; font-weight:600; box-shadow:0 10px 30px var(--ring);",
+    "    opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;",
+    "  }",
+    "  .toast.is-on { opacity:1; transform:translate(-50%, 0); }",
+    "  .toast.is-bad { background:var(--critical); color:#fff; }",
     "  .gbar-n { font-size:.8125rem; color:var(--ink-2); }",
     "  .gbar-n.is-dirty { color:var(--ink); font-weight:600; }",
     "  /* ── the preview ──────────────────────────────────── */",
@@ -1098,8 +1149,12 @@
     "  .panel-btn b { font-weight:600; }",
     "  .panel-btn span { color:var(--ink-2); font-size:.8125rem; margin-left:8px; }",
     "  .panel-btn[aria-expanded=\"true\"] { border-color:var(--accent); }",
-    "  .drawer .ph-row, .drawer .fld-row { flex-wrap:wrap; }",
-    "  .drawer .fld-flags { flex-wrap:wrap; }",
+    "  .setup-panel .ph-row, .setup-panel .fld-row { flex-wrap:wrap; }",
+    "  .setup-panel .fld-flags { flex-wrap:wrap; }",
+    "  .setup-panel { max-width:1100px; }",
+    "  .rec-live { font-size:.8125rem; color:var(--serious); font-weight:600; }",
+    "  .setup-link { display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:.8125rem; color:var(--ink-2); margin:0 0 12px; }",
+    "  .setup-link button { font-size:.8125rem; padding:5px 10px; }",
     "  .ph-row {",
     "    display:flex; gap:16px; align-items:center; justify-content:space-between;",
     "    padding:11px 0; border-bottom:1px solid var(--rule);",
@@ -1401,6 +1456,14 @@
     "        <div class=\"who\" id=\"who\">\u2014</div>",
     "      </div>",
     "    </div>",
+    "    <!-- THE DEVELOPMENT SWITCHER, 21 Sep. One picker for the whole console, where there",
+    "         used to be four (cards on Developments, and a separate select on Inventory,",
+    "         Pipeline, Deals and the Dashboard) - each remembering its own answer, so the",
+    "         console could be showing Polaris stock beside Sanford deals. It is remembered",
+    "         per browser. A tab that can only show one development (Inventory, Developments)",
+    "         turns All into the first development rather than guessing silently. -->",
+    "    <label class=\"devpick\" for=\"devPick\"><span class=\"devpick-label\">Development</span>",
+    "      <select id=\"devPick\"><option value=\"\">All developments</option></select></label>",
     "    <div class=\"row\">",
     "      <span class=\"splitbtn\">",
     "        <button class=\"primary\" id=\"newRes\" data-nr-open=\"production\">New reservation</button>",
@@ -1411,8 +1474,7 @@
     "            <span>RES-TEST number from its own sequence. The website is left alone.</span></button>",
     "        </div>",
     "      </span>",
-    "      <button id=\"refresh\">Refresh</button>",
-    "      <button id=\"csv\">Download CSV</button>",
+    "      <button id=\"refresh\" title=\"Reload what this screen shows\">Refresh</button>",
     "      <span class=\"usermenu\">",
     "        <button type=\"button\" class=\"avatar\" id=\"avatarBtn\" aria-haspopup=\"true\"",
     "          aria-expanded=\"false\"><span id=\"avatarInitials\" aria-hidden=\"true\">\u2014</span></button>",
@@ -1500,7 +1562,8 @@
     "      </div>",
     "      <div class=\"f\"><label for=\"fstatus\">Payment status</label><select id=\"fstatus\"></select></div>",
     "      <div class=\"f\"><label for=\"fstage\">Deal stage</label><select id=\"fstage\"></select></div>",
-    "      <div class=\"f\"><label for=\"fprop\">Property</label><select id=\"fprop\"></select></div>",
+    "      <span class=\"spacer\"></span>",
+    "      <button id=\"csv\" type=\"button\">Download CSV</button>",
     "    </div>",
     "    <div class=\"card tablewrap\">",
     "      <table>",
@@ -1520,6 +1583,7 @@
     "<!-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 drawer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->",
     "<div class=\"scrim\" id=\"scrim\"></div>",
     "<aside class=\"drawer\" id=\"drawer\" aria-hidden=\"true\"></aside>",
+    "<div class=\"toast\" id=\"toast\" role=\"status\" aria-live=\"polite\"></div>",
     "",
     "<!-- ─────────── settings ─────────── -->",
     "<div class=\"modal\" id=\"settings\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"setTitle\" aria-hidden=\"true\">",
@@ -1792,7 +1856,9 @@
   }());
 
   var $ = function (id) { return root.getElementById(id); };
-  var S = { data: null, staff: null, open: null, tab: "today", catalogue: {} };
+  var S = { data: null, staff: null, open: null, tab: "today", catalogue: {}, dev: "" };
+  /* Per-viewer and disposable; a private window throws on read. */
+  try { S.dev = localStorage.getItem("hl_console_dev") || ""; } catch (e) {}
 
   /* ---------- the deal machine, mirrored for the UI ----------
      The server is the authority; this exists so the console never
@@ -1955,7 +2021,7 @@
     var qs = "?q=" + encodeURIComponent($("q").value) +
              "&status=" + encodeURIComponent($("fstatus").value) +
              "&deal_stage=" + encodeURIComponent($("fstage").value) +
-             "&property=" + encodeURIComponent($("fprop").value);
+             "&property=" + encodeURIComponent(S.dev || "");
     return api("/staff/reservations" + qs)
       .then(function (d) {
         S.data = d;
@@ -2002,9 +2068,85 @@
     fill($("fstage"), STAGES.map(function (s) {
       return { v: s, t: label(s) + (d.summary.by_deal_stage[s] ? " (" + d.summary.by_deal_stage[s] + ")" : "") };
     }), "All");
-    fill($("fprop"), (d.properties || []).map(function (p) {
-      return { v: p.slug, t: p.name + (p.is_payfast_live ? "" : " — sandbox") };
-    }), "All");
+    devFill(d.properties || []);
+  }
+
+  /* ONE confirmation that a save landed. A save used to end in a card saying "What was
+     saved" with a Close button - a second step to dismiss news that it worked. */
+  var toastT = null;
+  function toast(msg, bad) {
+    var el = $("toast");
+    if (!el) { return; }
+    el.textContent = msg;
+    el.className = "toast is-on" + (bad ? " is-bad" : "");
+    clearTimeout(toastT);
+    toastT = setTimeout(function () { el.className = "toast"; }, 3200);
+  }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : (many || one + "s")); }
+
+  /* ONE Refresh, in the header, for whatever screen is open. Each tab used to carry its
+     own beside the header's, which only ever reloaded Deals - two buttons with the same
+     word doing different things. The deals read always runs: it feeds the sidebar counts. */
+  function refreshCurrent() {
+    load();
+    if (S.tab === "inv" && INV.slug) { invLoad(INV.slug, true); }
+    if (S.tab === "leads") { plLoad(true); }
+    /* On Developments the panel's own register is re-read too. The grid is kept (keep=true):
+       unsaved edits on Inventory must survive a refresh made from another tab. */
+    if (S.tab === "dev") {
+      FEAT.loaded = false; loadFeatures();
+      TYP.data = null; TYP.slug = ""; FLD.data = null; FLD.slug = ""; MED.data = null; MED.slug = "";
+      if (INV.slug) { invLoad(INV.slug, true); }
+      devPanelEnsure();
+    }
+    if (S.tab === "teams") { loadTeams(); }
+    if (S.tab === "team") { loadTeam(); }
+  }
+
+  /* ---------- the development switcher ---------- */
+  function devFill(props) {
+    var sel = $("devPick");
+    if (!sel) { return; }
+    sel.innerHTML = '<option value="">All developments</option>' + props.map(function (p) {
+      return '<option value="' + esc(p.slug) + '">' + esc(p.name) +
+        (p.is_payfast_live ? "" : " \u2014 sandbox") + "</option>";
+    }).join("");
+    /* A remembered development that no longer exists falls back to All rather than to a
+       select showing a value it does not hold. */
+    var has = !S.dev || props.some(function (p) { return p.slug === S.dev; });
+    if (!has) { S.dev = ""; devRemember(); }
+    sel.value = S.dev || "";
+  }
+
+  function devRemember() {
+    try { localStorage.setItem("hl_console_dev", S.dev || ""); } catch (e) {}
+  }
+
+  /* The tabs that can only show ONE development. On them All means "the first one", and
+     the switcher is moved to say so - a select reading All over one development's stock
+     would be a quiet lie. */
+  var DEV_SINGLE = { inv: 1, dev: 1 };
+  function devForSingle() {
+    if (S.dev) { return S.dev; }
+    var props = (S.data && S.data.properties) || [];
+    if (!props.length) { return ""; }
+    S.dev = props[0].slug; devRemember();
+    if ($("devPick")) { $("devPick").value = S.dev; }
+    return S.dev;
+  }
+
+  function devSet(slug) {
+    if ((slug || "") === (S.dev || "")) { return; }
+    S.dev = slug || "";
+    devRemember();
+    if ($("devPick")) { $("devPick").value = S.dev; }
+    DASH.property = S.dev;
+    PL.property = S.dev;
+    /* A half-edited record belongs to the development being left. */
+    recReset();
+    load();
+    if (PL.data || S.tab === "leads") { plLoad(); }
+    tab(S.tab);
   }
 
 
@@ -2564,7 +2706,7 @@
      alternative - a second unfiltered fetch - would have the dashboard and the
      table quietly describing different populations. */
 
-  var DASH = { property: "", range: "all", tables: {} };
+  var DASH = { property: S.dev, range: "all", tables: {} };
 
   var RANGES = [
     { v: "30",  t: "Last 30 days",   days: 30 },
@@ -2820,7 +2962,7 @@
   }
 
   function filtersActive() {
-    return !!($("q").value || $("fstatus").value || $("fstage").value || $("fprop").value);
+    return !!($("q").value || $("fstatus").value || $("fstage").value);
   }
 
   function renderDash() {
@@ -2837,14 +2979,6 @@
     /* --- the filter row: one row, above everything it scopes --- */
     var head =
       '<div class="dashfilters">' +
-        '<div class="f"><label for="dprop">Property</label><select id="dprop">' +
-          '<option value="">All properties</option>' +
-          props.map(function (p) {
-            return '<option value="' + esc(p.slug) + '"' +
-              (p.slug === DASH.property ? " selected" : "") + ">" + esc(p.name) +
-              (p.is_payfast_live ? "" : " — sandbox") + "</option>";
-          }).join("") +
-        "</select></div>" +
         '<div class="f"><label for="drange">Period</label><select id="drange">' +
           RANGES.map(function (r) {
             return '<option value="' + r.v + '"' + (r.v === DASH.range ? " selected" : "") +
@@ -2975,11 +3109,10 @@
     $("viewDash").innerHTML = head + kpis +
       '<div class="charts">' + funnel + overTime + risk + pay + byProp + "</div>";
 
-    $("dprop").addEventListener("change", function () { DASH.property = this.value; renderDash(); });
     $("drange").addEventListener("change", function () { DASH.range = this.value; renderDash(); });
     if ($("dclear")) {
       $("dclear").addEventListener("click", function () {
-        $("q").value = ""; $("fstatus").value = ""; $("fstage").value = ""; $("fprop").value = "";
+        $("q").value = ""; $("fstatus").value = ""; $("fstage").value = "";
         load();
       });
     }
@@ -3241,8 +3374,6 @@
                 }).join("") + "</select></div>" +
                 '<div style="margin-bottom:10px"><label for="mvDue">Deadline override <span class="muted">(optional)</span></label>' +
                 '<input id="mvDue" type="date"></div>' +
-                '<div style="margin-bottom:12px"><label for="mvWhy">Reason</label>' +
-                '<input id="mvWhy" type="text" placeholder="What happened"></div>' +
                 '<button class="primary" id="mvGo">Move deal</button>' +
                 '<div class="err" id="mvErr" style="margin-top:10px"></div>' +
                 '<div class="ok" id="mvOk"></div>'
@@ -3262,8 +3393,6 @@
             '<input id="dlDue" type="date"></div>' +
             '<div style="margin-bottom:10px"><label style="display:flex;gap:8px;align-items:center;font-size:.8125rem">' +
               '<input id="dlClear" type="checkbox" style="width:auto"> Remove the deadline instead (for a step with no countdown)</label></div>' +
-            '<div style="margin-bottom:12px"><label for="dlWhy">Reason</label>' +
-            '<input id="dlWhy" type="text" placeholder="Why this buyer gets a different date"></div>' +
             '<button id="dlGo">Save deadline</button>' +
             '<div class="err" id="dlErr" style="margin-top:10px"></div><div class="ok" id="dlOk"></div>' +
           '</div>'
@@ -3279,8 +3408,6 @@
         '<div id="addonFoot" class="hide">' +
           '<div class="muted" style="font-size:.8125rem;margin:10px 0">Add-ons subtotal, estimated: <span class="mono" id="addonEst">\u2014</span>' +
             '<br>The server reprices on save \u2014 bundles, dependencies and either/or groups can change this.</div>' +
-          '<div style="margin-bottom:12px"><label for="adWhy">Reason</label>' +
-          '<input id="adWhy" type="text" placeholder="What the buyer asked for"></div>' +
           '<button class="primary" id="adGo">Save add-ons</button>' +
           '<div class="err" id="adErr" style="margin-top:10px"></div><div class="ok" id="adOk"></div>' +
         '</div>' +
@@ -3363,9 +3490,6 @@
             '</div>' +
             '<div style="margin-bottom:10px"><label for="dxWhy">Reason</label>' +
             '<input id="dxWhy" type="text" placeholder="Why this row should not exist"></div>' +
-            '<div style="margin-bottom:10px"><label for="dxConfirm">Type ' +
-              '<span class="mono">' + esc(r.reference || "DELETE") + '</span> to confirm</label>' +
-            '<input id="dxConfirm" type="text" autocomplete="off" spellcheck="false"></div>' +
             (r.reference
               ? '<div style="margin-bottom:10px"><label style="display:flex;gap:8px;align-items:flex-start;font-size:.8125rem">' +
                   '<input id="dxSeq" type="checkbox" style="width:auto;margin-top:3px"> ' +
@@ -3390,6 +3514,7 @@
       '<div class="sect"><h2>Not editable here yet</h2>' +
         '<div class="muted" style="font-size:.8125rem">Recording a purchase-deposit payment. The columns exist; nothing writes them yet.</div></div>';
 
+    drawerTabs();
     $("scrim").classList.add("open");
     $("drawer").classList.add("open");
     $("drawer").setAttribute("aria-hidden", "false");
@@ -3511,10 +3636,8 @@
       $("cxErr").textContent = "Give a reason \u2014 the buyer reads it in their portal.";
       return;
     }
-    if (!window.confirm("End " + (r.reference || "this reservation") + " for " + name(r) +
-                        "?\n\nThe home is released and their portal will say the reservation is no longer active.")) {
-      return;
-    }
+    /* THE REASON IS THE CONFIRMATION. A dialog on top of it was a second yes to the same
+       question, answered by reflex. */
 
     go.disabled = true;
     $("cxErr").textContent = "";
@@ -3548,28 +3671,17 @@
 
   function deleteDeal(r) {
     var why = ($("dxWhy").value || "").trim();
-    var typed = ($("dxConfirm").value || "").trim();
     var seq = $("dxSeq");
     var force = $("dxForce");
     var go = $("dxGo");
-    var want = r.reference || "DELETE";
 
     if (why.length < 3) {
       $("dxErr").textContent = "Give a reason \u2014 it is the only thing that outlives this record.";
       return;
     }
-    if (typed.toUpperCase() !== String(want).toUpperCase()) {
-      $("dxErr").textContent = "Type " + want + " exactly, to confirm.";
-      return;
-    }
 
     var willRenumber = !!(seq && seq.checked);
-    if (willRenumber && !window.confirm(
-        "Renumber every " + refPrefix(r.reference) + " reservation after this one?\n\n" +
-        "Any of those numbers already quoted to a buyer or printed on a signed offer " +
-        "will point at a different deal afterwards. This cannot be undone either.")) {
-      return;
-    }
+    /* The renumbering box carries its own warning; ticking it is the decision. */
 
     go.disabled = true;
     $("dxErr").textContent = "";
@@ -3710,8 +3822,7 @@
   }
 
   function saveAddons(r) {
-    var why = $("adWhy").value.trim(), go = $("adGo");
-    if (!why) { $("adErr").textContent = "Give a reason \u2014 this changes a purchase price."; return; }
+    var why = "changed in the sales console", go = $("adGo");
 
     go.disabled = true;
     $("adErr").textContent = "";
@@ -3821,8 +3932,6 @@
             '<input id="upPrice" type="text" inputmode="decimal" placeholder="e.g. 125000 for R125,000">' +
             '<div class="muted" style="font-size:.75rem;margin-top:4px">In rands. This option has no catalogue price, so what you type is what the buyer sees.</div>' +
           "</div>" +
-          '<div style="margin-bottom:12px"><label for="upWhy">Reason</label>' +
-          '<input id="upWhy" type="text" placeholder="What was agreed, and when"></div>' +
           '<button class="primary" id="upGo">Add upgrade</button>'
         : '<div class="none">' +
             (withheld > 0
@@ -3848,10 +3957,9 @@
   }
 
   function addUpgrade(r) {
-    var pick = $("upPick"), why = $("upWhy").value.trim(), go = $("upGo");
+    var pick = $("upPick"), why = "changed in the sales console", go = $("upGo");
     var slug = pick ? pick.value : "";
     if (!slug) { $("upErr").textContent = "Choose an upgrade first."; return; }
-    if (!why) { $("upErr").textContent = "Give a reason \u2014 it goes on the record with your name."; return; }
 
     var o = pick.options[pick.selectedIndex];
     var needs = o.getAttribute("data-needs") === "1";
@@ -3888,10 +3996,9 @@
   }
 
   function dropUpgrade(r, slug) {
-    var why = window.prompt("Why is " + label(slug) + " coming off this order?");
-    if (why === null) { return; }
-    why = why.trim();
-    if (!why) { $("upErr").textContent = "A reason is required to remove an upgrade."; return; }
+    /* One confirmation, no reason: removing an upgrade is undone by adding it back. */
+    if (!window.confirm("Remove " + label(slug) + " from this order?")) { return; }
+    var why = "removed in the sales console";
 
     $("upErr").textContent = "";
     $("upOk").textContent = "Removing\u2026";
@@ -3955,8 +4062,6 @@
         '<label for="docLabel">Name it</label><input id="docLabel" type="text" placeholder="What the buyer will see"></div>' +
       '<div style="margin-bottom:10px"><label for="docUrl">Link</label>' +
       '<input id="docUrl" type="url" placeholder="https://\u2026"></div>' +
-      '<div style="margin-bottom:12px"><label for="docWhy">Reason</label>' +
-      '<input id="docWhy" type="text" placeholder="Why this is going on the portal"></div>' +
       '<button class="primary" id="docGo">Add document</button>' +
       '<div class="err" id="docErr" style="margin-top:10px"></div><div class="ok" id="docOk"></div>';
 
@@ -3977,7 +4082,7 @@
   function addDocument(r) {
     var type = $("docType").value;
     var url = $("docUrl").value.trim();
-    var why = $("docWhy").value.trim();
+    var why = "changed in the sales console";
     var go = $("docGo");
 
     if (!type) { $("docErr").textContent = "Choose a document type."; return; }
@@ -3988,7 +4093,6 @@
       $("docErr").textContent = "The link must start with https://";
       return;
     }
-    if (!why) { $("docErr").textContent = "Give a reason \u2014 it goes on the record with your name."; return; }
 
     var body = { doc_type: type, url: url, reason: why };
     if (type === "other") {
@@ -4012,10 +4116,8 @@
   }
 
   function dropDocument(r, id) {
-    var why = window.prompt("Why is this document coming off the buyer's portal?");
-    if (why === null) { return; }
-    why = why.trim();
-    if (!why) { $("docErr").textContent = "A reason is required to remove a document."; return; }
+    if (!window.confirm("Remove this document from the buyer's portal?")) { return; }
+    var why = "removed in the sales console";
 
     $("docErr").textContent = "";
     $("docOk").textContent = "Removing\u2026";
@@ -4032,10 +4134,9 @@
   function saveDeadline(r) {
     var clearIt = $("dlClear").checked;
     var due = $("dlDue").value;
-    var why = $("dlWhy").value.trim();
+    var why = "changed in the sales console";
     var go = $("dlGo");
 
-    if (!why) { $("dlErr").textContent = "Give a reason \u2014 it goes on the record with your name."; return; }
     if (!clearIt && !due) { $("dlErr").textContent = "Pick a date, or tick remove."; return; }
 
     go.disabled = true;
@@ -4061,6 +4162,64 @@
       .then(function () { go.disabled = false; });
   }
 
+  /* THE DEAL DRAWER IN TABS, 21 Sep. It had grown to twelve sections and about three
+     screens of scrolling; the thing somebody opened it for was usually one of them. The
+     sections are grouped by what a person came to do, and every one is still in the DOM -
+     a hidden tab is display:none, so nothing that reads the drawer loses a field. The tab
+     is remembered across deals, because working down a list is usually the same job on
+     each row. */
+  var DRAWER_TAB_OF = {
+    "What the buyer sees": "overview", "Offer to Purchase": "overview", "Money": "overview",
+    "Deal stage": "deal", "Note": "deal", "Deadline": "deal",
+    "Add-ons": "extras", "Upgrades": "extras",
+    "Documents": "docs",
+    "End this deal": "manage", "Cancelled": "manage", "Delete this reservation": "manage",
+    "Not editable here yet": "manage"
+  };
+  var DRAWER_TABS = [
+    { k: "overview", t: "Overview" }, { k: "deal", t: "Deal" }, { k: "extras", t: "Add-ons" },
+    { k: "docs", t: "Documents" }, { k: "manage", t: "Manage" }
+  ];
+  S.dtab = "overview";
+  function drawerTabs() {
+    var dr = $("drawer");
+    var head = dr.querySelector("header");
+    if (!head) { return; }
+    var have = {};
+    [].forEach.call(dr.children, function (el) {
+      if (el === head) { return; }
+      var k = "overview";
+      if (el.classList.contains("sect")) {
+        var h = el.querySelector("h2");
+        k = DRAWER_TAB_OF[h ? h.textContent.trim() : ""] || "overview";
+      }
+      el.setAttribute("data-dtab", k);
+      have[k] = true;
+    });
+    var tabs = DRAWER_TABS.filter(function (x) { return have[x.k]; });
+    if (!have[S.dtab]) { S.dtab = "overview"; }
+    var bar = document.createElement("div");
+    bar.className = "subtabs drawer-tabs";
+    bar.setAttribute("role", "tablist");
+    bar.innerHTML = tabs.map(function (x) {
+      return '<button type="button" role="tab" data-dtab-go="' + x.k + '">' + x.t + "</button>";
+    }).join("");
+    head.parentNode.insertBefore(bar, head.nextSibling);
+    [].forEach.call(bar.querySelectorAll("[data-dtab-go]"), function (b) {
+      b.addEventListener("click", function () { S.dtab = b.getAttribute("data-dtab-go"); drawerTabPaint(); });
+    });
+    drawerTabPaint();
+  }
+  function drawerTabPaint() {
+    var dr = $("drawer");
+    [].forEach.call(dr.querySelectorAll("[data-dtab]"), function (el) {
+      el.classList.toggle("is-off", el.getAttribute("data-dtab") !== S.dtab);
+    });
+    [].forEach.call(dr.querySelectorAll("[data-dtab-go]"), function (b) {
+      b.setAttribute("aria-selected", b.getAttribute("data-dtab-go") === S.dtab ? "true" : "false");
+    });
+  }
+
   function closeDrawer() {
     S.open = null;
     /* A PANEL BUTTON SAYS WHETHER IT IS OPEN, so closing one has to re-render it. Without
@@ -4079,10 +4238,9 @@
   function moveStage(r) {
     var sub = $("mvSub").value;
     var due = $("mvDue").value;
-    var why = $("mvWhy").value.trim();
+    var why = "changed in the sales console";
     var go = $("mvGo");
 
-    if (!why) { $("mvErr").textContent = "Give a reason — it goes on the record with your name."; return; }
 
     go.disabled = true;
     $("mvErr").textContent = "";
@@ -4347,45 +4505,109 @@
       "</div></div>";
   }
 
+  /* ---------- DEVELOPMENTS: one development, six sub-tabs - 21 Sep ----------
+     This tab used to be one long page (the record card, then every module group), and
+     Types, Renders, Fields and Phases lived in a drawer on the Inventory tab. Setup is now
+     all here, one screen per concern, and Inventory is the stock grid and nothing else.
+     Details and Features are admin decisions; a manager gets the four that decide what the
+     stock is, which are the ones POST /staff/phases, /types, /variants, /types/media and
+     /staff/fields already take from a manager. The server refuses regardless. */
+  var DEVSUB = { k: "" };
+  try { DEVSUB.k = localStorage.getItem("hl_dev_sub") || ""; } catch (e) {}
+  var DEV_SUBS = [
+    { k: "details",  t: "Details",  admin: true },
+    { k: "features", t: "Features", admin: true },
+    { k: "phases",   t: "Phases" },
+    { k: "types",    t: "Types" },
+    { k: "media",    t: "Renders" },
+    { k: "fields",   t: "Fields" }
+  ];
+  var DEV_PANEL = { phases: 1, types: 1, media: 1, fields: 1 };
+  function devSubsFor() {
+    var role = String((S.staff && S.staff.role) || "agent").toLowerCase();
+    return DEV_SUBS.filter(function (x) { return role === "admin" || !x.admin; });
+  }
+  function devSubGo(k) {
+    DEVSUB.k = k;
+    try { localStorage.setItem("hl_dev_sub", k); } catch (e) {}
+    FEAT.saveErr = "";
+    devPanelEnsure();
+    renderFeat();
+  }
+  /* A panel reads the development's grid (phases, type counts) and its own register, the
+     same reads the Inventory drawer made - just made from here. */
+  function devPanelEnsure() {
+    var slug = S.dev;
+    if (!slug || !DEV_PANEL[DEVSUB.k]) { return; }
+    if (INV.slug !== slug || (!INV.data && !INV.loading)) { invLoad(slug); }
+    if (DEVSUB.k === "fields" && (FLD.slug !== slug || !FLD.data)) { fldLoad(slug); }
+    if (DEVSUB.k === "types" && (TYP.slug !== slug || !TYP.data)) { typLoad(slug); }
+    if (DEVSUB.k === "media" && (MED.slug !== slug || !MED.data)) { medLoad(slug); }
+  }
+
   function renderFeat() {
     var d = FEAT.data;
+    var subs = devSubsFor();
+    var known = subs.some(function (x) { return x.k === DEVSUB.k; });
+    if (!known) { DEVSUB.k = subs.length ? subs[0].k : ""; }
+
+    var props = (S.data && S.data.properties) || [];
+    var pname = "";
+    props.forEach(function (p) { if (p.slug === S.dev) { pname = p.name; } });
+    var dev = featFor(S.dev);
+    if (dev) { FEAT.slug = dev.property_slug; pname = pname || dev.property_name; }
+
+    var bar = '<div class="subtabs" role="tablist" aria-label="Development setup">' +
+      subs.map(function (x) {
+        return '<button type="button" role="tab" data-dsub="' + x.k + '" aria-selected="' +
+          (x.k === DEVSUB.k ? "true" : "false") + '">' + esc(x.t) + "</button>";
+      }).join("") + "</div>";
+    var head = '<div class="page-head"><h2>' + esc(pname || "Developments") + "</h2>" +
+      (dev ? '<span class="page-meta">' + dev.on_count + " of " + dev.of + " features on" +
+        (dev.is_selling ? " · selling" : "") + "</span>" : "") + "</div>" + bar;
+
+    if (DEV_PANEL[DEVSUB.k]) {
+      $("viewDev").innerHTML = head + '<div class="card pad setup-panel" id="devPanel">' +
+        devPanelBody() + "</div>";
+      featWire();
+      panelWire();
+      return;
+    }
 
     if (FEAT.err) {
-      $("viewDev").innerHTML = '<div class="card pad"><div class="err">' + esc(FEAT.err) + "</div></div>";
+      $("viewDev").innerHTML = head + '<div class="card pad"><div class="err">' + esc(FEAT.err) + "</div></div>";
+      featWire();
       return;
     }
     if (!d) {
-      $("viewDev").innerHTML = '<div class="card"><div class="inv-empty">' +
+      $("viewDev").innerHTML = head + '<div class="card"><div class="inv-empty">' +
         (FEAT.loading ? "Loading…" : "Nothing loaded.") + "</div></div>";
+      featWire();
       return;
     }
-
-    var devs = d.developments || [];
-    var reg = d.registry || [];
-    var sreg = d.setting_registry || [];
-    var dev = featFor(FEAT.slug) || devs[0] || null;
-    if (dev) { FEAT.slug = dev.property_slug; }
-
-    /* Every development at a glance, and the way you switch between them. Comparing is the
-       actual job - "does Sanford have what Polaris has" - and a count answers it without
-       opening each one. */
-    var strip = '<div class="feat-strip">' + devs.map(function (x) {
-      return '<button type="button" class="feat-dev' +
-        (x.property_slug === FEAT.slug ? " is-on" : "") + '" data-feat-dev="' +
-        esc(x.property_slug) + '"><b>' + esc(x.property_name) + "</b><span>" +
-        x.on_count + " of " + x.of + " on" +
-        (x.is_selling ? " · selling" : "") + "</span></button>";
-    }).join("") + "</div>";
-
     if (!dev) {
-      $("viewDev").innerHTML = strip + '<div class="card"><div class="inv-empty">' +
-        "No developments yet.</div></div>";
+      $("viewDev").innerHTML = head + '<div class="card"><div class="inv-empty">' +
+        "Choose a development.</div></div>";
       featWire();
       return;
     }
 
-    /* Grouped by category, in the order the registry gives them - the registry is authored
-       deliberately, so its order is a decision rather than an accident. */
+    var err = FEAT.saveErr
+      ? '<div class="card pad"><div class="err">' + esc(FEAT.saveErr) + "</div></div>" : "";
+
+    if (DEVSUB.k === "details") {
+      $("viewDev").innerHTML = head + err + recHtml(dev);
+      featWire();
+      return;
+    }
+
+    /* FEATURES. Grouped by category, in the order the registry gives them - the registry
+       is authored deliberately, so its order is a decision rather than an accident.
+       Settings join the category they belong to rather than getting a section of their
+       own: "can this development record availability" and "where do its prices live" are
+       the same conversation. */
+    var reg = d.registry || [];
+    var sreg = d.setting_registry || [];
     var groups = [], seen = {};
     function group(c) {
       c = c || "Other";
@@ -4393,50 +4615,39 @@
       return seen[c];
     }
     reg.forEach(function (m) { group(m.category).modules.push(m); });
-    /* Settings join the category they belong to rather than getting a section of their own.
-       "Can this development record availability" and "where do its prices live" are the same
-       conversation, and splitting them by how they happen to be stored would be organising
-       the screen around the database. A category that has only settings - Phases - simply
-       appears after the ones the module registry named. */
     sreg.forEach(function (x) { group(x.category).settings.push(x); });
-
-    var body = recHtml(dev) + groups.map(function (g) {
-      return '<div class="card pad feat-group"><h2>' + esc(g.name) + "</h2>" +
-        g.modules.map(function (m) { return featRowHtml(m, dev); }).join("") +
-        g.settings.map(function (x) { return setRowHtml(x, dev); }).join("") + "</div>";
-    }).join("");
 
     var warn = (dev.unknown_keys && dev.unknown_keys.length)
       ? '<div class="inv-warn"><div><strong>Settings for modules that no longer exist.</strong> ' +
         esc(dev.unknown_keys.join(", ")) + " — these are ignored, not applied. They are " +
         "left over from a module that was renamed or removed.</div></div>"
       : "";
+    var intro = '<p class="page-intro">Turning a feature off hides it here <em>and</em> ' +
+      "refuses it on the server. <strong>Default</strong> follows whatever the default " +
+      "becomes; <strong>Set</strong> means somebody chose, and it stays chosen.</p>";
 
-    var err = FEAT.saveErr
-      ? '<div class="card pad"><div class="err">' + esc(FEAT.saveErr) + "</div></div>" : "";
-
-    $("viewDev").innerHTML = strip +
-      '<div class="feat-head">' +
-        "<h2>" + esc(dev.property_name) + "</h2>" +
-        '<div class="inv-owed">Turning a module off hides it in this console <em>and</em> ' +
-        "refuses it on the server — hiding alone would not be a rule. Settings are the " +
-        "same decision in a different shape: a module says whether this development has a " +
-        "capability, a setting says how it behaves. " +
-        "<strong>Default</strong> means nobody has decided; it follows whatever the " +
-        "default becomes. <strong>Set</strong> means somebody chose, and it stays chosen.</div>" +
-      "</div>" + warn + err + body;
+    $("viewDev").innerHTML = head + intro + warn + err + '<div class="feat-cols">' +
+      groups.map(function (g) {
+        return '<div class="card pad feat-group"><h2>' + esc(g.name) + "</h2>" +
+          g.modules.map(function (m) { return featRowHtml(m, dev); }).join("") +
+          g.settings.map(function (x) { return setRowHtml(x, dev); }).join("") + "</div>";
+      }).join("") + "</div>";
     featWire();
   }
 
+  function devPanelBody() {
+    if (!S.dev) { return '<div class="inv-empty">Choose a development.</div>'; }
+    if (INV.slug !== S.dev || !INV.data) {
+      return '<div class="inv-empty">' + (INV.err ? esc(INV.err) : "Loading…") + "</div>";
+    }
+    var k = DEVSUB.k;
+    return k === "phases" ? phasesDrawerHtml()
+      : (k === "types" ? typesDrawerHtml() : (k === "media" ? mediaDrawerHtml() : fieldsDrawerHtml()));
+  }
+
   function featWire() {
-    [].forEach.call($("viewDev").querySelectorAll("[data-feat-dev]"), function (el) {
-      el.addEventListener("click", function () {
-        FEAT.slug = el.getAttribute("data-feat-dev");
-        FEAT.saveErr = "";
-        /* A half-edited record belongs to the development being left. */
-        recReset();
-        renderFeat();
-      });
+    [].forEach.call($("viewDev").querySelectorAll("[data-dsub]"), function (el) {
+      el.addEventListener("click", function () { devSubGo(el.getAttribute("data-dsub")); });
     });
     recWire();
     [].forEach.call($("viewDev").querySelectorAll("[data-feat-key]"), function (el) {
@@ -4588,9 +4799,11 @@
         '<div class="feat-controls">' + ctrl + "</div></div>";
     }).join("");
 
+    /* Only what the server REFUSED is listed after a save; a clean save is a toast. */
     var report = "";
-    if (REC.report && REC.report.length) {
-      report = '<ul class="rec-report" id="recReport">' + REC.report.map(function (x) {
+    var refusedRep = (REC.report || []).filter(function (x) { return x.outcome !== "applied" && x.outcome !== "unchanged"; });
+    if (refusedRep.length) {
+      report = '<ul class="rec-report" id="recReport">' + refusedRep.map(function (x) {
         var f = null;
         for (var i = 0; i < REC_FIELDS.length; i++) { if (REC_FIELDS[i].key === x.field) { f = REC_FIELDS[i]; } }
         var lab = f ? f.label : x.field;
@@ -4604,15 +4817,16 @@
       }).join("") + "</ul>";
     }
 
+    /* ONE SAVE, 21 Sep. No reason box and no slug typed back: Save is the confirmation.
+       A switch that changes what buyers can do on the live site is NAMED beside the button,
+       so the one click is an informed one. */
+    var switches = REC_FIELDS.filter(function (f) { return f.guarded && recDirty(f, rec); }).map(function (f) {
+      return f.label + " " + (REC.draft[f.key] === true ? "on" : "off");
+    });
     var foot = '<div class="rec-foot">' +
-      '<div class="nr-field"><label for="recReason">Why</label>' +
-        '<input id="recReason" type="text" value="' + esc(REC.reason) + '" placeholder="Hold window to 30 min for the longer intake"' +
-        (REC.busy ? " disabled" : "") + "></div>" +
       (guardedDirty
-        ? '<div class="nr-field"><label for="recConfirm">Type <code>' + esc(dev.property_slug) +
-          "</code> to confirm a switch</label>" +
-          '<input id="recConfirm" type="text" value="' + esc(REC.confirm) + '" autocomplete="off"' +
-          (REC.busy ? " disabled" : "") + "></div>"
+        ? '<span class="rec-live" id="recLive">Saving turns ' + esc(switches.join(", ")) +
+          " on the live site.</span>"
         : "") +
       '<span class="spacer"></span>' +
       '<button type="button" id="recDiscard"' + (dirtyAny && !REC.busy ? "" : " disabled") + ">Discard</button>" +
@@ -4655,10 +4869,6 @@
         renderFeat();
       });
     });
-    var rr = $("recReason");
-    if (rr) { rr.addEventListener("input", function () { REC.reason = rr.value; }); }
-    var rc = $("recConfirm");
-    if (rc) { rc.addEventListener("input", function () { REC.confirm = rc.value; }); }
     var rd = $("recDiscard");
     if (rd) { rd.addEventListener("click", function () { recReset(); renderFeat(); }); }
     var rs = $("recSave");
@@ -4698,29 +4908,17 @@
       n++;
     });
     if (!n) { return; }
-    if (!REC.reason.trim()) {
-      REC.err = "Say why. Every change to the record carries a reason.";
-      renderFeat();
-      var r = $("recReason"); if (r) { r.focus(); }
-      return;
-    }
-    /* THE SLUG, TYPED BACK, for the switches that change what the public site does. */
-    if (guarded && String(REC.confirm || "").trim().toLowerCase() !== String(dev.property_slug).toLowerCase()) {
-      REC.err = "Type the development's slug (" + dev.property_slug + ") to confirm. A switch " +
-        "here changes what buyers can do on the live site.";
-      renderFeat();
-      var c = $("recConfirm"); if (c) { c.focus(); }
-      return;
-    }
     REC.busy = true; REC.err = "";
     renderFeat();
     api("/staff/property", {
       method: "POST",
-      body: JSON.stringify({ property_slug: dev.property_slug, fields: fields, reason: REC.reason.trim() })
+      body: JSON.stringify({ property_slug: dev.property_slug, fields: fields, reason: "edited in the sales console" })
     })
       .then(function (res) {
         REC.busy = false; REC.draft = {}; REC.reason = ""; REC.confirm = "";
         REC.report = (res && res.fields) || [];
+        var bad = REC.report.filter(function (x) { return x.outcome !== "applied" && x.outcome !== "unchanged"; }).length;
+        toast(bad ? plural(bad, "field") + " not saved" : "Development saved", !!bad);
         /* Reloaded rather than patched: the record shown must be the one in force. */
         FEAT.loaded = false;
         return loadFeatures();
@@ -5377,12 +5575,8 @@
        because a private window throws on read. */
     try { INV.dense = localStorage.getItem("hl_inv_dense") === "1"; } catch (e) {}
 
-    var props = (S.data && S.data.properties) || [];
-    if (!props.length) { return; }
-    var pref = $("fprop") ? $("fprop").value : "";
-    var has = false, i;
-    for (i = 0; i < props.length; i++) { if (props[i].slug === pref) { has = true; break; } }
-    invLoad(has ? pref : props[0].slug);
+    var slug = devForSingle();
+    if (slug) { invLoad(slug); }
   }
 
   function invLoad(slug, keep) {
@@ -5510,6 +5704,16 @@
   /* THE PANEL BAR. Phases and Fields each get one button carrying a one-line summary, and
      open in the side drawer. They used to be fold-out cards above the grid, and an open one
      pushed the stock off the screen - which is the thing an agent came here to see. */
+  /* Inventory is the stock and nothing else since 21 Sep; the setup that used to open in
+     a drawer here is a sub-tab of Developments. One quiet line says where, for the people
+     who can change it. */
+  function invSetupLink() {
+    var role = String((S.staff && S.staff.role) || "agent").toLowerCase();
+    if (!INV.slug || INV.err || !(role === "admin" || role === "manager")) { return ""; }
+    return '<div class="setup-link"><span>Phases, types, renders and fields are set up under Developments.</span>' +
+      '<button type="button" id="invSetupGo">Development setup</button></div>';
+  }
+
   function panelBarHtml() {
     if (!INV.slug || INV.err) { return ""; }
     var d = INV.data || {};
@@ -6621,36 +6825,24 @@
     if (TYP.saving) { return; }
     var hit = typFindVariant(id);
     if (!hit) { return; }
-    var toEl = $("typMoveTo"), whyEl = $("typMoveWhy"), confEl = $("typMoveConfirm");
+    var toEl = $("typMoveTo");
     var to = toEl ? toEl.value : TYP.moveTo;
-    var why = (whyEl ? whyEl.value : TYP.moveWhy).trim();
-    var conf = (confEl ? confEl.value : TYP.moveConfirm).trim();
-    TYP.moveWhy = why; TYP.moveConfirm = conf;
 
     if (!to) {
       TYP.err = "Choose where these homes should go. They cannot be left without a variant \u2014 " +
         "a home that points at nothing is one nothing can describe.";
       renderInv(); return;
     }
-    if (!why) {
-      TYP.err = "Give a reason. This changes what every one of these homes is built as, and " +
-        "the event is the only record of why somebody did it.";
-      renderInv(); return;
-    }
-    /* THE CODE, TYPED BACK. Not a confirm dialog - a dialog is dismissed by the same reflex
-       that opened it. Typing the code is the only guard here that catches the wrong ROW. */
-    if (conf.toLowerCase() !== String(hit.v.code || "").toLowerCase()) {
-      TYP.err = "Type the variant's code (" + hit.v.code + ") to confirm. Every other check " +
-        "here would pass just as happily on the variant next to this one.";
-      renderInv(); return;
-    }
+    /* ONE STEP since 21 Sep: choosing the destination and pressing the button that names
+       the variant, the count and the destination is the confirmation. The event still says
+       exactly what moved where. */
 
     var toV = null;
     typMoveTargets(id).forEach(function (x) { if (String(x.id) === String(to)) { toV = x; } });
     typWrite("move:" + id, "/staff/variants/delete", {
       variant_id: Number(id),
       reassign_to: Number(to),
-      reason: why + " \u2014 moved " + (hit.v.unit_count || 0) + " home" +
+      reason: "moved " + (hit.v.unit_count || 0) + " home" +
         ((hit.v.unit_count || 0) === 1 ? "" : "s") + " onto " +
         (toV ? toV.type_code + "/" + toV.code : String(to)) +
         " and retired " + hit.v.code + ", from the sales console"
@@ -6723,20 +6915,12 @@
           "those figures changes with them." + "</div>"
         : "") +
 
-      '<label for="typMoveWhy">Why</label>' +
-      '<input id="typMoveWhy" type="text" placeholder="Created by mistake; the homes belong on ' +
-        esc(t.code) + '1" aria-label="Why these homes are moving" value="' + esc(TYP.moveWhy) +
-        '"' + (busy ? " disabled" : "") + ">" +
-
-      '<label for="typMoveConfirm">Type <strong>' + esc(v.code) + "</strong> to confirm</label>" +
-      '<input id="typMoveConfirm" type="text" autocomplete="off" spellcheck="false" ' +
-        'aria-label="Type the variant code to confirm" value="' + esc(TYP.moveConfirm) + '"' +
-        (busy ? " disabled" : "") + ">" +
-
       '<div class="typ-actions" style="margin-top:10px">' +
         '<button type="button" class="ph-btn" data-typv-movesave="' + esc(String(v.id)) + '"' +
           (busy ? " disabled" : "") + ">" +
-          (busy ? "Moving\u2026" : "Move " + n + " home" + (n === 1 ? "" : "s") + " and remove") +
+          (busy ? "Moving\u2026" : "Move " + n + " home" + (n === 1 ? "" : "s") +
+            (picked ? " to " + esc(picked.type_code ? picked.type_code + "/" + picked.code : picked.code) : "") +
+            " and remove " + esc(v.code)) +
         "</button>" +
         '<button type="button" class="ph-btn is-quiet" data-typv-movecancel="1"' +
           (busy ? " disabled" : "") + ">Cancel</button>" +
@@ -6994,45 +7178,22 @@
     });
   }
 
-  function openPanel(kind) {
-    S.open = null;
-    PANEL.kind = kind;
-    if (kind === "fields" && (FLD.slug !== INV.slug || !FLD.data)) { fldLoad(INV.slug); }
-    if (kind === "types" && (TYP.slug !== INV.slug || !TYP.data)) { typLoad(INV.slug); }
-    if (kind === "media" && (MED.slug !== INV.slug || !MED.data)) { medLoad(INV.slug); }
-    renderInv();
-  }
-
-  function panelClose() {
-    if (!PANEL.kind) { return; }
-    PANEL.kind = "";
-    $("scrim").classList.remove("open");
-    $("drawer").classList.remove("open");
-    $("drawer").setAttribute("aria-hidden", "true");
-  }
+  /* The setup panels used to open in the side drawer from Inventory. They are sub-tabs of
+     Developments now; these keep their old names because every panel action calls
+     renderInv(), which repaints whichever panel is showing. */
+  function panelClose() { PANEL.kind = ""; }
 
   function renderPanel() {
-    if (!PANEL.kind) { return; }
-    var kind = PANEL.kind;
-    var d = INV.data || {};
-    var title = kind === "phases" ? "Phases"
-      : (kind === "types" ? "Types and variants" : (kind === "media" ? "Renders and floor plans" : "Fields"));
-    var body = kind === "phases" ? phasesDrawerHtml()
-      : (kind === "types" ? typesDrawerHtml() : (kind === "media" ? mediaDrawerHtml() : fieldsDrawerHtml()));
-    $("drawer").innerHTML =
-      "<header><div><h1>" + title + "</h1>" +
-        '<div class="muted">' + esc(d.property_name || INV.slug) + "</div></div>" +
-        '<button id="close">Close</button></header>' +
-      '<div id="panelBody">' + body + "</div>";
-    $("scrim").classList.add("open");
-    $("drawer").classList.add("open");
-    $("drawer").setAttribute("aria-hidden", "false");
-    $("close").addEventListener("click", closeDrawer);
+    if (S.tab !== "dev" || !DEV_PANEL[DEVSUB.k]) { return; }
+    var host = $("devPanel");
+    if (!host) { renderFeat(); return; }
+    host.innerHTML = devPanelBody();
     panelWire();
   }
 
   function panelWire() {
-    var root = $("drawer");
+    var root = $("devPanel");
+    if (!root) { return; }
 
     /* ---- media ---- */
     [].forEach.call(root.querySelectorAll("[data-med-open]"), function (el) {
@@ -7152,15 +7313,6 @@
       typMoveSel.addEventListener("change", function () {
         TYP.moveTo = typMoveSel.value; renderInv();
       });
-    }
-    /* Kept as they are typed, so a refusal about one field does not empty the other two. */
-    var typWhyEl = root.querySelector("#typMoveWhy");
-    if (typWhyEl) {
-      typWhyEl.addEventListener("input", function () { TYP.moveWhy = typWhyEl.value; });
-    }
-    var typConfEl = root.querySelector("#typMoveConfirm");
-    if (typConfEl) {
-      typConfEl.addEventListener("input", function () { TYP.moveConfirm = typConfEl.value; });
     }
     [].forEach.call(root.querySelectorAll("[data-typv-restore]"), function (el) {
       el.addEventListener("click", function () { typRestoreVariant(el.getAttribute("data-typv-restore")); });
@@ -7472,7 +7624,13 @@
     return INV_GRID.changeList().map(function (c) { return { unit_number: c.key, fields: c.fields }; });
   }
 
-  function invPreview() {
+
+
+  /* ONE STEP, 21 Sep. Save sends the edits; the server's per-row answer comes back from the
+     real write, so the dry-run Review that used to sit in front of it only showed the same
+     answer a click earlier - and then asked for a reason on top. The event trail still
+     records who changed what, was and now, row by row. */
+  function invCommit() {
     var changes = invChangeList();
     if (!changes.length) { return; }
     INV.saving = true; INV.saveErr = ""; INV.bulk = null;
@@ -7480,24 +7638,7 @@
     api("/staff/units/bulk", {
       method: "POST",
       body: JSON.stringify({
-        property_slug: INV.slug, changes: changes,
-        reason: "preview", dry_run: true
-      })
-    })
-      .then(function (d) { INV.bulk = d; })
-      .catch(function (e) { INV.saveErr = e.message; })
-      .then(function () { INV.saving = false; renderInv(); });
-  }
-
-  function invCommit(reason) {
-    var changes = invChangeList();
-    if (!changes.length) { return; }
-    INV.saving = true; INV.saveErr = "";
-    renderInv();
-    api("/staff/units/bulk", {
-      method: "POST",
-      body: JSON.stringify({
-        property_slug: INV.slug, changes: changes, reason: reason
+        property_slug: INV.slug, changes: changes, reason: "edited in the sales console"
       })
     })
       .then(function (d) {
@@ -7509,8 +7650,12 @@
             if (r.asked_as) { delete INV.pending[r.asked_as]; }
           }
         });
-        INV.bulk = d;
+        var c = d.counts || {};
+        /* Refused rows keep their edits and are listed; a clean save is just a toast. */
+        INV.bulk = c.refused ? d : null;
         INV.saving = false;
+        if (!c.refused) { toast("Saved " + plural(c.applied || 0, "home")); }
+        else { toast(plural(c.refused, "row") + " not saved", true); }
         return invLoad(INV.slug, true);
       })
       .catch(function (e) { INV.saving = false; INV.saveErr = e.message; renderInv(); });
@@ -7669,9 +7814,6 @@
             esc(s.h) + '">' + esc(s.t) + "</button>";
         }).join("") + "</div>" +
 
-      '<div class="nr-field"><label for="invReason">Why</label>' +
-        '<input id="invReason" type="text" value="' + esc(INV.editReason) + '" ' +
-        'placeholder="Sold off-plan in the show house, 3 Sept"></div>' +
       '<div class="nr-field"><label for="invRef">Reference <span class="muted">(optional)</span></label>' +
         '<input id="invRef" type="text" value="' + esc(INV.editRef) + '" ' +
         'placeholder="Where the sale actually lives — a deal number"></div>' +
@@ -7860,7 +8002,7 @@
   function invOpenDeal(uuid, ref) {
     if (!ref) { return; }
     $("q").value = ref;
-    $("fstatus").value = ""; $("fstage").value = ""; $("fprop").value = "";
+    $("fstatus").value = ""; $("fstage").value = "";
     tab("pipe");
     load().then(function () {
       if (find(uuid)) { openDrawer(uuid); }
@@ -7885,65 +8027,27 @@
      what it said - per row, including every refusal and its reason. Committing then needs a
      typed reason, because a bulk edit with no reason is unauditable by the time anyone asks
      what happened. */
+  /* What did not save, and why. A clean save never draws this - the toast says so. */
   function invBulkHtml(d) {
-    var c = d.counts || {};
-    var done = !d.dry_run;
-    var rows = (d.rows || []);
-
-    var refused = rows.filter(function (r) { return r.outcome === "refused"; });
-
-    return '<div class="card pad gpreview">' +
-      "<h2>" + (done ? "What was saved" : "What this will change") + "</h2>" +
-      '<div class="gpreview-counts">' +
-        '<span class="gp ok">' + (c.applied || 0) + (done ? " applied" : " to change") + "</span>" +
-        (c.unchanged ? '<span class="gp">' + c.unchanged + " already matched</span>" : "") +
-        (c.refused ? '<span class="gp bad">' + c.refused + " refused</span>" : "") +
-        (c.fields_changed ? '<span class="gp">' + c.fields_changed + " field" +
-          (c.fields_changed === 1 ? "" : "s") + "</span>" : "") +
-      "</div>" +
-
+    var refused = (d.rows || []).filter(function (r) { return r.outcome === "refused"; });
+    if (!refused.length) { return ""; }
+    return '<div class="card pad gpreview is-bad">' +
+      "<h2>" + plural(refused.length, "home") + " not saved</h2>" +
       '<div class="gpreview-list">' +
-        rows.map(function (r) {
-          var head = '<span class="gp-unit">' + esc(invPad(r.unit_number)) + "</span>";
-          if (r.outcome === "refused") {
-            return '<div class="gp-row is-bad">' + head +
-              '<span class="gp-why">' + esc(r.why) + "</span></div>";
-          }
-          if (r.outcome === "unchanged") {
-            return '<div class="gp-row is-quiet">' + head +
-              '<span class="gp-why">' + esc(r.why) + "</span></div>";
-          }
-          return '<div class="gp-row">' + head +
-            '<span class="gp-why">' + (r.changed || []).map(function (ch) {
-              return "<b>" + esc(INV_FIELD_LABEL[ch.field] || ch.field) + "</b> " +
-                esc(invWasNow(ch.field, ch.was)) + " → " + esc(invWasNow(ch.field, ch.now));
-            }).join(" · ") + "</span></div>";
+        refused.map(function (r) {
+          return '<div class="gp-row is-bad"><span class="gp-unit">' + esc(invPad(r.unit_number)) +
+            '</span><span class="gp-why">' + esc(r.why) + "</span></div>";
         }).join("") +
       "</div>" +
-
-      (done
-        ? '<div class="inv-owed" style="margin-top:12px">' +
-          (refused.length
-            ? "The refused rows above kept their edits so they can be fixed and saved again."
-            : "All saved.") + "</div>" +
-          '<div class="inv-edit-actions"><span class="spacer"></span>' +
-          '<button type="button" id="invBulkDone">Close</button></div>'
-        : '<div class="nr-field" style="margin-top:14px"><label for="invBulkReason">Why</label>' +
-          '<input id="invBulkReason" type="text" value="' + esc(INV.bulkReason || "") +
-          '" placeholder="Areas from the surveyor\'s schedule, 5 Sept"></div>' +
-          '<div class="err" id="invBulkErr">' + esc(INV.bulkErr || "") + "</div>" +
-          '<div class="inv-edit-actions">' +
-            '<button type="button" id="invBulkCancel">Back</button>' +
-            '<span class="spacer"></span>' +
-            '<button type="button" class="primary" id="invBulkGo"' +
-            (INV.saving || !(c.applied || 0) ? " disabled" : "") + ">" +
-            (INV.saving ? "Saving…" : "Save " + (c.applied || 0) + " home" +
-             ((c.applied || 0) === 1 ? "" : "s")) + "</button>" +
-          "</div>") +
+      '<div class="inv-owed" style="margin-top:10px">Their edits are still in the grid, so they can be fixed and saved again.</div>' +
+      '<div class="inv-edit-actions"><span class="spacer"></span>' +
+      '<button type="button" id="invBulkDone">Dismiss</button></div>' +
     "</div>";
   }
 
-  function renderInv() {
+  function renderInv() { renderInvGrid(); renderPanel(); }
+
+  function renderInvGrid() {
     var d = INV.data;
     var props = (S.data && S.data.properties) || [];
     var placeholder = !!(d && d.prices_are_placeholder);
@@ -7951,11 +8055,6 @@
 
     var topbar =
       '<div class="inv-bar">' +
-      '<div class="f"><label for="invProp">Development</label><select id="invProp">' +
-        props.map(function (p) {
-          return '<option value="' + esc(p.slug) + '"' +
-            (p.slug === INV.slug ? " selected" : "") + ">" + esc(p.name) + "</option>";
-        }).join("") + "</select></div>" +
       '<div class="f grow"><label for="invQ">Search</label>' +
         '<input id="invQ" type="text" placeholder="Unit number, type, buyer, reservation number" value="' +
         esc(INV.q) + '"></div>' +
@@ -7968,8 +8067,6 @@
       '<span class="spacer"></span>' +
       '<button type="button" id="invDense" aria-pressed="' + (INV.dense ? "true" : "false") +
         '" title="Fit more rows on screen">' + (INV.dense ? "Comfortable" : "Compact") + "</button>" +
-      '<button type="button" id="invRefresh"' + (INV.loading ? " disabled" : "") + ">" +
-        (INV.loading ? "Loading…" : "Refresh") + "</button>" +
       (invCanAdd()
         ? '<button type="button" id="invAddOpen" aria-expanded="' + (UNIT.open ? "true" : "false") +
           '" title="Create a home on this development">' + (UNIT.open ? "Close" : "Add a home") + "</button>"
@@ -8150,10 +8247,9 @@
           : "") +
         (picked ? '<button type="button" id="invClearSel">Clear selection</button>' : "") +
         (pending ? '<button type="button" id="invDiscard">Discard</button>' : "") +
-        (pending ? '<button type="button" class="primary" id="invReview"' +
+        (pending ? '<button type="button" class="primary" id="invGridSave"' +
                    (INV.saving ? " disabled" : "") + ">" +
-                   (INV.saving ? "Checking…" : "Review " + pending + " change" +
-                    (pending === 1 ? "" : "s")) + "</button>" : "") +
+                   (INV.saving ? "Saving…" : "Save " + plural(pending, "change")) + "</button>" : "") +
         "</div>"
       : "";
 
@@ -8168,15 +8264,14 @@
 
     /* Order: what you must know before reading a number, then the stock itself, then
        the explanations. An agent opens this screen to see homes, not paragraphs. */
-    $("viewInv").innerHTML = topbar + stats + warn + lock + cmsAvail + panelBarHtml() +
-      invAddHtml() + bar + bulk + gerr + table + invRetiredHtml(d) + foot + noEngine + setup;
+    $("viewInv").innerHTML = topbar + stats + warn + lock + cmsAvail + invSetupLink() +
+      invAddHtml() + table + bar + bulk + gerr + invRetiredHtml(d) + foot + noEngine + setup;
     invWire();
-    renderPanel();
   }
 
   function invWire() {
-    var p = $("invProp");
-    if (p) { p.addEventListener("change", function () { invLoad(p.value); }); }
+    var sg = $("invSetupGo");
+    if (sg) { sg.addEventListener("click", function () { tab("dev"); }); }
 
     /* One development's CMS report over another's stock is the mistake worth preventing, so
        the panel is cleared on the way out rather than on the way in - the same rule the
@@ -8225,8 +8320,6 @@
     var t = $("invType");
     if (t) { t.addEventListener("change", function () { INV.type = t.value; renderInv(); }); }
 
-    var r = $("invRefresh");
-    if (r) { r.addEventListener("click", function () { invLoad(INV.slug); }); }
 
     [].forEach.call($("viewInv").querySelectorAll("[data-inv-state]"), function (el) {
       el.addEventListener("click", function () {
@@ -8270,31 +8363,10 @@
       $("invClearSel").addEventListener("click", function () { INV.sel = {}; renderInv(); });
     }
     if ($("invDiscard")) { $("invDiscard").addEventListener("click", invDiscard); }
-    if ($("invReview")) { $("invReview").addEventListener("click", invPreview); }
-    if ($("invBulkCancel")) {
-      $("invBulkCancel").addEventListener("click", function () {
-        INV.bulk = null; INV.bulkErr = ""; renderInv();
-      });
-    }
+    if ($("invGridSave")) { $("invGridSave").addEventListener("click", function () { invCommit(); }); }
     if ($("invBulkDone")) {
       $("invBulkDone").addEventListener("click", function () {
-        INV.bulk = null; INV.bulkErr = ""; renderInv();
-      });
-    }
-    var br = $("invBulkReason");
-    if (br) { br.addEventListener("input", function () { INV.bulkReason = br.value; }); }
-    if ($("invBulkGo")) {
-      $("invBulkGo").addEventListener("click", function () {
-        var why = (INV.bulkReason || "").trim();
-        if (!why) {
-          INV.bulkErr = "Say why. A bulk edit with no reason is unauditable by the time " +
-            "anybody asks what happened.";
-          renderInv();
-          if ($("invBulkReason")) { $("invBulkReason").focus(); }
-          return;
-        }
-        INV.bulkErr = "";
-        invCommit(why);
+        INV.bulk = null; renderInv();
       });
     }
 
@@ -8310,11 +8382,11 @@
     /* The editor lives inside the block every re-render replaces, so anything typed has
        to be read back on each keystroke and focus restored - the same problem, and the
        same answer, as the search box above. */
-    ["invReason", "invRef"].forEach(function (id) {
+    ["invRef"].forEach(function (id) {
       var el = $(id);
       if (!el) { return; }
       el.addEventListener("input", function () {
-        if (id === "invReason") { INV.editReason = el.value; } else { INV.editRef = el.value; }
+        INV.editRef = el.value;
       });
       el.addEventListener("click", function (e) { e.stopPropagation(); });
     });
@@ -8472,16 +8544,11 @@
 
   function unitRetire(unitId) {
     if (INV.saving) { return; }
-    if (!INV.editReason.trim()) {
-      INV.editErr = "Say why. Retiring takes a home off the list, so the record has to carry a reason.";
-      renderInv();
-      var r = $("invReason"); if (r) { r.focus(); }
-      return;
-    }
     INV.saving = true; INV.editErr = "";
     renderInv();
-    unitWrite({ unit_id: Number(unitId), reason: INV.editReason.trim() })
+    unitWrite({ unit_id: Number(unitId), reason: "retired from the sales console" })
       .then(function () {
+        toast("Home retired \u2014 it can be brought back from the retired list");
         INV.stateRow = ""; INV.editState = ""; INV.editReason = "";
         INV.editRef = ""; INV.saving = false;
         TYP.data = null; TYP.slug = "";
@@ -8553,13 +8620,6 @@
     if (!INV.editState) { return; }
     /* Checked here as well as on the server, so a person finds out before the round trip
        rather than after it. The server is still the one that decides. */
-    if (!INV.editReason.trim()) {
-      INV.editErr = "Say why. This takes a home off the market without a deal behind it, " +
-        "so the record has to carry a reason.";
-      renderInv();
-      var r = $("invReason"); if (r) { r.focus(); }
-      return;
-    }
     INV.saving = true; INV.editErr = "";
     renderInv();
     api("/staff/units/state", {
@@ -8568,11 +8628,12 @@
         property_slug: INV.slug,
         unit_number: INV.stateRow,
         state: INV.editState,
-        reason: INV.editReason.trim(),
+        reason: "set from the sales console",
         external_ref: INV.editRef.trim()
       })
     })
       .then(function () {
+        toast("Saved");
         INV.stateRow = ""; INV.editState = ""; INV.editReason = "";
         INV.editRef = ""; INV.saving = false;
         /* Reloaded rather than patched in memory: the counts, the states and the
@@ -8613,10 +8674,10 @@
   ];
 
   var PL = {
-    scope: "mine", property: "", includeLost: false, q: "", status: "",
+    scope: "mine", property: S.dev, includeLost: false, q: "", status: "",
     data: null, loading: false, err: "",
     pending: {}, sel: {}, anchor: "", cur: null, editing: null, sort: "", sortDir: 1,
-    saveErr: "", bulk: null, bulkReason: "", bulkErr: "", saving: false,
+    saveErr: "", bulk: null, saving: false,
     dense: false, noteOpen: false, noteText: "",
     add: null, addBusy: false, addErr: "", addOk: ""
   };
@@ -8834,30 +8895,25 @@
     });
   }
 
-  function plPreview() {
+
+
+  /* One step - see invCommit. */
+  function plCommit() {
     var items = plChangeList();
     if (!items.length) { return; }
     PL.saving = true; PL.saveErr = ""; PL.bulk = null;
     renderLeads();
-    api("/staff/pipeline/bulk", { method: "POST", body: JSON.stringify({ items: items, reason: "preview", dry_run: true }) })
-      .then(function (d) { PL.bulk = d; })
-      .catch(function (e) { PL.saveErr = e.message; })
-      .then(function () { PL.saving = false; renderLeads(); });
-  }
-
-  function plCommit(reason) {
-    var items = plChangeList();
-    if (!items.length) { return; }
-    PL.saving = true; PL.saveErr = "";
-    renderLeads();
-    api("/staff/pipeline/bulk", { method: "POST", body: JSON.stringify({ items: items, reason: reason }) })
+    api("/staff/pipeline/bulk", { method: "POST", body: JSON.stringify({ items: items, reason: "edited in the sales console" }) })
       .then(function (d) {
         /* Only what the server ACCEPTED is cleared; a refused row keeps its edit. */
         (d.rows || []).forEach(function (r) {
           if (r.outcome === "applied" || r.outcome === "unchanged") { delete PL.pending[String(r.id)]; }
         });
-        PL.bulk = d;
+        var c = d.summary || {};
+        PL.bulk = c.refused ? d : null;
         PL.saving = false;
+        if (!c.refused) { toast("Saved " + plural(c.applied || 0, "lead")); }
+        else { toast(plural(c.refused, "lead") + " not saved", true); }
         return plLoad(true);
       })
       .catch(function (e) { PL.saving = false; PL.saveErr = e.message; renderLeads(); });
@@ -8931,61 +8987,21 @@
       "</div></div>";
   }
 
+  /* What did not save, and why. A clean save never draws this - the toast says so. */
   function plBulkHtml(d) {
-    var c = d.summary || {};
-    var done = !d.dry_run;
-    var rows = d.rows || [];
-    var refused = rows.filter(function (r) { return r.outcome === "refused"; });
-    var LABEL = { status: "Status", notes: "Notes", first_name: "First name", last_name: "Last name",
-                  email: "Email", phone: "Phone", assigned_staff_id: "Agent", lost_reason: "Lost because" };
-    var agentName = function (id) {
-      if (id === null || id === undefined) { return "nobody"; }
-      var n = String(id);
-      ((PL.data && PL.data.agents) || []).forEach(function (a) { if (String(a.id) === String(id)) { n = a.name; } });
-      return n;
-    };
-    var val = function (f, v) {
-      if (f === "assigned_staff_id") { return agentName(v); }
-      if (v === null || v === undefined || v === "") { return "—"; }
-      var s = String(v);
-      return s.length > 60 ? s.slice(0, 57) + "…" : s;
-    };
-    return '<div class="card pad gpreview">' +
-      "<h2>" + (done ? "What was saved" : "What this will change") + "</h2>" +
-      '<div class="gpreview-counts">' +
-        '<span class="gp ok">' + (c.applied || 0) + (done ? " applied" : " to change") + "</span>" +
-        (c.unchanged ? '<span class="gp">' + c.unchanged + " already matched</span>" : "") +
-        (c.refused ? '<span class="gp bad">' + c.refused + " refused</span>" : "") +
-      "</div>" +
+    var refused = (d.rows || []).filter(function (r) { return r.outcome === "refused"; });
+    if (!refused.length) { return ""; }
+    return '<div class="card pad gpreview is-bad">' +
+      "<h2>" + plural(refused.length, "lead") + " not saved</h2>" +
       '<div class="gpreview-list">' +
-        rows.map(function (r) {
-          var head = '<span class="gp-unit">' + esc(r.reference || ("#" + r.id)) + "</span>";
-          if (r.outcome === "refused") {
-            return '<div class="gp-row is-bad">' + head + '<span class="gp-why">' + esc(r.reason) + "</span></div>";
-          }
-          if (r.outcome === "unchanged") {
-            return '<div class="gp-row is-quiet">' + head + '<span class="gp-why">nothing changed</span></div>';
-          }
-          var ch = r.changes || {};
-          return '<div class="gp-row">' + head + '<span class="gp-why">' +
-            Object.keys(ch).map(function (f) {
-              return "<b>" + esc(LABEL[f] || f) + "</b> " + esc(val(f, ch[f].was)) + " → " + esc(val(f, ch[f].now));
-            }).join(" · ") + "</span></div>";
+        refused.map(function (r) {
+          return '<div class="gp-row is-bad"><span class="gp-unit">' + esc(r.reference || ("#" + r.id)) +
+            '</span><span class="gp-why">' + esc(r.reason) + "</span></div>";
         }).join("") +
       "</div>" +
-      (done
-        ? '<div class="inv-owed" style="margin-top:12px">' +
-          (refused.length ? "The refused rows above kept their edits so they can be fixed and saved again." : "All saved.") +
-          "</div>" +
-          '<div class="inv-edit-actions"><span class="spacer"></span><button type="button" id="plBulkDone">Close</button></div>'
-        : '<div class="nr-field" style="margin-top:14px"><label for="plBulkReason">Why</label>' +
-          '<input id="plBulkReason" type="text" value="' + esc(PL.bulkReason || "") + '" placeholder="Called everyone from the Saturday show day"></div>' +
-          '<div class="err" id="plBulkErr">' + esc(PL.bulkErr || "") + "</div>" +
-          '<div class="inv-edit-actions">' +
-            '<button type="button" id="plBulkCancel">Back</button><span class="spacer"></span>' +
-            '<button type="button" class="primary" id="plBulkGo"' + (PL.saving || !(c.applied || 0) ? " disabled" : "") + ">" +
-            (PL.saving ? "Saving…" : "Save " + (c.applied || 0) + " lead" + ((c.applied || 0) === 1 ? "" : "s")) + "</button>" +
-          "</div>") +
+      '<div class="inv-owed" style="margin-top:10px">Their edits are still in the grid, so they can be fixed and saved again.</div>' +
+      '<div class="inv-edit-actions"><span class="spacer"></span>' +
+      '<button type="button" id="plBulkDone">Dismiss</button></div>' +
     "</div>";
   }
 
@@ -9032,11 +9048,6 @@
       '<div class="pl-scopes" role="group" aria-label="Whose leads">' +
         scopeBtn("mine", "Mine") + scopeBtn("team", "My team") + (wide ? scopeBtn("all", "Everyone") : "") +
       "</div>" +
-      '<div class="f"><label for="plProp">Development</label><select id="plProp">' +
-        '<option value="">All</option>' +
-        props.map(function (p) {
-          return '<option value="' + esc(p.slug) + '"' + (p.slug === PL.property ? " selected" : "") + ">" + esc(p.name) + "</option>";
-        }).join("") + "</select></div>" +
       '<div class="f"><label for="plStatus">Status</label><select id="plStatus">' +
         '<option value="">All</option>' +
         PL_STATUS.map(function (s) {
@@ -9047,7 +9058,6 @@
       '<label class="team-check pl-lost"><input id="plLost" type="checkbox"' + (PL.includeLost ? " checked" : "") + "> Show lost</label>" +
       '<span class="spacer"></span>' +
       '<button type="button" id="plDense" aria-pressed="' + (PL.dense ? "true" : "false") + '">' + (PL.dense ? "Comfortable" : "Compact") + "</button>" +
-      '<button type="button" id="plRefresh"' + (PL.loading ? " disabled" : "") + ">" + (PL.loading ? "Loading…" : "Refresh") + "</button>" +
       '<button type="button" id="plAddOpen" aria-expanded="' + (PL.add ? "true" : "false") + '">' + (PL.add ? "Close" : "Add a lead") + "</button>" +
       "</div>";
 
@@ -9116,8 +9126,8 @@
         '<button type="button" id="plCopy">Copy' + (picked ? " " + picked + " row" + (picked === 1 ? "" : "s") : " all") + "</button>" +
         (picked ? '<button type="button" id="plClearSel">Clear selection</button>' : "") +
         (pending ? '<button type="button" id="plDiscard">Discard</button>' : "") +
-        (pending ? '<button type="button" class="primary" id="plReview"' + (PL.saving ? " disabled" : "") + ">" +
-                   (PL.saving ? "Checking…" : "Review " + pending + " change" + (pending === 1 ? "" : "s")) + "</button>" : "") +
+        (pending ? '<button type="button" class="primary" id="plSave"' + (PL.saving ? " disabled" : "") + ">" +
+                   (PL.saving ? "Saving…" : "Save " + plural(pending, "change")) + "</button>" : "") +
         "</div>"
       : "";
 
@@ -9156,8 +9166,7 @@
       (PL.addOk ? '<div class="ok" style="margin-bottom:10px">' + esc(PL.addOk) + "</div>" : "") +
       (PL.add ? plAddHtml() : "") +
       (PL.saveErr ? '<div class="inv-owed" id="plMsg" style="margin-bottom:10px">' + esc(PL.saveErr) + "</div>" : "") +
-      (PL.bulk ? plBulkHtml(PL.bulk) : "") +
-      bar + table;
+      table + bar + (PL.bulk ? plBulkHtml(PL.bulk) : "");
     leadsWire();
   }
 
@@ -9171,8 +9180,6 @@
         PL.scope = k; plLoad();
       });
     });
-    var p = $("plProp");
-    if (p) { p.addEventListener("change", function () { PL.property = p.value; plLoad(); }); }
     /* The way out of "no team sells this" is the Teams tab, so the sentence carries the door. */
     var toTeams = $("plToTeams");
     if (toTeams) { toTeams.addEventListener("click", function () { tab("teams"); }); }
@@ -9198,8 +9205,6 @@
         renderLeads();
       });
     }
-    var r = $("plRefresh");
-    if (r) { r.addEventListener("click", function () { plLoad(true); }); }
     var ao = $("plAddOpen");
     if (ao) { ao.addEventListener("click", function () { PL.add = PL.add ? null : plAddDefaults(); PL.addErr = ""; PL.addOk = ""; renderLeads(); }); }
     var ac = $("plAddCancel");
@@ -9244,19 +9249,8 @@
     if ($("plCopy")) { $("plCopy").addEventListener("click", function () { PL_GRID.copy(); }); }
     if ($("plClearSel")) { $("plClearSel").addEventListener("click", function () { PL.sel = {}; renderLeads(); }); }
     if ($("plDiscard")) { $("plDiscard").addEventListener("click", function () { PL.pending = {}; PL.bulk = null; PL.saveErr = ""; PL.editing = null; renderLeads(); }); }
-    if ($("plReview")) { $("plReview").addEventListener("click", plPreview); }
-    if ($("plBulkCancel")) { $("plBulkCancel").addEventListener("click", function () { PL.bulk = null; PL.bulkErr = ""; renderLeads(); }); }
-    if ($("plBulkDone")) { $("plBulkDone").addEventListener("click", function () { PL.bulk = null; PL.bulkErr = ""; renderLeads(); }); }
-    var br = $("plBulkReason");
-    if (br) { br.addEventListener("input", function () { PL.bulkReason = br.value; }); }
-    if ($("plBulkGo")) {
-      $("plBulkGo").addEventListener("click", function () {
-        var why = String(PL.bulkReason || "").trim();
-        if (why.length < 4) { PL.bulkErr = "Say why - it lands on every lead this touches."; renderLeads(); return; }
-        PL.bulkErr = "";
-        plCommit(why);
-      });
-    }
+    if ($("plSave")) { $("plSave").addEventListener("click", function () { plCommit(); }); }
+    if ($("plBulkDone")) { $("plBulkDone").addEventListener("click", function () { PL.bulk = null; renderLeads(); }); }
 
     PL_GRID.wire();
   }
@@ -9788,7 +9782,8 @@
     chip.className = "rolechip" + (role === "admin" ? " is-admin" : (role === "manager" ? " is-manager" : ""));
     /* Admin-only. The button being hidden is a courtesy; /staff/team refuses anyone else. */
     $("tabTeam").hidden = (role !== "admin");
-    $("tabDev").hidden = (role !== "admin");
+    /* Managers get the four stock sub-tabs; Details and Features stay admin-only. */
+    $("tabDev").hidden = !(role === "admin" || role === "manager");
     /* TEAMS IS A MANAGER VERB. POST /staff/teams takes manager or admin and GET is open to
        any staff, so an agency lead builds their own team without an admin. The accounts
        list next door stays admin-only: adding a person who can SIGN IN is a different act
@@ -9885,7 +9880,7 @@
 
   $("signout").addEventListener("click", function () { userMenu(false); signOut(""); });
   $("pwGo").addEventListener("click", changePassword);
-  $("refresh").addEventListener("click", load);
+  $("refresh").addEventListener("click", refreshCurrent);
   $("csv").addEventListener("click", csv);
   $("scrim").addEventListener("click", closeDrawer);
 
@@ -10007,12 +10002,17 @@
     /* Loaded on first view and re-read on every return - a lead can arrive while the tab
        sat behind another, and the count in the sidebar should be the count on screen. */
     if (which === "leads") { if (!PL.data && !PL.loading) { plLoad(); } else if (!PL.loading) { plLoad(true); } }
-    if (which === "inv" && !INV.slug) { invPickDefault(); }
-    /* Repainted on every return, not only on first view: what a development is ALLOWED to
-       do can have changed on the Developments tab while this one sat behind it, and a stale
-       grid would keep offering an editor the server now refuses. */
-    else if (which === "inv" && INV.data) { renderInv(); }
-    if (which === "dev") { featPickDefault(); }
+    /* Inventory and Developments show ONE development: the switcher's, or the first one
+       when it says All. A switch made on another tab is picked up here. Repainted on every
+       return, not only on first view: what a development is ALLOWED to do can have changed
+       on the Developments tab while this one sat behind it, and a stale grid would keep
+       offering an editor the server now refuses. */
+    if (DEV_SINGLE[which]) {
+      var one = devForSingle();
+      if (!INV.slug || (one && INV.slug !== one)) { invPickDefault(); }
+      else if (INV.data && which === "inv") { renderInv(); }
+    }
+    if (which === "dev") { FEAT.slug = S.dev; devPanelEnsure(); featPickDefault(); }
     TABS.forEach(function (t) {
       $(t.btn).setAttribute("aria-selected", which === t.k);
       $(t.view).classList.toggle("hide", which !== t.k);
@@ -10025,7 +10025,8 @@
 
   var t = null;
   $("q").addEventListener("input", function () { clearTimeout(t); t = setTimeout(load, 300); });
-  ["fstatus", "fstage", "fprop"].forEach(function (id) { $(id).addEventListener("change", load); });
+  ["fstatus", "fstage"].forEach(function (id) { $(id).addEventListener("change", load); });
+  $("devPick").addEventListener("change", function () { devSet(this.value); });
 
   if (token()) { S.staff = savedStaff(); showApp(); } else { hideBoot(); }
 })();

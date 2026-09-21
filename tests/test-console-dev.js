@@ -37,6 +37,16 @@ const set = (p, id, value) => p.evaluate(a => {
   el.value = a.value;
   el.dispatchEvent(new Event(el.tagName === "SELECT" ? "change" : "input"));
 }, { id, value });
+/* THE DEVELOPMENT SWITCHER, 21 Sep. The cards across the top of this tab, and the select on
+   Inventory, were two of the four places a development used to be chosen. There is one
+   now, in the header, and it scopes every tab. */
+const pickDev = async (p, slug) => {
+  await p.evaluate(v => {
+    const el = document.getElementById("hl-console-host").shadowRoot.getElementById("devPick");
+    el.value = v; el.dispatchEvent(new Event("change"));
+  }, slug);
+  await p.waitForTimeout(450);
+};
 
 (async () => {
   const browser = await chromium.launch();
@@ -48,7 +58,12 @@ const set = (p, id, value) => p.evaluate(a => {
     await p.waitForTimeout(500);
     return { ctx, p };
   };
-  const openDev = async (p) => { await clickId(p, "tabDev"); await p.waitForTimeout(250); };
+  /* Features is a sub-tab of Developments since 21 Sep - Details, Features, Phases, Types,
+     Renders, Fields - so reaching the module switches is two clicks. */
+  const openDev = async (p, sub) => {
+    await clickId(p, "tabDev"); await p.waitForTimeout(250);
+    await click(p, '[data-dsub="' + (sub || "features") + '"]'); await p.waitForTimeout(250);
+  };
 
   // ── 1. admin only ───────────────────────────────────────────────────────
   {
@@ -58,11 +73,27 @@ const set = (p, id, value) => p.evaluate(a => {
     await ctx.close();
   }
   {
+    /* A manager gets the tab, for the four sub-tabs that decide what the stock is - the ones
+       whose endpoints already take a manager - and not Details or Features, which are an
+       admin's. The server refuses regardless; this is about not offering it. */
+    const { ctx, p } = await open("?role=manager");
+    console.log("   (manager)");
+    ok("a manager gets the Developments tab", (await hidden(p, "tabDev")) === false);
+    await clickId(p, "tabDev"); await p.waitForTimeout(300);
+    const subs = await p.evaluate(() => [...document.getElementById("hl-console-host").shadowRoot
+      .querySelectorAll("#viewDev [data-dsub]")].map(b => b.getAttribute("data-dsub")).join(","));
+    ok("with the four stock sub-tabs and not Details or Features", subs === "phases,types,media,fields", subs);
+    ok("no page errors", p.__errs.length === 0, p.__errs);
+    await ctx.close();
+  }
+  {
     const { ctx, p } = await open("?role=admin");
     console.log("   (admin)");
     ok("an admin does", (await hidden(p, "tabDev")) === false);
     await openDev(p);
-    ok("it lists every development", (await count(p, "[data-feat-dev]")) === 4);
+    ok("the switcher lists every development, and All",
+      (await count(p, "#devPick option")) === 5);
+    ok("an admin gets all six sub-tabs", (await count(p, "#viewDev [data-dsub]")) === 6);
     ok("and the modules", (await count(p, "[data-feat-key]")) === 5);
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
@@ -73,8 +104,7 @@ const set = (p, id, value) => p.evaluate(a => {
     const { ctx, p } = await open("?role=admin");
     console.log("2. default, on, off");
     await openDev(p);
-    await click(p, '[data-feat-dev="polaris"]');
-    await p.waitForTimeout(150);
+    await pickDev(p, "polaris");
 
     ok("an undecided module says default",
       (await count(p, ".feat-row.is-module .feat-flag.is-default")) === 5);
@@ -116,16 +146,20 @@ const set = (p, id, value) => p.evaluate(a => {
   // ── 3. the count follows ────────────────────────────────────────────────
   {
     const { ctx, p } = await open("?role=admin");
-    console.log("3. the strip");
+    console.log("3. the count beside the name");
     await openDev(p);
+    await pickDev(p, "stellenbosch");
     ok("Stellenbosch starts with its one decision counted",
-      /5 of 5 on/.test(await txt(p, '[data-feat-dev="stellenbosch"]') || ""),
-      await txt(p, '[data-feat-dev="stellenbosch"]'));
+      /5 of 5 features on/.test(await txt(p, "#viewDev .page-meta") || ""),
+      await txt(p, "#viewDev .page-meta"));
+    ok("the heading is the development the switcher chose",
+      (await txt(p, "#viewDev .page-head h2")) === "Stellenbosch Village", await txt(p, "#viewDev .page-head h2"));
+    await pickDev(p, "polaris");
     ok("Polaris does not have inventory_edit",
-      /3 of 5 on/.test(await txt(p, '[data-feat-dev="polaris"]') || ""),
-      await txt(p, '[data-feat-dev="polaris"]'));
+      /3 of 5 features on/.test(await txt(p, "#viewDev .page-meta") || ""),
+      await txt(p, "#viewDev .page-meta"));
     ok("the selling development is marked",
-      /selling/.test(await txt(p, '[data-feat-dev="polaris"]') || ""));
+      /selling/.test(await txt(p, "#viewDev .page-meta") || ""));
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -151,13 +185,11 @@ const set = (p, id, value) => p.evaluate(a => {
     console.log("5. inventory_edit actually gates the editor");
     await clickId(p, "tabInv");
     await p.waitForTimeout(300);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(300);
+    await pickDev(p, "stellenbosch");
     ok("Stellenbosch has the module on, so homes are editable",
       (await count(p, "#viewInv [data-inv-edit]")) > 0);
 
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(300);
+    await pickDev(p, "polaris");
     ok("Polaris has it off, so no home offers the editor",
       (await count(p, "#viewInv [data-inv-edit]")) === 0);
     ok("and the grid says why rather than just doing nothing",
@@ -166,8 +198,7 @@ const set = (p, id, value) => p.evaluate(a => {
     /* Turning it on for Polaris must reach the Inventory tab without a reload - one store,
        one answer. */
     await openDev(p);
-    await click(p, '[data-feat-dev="polaris"]');
-    await p.waitForTimeout(150);
+    await pickDev(p, "polaris");
     await click(p, '[data-feat-key="inventory_edit"]');
     await p.waitForTimeout(400);
     await clickId(p, "tabInv");
@@ -183,8 +214,7 @@ const set = (p, id, value) => p.evaluate(a => {
     const { ctx, p } = await open("?role=admin");
     console.log("6. settings");
     await openDev(p);
-    await click(p, '[data-feat-dev="stellenbosch"]');
-    await p.waitForTimeout(150);
+    await pickDev(p, "stellenbosch");
 
     ok("settings render alongside modules, not in a section of their own",
       (await count(p, "[data-set-key], [data-set-num]")) > 0);
@@ -251,8 +281,7 @@ const set = (p, id, value) => p.evaluate(a => {
     const { ctx, p } = await open("?role=admin");
     console.log("7. a number is saved deliberately");
     await openDev(p);
-    await click(p, '[data-feat-dev="stellenbosch"]');
-    await p.waitForTimeout(150);
+    await pickDev(p, "stellenbosch");
     await p.evaluate(() => {
       const r = document.getElementById("hl-console-host").shadowRoot;
       const f = r.querySelector('[data-set-num="unit_pad"]');
@@ -272,13 +301,7 @@ const set = (p, id, value) => p.evaluate(a => {
     /* The width is a display convention, so the grid has to move with it. */
     await clickId(p, "tabInv");
     await p.waitForTimeout(400);
-    await p.evaluate(() => {
-      const r = document.getElementById("hl-console-host").shadowRoot;
-      const sel = r.getElementById("invProp");
-      sel.value = "stellenbosch";
-      sel.dispatchEvent(new Event("change"));
-    });
-    await p.waitForTimeout(400);
+    await pickDev(p, "stellenbosch");
     const firstUnit = await p.evaluate(() => {
       const r = document.getElementById("hl-console-host").shadowRoot;
       const c = r.querySelector("#viewInv tbody tr td.gnum strong");

@@ -35,6 +35,29 @@ const set = (p, id, value) => p.evaluate(a => {
   el.dispatchEvent(new Event(el.tagName === "SELECT" ? "change" : "input"));
 }, { id, value });
 
+/* THE DEVELOPMENT SWITCHER, 21 Sep: one picker in the header scopes every tab. The
+   Inventory tab's own select was one of four places a development used to be chosen. */
+const attr = (p, sel, a) => p.evaluate(o => {
+  const e = document.getElementById("hl-console-host").shadowRoot.querySelector(o.s);
+  return e ? e.getAttribute(o.a) : null;
+}, { s: sel, a });
+const pickDev = async (p, slug) => {
+  await p.evaluate(v => {
+    const el = document.getElementById("hl-console-host").shadowRoot.getElementById("devPick");
+    el.value = v; el.dispatchEvent(new Event("change"));
+  }, slug);
+  await p.waitForTimeout(450);
+};
+/* Phases, Types, Renders and Fields are sub-tabs of Developments since 21 Sep, not drawers
+   opened from Inventory. */
+const openSetup = async (p, sub) => {
+  await p.evaluate(() => document.getElementById("hl-console-host").shadowRoot.getElementById("tabDev").click());
+  await p.waitForTimeout(300);
+  await p.evaluate(k => document.getElementById("hl-console-host").shadowRoot
+    .querySelector('[data-dsub="' + k + '"]').click(), sub);
+  await p.waitForTimeout(450);
+};
+
 (async () => {
   const browser = await chromium.launch();
   const open = async (q) => {
@@ -48,8 +71,7 @@ const set = (p, id, value) => p.evaluate(a => {
   const openSV = async (p) => {
     await clickId(p, "tabInv");
     await p.waitForTimeout(250);
-    await set(p, "invProp", "stellenbosch");
-    await p.waitForTimeout(300);
+    await pickDev(p, "stellenbosch");
   };
 
   // ── 1. the column ───────────────────────────────────────────────────────
@@ -93,8 +115,7 @@ const set = (p, id, value) => p.evaluate(a => {
     console.log("2. phases off");
     await clickId(p, "tabInv");
     await p.waitForTimeout(250);
-    await set(p, "invProp", "polaris");
-    await p.waitForTimeout(300);
+    await pickDev(p, "polaris");
     ok("no column", (await count(p, "th.gphase")) === 0);
     /* No PHASES panel. The Fields panel is beside it and belongs to every development, so
        this has to name the one it means rather than counting cards. */
@@ -117,19 +138,15 @@ const set = (p, id, value) => p.evaluate(a => {
     const { ctx, p } = await open("?role=admin");
     console.log("3. the release panel");
     await openSV(p);
-    /* A button in the bar above the grid; the panel itself lives in the side drawer, so
-       opening it never pushes the stock off the screen. */
-    ok("it starts as a button, with the drawer shut",
-      (await count(p, "#invPhaseOpen")) === 1 && (await count(p, "#drawer.open")) === 0);
-    ok("and says enough to decide whether to open it",
-      /1 released, 1 pending/.test(await txt(p, "#invPhaseOpen") || ""),
-      await txt(p, "#invPhaseOpen"));
-    await clickId(p, "invPhaseOpen");
-    await p.waitForTimeout(150);
-    ok("opening it uses the side drawer",
-      (await count(p, "#drawer.open")) === 1 && (await txt(p, "#drawer h1")) === "Phases");
-    ok("and the grid is still there behind it", (await count(p, "#viewInv tbody tr")) > 0);
-    ok("it lists every phase", (await count(p, "#drawer .ph-row")) === 2);
+    /* SINCE 21 SEP PHASES IS A SUB-TAB OF DEVELOPMENTS. The grid still shows which phase a
+       home is in; releasing one is setup, and setup lives in one place. */
+    ok("Inventory no longer carries the Phases button, but still tags homes with their phase",
+      (await count(p, "#invPhaseOpen")) === 0 && (await count(p, "td.gphase")) > 0);
+    await openSetup(p, "phases");
+    ok("it opens on the Developments tab, not in a drawer",
+      (await count(p, "#viewDev #devPanel")) === 1 && (await count(p, "#drawer.open")) === 0 &&
+      (await attr(p, '[data-dsub="phases"]', "aria-selected")) === "true");
+    ok("it lists every phase", (await count(p, "#devPanel .ph-row")) === 2);
     ok("a released one offers Pull back",
       (await txt(p, '[data-ph-rel="1"]')) === "Pull back");
     ok("a pending one offers Release",
@@ -146,8 +163,7 @@ const set = (p, id, value) => p.evaluate(a => {
     const { ctx, p } = await open("?role=admin");
     console.log("4. releasing a phase");
     await openSV(p);
-    await clickId(p, "invPhaseOpen");
-    await p.waitForTimeout(150);
+    await openSetup(p, "phases");
     const before = await txt(p, '[data-inv-state="available"] b');
     await click(p, '[data-ph-rel="2"]');
     await p.waitForTimeout(500);
@@ -203,8 +219,7 @@ const set = (p, id, value) => p.evaluate(a => {
     const { ctx, p } = await open("?role=admin");
     console.log("5. creating a phase");
     await openSV(p);
-    await clickId(p, "invPhaseOpen");
-    await p.waitForTimeout(150);
+    await openSetup(p, "phases");
     await set(p, "invPhaseName", "Phase 3");
     await set(p, "invPhaseCode", "P3");
     await clickId(p, "invPhaseAdd");
@@ -225,8 +240,8 @@ const set = (p, id, value) => p.evaluate(a => {
     await clickId(p, "invPhaseAdd");
     await p.waitForTimeout(400);
     ok("a duplicate name is refused, and says so",
-      /already exists/.test(await txt(p, "#drawer .err") || ""),
-      await txt(p, "#drawer .err"));
+      /already exists/.test(await txt(p, "#devPanel .err") || ""),
+      await txt(p, "#devPanel .err"));
     ok("and no fourth phase was created", (await count(p, ".ph-row")) === 3);
 
     // A nameless phase never reaches the server.
@@ -234,7 +249,7 @@ const set = (p, id, value) => p.evaluate(a => {
     await clickId(p, "invPhaseAdd");
     await p.waitForTimeout(300);
     ok("a nameless phase is refused before the request",
-      /name/.test(await txt(p, "#drawer .err") || ""));
+      /name/.test(await txt(p, "#devPanel .err") || ""));
     ok("no page errors", p.__errs.length === 0, p.__errs);
     await ctx.close();
   }
@@ -288,8 +303,7 @@ const set = (p, id, value) => p.evaluate(a => {
     await openSV(p);
     ok("still sees the column - phases are stock information",
       (await count(p, "th.gphase")) === 1);
-    await clickId(p, "invPhaseOpen");
-    await p.waitForTimeout(150);
+    await openSetup(p, "phases");
     ok("and can read the panel", (await count(p, ".ph-row")) === 2);
     /* Hiding a control is a courtesy; the endpoint refuses too. What this stops is a
        salesperson being shown a button that cannot work. */
@@ -308,13 +322,12 @@ const set = (p, id, value) => p.evaluate(a => {
     console.log("8. when the server refuses");
     await p.evaluate(() => { window.__PH_FAILS = true; });
     await openSV(p);
-    await clickId(p, "invPhaseOpen");
-    await p.waitForTimeout(150);
+    await openSetup(p, "phases");
     await click(p, '[data-ph-rel="2"]');
     await p.waitForTimeout(500);
     ok("the refusal is shown in the panel, in the server's own words",
-      /manager or an admin/.test(await txt(p, "#drawer .err") || ""),
-      await txt(p, "#drawer .err"));
+      /manager or an admin/.test(await txt(p, "#devPanel .err") || ""),
+      await txt(p, "#devPanel .err"));
     ok("and the phase did not move",
       (await txt(p, '[data-ph-rel="2"]')) === "Release");
     ok("nor did any home", (await txt(p, '[data-inv-state="available"] b')) === "6");
@@ -346,8 +359,7 @@ const set = (p, id, value) => p.evaluate(a => {
     const { ctx, p } = await open("?role=admin");
     console.log("10. retiring a phase, and bringing it back");
     await openSV(p);
-    await clickId(p, "invPhaseOpen");
-    await p.waitForTimeout(150);
+    await openSetup(p, "phases");
     /* THE MISSING VERB. Phases could be created, renamed, reordered and released; there was
        no way to get rid of one at all. */
     ok("every phase offers Remove", (await count(p, "[data-ph-retire]")) === 2);
@@ -407,8 +419,7 @@ const set = (p, id, value) => p.evaluate(a => {
     const { ctx, p } = await open("?role=admin");
     console.log("11. deleting an empty phase for good");
     await openSV(p);
-    await clickId(p, "invPhaseOpen");
-    await p.waitForTimeout(150);
+    await openSetup(p, "phases");
     await set(p, "invPhaseName", "Phase 3");
     await set(p, "invPhaseCode", "P3");
     await clickId(p, "invPhaseAdd");
@@ -442,12 +453,11 @@ const set = (p, id, value) => p.evaluate(a => {
     const { ctx, p } = await open("?role=admin");
     console.log("12. a home in a retired phase");
     await openSV(p);
-    await clickId(p, "invPhaseOpen");
-    await p.waitForTimeout(150);
+    await openSetup(p, "phases");
     await click(p, '[data-ph-retire="2"]');
     await p.waitForTimeout(600);
-    await clickId(p, "close");
-    await p.waitForTimeout(150);
+    await clickId(p, "tabInv");
+    await p.waitForTimeout(300);
     /* The grid still shows the tag, and says the phase is retired - a home off the market
        because of a phase that appears in no picker is otherwise ten minutes of confusion. */
     const tags = await all(p, "td.gphase .gphase-tag");

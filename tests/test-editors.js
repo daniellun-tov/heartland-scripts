@@ -216,7 +216,10 @@ setTimeout(() => {
       ok("drawer opened", $('drawer').classList.contains('open'));
       ok("deadline date input present", !!$('dlDue'));
       ok("deadline clear checkbox present", !!$('dlClear'));
-      ok("deadline reason present", !!$('dlWhy'));
+      /* 21 Sep: reasons are asked only to cancel or delete. */
+      ok("the deadline asks for no reason", !$('dlWhy'));
+      ok("nor do add-ons, upgrades or documents", !$('adWhy') && !$('upWhy') && !$('docWhy'));
+      ok("cancel still does", !!$('cxWhy'));
       ok("add-on box present", !!$('addonBox'));
 
       const opts = root.querySelectorAll('#addonBox .adopt');
@@ -245,16 +248,6 @@ setTimeout(() => {
       console.log("    [estimate after ] " + JSON.stringify(est1));
       ok("estimate updates on change", /10.232/.test(est1));
 
-      // reason required
-      $('adWhy').value = "";
-      $('adGo').click();
-      ok("add-on save refuses without a reason", $('adErr').textContent.indexOf('reason') > -1);
-
-      $('dlWhy').value = "";
-      $('dlGo').click();
-      ok("deadline save refuses without a reason", $('dlErr').textContent.indexOf('reason') > -1);
-
-      $('dlWhy').value = "bank delay";
       $('dlDue').value = "";
       $('dlGo').click();
       ok("deadline save refuses with no date and no clear", $('dlErr').textContent.indexOf('date') > -1);
@@ -287,12 +280,6 @@ setTimeout(() => {
       ok("cancel refuses without a reason", $('cxErr').textContent.indexOf('reason') > -1);
       ok("and sent nothing", !calls.some(c => String(c.url).indexOf('/cancel') > -1));
 
-      confirmed = false;
-      $('cxWhy').value = "Buyer withdrew";
-      $('cxGo').click();
-      ok("declining the confirm dialog sends nothing either",
-        !calls.some(c => String(c.url).indexOf('/cancel') > -1));
-      confirmed = true;
 
       /* ---------------- upgrades and documents ---------------- */
       ok("upgrade box present", !!$('upBox'));
@@ -326,11 +313,6 @@ setTimeout(() => {
       pick.dispatchEvent(new w.Event('change', { bubbles: true }));
       ok("an on-consultation upgrade does", !$('upPriceRow').classList.contains('hide'));
 
-      $('upWhy').value = "";
-      $('upGo').click();
-      ok("adding an upgrade refuses without a reason", $('upErr').textContent.indexOf('reason') > -1);
-
-      $('upWhy').value = "agreed on site";
       $('upPrice').value = "";
       $('upGo').click();
       ok("and refuses an on-consultation upgrade with no price",
@@ -338,7 +320,6 @@ setTimeout(() => {
 
       pick.value = 'sanford-broken';
       pick.dispatchEvent(new w.Event('change', { bubbles: true }));
-      $('upWhy').value = "trying it";
       $('upGo').click();
       ok("an upgrade whose stored price is missing is refused, not priced at zero",
          $('upErr').textContent.indexOf('not there') > -1);
@@ -348,7 +329,6 @@ setTimeout(() => {
       pick.value = 'sanford-major-garage';
       pick.dispatchEvent(new w.Event('change', { bubbles: true }));
       $('upPrice').value = "R125 000";
-      $('upWhy').value = "agreed on site";
       $('upGo').click();
       const sent = calls.filter(c => c.opts && c.opts.method === 'POST' && String(c.url).includes('/options'));
       ok("the price is converted from rands to cents exactly once",
@@ -368,15 +348,10 @@ setTimeout(() => {
 
       dsel.value = 'otp-signed';
       $('docUrl').value = "http://files.example.com/a.pdf";
-      $('docWhy').value = "signed copy back";
       $('docGo').click();
       ok("a non-https link is refused before it leaves the browser",
          $('docErr').textContent.indexOf('https://') > -1);
 
-      $('docUrl').value = "https://files.example.com/a.pdf";
-      $('docWhy').value = "";
-      $('docGo').click();
-      ok("adding a document refuses without a reason", $('docErr').textContent.indexOf('reason') > -1);
 
       ok("with a unit type, no withheld notice is shown",
          $('upBox').textContent.indexOf('no unit type recorded') === -1);
