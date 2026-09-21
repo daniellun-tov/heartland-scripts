@@ -545,7 +545,18 @@
         if (lead) { lead.textContent = u.status === "Sold" ? "" : "Starting at"; }
         var price = qs("[data-sd2-detail=price]", u.detail);
         if (price && u.status === "Sold") { price.textContent = "Sold"; }
-        else if (price && PRE) { price.textContent = "Priced at launch"; price.classList.add("is-pending"); }
+        else if (price && PRE) {
+          // Pre-launch: the home's price reads as a "from" price, with a quiet line under it.
+          price.textContent = u.price ? "From " + money(u.price) : "Priced at launch";
+          price.setAttribute("data-sd2-price", "");
+          var row = price.closest(".sd2_price_row") || price;
+          if (!qs(".sd2_price_note", u.detail)) {
+            var note = d.createElement("p");
+            note.className = "sd2_price_note";
+            note.textContent = "Actual pricing will be released at launch.";
+            row.parentNode.insertBefore(note, row.nextSibling);
+          }
+        }
         var cta = qs("[data-sd2-detail=cta]", u.detail);
         if (cta && !PRE) {
           cta.textContent = u.status === "Sold" ? "Sold — see other homes" : u.status === "Reserved" ? "Join the waiting list" : "Reserve home " + u.n;
@@ -1193,22 +1204,22 @@
         new ml.Marker({ element: home, anchor: "bottom" }).setLngLat([lng, lat]).addTo(map);
         home.style.zIndex = "2";   // the home always sits above a neighbouring label
         var b = new ml.LngLatBounds([lng, lat], [lng, lat]);
+        var small = w.matchMedia("(max-width: 767px)").matches;
         places().forEach(function (p) {
-          // Labels point away from Sanford, so places east of it read leftwards and never run
-          // off the right edge of a narrow screen.
-          var east = p.lng > lng;
-          var m = el("div", "sd2_mk_poi" + (east ? " is-east" : ""));
-          m.appendChild(el("span", "sd2_mk_dot"));
+          // Label sits centred above its dot, so it can never run off either edge of the view
+          // (the fit padding below leaves half a label's width on each side).
+          var m = el("div", "sd2_mk_poi");
           var tx = el("span", "sd2_mk_text", p.name);
           if (p.time) { tx.appendChild(el("span", "sd2_mk_time", p.time)); }
           m.appendChild(tx);
-          new ml.Marker({ element: m, anchor: east ? "right" : "left", offset: [east ? 6 : -6, 0] }).setLngLat([p.lng, p.lat]).addTo(map);
-          // mirror each place through Sanford so the fitted view is centred on the home
+          m.appendChild(el("span", "sd2_mk_dot"));
+          new ml.Marker({ element: m, anchor: "bottom", offset: [0, 6] }).setLngLat([p.lng, p.lat]).addTo(map);
           b.extend([p.lng, p.lat]);
-          b.extend([2 * lng - p.lng, 2 * lat - p.lat]);
+          // on wide screens, mirror each place through Sanford so the view is centred on the home;
+          // on a phone the width is too precious - just fit the places tightly.
+          if (!small) { b.extend([2 * lng - p.lng, 2 * lat - p.lat]); }
         });
-        var small = w.matchMedia("(max-width: 767px)").matches;
-        map.fitBounds(b, { padding: small ? { top: 70, bottom: 50, left: 16, right: 16 } : { top: 90, bottom: 90, left: 60, right: 60 }, maxZoom: 14.5, duration: 0 });
+        map.fitBounds(b, { padding: small ? { top: 110, bottom: 70, left: 95, right: 75 } : { top: 110, bottom: 100, left: 120, right: 120 }, maxZoom: 14.5, duration: 0 });
         log("map ready");
       }).catch(function (err) { log("map fallback", err); inject(host); });
     }
@@ -1258,7 +1269,7 @@
 
      The blur is presentation, not security: prices are in the page source for anyone who
      reads HTML. Per-home prices are hidden in the page itself before launch (the detail
-     cards say "Priced at launch"); only the development's from-price is ever painted.
+     cards show the home's price as "From R…" with a note that actual pricing is released at launch).
 
      Memberstack calls are the DOM package's own: sendMemberSignupPasswordlessEmail,
      signupMemberPasswordless, sendMemberLoginPasswordlessEmail, loginMemberPasswordless,
@@ -1644,6 +1655,15 @@
     function field(id) { return d.getElementById(id); }
     function prepForm() {
       if (!form) { return; }
+      // Webflow focuses the success / error message after a submit - without preventScroll,
+      // so the page glides down to section 09. That is right for someone typing in the form
+      // and wrong for a sign-up finished anywhere else (the background team notification).
+      // Keep the focus (for screen readers), drop the scroll.
+      var wrap = form.closest(".w-form") || form.parentNode;
+      qsa(".w-form-done, .w-form-fail", wrap).forEach(function (el) {
+        if (!el.hasAttribute("tabindex")) { el.setAttribute("tabindex", "-1"); }
+        el.focus = function () { try { HTMLElement.prototype.focus.call(el, { preventScroll: true }); } catch (e) {} };
+      });
       form.setAttribute("data-name", "Sanford Waitlist");
       form.setAttribute("name", "sanford-waitlist");
       // Only the email is required to join; everything else is a courtesy.
