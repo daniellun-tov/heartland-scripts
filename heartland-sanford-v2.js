@@ -83,9 +83,34 @@
   var MS_PLAN = PAGE.getAttribute("data-sd2-ms-plan") || "";
   var PHASED = PHASE === "prelaunch" || PHASE === "live";
   var PRE = PHASE === "prelaunch" && !(LAUNCH && Date.now() >= LAUNCH);
-  var forced = /[?&]sd2_phase=(prelaunch|live)\b/.exec(w.location.search);
+  /* RESERVE-READY DEMO MODE. ?sd2_demo=reserve puts this browser tab in the live phase
+     (reservations on, per-home prices, section 09 hands off to /reserve-flow) and keeps it
+     there across reloads and the trip back from the flow, until ?sd2_demo=off or the tab is
+     closed. ?sd2_demo=open does the same without the sign-up gate. A pill in the corner says
+     it's on and turns it off. Nothing about the page changes for anyone else. */
+  var DEMO_KEY = "sd2_demo";
+  var demoQ = /[?&]sd2_demo=(reserve|open|off)\b/.exec(w.location.search);
+  var DEMO = "";
+  try {
+    if (demoQ) { if (demoQ[1] === "off") { w.sessionStorage.removeItem(DEMO_KEY); } else { w.sessionStorage.setItem(DEMO_KEY, demoQ[1]); } }
+    DEMO = w.sessionStorage.getItem(DEMO_KEY) || "";
+  } catch (e) { DEMO = demoQ && demoQ[1] !== "off" ? demoQ[1] : ""; }
+  var forced = /[?&]sd2_phase=(prelaunch|live)\b/.exec(w.location.search) || (PHASED && DEMO ? [0, "live"] : null);
   if (PHASED && forced) { PRE = forced[1] === "prelaunch"; }
-  var GATED = PHASED && (PRE || (PAGE.getAttribute("data-sd2-gate") || "").toLowerCase() !== "off");
+  var GATED = PHASED && (PRE || (DEMO !== "open" && (PAGE.getAttribute("data-sd2-gate") || "").toLowerCase() !== "off"));
+  if (PHASED && DEMO) {
+    var addPill = function () {
+      var pill = d.createElement("a");
+      pill.href = w.location.pathname + "?sd2_demo=off";
+      pill.className = "sd2_demo_pill";
+      pill.textContent = (DEMO === "open" ? "Demo: reserve mode, no sign-up" : "Demo: reserve mode") + "  ·  Exit";
+      pill.setAttribute("style", "position:fixed;left:12px;top:84px;z-index:9998;padding:.45rem .8rem;border-radius:999px;" +
+        "background:#A9754B;color:#FCFAF7;font:600 .6875rem/1 Manrope,sans-serif;letter-spacing:.04em;text-decoration:none;" +
+        "box-shadow:0 6px 18px rgba(28,26,23,.25)");
+      d.body.appendChild(pill);
+    };
+    if (d.readyState === "loading") { d.addEventListener("DOMContentLoaded", addPill); } else { addPill(); }
+  }
   if (GATED) { d.documentElement.classList.add("sd2-gated"); }
   if (PHASED && !PRE) { d.documentElement.classList.add("sd2-live"); }
   if (PRE) {
@@ -1390,7 +1415,7 @@
      addPlan, updateMember, getCurrentMember. None of them redirect, so the app's global
      "after signup" redirect and the plan's own redirect never fire from this page. */
   (function prelaunch() {
-    if (!GATED) { return; }
+    if (!PHASED) { return; }
     /* Live (after launch, or data-sd2-phase="live"): the same sign-up and the same gate, but no
        countdown, no waitlist form and no waitlist wording. Section 09 is the reservation
        again (heartland-reserve.js owns it) - except that a visitor who hasn't signed up is
@@ -1471,7 +1496,7 @@
     // nothing but prices until you're on the list.
     on(d, "click", function (e) {
       var p = e.target.closest && e.target.closest("[data-sd2-price], [data-sd2-calc-open]");
-      if (!p || html.classList.contains("sd2-member")) { return; }
+      if (!p || !GATED || html.classList.contains("sd2-member")) { return; }
       e.preventDefault();
       e.stopPropagation();
       openAuth("email");
@@ -1878,7 +1903,7 @@
       if (LIVE) {
         // A reservation is for registered buyers: sign up first, then the same submit goes
         // on to heartland-reserve.js untouched.
-        if (ST.onList || ST.pass) { ST.pass = false; return; }
+        if (ST.onList || ST.pass || !GATED) { ST.pass = false; return; }
         e.preventDefault();
         e.stopImmediatePropagation();
         var em0 = field("sd2-email");
@@ -1985,7 +2010,7 @@
     // Live CTAs: members go straight to reserving; everyone else is sent to sign up.
     function paintLive() {
       qsa(".sd2_nav_cta, .sd2_bar_cta").forEach(function (a) {
-        if (ST.onList) {
+        if (ST.onList || !GATED) {
           a.textContent = a.classList.contains("sd2_bar_cta") ? "Reserve" : "Reserve a Home";
           a.setAttribute("href", "#sd2-reserve");
           a.removeAttribute("data-sd2-waitlist");
