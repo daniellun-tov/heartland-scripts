@@ -788,6 +788,23 @@
   function goToForm() {
     var form = $('[data-chs="reserve-form"]');
     if (!form) return;
+    // After an enquiry Webflow hides the form and shows its thank-you block.
+    // Bring the form back so the student can go on to reserve (or enquire
+    // again) without reloading - their name/email/phone stay filled.
+    var wrap = form.closest ? form.closest('.w-form') : null;
+    if (form.style.display === 'none') {
+      form.style.display = '';
+      var done = wrap && wrap.querySelector('.w-form-done');
+      var fail = wrap && wrap.querySelector('.w-form-fail');
+      if (done) done.style.display = 'none';
+      if (fail) fail.style.display = 'none';
+      var msg = form.querySelector('textarea');
+      if (msg) msg.value = '';
+      // If Webflow reset the form, the hidden bed fields went with it.
+      var bed = state.selectedId && state.beds.filter(function (b) { return b.id === state.selectedId; })[0];
+      if (bed) fillForm(bed);
+      paintMode();
+    }
     form.classList.add(STATE_CLASS.shown);
     var first = form.querySelector('input:not([type="hidden"]), select, textarea');
 
