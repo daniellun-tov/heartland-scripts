@@ -209,8 +209,8 @@ window.Wized.push((Wized) => {
     block: { key: 'block_name' },
     floor: { key: 'floor_level', cast: Number },
     orientation: { key: 'orientation' },
-    /* multi: one unit carries several oh_views keys in view_tags[] */
-    view: { key: 'view_tags', multi: true },
+    /* view: { key: 'view_tags', multi: true } - off until the views are
+       confirmed (23 Sep); restore it with the View chips in the views module */
     parking: { key: 'parking_bay_type' },
   };
 
@@ -1366,7 +1366,6 @@ window.Wized.push((Wized) => {
                 .sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); });
     byKey = {};
     views.forEach(function (v) { byKey[v.key] = v; });
-    buildChips();
     buildMarkers();
     hook();
   }
@@ -1434,18 +1433,18 @@ window.Wized.push((Wized) => {
       b.className = 'site-plan_viewmark';
       b.setAttribute('data-view', v.key);
       b.setAttribute('data-placement', v.placement);
-      b.setAttribute('aria-pressed', 'false');
-      b.setAttribute('aria-label', 'Show apartments with a ' + v.label + ' view' + (v.direction ? ' (' + v.direction + ')' : ''));
+      b.setAttribute('aria-label', v.label + (v.direction ? ' (' + v.direction + ')' : ''));
       b.innerHTML = icon(v.icon) + '<span class="site-plan_viewmark-label">' + v.label + '</span>';
       b.addEventListener('mouseenter', function () { preview(v); });
       b.addEventListener('focus', function () { preview(v); });
       b.addEventListener('mouseleave', function () { clear(); hideTip(); });
       b.addEventListener('blur', function () { clear(); hideTip(); });
+      /* info only (23 Sep): a click/tap shows the card, it no longer filters */
       b.addEventListener('click', function (e) {
         e.preventDefault();
-        try { window.ohSitePlan.toggle('view', v.key); } catch (err) { return; }
-        clear();                 /* the filter's own dimming takes over */
-        showTip(b, v);
+        e.stopPropagation();
+        if (tip && tip.classList.contains('is-visible') && tip.__key === v.key) hideTip();
+        else showTip(b, v);
       });
       markHost.appendChild(b);
     });
@@ -1484,7 +1483,7 @@ window.Wized.push((Wized) => {
 
   /* ---------- hover preview ---------- */
   function preview(v) {
-    if (!facetOn()) focus(v.key);      /* no double-dimming once a filter is on */
+    /* no plot highlighting - it would read as "these units have this view" */
     var b = markHost && markHost.querySelector('.site-plan_viewmark[data-view="' + v.key + '"]');
     if (b) showTip(b, v);
   }
@@ -1514,19 +1513,19 @@ window.Wized.push((Wized) => {
     }
     /* the number the click will actually leave on the list, so the card and the
        chip count agree */
-    var n = units().filter(function (u) { return u.is_available && tags(u).indexOf(v.key) !== -1; }).length;
+    var n = 0;   /* per-unit views are not confirmed - no count */
+    tip.__key = v.key;
     var dist = Number(v.distance_km) || 0;
     var sub = [v.direction, dist ? (dist < 1 ? Math.round(dist * 1000) + ' m' : dist + ' km') : ''].filter(Boolean).join(' · ');
     tip.innerHTML =
       '<div class="site-plan_viewmark-tip_head"><span></span>' + (sub ? '<span class="site-plan_viewmark-tip_dir"></span>' : '') + '</div>' +
       '<div class="site-plan_viewmark-tip_body"></div>' +
       (n ? '<span class="site-plan_viewmark-tip_count"></span>' : '') +
-      '<span class="site-plan_viewmark-tip_hint"></span>';
+      '';
     tip.querySelector('.site-plan_viewmark-tip_head span').textContent = v.label;
     if (sub) tip.querySelector('.site-plan_viewmark-tip_dir').textContent = sub;
     tip.querySelector('.site-plan_viewmark-tip_body').textContent = v.description || '';
     if (n) tip.querySelector('.site-plan_viewmark-tip_count').textContent = n + (n === 1 ? ' apartment' : ' apartments') + ' available with this directional view';
-    tip.querySelector('.site-plan_viewmark-tip_hint').textContent = isOn(v.key) ? 'Click to clear this filter' : 'Click to filter to these apartments';
 
     tip.style.left = '0px';
     tip.style.top = '0px';
@@ -1674,6 +1673,9 @@ window.Wized.push((Wized) => {
   document.addEventListener('oh:map-revealed', dropOcc);
   function hideTip() { if (tip) tip.classList.remove('is-visible'); }
   window.addEventListener('scroll', hideTip, { passive: true });
+  document.addEventListener('click', function (e) {
+    if (!(e.target.closest && e.target.closest('.site-plan_viewmark'))) hideTip();
+  });
 
   /* ---------- chips, shared by the panel and the tooltip ---------- */
   function chipHtml(key, withLabel) {
@@ -1730,12 +1732,9 @@ window.Wized.push((Wized) => {
   function hook() {
     if (hooked || !window.ohSitePlan || !window.ohSitePlan.onChange) return;
     hooked = true;
-    window.ohSitePlan.onChange(function () { syncMarkers(); layout(); });   /* fires now and on every apply() */
-    bindTooltip();
+    window.ohSitePlan.onChange(function () { layout(); });   /* fires now and on every apply() */
+    /* bindTooltip() / paintPanel() off until the views are confirmed (23 Sep) */
   }
-  document.addEventListener('oh:unit-open', function (e) {
-    if (e.detail && e.detail.unit) paintPanel(e.detail.unit);
-  });
   document.addEventListener('oh:map-revealed', function () { if (views.length) buildMarkers(); else layout(); });
 
   /* ask for the taxonomy the moment this file runs - six rows, and the markers
@@ -1743,7 +1742,7 @@ window.Wized.push((Wized) => {
   fetch(API + '/views').then(function (r) { return r.json(); }).then(setViews).catch(function () {});
 
   function ready() {
-    if (views.length) { buildChips(); buildMarkers(); }
+    if (views.length) buildMarkers();
     hook();
     var n = 0, iv = setInterval(function () { hook(); if ((hooked && views.length) || ++n > 40) clearInterval(iv); }, 250);
   }
@@ -3803,8 +3802,8 @@ window.ohNativeSubmit = async function (form, doneText) {
           '<h2 class="oh-welcome_title" id="oh-welcome-title">Find your apartment on the plan</h2>' +
           '<p class="oh-welcome_lede">Every apartment at Oakhills, with live availability and pricing &mdash; explore the estate, or filter straight to what you are after.</p>' +
           '<ul class="oh-welcome_list">' +
-            '<li><strong>Explore the estate.</strong> Tap any block or apartment for its price, size, orientation and outlook.</li>' +
-            '<li><strong>Narrow it down.</strong> Filter by price, type, level, parking or the view you want to wake up to.</li>' +
+            '<li><strong>Explore the estate.</strong> Tap any block or apartment for its price, size and orientation.</li>' +
+            '<li><strong>Narrow it down.</strong> Filter by price, type, block, orientation or parking.</li>' +
             '<li class="oh-welcome_sales"><strong>Reserve online.</strong> Found the one? Reserve it and complete your details in a few steps.</li>' +
           '</ul>' +
           '<div class="oh-welcome_action"></div>' +
