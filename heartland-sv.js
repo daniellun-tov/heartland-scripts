@@ -55,6 +55,14 @@
    ?type=A&floorplan=1) from one link builder. It also stopped telling people
    these homes are at "Oakhills Estate" - that string was inherited from the
    Oakhills build.
+
+   2026-09-23: views are not confirmed yet, so nothing may imply a unit is
+   guaranteed a view. The View facet is gone from FACETS (and its chips from
+   the drawer); the map's view badges are hover/focus info cards only - no
+   click-to-filter, no plot highlighting, no "N homes" count. The plot
+   tooltip no longer shows view chips, and the detail panel no longer appends
+   position_detail / view_summary prose (position_detail carries view claims
+   too). Keep the data in Xano for when views are confirmed.
    ============================================================================ */
 
 
@@ -78,7 +86,6 @@ window.Wized = window.Wized || [];
       type: { key: 'type_code' },
       beds: { key: 'bedrooms', cast: Number },
       baths: { key: 'bathrooms', cast: Number },
-      view: { key: 'view_tags', multi: true },
       position: { keys: ['aspect', 'position'] },
       garage: { keys: ['garage_type', 'garageType'] },
     };
@@ -125,8 +132,7 @@ window.Wized = window.Wized || [];
     Object.keys(TOGGLES).forEach((t) => (toggles[t] = false));
 
     /* Anything outside this controller that drives a facet goes through here,
-       so there is one state and not two: the map's view badges use it, and a
-       badge and its chip stay in step whichever one you click. */
+       so there is one state and not two. */
     const listeners = [];
     window.svFilters = {
       toggle(facet, value, on) {
@@ -657,13 +663,12 @@ window.Wized = window.Wized || [];
   });
 
 /* ============================================================
-   View badges + context — map edge badges, tooltip position line,
-   detail-panel "Position & views" block. Data: /units (position,
-   aspect, view_tags, view_summary, position_detail) and /views.
+   View badges + context — map edge badges and the tooltip position line.
+   Data: /units (position) and /views.
 
-   A badge click toggles the matching chip in the View filter facet through
-   window.svFilters (the site-plan controller's own state), so the map and the
-   filter panel are one control. Hover is a non-destructive preview.
+   Views are not confirmed (2026-09-23), so a badge is an information card
+   only: hover/focus shows what lies in that direction. It does not filter,
+   highlight plots or count homes - nothing ties a view to a unit.
    ============================================================ */
 (function () {
   if (window.__svViews) return;
@@ -680,13 +685,11 @@ window.Wized = window.Wized || [];
     water: SVG + '<path d="M3 11c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 16c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg>',
     clubhouse: SVG + '<path d="M4 21V10l8-6 8 6v11M9 21v-6h6v6M2 21h20"/></svg>'
   };
-  var views = [], byKey = {}, units = [], byPlot = {};
-  var canvas, badgeHost, tip, activeKey = null, synced = false;
+  var views = [], byKey = {}, byPlot = {};
+  var badgeHost, tip;
 
   function icon(name) { return ICONS[name] || ICONS.mountain; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function tags(u) { var t = u && u.view_tags; return Array.isArray(t) ? t : (typeof t === 'string' && t ? t.split(',').map(function (s) { return s.trim(); }) : []); }
-  function filtered() { try { return window.svFilters ? window.svFilters.active('view').length > 0 : false; } catch (e) { return false; } }
 
   /* ---------- data ---------- */
   function setViews(list) {
@@ -697,17 +700,11 @@ window.Wized = window.Wized || [];
   }
   function setUnits(list) {
     if (!Array.isArray(list)) return;
-    units = list; byPlot = {};
-    units.forEach(function (u) { if (u && u.plot_id) byPlot[u.plot_id] = u; });
-    if (activeKey) focus(activeKey);
+    byPlot = {};
+    list.forEach(function (u) { if (u && u.plot_id) byPlot[u.plot_id] = u; });
   }
 
-  /* ---------- badges ---------- */
-  function chip(key, pop) {
-    var v = byKey[key]; if (!v) return '';
-    return '<span class="ud-chip" tabindex="0">' + icon(v.icon) + '<span>' + esc(v.label) + '</span>' +
-      (pop && v.description ? '<span class="ud-chip_pop">' + esc(v.description) + '</span>' : '') + '</span>';
-  }
+  /* ---------- badges (info only) ---------- */
   function renderBadges() {
     badgeHost = badgeHost || document.querySelector('[data-view-badges]');
     if (!badgeHost) return;
@@ -719,100 +716,48 @@ window.Wized = window.Wized || [];
       b.className = 'site-plan_badge' + (v.icon === 'horizon' ? ' is-hollow' : '');
       b.setAttribute('data-view', v.key);
       b.setAttribute('data-placement', v.placement);
-      b.setAttribute('aria-pressed', 'false');
-      b.setAttribute('aria-label', 'Show homes with a ' + v.label + ' view' + (v.direction ? ' (' + v.direction + ')' : ''));
+      b.setAttribute('aria-label', v.label + (v.direction ? ' (' + v.direction + ')' : ''));
       b.innerHTML = icon(v.icon);
-      b.addEventListener('mouseenter', function () { preview(v); });
-      b.addEventListener('focus', function () { preview(v); });
-      b.addEventListener('mouseleave', function () { clear(); hideTip(); });
-      b.addEventListener('blur', function () { clear(); hideTip(); });
+      b.addEventListener('mouseenter', function () { showTip(b, v); });
+      b.addEventListener('focus', function () { showTip(b, v); });
+      b.addEventListener('mouseleave', hideTip);
+      b.addEventListener('blur', hideTip);
+      /* touch has no hover: a tap shows the card, a second tap hides it.
+         (A tap also fires an emulated mouseenter just before the click, so
+         the toggle keys off the pointer type rather than the card's state.) */
+      var touch = false, shownByTap = false;
+      b.addEventListener('pointerdown', function (e) { touch = e.pointerType !== 'mouse'; });
       b.addEventListener('click', function (e) {
         e.preventDefault();
-        if (window.svFilters) {
-          window.svFilters.toggle('view', v.key);   // one shared state: chip + badge + map
-          clear();                                   // the filter's own dimming takes over
-          showTip(b, v);
-        }
+        if (!touch) return showTip(b, v);
+        if (shownByTap) { shownByTap = false; hideTip(); }
+        else { shownByTap = true; showTip(b, v); }
       });
+      b.addEventListener('blur', function () { shownByTap = false; });
       badgeHost.appendChild(b);
     });
-    syncBadges();
-  }
-  /* badges mirror the View facet, however it was changed */
-  function syncBadges() {
-    if (!badgeHost) return;
-    badgeHost.querySelectorAll('.site-plan_badge').forEach(function (b) {
-      var on = !!(window.svFilters && window.svFilters.isActive('view', b.getAttribute('data-view')));
-      b.classList.toggle('is-active', on);
-      b.setAttribute('aria-pressed', String(on));
-    });
-  }
-  function preview(v) {
-    if (!filtered()) focus(v.key);   // no double-dimming once a filter is on
-    showTipFor(v);
-  }
-  function focus(key) {
-    activeKey = key;
-    canvas = canvas || document.querySelector('.site-plan_map-canvas');
-    if (!canvas) return;
-    canvas.classList.add('is-view-focus');
-    units.forEach(function (u) {
-      var p = u.plot_id && document.getElementById(u.plot_id);
-      if (p) p.classList.toggle('is-view-hit', tags(u).indexOf(key) !== -1);
-    });
-  }
-  function clear() {
-    activeKey = null;
-    if (canvas) canvas.classList.remove('is-view-focus');
-    document.querySelectorAll('.site-plan_plot.is-view-hit').forEach(function (p) { p.classList.remove('is-view-hit'); });
   }
 
   /* ---------- hover card ---------- */
-  /* union of the plots this card is talking about, so the card can dodge them */
-  function litRect() {
-    var els = document.querySelectorAll('.site-plan_plot.is-view-hit');
-    if (!els.length) els = document.querySelectorAll('.site-plan_plot:not(.is-dimmed)');
-    var l = 1e9, t = 1e9, r = -1e9, b = -1e9, n = 0;
-    els.forEach(function (p) {
-      var q = p.getBoundingClientRect();
-      if (!q.width && !q.height) return;
-      n++; l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom);
-    });
-    return n ? { left: l, top: t, right: r, bottom: b } : null;
-  }
-  function overlap(a, b) {
-    if (!b) return 0;
-    var w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-    var h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-    return w > 0 && h > 0 ? w * h : 0;
-  }
-  /* try the four sides of the badge, keep the one that covers the least of the lit plots */
+  /* try the four sides of the badge, keep the one that needs the least
+     shoving back into the viewport */
   function place(b, w, h) {
     var q = b.getBoundingClientRect(), pad = 12, vw = window.innerWidth, vh = window.innerHeight;
-    var cx = q.left + q.width / 2, cy = q.top + q.height / 2, lit = litRect(), best = null;
+    var cx = q.left + q.width / 2, cy = q.top + q.height / 2, best = null;
     [[q.left - w - pad, cy - h / 2], [q.right + pad, cy - h / 2], [cx - w / 2, q.top - h - pad], [cx - w / 2, q.bottom + pad]]
       .forEach(function (c) {
         var x = Math.min(Math.max(pad, c[0]), Math.max(pad, vw - w - pad));
         var y = Math.min(Math.max(pad, c[1]), Math.max(pad, vh - h - pad));
-        var rect = { left: x, top: y, right: x + w, bottom: y + h };
-        /* penalise being shoved back into the viewport as if it were overlap */
-        var score = overlap(rect, lit) + (Math.abs(x - c[0]) * h + Math.abs(y - c[1]) * w) * 0.5;
+        var score = Math.abs(x - c[0]) * h + Math.abs(y - c[1]) * w;
         if (!best || score < best.score) best = { score: score, x: x, y: y };
       });
     return best;
   }
-  function showTipFor(v) {
-    var b = badgeHost && badgeHost.querySelector('.site-plan_badge[data-view="' + v.key + '"]');
-    if (b) showTip(b, v);
-  }
   function showTip(b, v) {
     if (!tip) { tip = document.createElement('div'); tip.className = 'site-plan_badge-tip'; document.body.appendChild(tip); }
-    var n = units.filter(function (u) { return u.status !== 'unreleased' && tags(u).indexOf(v.key) !== -1; }).length;
-    var on = !!(window.svFilters && window.svFilters.isActive('view', v.key));
+    tip.setAttribute('data-for', v.key);
     tip.innerHTML = '<div class="site-plan_badge-tip_head">' + esc(v.label) + (v.direction ? '<span class="site-plan_badge-tip_dir">' + esc(v.direction) + '</span>' : '') + '</div>' +
-      '<div>' + esc(v.description) + '</div>' +
-      (n ? '<span class="site-plan_badge-tip_count">' + n + ' home' + (n === 1 ? '' : 's') + ' with this view</span>' : '') +
-      '<span class="site-plan_badge-tip_hint">' + (on ? 'Click to clear this filter' : 'Click to filter to these homes') + '</span>';
+      '<div>' + esc(v.description) + '</div>';
     tip.style.left = '0px'; tip.style.top = '0px';
     tip.classList.add('is-visible');
     var p = place(b, tip.offsetWidth, tip.offsetHeight);
@@ -821,18 +766,19 @@ window.Wized = window.Wized || [];
   function hideTip() { if (tip) tip.classList.remove('is-visible'); }
   window.addEventListener('scroll', hideTip, { passive: true });
 
-  /* ---------- plot tooltip extras ---------- */
+  /* ---------- plot tooltip: position line only (no view chips) ---------- */
   function bindTooltip() {
-    canvas = canvas || document.querySelector('.site-plan_map-canvas');
+    var canvas = document.querySelector('.site-plan_map-canvas');
     var root = document.querySelector('[data-tooltip="root"]');
     if (!canvas || !root) return;
-    var pos = root.querySelector('[data-tooltip="position"]'), vw = root.querySelector('[data-tooltip="views"]');
-    if (!pos && !vw) return;
+    var pos = root.querySelector('[data-tooltip="position"]');
+    var vw = root.querySelector('[data-tooltip="views"]');   /* until the Designer row is deleted */
+    if (vw) { vw.innerHTML = ''; vw.style.display = 'none'; }
+    if (!pos) return;
     canvas.addEventListener('mouseover', function (e) {
       var path = e.target.closest && e.target.closest('path[id]');
       var u = path && byPlot[path.id];
-      if (pos) pos.textContent = u && u.position ? u.position : '';
-      if (vw) vw.innerHTML = u ? tags(u).slice(0, 3).map(function (k) { return chip(k, false); }).join('') : '';
+      pos.textContent = u && u.position ? u.position : '';
     });
   }
 
@@ -857,18 +803,11 @@ window.Wized = window.Wized || [];
 
   /* ---------- boot ---------- */
   var booted = false;
-  function hookFacets() {
-    if (synced || !window.svFilters) return;
-    synced = true;
-    window.svFilters.onChange(syncBadges);
-  }
   function boot(Wized) {
     if (booted) return; booted = true;
     bindTooltip();
     watchSelection(Wized);
     renderBadges();
-    hookFacets();
-    var tries = 0, t = setInterval(function () { hookFacets(); if (synced || ++tries > 40) clearInterval(t); }, 250);
   }
   /* The taxonomy used to arrive only once Wized had booted and run getViews -
      about three seconds after the plots painted, so the badges appeared long
@@ -892,7 +831,7 @@ window.Wized = window.Wized || [];
        Wized's own request came back */
     setTimeout(function () {
       if (!views.length) fetch(API + '/views').then(function (r) { return r.json(); }).then(setViews).catch(function () {});
-      if (!units.length) fetch(API + '/units').then(function (r) { return r.json(); }).then(setUnits).catch(function () {});
+      if (!Object.keys(byPlot).length) fetch(API + '/units').then(function (r) { return r.json(); }).then(setUnits).catch(function () {});
     }, 8000);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { boot(Wized); }); else boot(Wized);
   });
@@ -928,7 +867,9 @@ window.Wized = window.Wized || [];
   function render(u) {
     el = el || document.querySelector('.unit-details_description');
     if (!el) return;
-    extra = [u && u.position_detail, u && u.view_summary].filter(Boolean).join(' ');
+    /* 2026-09-23: views unconfirmed - position_detail and view_summary both
+       make view claims, so nothing is appended until they are confirmed. */
+    extra = '';
     paint();
     if (!obs && window.MutationObserver) {
       obs = new MutationObserver(paint);
