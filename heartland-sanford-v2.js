@@ -445,11 +445,19 @@
     // Labels and descriptions must never leave the stage: nudge them back inside.
     function clampLabels(pic) {
       var sr = stage.getBoundingClientRect();
+      // the arrow buttons (top-right on phones) are obstacles too: a label under them slides left
+      var navs = qsa(".sd2_in_nav", stage).filter(function (n) { return n.offsetParent !== null; }).map(function (n) { return n.getBoundingClientRect(); });
       qsa(".sd2_in_hs", pic).forEach(function (h) {
         var t = qs(".sd2_in_hs_label", h); if (!t) { return; }
         t.style.setProperty("--shift", "0px");
         var b = t.getBoundingClientRect(), dx = 0;
         if (b.left < sr.left + 8) { dx = sr.left + 8 - b.left; } else if (b.right > sr.right - 8) { dx = sr.right - 8 - b.right; }
+        navs.forEach(function (n) {
+          if (b.top < n.bottom + 4 && b.bottom > n.top - 4 && b.left + dx < n.right + 4 && b.right + dx > n.left - 4) {
+            var want = n.left - 8 - b.right;
+            if (b.left + want >= sr.left + 8) { dx = want; }
+          }
+        });
         t.style.setProperty("--shift", dx.toFixed(1) + "px");
       });
     }
