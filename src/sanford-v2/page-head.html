@@ -345,6 +345,7 @@
   .sd2_in_layer{position:absolute;pointer-events:none}
   .sd2_in_hs{pointer-events:auto;z-index:3}
   .sd2_in_hs.is-in{opacity:1}
+  .sd2_in_hs.is-off{display:none}
   .sd2_in_hs.is-open{z-index:4}
   .sd2_in_dot{position:relative;display:block;width:12px;height:12px;padding:0;border:0;border-radius:50%;background:#F6F3EE;box-shadow:0 0 0 3px rgba(28,26,23,.35);cursor:pointer}
   .sd2_in_dot::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:1px solid rgba(246,243,238,.7);animation:sd2-pulse 2.6s ease-out infinite}
@@ -394,6 +395,8 @@
   .sd2_gallery_item img{transition:transform 1.2s cubic-bezier(.2,.7,.2,1);will-change:transform}
   /* type cards: ground / first toggle and the four-frame spin */
   .sd2_type_view{position:relative}
+  .sd2_type_view img.sd2_contain{max-height:32rem;object-fit:contain}
+  @media screen and (max-width: 767px){.sd2_type_view img.sd2_contain{max-height:24rem}}
   .sd2_type_view [data-plan=first]{display:none}
   .sd2_type_view.is-first [data-plan=ground]{display:none}
   .sd2_type_view.is-first [data-plan=first]{display:block}

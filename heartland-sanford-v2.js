@@ -428,9 +428,15 @@
       var f = (pic.getAttribute("data-focus") || "50% 50%").split(/\s+/), fx = num(f[0]) / 100, fy = num(f[1] || "50%") / 100;
       var x = 0, y = 0, iw = W, ih = H;
       if (ir > br) { ih = H; iw = H * ir; x = (W - iw) * fx; } else { iw = W; ih = W / ir; y = (H - ih) * fy; }
+      // a marker whose point falls outside the crop (portrait stage on a phone) is hidden,
+      // not clamped: a label pointing at nothing is worse than no label
+      var pr = pic.getBoundingClientRect(), sr = stage.getBoundingClientRect();
       qsa(".sd2_in_hs", pic).forEach(function (h) {
-        h.style.left = (x + iw * num(h.getAttribute("data-x")) / 100).toFixed(1) + "px";
-        h.style.top = (y + ih * num(h.getAttribute("data-y")) / 100).toFixed(1) + "px";
+        var hx = x + iw * num(h.getAttribute("data-x")) / 100, hy = y + ih * num(h.getAttribute("data-y")) / 100;
+        h.style.left = hx.toFixed(1) + "px";
+        h.style.top = hy.toFixed(1) + "px";
+        var ax = pr.left + hx, ay = pr.top + hy;
+        h.classList.toggle("is-off", ax < sr.left + 10 || ax > sr.right - 10 || ay < sr.top + 10 || ay > sr.bottom - 10);
       });
     }
     // Labels and descriptions must never leave the stage: nudge them back inside.
