@@ -295,6 +295,8 @@
     var slides = qsa(".sd2_life_slide", root), caps = qsa(".sd2_life_cap", root), dots = qsa(".sd2_life_dot", root);
     var n = slides.length, cur = -1, primed = false;
     if (!n) { return; }
+    // Portrait renders crop hard in a full-bleed panel; each slide says where its subject is.
+    slides.forEach(function (s) { var f = s.getAttribute("data-focus"); if (f) { s.style.objectPosition = f; } });
     // The slides are lazy <img>s stacked at the same spot inside the sticky panel, so the browser
     // only fetches them once the panel is on screen — one scroll step too late on a phone. Switch
     // them to eager as soon as the section is within two viewports.
@@ -360,9 +362,260 @@
     sync();
   })();
 
-  /* ----------------------------------------------------------- 6. flythrough
-     Static two-column section since Sep 2026: the video card plays on scroll-in (section 4),
-     the 01-03 steps are plain copy. No chapter cycling. */
+  /* ----------------------------------------------------------- 6. inside (renders explorer)
+     Section 02 since 29 Sep 2026. A list of rooms drives a stage of renders; each render carries
+     markers (.sd2_in_hs with data-x/data-y as % of the IMAGE, data-dir up|down, data-len px,
+     data-side left|right) whose label and description are Designer copy. The flythrough video is
+     the first item and plays only while it is the one on the stage. On phones the list becomes
+     a chip row, the stage swipes, and the markers draw in when the stage scrolls into view. */
+  (function inside() {
+    var root = qs("[data-sd2-inside]");
+    if (!root) { return; }
+    var stage = qs("[data-sd2-in-stage]", root), wrap = qs("[data-sd2-in-wrap]", root);
+    var pics = qsa("[data-sd2-in-pic]", root), items = qsa("[data-sd2-in-item]", root);
+    if (!stage || !wrap || !pics.length) { return; }
+    var caps = { k: qs("[data-sd2-in-cap=k]", root), t: qs("[data-sd2-in-cap=t]", root), i: qs("[data-sd2-in-cap=i]", root) };
+    var phone = function () { return w.matchMedia("(max-width: 991px)").matches; };
+    var cur = -1, timers = [], chips = [], prog;
+
+    // veil, chips, arrows, progress
+    var veil = d.createElement("div"); veil.className = "sd2_in_veil"; stage.insertBefore(veil, qs(".sd2_in_cap", stage));
+    var chipRow = d.createElement("div"); chipRow.className = "sd2_in_chips"; chipRow.setAttribute("role", "tablist");
+    stage.parentNode.insertBefore(chipRow, stage);
+    var progWrap = d.createElement("div"); progWrap.className = "sd2_in_progress"; prog = d.createElement("i"); progWrap.appendChild(prog); stage.appendChild(progWrap);
+    ["prev", "next"].forEach(function (k) {
+      var b = d.createElement("button"); b.type = "button"; b.className = "sd2_in_nav is-" + k;
+      b.setAttribute("aria-label", k === "prev" ? "Previous room" : "Next room"); b.textContent = k === "prev" ? "‹" : "›";
+      on(b, "click", function () { show((cur + (k === "prev" ? -1 : 1) + pics.length) % pics.length); });
+      stage.appendChild(b);
+    });
+
+    pics.forEach(function (pic, i) {
+      var img = qs("img", pic), f = pic.getAttribute("data-focus");
+      if (img && f) { img.style.objectPosition = f; }
+      if (img && i > 2) { img.setAttribute("loading", "lazy"); }
+      // marker anatomy: dot + line before the Designer's label/description
+      qsa(".sd2_in_hs", pic).forEach(function (h) {
+        var dir = h.getAttribute("data-dir") || "up", side = h.getAttribute("data-side") || "";
+        h.style.setProperty("--len", (num(h.getAttribute("data-len")) || 64) + "px");
+        if (dir === "down") { h.classList.add("is-down"); }
+        if (side === "left") { h.classList.add("is-left"); } else if (side === "right") { h.classList.add("is-right"); }
+        var dot = d.createElement("button"); dot.type = "button"; dot.className = "sd2_in_dot";
+        dot.setAttribute("aria-label", text(qs(".sd2_in_hs_label", h)) || "Detail");
+        var line = d.createElement("i"); line.className = "sd2_in_line";
+        h.insertBefore(line, h.firstChild); h.insertBefore(dot, h.firstChild);
+        on(dot, "click", function (e) {
+          e.stopPropagation();
+          var open = h.classList.contains("is-open");
+          qsa(".sd2_in_hs.is-open", root).forEach(function (x) { x.classList.remove("is-open"); });
+          if (!open) { h.classList.add("is-open"); clampDesc(h); }
+        });
+      });
+      var chip = d.createElement("button"); chip.type = "button"; chip.className = "sd2_in_chip"; chip.setAttribute("role", "tab");
+      chip.textContent = (pic.getAttribute("data-sd2-in-pic") === "video" ? "▶ " : "") + (pic.getAttribute("data-t") || "");
+      on(chip, "click", function () { show(i); chip.scrollIntoView({ inline: "center", block: "nearest", behavior: reduceMotion ? "auto" : "smooth" }); });
+      chipRow.appendChild(chip); chips.push(chip);
+    });
+    items.forEach(function (it, i) {
+      on(it, "click", function (e) { e.preventDefault(); show(i); });
+    });
+
+    // The markers sit on the IMAGE, not on the box: work out where object-fit:cover put it.
+    function fit(pic) {
+      var img = qs("img", pic);
+      if (!img || !img.naturalWidth) { return; }
+      var W = pic.clientWidth, H = pic.clientHeight, ir = img.naturalWidth / img.naturalHeight, br = W / H;
+      var f = (pic.getAttribute("data-focus") || "50% 50%").split(/\s+/), fx = num(f[0]) / 100, fy = num(f[1] || "50%") / 100;
+      var x = 0, y = 0, iw = W, ih = H;
+      if (ir > br) { ih = H; iw = H * ir; x = (W - iw) * fx; } else { iw = W; ih = W / ir; y = (H - ih) * fy; }
+      qsa(".sd2_in_hs", pic).forEach(function (h) {
+        h.style.left = (x + iw * num(h.getAttribute("data-x")) / 100).toFixed(1) + "px";
+        h.style.top = (y + ih * num(h.getAttribute("data-y")) / 100).toFixed(1) + "px";
+      });
+    }
+    // Labels and descriptions must never leave the stage: nudge them back inside.
+    function clampLabels(pic) {
+      var sr = stage.getBoundingClientRect();
+      qsa(".sd2_in_hs", pic).forEach(function (h) {
+        var t = qs(".sd2_in_hs_label", h); if (!t) { return; }
+        t.style.setProperty("--shift", "0px");
+        var b = t.getBoundingClientRect(), dx = 0;
+        if (b.left < sr.left + 8) { dx = sr.left + 8 - b.left; } else if (b.right > sr.right - 8) { dx = sr.right - 8 - b.right; }
+        t.style.setProperty("--shift", dx.toFixed(1) + "px");
+      });
+    }
+    function clampDesc(h) {
+      var sr = stage.getBoundingClientRect(), t = qs(".sd2_in_hs_desc", h); if (!t) { return; }
+      t.style.setProperty("--dshift", "0px"); h.classList.remove("is-flip");
+      var b = t.getBoundingClientRect(), dx = 0;
+      if (b.left < sr.left + 8) { dx = sr.left + 8 - b.left; } else if (b.right > sr.right - 8) { dx = sr.right - 8 - b.right; }
+      t.style.setProperty("--dshift", dx.toFixed(1) + "px");
+      // vertically: a description that would leave the stage flips to the other side of the dot
+      if (b.bottom > sr.bottom - 8 || b.top < sr.top + 8) { h.classList.add("is-flip"); }
+    }
+    function drawMarkers(pic, delay) {
+      var hs = qsa(".sd2_in_hs", pic);
+      var go = function () {
+        fit(pic); clampLabels(pic);
+        hs.forEach(function (h, k) { timers.push(setTimeout(function () { h.classList.add("is-in"); }, (delay || 0) + k * 260)); });
+      };
+      var img = qs("img", pic);
+      if (img && !img.complete) { img.addEventListener("load", go, { once: true }); } else { go(); }
+    }
+    var video = qs("video", root);
+    if (video) { video.removeAttribute("data-sd2-video"); }   // module 4 must not autoplay it off-stage
+    function show(i) {
+      if (i === cur) { return; }
+      cur = i;
+      timers.forEach(clearTimeout); timers = [];
+      pics.forEach(function (p, k) {
+        p.classList.toggle("is-on", k === i);
+        qsa(".sd2_in_hs", p).forEach(function (h) { h.classList.remove("is-in", "is-open"); });
+      });
+      items.forEach(function (it, k) { it.classList.toggle("is-on", k === i); });
+      chips.forEach(function (c, k) { c.classList.toggle("is-on", k === i); c.setAttribute("aria-selected", k === i ? "true" : "false"); });
+      var pic = pics[i];
+      if (caps.k) { caps.k.textContent = pic.getAttribute("data-k") || ""; }
+      if (caps.t) { caps.t.textContent = pic.getAttribute("data-t") || ""; }
+      if (caps.i) { caps.i.textContent = pic.getAttribute("data-i") || ""; }
+      prog.style.width = ((i + 1) / pics.length * 100) + "%";
+      var v = qs("video", pic);
+      if (v) { attachVideo(v, false); var pp = v.play(); if (pp && pp.catch) { pp.catch(function () {}); } }
+      if (video && !v) { video.pause(); }
+      if (!v) { drawMarkers(pic, 700); }
+    }
+    on(stage, "click", function (e) {
+      if (e.target.closest && e.target.closest(".sd2_in_hs")) { return; }
+      qsa(".sd2_in_hs.is-open", root).forEach(function (x) { x.classList.remove("is-open"); });
+    });
+    // swipe (phones): a horizontal flick changes the room, a vertical one is the page's
+    var sx = null, sy = null;
+    on(stage, "touchstart", function (e) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    on(stage, "touchend", function (e) {
+      if (sx === null) { return; }
+      var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = sy = null;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { show((cur + (dx < 0 ? 1 : -1) + pics.length) % pics.length); }
+    }, { passive: true });
+    on(w, "resize", function () { if (cur >= 0) { fit(pics[cur]); clampLabels(pics[cur]); } });
+    // on phones the stage is usually off screen when a room is picked from the chips, so the
+    // markers draw again when it comes into view
+    if ("IntersectionObserver" in w) {
+      new IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (!e.isIntersecting || cur < 0) { return; }
+          var pic = pics[cur]; if (qs("video", pic)) { return; }
+          if (qsa(".sd2_in_hs.is-in", pic).length) { return; }
+          drawMarkers(pic, 300);
+        });
+      }, { threshold: 0.5 }).observe(stage);
+    }
+    // parallax on the stage (the same treatment as the bands and the gallery)
+    if (!reduceMotion) {
+      var raf = null;
+      var paint = function () {
+        raf = null;
+        var r = stage.getBoundingClientRect(), vh = w.innerHeight;
+        if (r.bottom < 0 || r.top > vh) { return; }
+        var p = (r.top + r.height / 2 - vh / 2) / vh;
+        wrap.style.transform = "translate3d(0," + (-p * r.height * 0.08).toFixed(1) + "px,0)";
+      };
+      on(w, "scroll", function () { if (!raf) { raf = w.requestAnimationFrame(paint); } }, { passive: true });
+      paint();
+    }
+    show(1);
+  })();
+
+  /* ----------------------------------------------------------- 6b. full-width bands
+     The picture is position:fixed and the section clips it (clip-path in the page head), so
+     the render stays put while the page scrolls over it. A transformed ancestor would pin the
+     picture to that ancestor instead, so the band checks its ancestry and falls back to a
+     plain absolute picture (parallaxed) if it finds one. */
+  (function bands() {
+    var bands = qsa("[data-sd2-band]");
+    if (!bands.length) { return; }
+    bands.forEach(function (b) {
+      var img = qs("img", b), f = img && img.getAttribute("data-focus");
+      if (img && f) { img.style.objectPosition = f; }
+      var el = b.parentElement, broken = false;
+      while (el && el !== d.body) {
+        var cs = w.getComputedStyle(el);
+        if (cs.transform !== "none" || cs.filter !== "none" || cs.perspective !== "none" || (cs.willChange && /transform|filter/.test(cs.willChange))) { broken = true; break; }
+        el = el.parentElement;
+      }
+      if (broken) { b.classList.add("is-static"); log("band: fixed disabled, transformed ancestor"); }
+    });
+  })();
+
+  /* ----------------------------------------------------------- 6c. gallery: drag + parallax */
+  (function gallery() {
+    var track = qs(".sd2_gallery_track");
+    if (!track) { return; }
+    var imgs = qsa(".sd2_gallery_item img", track);
+    // drag to scroll with a mouse (touch already scrolls natively)
+    var down = false, moved = false, x0 = 0, s0 = 0;
+    on(track, "pointerdown", function (e) {
+      if (e.pointerType !== "mouse" || e.button !== 0) { return; }
+      down = true; moved = false; x0 = e.clientX; s0 = track.scrollLeft;
+    });
+    on(w, "pointermove", function (e) {
+      if (!down) { return; }
+      var dx = e.clientX - x0;
+      if (!moved && Math.abs(dx) > 4) { moved = true; track.classList.add("is-dragging"); }
+      if (moved) { track.scrollLeft = s0 - dx; e.preventDefault(); }
+    });
+    var up = function () { if (!down) { return; } down = false; setTimeout(function () { track.classList.remove("is-dragging"); }, 40); };
+    on(w, "pointerup", up); on(w, "pointercancel", up);
+    on(track, "click", function (e) { if (moved) { e.preventDefault(); e.stopPropagation(); } }, true);
+    if (reduceMotion || !imgs.length) { return; }
+    var raf = null;
+    var paint = function () {
+      raf = null;
+      var r = track.getBoundingClientRect(), vh = w.innerHeight;
+      if (r.bottom < 0 || r.top > vh) { return; }
+      var p = (r.top + r.height / 2 - vh / 2) / vh, y = (-p * 18).toFixed(1);
+      imgs.forEach(function (im) { im.style.transform = "translate3d(0," + y + "px,0) scale(1.08)"; });
+    };
+    on(w, "scroll", function () { if (!raf) { raf = w.requestAnimationFrame(paint); } }, { passive: true });
+    paint();
+  })();
+
+  /* ----------------------------------------------------------- 6d. type cards: plan toggle + 3D spin */
+  (function typeMedia() {
+    qsa(".sd2_type_view").forEach(function (view) {
+      if (!qs("[data-plan=first]", view)) { return; }
+      var tabs = d.createElement("div"); tabs.className = "sd2_plan_tabs";
+      [["ground", "Ground"], ["first", "First floor"]].forEach(function (t) {
+        var b = d.createElement("button"); b.type = "button"; b.className = "sd2_plan_tab" + (t[0] === "ground" ? " is-on" : ""); b.textContent = t[1];
+        on(b, "click", function () {
+          view.classList.toggle("is-first", t[0] === "first");
+          qsa(".sd2_plan_tab", tabs).forEach(function (x) { x.classList.toggle("is-on", x === b); });
+        });
+        tabs.appendChild(b);
+      });
+      view.appendChild(tabs);
+    });
+    qsa("[data-sd2-spin]").forEach(function (spin) {
+      var frames = qsa("img", spin).filter(function (im) { return im.getAttribute("src"); });
+      if (frames.length < 2) { return; }
+      var i = 0, auto = null, dragging = false, x0 = 0, acc = 0;
+      var set = function (k) { i = ((k % frames.length) + frames.length) % frames.length; frames.forEach(function (f, n) { f.classList.toggle("is-on", n === i); }); };
+      var start = function () { if (reduceMotion || auto) { return; } auto = setInterval(function () { set(i + 1); }, 1400); };
+      var stop = function () { clearInterval(auto); auto = null; };
+      set(0);
+      if ("IntersectionObserver" in w) {
+        new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { if (!spin.classList.contains("is-touched")) { start(); } } else { stop(); } }); }, { threshold: 0.3 }).observe(spin);
+      } else { start(); }
+      on(spin, "pointerdown", function (e) { dragging = true; x0 = e.clientX; acc = 0; spin.classList.add("is-touched"); stop(); if (spin.setPointerCapture) { try { spin.setPointerCapture(e.pointerId); } catch (err) {} } });
+      on(spin, "pointermove", function (e) {
+        if (!dragging) { return; }
+        acc += e.clientX - x0; x0 = e.clientX;
+        while (acc > 40) { set(i + 1); acc -= 40; }
+        while (acc < -40) { set(i - 1); acc += 40; }
+      });
+      var end = function () { dragging = false; };
+      on(spin, "pointerup", end); on(spin, "pointercancel", end); on(spin, "pointerleave", end);
+    });
+  })();
 
   /* ----------------------------------------------------------- 7. lighting toggle */
   (function lighting() {
