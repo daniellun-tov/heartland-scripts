@@ -404,12 +404,14 @@
         dot.setAttribute("aria-label", text(qs(".sd2_in_hs_label", h)) || "Detail");
         var line = d.createElement("i"); line.className = "sd2_in_line";
         h.insertBefore(line, h.firstChild); h.insertBefore(dot, h.firstChild);
-        on(dot, "click", function (e) {
+        var toggle = function (e) {
           e.stopPropagation();
           var open = h.classList.contains("is-open");
           qsa(".sd2_in_hs.is-open", root).forEach(function (x) { x.classList.remove("is-open"); });
           if (!open) { h.classList.add("is-open"); clampDesc(h); }
-        });
+        };
+        on(dot, "click", toggle);
+        on(qs(".sd2_in_hs_label", h), "click", toggle);
       });
       var chip = d.createElement("button"); chip.type = "button"; chip.className = "sd2_in_chip"; chip.setAttribute("role", "tab");
       chip.textContent = (pic.getAttribute("data-sd2-in-pic") === "video" ? "▶ " : "") + (pic.getAttribute("data-t") || "");
