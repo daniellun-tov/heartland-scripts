@@ -390,9 +390,13 @@
       stage.appendChild(b);
     });
 
+    // data-focus-m: a second focal point for phones, where the stage is portrait and a
+    // landscape render loses both sides (keeps the marked detail inside the crop)
+    var small = function () { return w.matchMedia("(max-width: 767px)").matches; };
+    var focusOf = function (pic) { return (small() && pic.getAttribute("data-focus-m")) || pic.getAttribute("data-focus") || "50% 50%"; };
+    var applyFocus = function () { pics.forEach(function (pic) { var im = qs("img", pic); if (im) { im.style.objectPosition = focusOf(pic); } }); };
     pics.forEach(function (pic, i) {
-      var img = qs("img", pic), f = pic.getAttribute("data-focus");
-      if (img && f) { img.style.objectPosition = f; }
+      var img = qs("img", pic);
       if (img && i > 2) { img.setAttribute("loading", "lazy"); }
       // marker anatomy: dot + line before the Designer's label/description
       qsa(".sd2_in_hs", pic).forEach(function (h) {
@@ -431,7 +435,7 @@
       var img = qs("img", pic);
       if (!img || !img.naturalWidth) { return; }
       var W = pic.clientWidth, H = pic.clientHeight, ir = img.naturalWidth / img.naturalHeight, br = W / H;
-      var f = (pic.getAttribute("data-focus") || "50% 50%").split(/\s+/), fx = num(f[0]) / 100, fy = num(f[1] || "50%") / 100;
+      var f = focusOf(pic).split(/\s+/), fx = num(f[0]) / 100, fy = num(f[1] || "50%") / 100;
       var x = 0, y = 0, iw = W, ih = H;
       if (ir > br) { ih = H; iw = H * ir; x = (W - iw) * fx; } else { iw = W; ih = W / ir; y = (H - ih) * fy; }
       // a marker whose point falls outside the crop (portrait stage on a phone) is hidden,
@@ -543,7 +547,8 @@
       var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = sy = null;
       if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { show((cur + (dx < 0 ? 1 : -1) + pics.length) % pics.length); }
     }, { passive: true });
-    on(w, "resize", function () { if (cur >= 0) { fit(pics[cur]); clampLabels(pics[cur]); uncrowd(pics[cur]); } });
+    applyFocus();
+    on(w, "resize", function () { applyFocus(); if (cur >= 0) { fit(pics[cur]); clampLabels(pics[cur]); uncrowd(pics[cur]); } });
     // on phones the stage is usually off screen when a room is picked from the chips, so the
     // markers draw again when it comes into view
     if ("IntersectionObserver" in w) {
