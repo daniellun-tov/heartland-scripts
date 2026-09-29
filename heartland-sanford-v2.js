@@ -409,13 +409,14 @@
           var open = h.classList.contains("is-open");
           qsa(".sd2_in_hs.is-open", root).forEach(function (x) { x.classList.remove("is-open"); });
           if (!open) { h.classList.add("is-open"); clampDesc(h); }
+          pic.classList.toggle("has-open", !open);
         };
         on(dot, "click", toggle);
         on(qs(".sd2_in_hs_label", h), "click", toggle);
       });
       var chip = d.createElement("button"); chip.type = "button"; chip.className = "sd2_in_chip"; chip.setAttribute("role", "tab");
       chip.textContent = (pic.getAttribute("data-sd2-in-pic") === "video" ? "▶ " : "") + (pic.getAttribute("data-t") || "");
-      on(chip, "click", function () { show(i); chip.scrollIntoView({ inline: "center", block: "nearest", behavior: reduceMotion ? "auto" : "smooth" }); });
+      on(chip, "click", function () { show(i); });
       chipRow.appendChild(chip); chips.push(chip);
     });
     items.forEach(function (it, i) {
@@ -452,19 +453,34 @@
         t.style.setProperty("--shift", dx.toFixed(1) + "px");
       });
     }
+    // Two labels that would sit on top of each other (a phone crop pushes them together):
+    // the later one keeps its dot and line but loses its label until it is opened.
+    function uncrowd(pic) {
+      var kept = [];
+      qsa(".sd2_in_hs", pic).forEach(function (h) {
+        h.classList.remove("is-crowd");
+        if (h.classList.contains("is-off")) { return; }
+        var t = qs(".sd2_in_hs_label", h); if (!t) { return; }
+        var b = t.getBoundingClientRect(), hit = kept.some(function (k) {
+          return b.left < k.right + 4 && b.right > k.left - 4 && b.top < k.bottom + 4 && b.bottom > k.top - 4;
+        });
+        if (hit) { h.classList.add("is-crowd"); } else { kept.push(b); }
+      });
+    }
     function clampDesc(h) {
       var sr = stage.getBoundingClientRect(), t = qs(".sd2_in_hs_desc", h); if (!t) { return; }
+      var cap = qs(".sd2_in_cap", stage), bottom = cap ? Math.min(sr.bottom, cap.getBoundingClientRect().top) : sr.bottom;
       t.style.setProperty("--dshift", "0px"); h.classList.remove("is-flip");
       var b = t.getBoundingClientRect(), dx = 0;
       if (b.left < sr.left + 8) { dx = sr.left + 8 - b.left; } else if (b.right > sr.right - 8) { dx = sr.right - 8 - b.right; }
       t.style.setProperty("--dshift", dx.toFixed(1) + "px");
-      // vertically: a description that would leave the stage flips to the other side of the dot
-      if (b.bottom > sr.bottom - 8 || b.top < sr.top + 8) { h.classList.add("is-flip"); }
+      // vertically: a description that would leave the stage or cover the caption flips to the other side of the dot
+      if (b.bottom > bottom - 8 || b.top < sr.top + 8) { h.classList.add("is-flip"); }
     }
     function drawMarkers(pic, delay) {
       var hs = qsa(".sd2_in_hs", pic);
       var go = function () {
-        fit(pic); clampLabels(pic);
+        fit(pic); clampLabels(pic); uncrowd(pic);
         hs.forEach(function (h, k) { timers.push(setTimeout(function () { h.classList.add("is-in"); }, (delay || 0) + k * 260)); });
       };
       var img = qs("img", pic);
@@ -478,10 +494,15 @@
       timers.forEach(clearTimeout); timers = [];
       pics.forEach(function (p, k) {
         p.classList.toggle("is-on", k === i);
+        p.classList.remove("has-open");
         qsa(".sd2_in_hs", p).forEach(function (h) { h.classList.remove("is-in", "is-open"); });
       });
       items.forEach(function (it, k) { it.classList.toggle("is-on", k === i); });
       chips.forEach(function (c, k) { c.classList.toggle("is-on", k === i); c.setAttribute("aria-selected", k === i ? "true" : "false"); });
+      // the chip row follows the room (a swipe on the stage, an arrow, the list) without touching the page's scroll
+      if (chips[i] && chipRow.scrollWidth > chipRow.clientWidth) {
+        chipRow.scrollTo({ left: chips[i].offsetLeft - (chipRow.clientWidth - chips[i].offsetWidth) / 2, behavior: reduceMotion ? "auto" : "smooth" });
+      }
       var pic = pics[i];
       if (caps.k) { caps.k.textContent = pic.getAttribute("data-k") || ""; }
       if (caps.t) { caps.t.textContent = pic.getAttribute("data-t") || ""; }
@@ -495,6 +516,7 @@
     on(stage, "click", function (e) {
       if (e.target.closest && e.target.closest(".sd2_in_hs")) { return; }
       qsa(".sd2_in_hs.is-open", root).forEach(function (x) { x.classList.remove("is-open"); });
+      qsa(".sd2_in_pic.has-open", root).forEach(function (x) { x.classList.remove("has-open"); });
     });
     // swipe (phones): a horizontal flick changes the room, a vertical one is the page's
     var sx = null, sy = null;
@@ -504,7 +526,7 @@
       var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = sy = null;
       if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { show((cur + (dx < 0 ? 1 : -1) + pics.length) % pics.length); }
     }, { passive: true });
-    on(w, "resize", function () { if (cur >= 0) { fit(pics[cur]); clampLabels(pics[cur]); } });
+    on(w, "resize", function () { if (cur >= 0) { fit(pics[cur]); clampLabels(pics[cur]); uncrowd(pics[cur]); } });
     // on phones the stage is usually off screen when a room is picked from the chips, so the
     // markers draw again when it comes into view
     if ("IntersectionObserver" in w) {
@@ -587,7 +609,7 @@
     paint();
   })();
 
-  /* ----------------------------------------------------------- 6d. type cards: plan toggle + 3D spin */
+  /* ----------------------------------------------------------- 6d. type cards: plan toggle + 3D render gallery / lightbox */
   (function typeMedia() {
     qsa(".sd2_type_view").forEach(function (view) {
       if (!qs("[data-plan=first]", view)) { return; }
@@ -602,26 +624,118 @@
       });
       view.appendChild(tabs);
     });
-    qsa("[data-sd2-spin]").forEach(function (spin) {
-      var frames = qsa("img", spin).filter(function (im) { return im.getAttribute("src"); });
-      if (frames.length < 2) { return; }
-      var i = 0, auto = null, dragging = false, x0 = 0, acc = 0;
-      var set = function (k) { i = ((k % frames.length) + frames.length) % frames.length; frames.forEach(function (f, n) { f.classList.toggle("is-on", n === i); }); };
-      var start = function () { if (reduceMotion || auto) { return; } auto = setInterval(function () { set(i + 1); }, 1400); };
-      var stop = function () { clearInterval(auto); auto = null; };
-      set(0);
-      if ("IntersectionObserver" in w) {
-        new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { if (!spin.classList.contains("is-touched")) { start(); } } else { stop(); } }); }, { threshold: 0.3 }).observe(spin);
-      } else { start(); }
-      on(spin, "pointerdown", function (e) { dragging = true; x0 = e.clientX; acc = 0; spin.classList.add("is-touched"); stop(); if (spin.setPointerCapture) { try { spin.setPointerCapture(e.pointerId); } catch (err) {} } });
-      on(spin, "pointermove", function (e) {
-        if (!dragging) { return; }
-        acc += e.clientX - x0; x0 = e.clientX;
-        while (acc > 40) { set(i + 1); acc -= 40; }
-        while (acc < -40) { set(i - 1); acc += 40; }
+    // 3D renders: one slider per card (scroll-snap, swipe, mouse drag, dots, arrows); a tap
+    // opens the same set in a full-screen lightbox. Both cards share one lightbox element.
+    var lb = null, lbImg, lbCount, lbSet = [], lbCur = 0, lbReturn = null;
+    function lbBuild() {
+      lb = d.createElement("div"); lb.className = "sd2_lb"; lb.setAttribute("role", "dialog"); lb.setAttribute("aria-modal", "true"); lb.setAttribute("aria-label", "3D renders");
+      lb.innerHTML = '<div class="sd2_lb_backdrop"></div><figure class="sd2_lb_fig"><img class="sd2_lb_img" alt=""></figure>' +
+        '<button type="button" class="sd2_lb_btn is-close" aria-label="Close">×</button>' +
+        '<button type="button" class="sd2_lb_btn is-prev" aria-label="Previous">‹</button>' +
+        '<button type="button" class="sd2_lb_btn is-next" aria-label="Next">›</button>' +
+        '<div class="sd2_lb_count"></div>';
+      d.body.appendChild(lb);
+      lbImg = qs(".sd2_lb_img", lb); lbCount = qs(".sd2_lb_count", lb);
+      on(qs(".sd2_lb_backdrop", lb), "click", lbClose);
+      on(qs(".is-close", lb), "click", lbClose);
+      on(qs(".is-prev", lb), "click", function () { lbGo(lbCur - 1); });
+      on(qs(".is-next", lb), "click", function () { lbGo(lbCur + 1); });
+      on(d, "keydown", function (e) {
+        if (!lb.classList.contains("is-open")) { return; }
+        if (e.key === "Escape") { lbClose(); } else if (e.key === "ArrowLeft") { lbGo(lbCur - 1); } else if (e.key === "ArrowRight") { lbGo(lbCur + 1); }
       });
-      var end = function () { dragging = false; };
-      on(spin, "pointerup", end); on(spin, "pointercancel", end); on(spin, "pointerleave", end);
+      var sx = null, sy = null;
+      on(lb, "touchstart", function (e) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+      on(lb, "touchend", function (e) {
+        if (sx === null) { return; }
+        var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = sy = null;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { lbGo(lbCur + (dx < 0 ? 1 : -1)); }
+      }, { passive: true });
+    }
+    function lbGo(k) {
+      lbCur = ((k % lbSet.length) + lbSet.length) % lbSet.length;
+      var it = lbSet[lbCur];
+      lbImg.classList.remove("is-in");
+      lbImg.src = it.src; lbImg.alt = it.alt;
+      w.requestAnimationFrame(function () { lbImg.classList.add("is-in"); });
+      lbCount.textContent = (lbCur + 1) + " / " + lbSet.length;
+      lb.classList.toggle("is-single", lbSet.length < 2);
+    }
+    function lbOpen(set, k, from) {
+      if (!lb) { lbBuild(); }
+      lbSet = set; lbReturn = from || null;
+      lbGo(k);
+      lb.classList.add("is-open"); d.documentElement.classList.add("sd2-lb-open");
+      qs(".is-close", lb).focus({ preventScroll: true });
+    }
+    function lbClose() {
+      lb.classList.remove("is-open"); d.documentElement.classList.remove("sd2-lb-open");
+      if (lbReturn && lbReturn.focus) { lbReturn.focus({ preventScroll: true }); }
+    }
+    qsa("[data-sd2-gal]").forEach(function (gal) {
+      var track = qs(".sd2_type_gal_track", gal); if (!track) { return; }
+      var items = qsa(".sd2_type_gal_item", track).filter(function (it) { var im = qs("img", it); return im && im.getAttribute("src"); });
+      // slides without a picture (an empty CMS field) leave the track
+      qsa(".sd2_type_gal_item", track).forEach(function (it) { if (items.indexOf(it) < 0) { it.parentNode.removeChild(it); } });
+      if (!items.length) { gal.style.display = "none"; return; }
+      var set = items.map(function (it) { var im = qs("img", it); return { src: im.currentSrc || im.getAttribute("src"), alt: im.getAttribute("alt") || "" }; });
+      var cur = 0, dots = [];
+      var dotRow = d.createElement("div"); dotRow.className = "sd2_type_gal_dots";
+      items.forEach(function (it, k) {
+        var b = d.createElement("button"); b.type = "button"; b.className = "sd2_type_gal_dot" + (k ? "" : " is-on"); b.setAttribute("aria-label", "Render " + (k + 1));
+        on(b, "click", function () { go(k); });
+        dotRow.appendChild(b); dots.push(b);
+        it.setAttribute("role", "button"); it.setAttribute("tabindex", "0"); it.setAttribute("aria-label", "Open render " + (k + 1) + " full screen");
+        on(it, "keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); lbOpen(set, k, it); } });
+      });
+      gal.appendChild(dotRow);
+      ["prev", "next"].forEach(function (k) {
+        var b = d.createElement("button"); b.type = "button"; b.className = "sd2_type_gal_nav is-" + k;
+        b.setAttribute("aria-label", k === "prev" ? "Previous render" : "Next render"); b.textContent = k === "prev" ? "‹" : "›";
+        on(b, "click", function () { go((cur + (k === "prev" ? -1 : 1) + items.length) % items.length); });
+        gal.appendChild(b);
+      });
+      var hint = d.createElement("div"); hint.className = "sd2_type_gal_hint"; hint.textContent = "Tap to enlarge"; gal.appendChild(hint);
+      if (items.length < 2) { gal.classList.add("is-single"); }
+      function mark(k) { cur = k; dots.forEach(function (b, n) { b.classList.toggle("is-on", n === k); }); }
+      function go(k) { mark(k); track.scrollTo({ left: items[k].offsetLeft - track.offsetLeft, behavior: reduceMotion ? "auto" : "smooth" }); }
+      var raf = null;
+      on(track, "scroll", function () {
+        if (raf) { return; }
+        raf = w.requestAnimationFrame(function () { raf = null; mark(Math.max(0, Math.min(items.length - 1, Math.round(track.scrollLeft / track.clientWidth)))); });
+      }, { passive: true });
+      // mouse drag scrolls; a drag never counts as a tap
+      var down = false, moved = false, x0 = 0, s0 = 0;
+      on(track, "pointerdown", function (e) {
+        if (e.pointerType !== "mouse" || e.button !== 0) { return; }
+        down = true; moved = false; x0 = e.clientX; s0 = track.scrollLeft; track.classList.add("is-down");
+      });
+      on(w, "pointermove", function (e) {
+        if (!down) { return; }
+        var dx = e.clientX - x0;
+        if (!moved && Math.abs(dx) > 4) { moved = true; track.classList.add("is-dragging"); track.style.scrollSnapType = "none"; }
+        if (moved) { track.scrollLeft = s0 - dx; e.preventDefault(); }
+      });
+      var up = function () {
+        if (!down) { return; } down = false; track.classList.remove("is-down");
+        if (moved) { track.style.scrollSnapType = ""; go(Math.max(0, Math.min(items.length - 1, Math.round(track.scrollLeft / track.clientWidth)))); }
+        setTimeout(function () { track.classList.remove("is-dragging"); }, 40);
+      };
+      on(w, "pointerup", up); on(w, "pointercancel", up);
+      on(track, "click", function (e) {
+        if (moved) { e.preventDefault(); e.stopPropagation(); return; }
+        var it = e.target.closest && e.target.closest(".sd2_type_gal_item"); if (!it) { return; }
+        lbOpen(set, items.indexOf(it), it);
+      });
+      // a gentle auto-advance until touched, only while on screen
+      var auto = null;
+      var start = function () { if (reduceMotion || auto || gal.classList.contains("is-touched")) { return; } auto = setInterval(function () { go((cur + 1) % items.length); }, 2600); };
+      var stop = function () { clearInterval(auto); auto = null; };
+      on(gal, "pointerdown", function () { gal.classList.add("is-touched"); stop(); });
+      on(gal, "touchstart", function () { gal.classList.add("is-touched"); stop(); }, { passive: true });
+      if ("IntersectionObserver" in w) {
+        new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { start(); } else { stop(); } }); }, { threshold: 0.4 }).observe(gal);
+      }
     });
   })();
 
