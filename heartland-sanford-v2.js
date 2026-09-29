@@ -1660,13 +1660,15 @@
       bf.features.forEach(function (f, i) { f.properties.anchor = blk[i].anchor; });
       map.addSource("sd2-more", { type: "geojson", data: geo(list) });
       map.addSource("sd2-blk", { type: "geojson", data: bf });
+      // same marker as the section 06 pins (.sd2_mk_dot): 12px solid clay, 3px cream ring, soft shadow
+      map.addLayer({ id: "sd2-more-shadow", type: "circle", source: "sd2-more",
+        paint: { "circle-radius": 11, "circle-color": "rgba(28,26,23,.3)", "circle-blur": 0.7, "circle-translate": [0, 2] } });
       map.addLayer({ id: "sd2-more-dot", type: "circle", source: "sd2-more",
-        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 2.5, 14, 4, 17, 5.5],
-          "circle-color": "#FCFAF7", "circle-stroke-color": C.clay, "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 15, 2] } });
+        paint: { "circle-radius": 6, "circle-color": C.clay, "circle-stroke-color": "#FCFAF7", "circle-stroke-width": 3 } });
       map.addLayer({ id: "sd2-more-label", type: "symbol", source: "sd2-more", minzoom: small ? 11.5 : 12.3,
         layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Regular"], "text-size": small ? 10 : 11,
           "text-max-width": small ? 7 : 9, "text-line-height": 1.15, "text-padding": small ? 6 : 4,
-          "text-variable-anchor": ["left", "right", "top", "bottom"], "text-radial-offset": 0.75, "text-justify": "auto",
+          "text-variable-anchor": ["left", "right", "top", "bottom"], "text-radial-offset": 1.1, "text-justify": "auto",
           "symbol-sort-key": ["get", "rank"] },
         paint: { "text-color": C.label, "text-halo-color": C.halo, "text-halo-width": 1.6 } });
       // added last, so placed first: the pins claim their space before any small label does
