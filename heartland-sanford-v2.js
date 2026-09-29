@@ -421,6 +421,9 @@
     });
     items.forEach(function (it, i) {
       on(it, "click", function (e) { e.preventDefault(); show(i); });
+      // the numbers clash with the section numbering: rooms get a dot, the video keeps its play mark
+      var n = qs(".sd2_in_item_n", it);
+      if (n && /^\d+$/.test(text(n))) { n.textContent = ""; n.classList.add("is-dot"); }
     });
 
     // The markers sit on the IMAGE, not on the box: work out where object-fit:cover put it.
@@ -450,6 +453,12 @@
       qsa(".sd2_in_hs", pic).forEach(function (h) {
         var t = qs(".sd2_in_hs_label", h); if (!t) { return; }
         t.style.setProperty("--shift", "0px");
+        // a label that would leave the stage (a dot near the top or bottom of the crop) flips to
+        // the other side of its dot, line and all
+        h.classList.toggle("is-down", (h.getAttribute("data-dir") || "up") === "down");
+        var b0 = t.getBoundingClientRect();
+        if (!h.classList.contains("is-down") && b0.top < sr.top + 8) { h.classList.add("is-down"); }
+        else if (h.classList.contains("is-down") && b0.bottom > sr.bottom - 8) { h.classList.remove("is-down"); }
         var b = t.getBoundingClientRect(), dx = 0;
         if (b.left < sr.left + 8) { dx = sr.left + 8 - b.left; } else if (b.right > sr.right - 8) { dx = sr.right - 8 - b.right; }
         navs.forEach(function (n) {
@@ -631,6 +640,18 @@
         tabs.appendChild(b);
       });
       view.appendChild(tabs);
+      // clicking a plan opens both floors in the page's own lightbox (Webflow's would show one)
+      on(view, "click", function (e) {
+        var a = e.target.closest && e.target.closest(".w-lightbox"); if (!a) { return; }
+        e.preventDefault(); e.stopPropagation();
+        var set = [], idx = 0;
+        [["ground", "Ground floor"], ["first", "First floor"]].forEach(function (t, k) {
+          var im = qs("[data-plan=" + t[0] + "] img", view); if (!im || !im.getAttribute("src")) { return; }
+          if (a.getAttribute("data-plan") === t[0]) { idx = set.length; }
+          set.push({ src: im.currentSrc || im.getAttribute("src"), alt: im.getAttribute("alt") || t[1] });
+        });
+        if (set.length) { lbOpen(set, idx, a); }
+      }, true);
     });
     // 3D renders: one slider per card (scroll-snap, swipe, mouse drag, dots, arrows); a tap
     // opens the same set in a full-screen lightbox. Both cards share one lightbox element.
