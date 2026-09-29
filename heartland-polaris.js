@@ -41,6 +41,32 @@ function docReady(fn) {
 const docReadyEvent = new Event('docreadyEvent');
 
 var HL_POLARIS_CONFIG = window.HL_POLARIS_CONFIG || { addonsAffectTotal: false };
+
+// Features (furniture) add-ons: show only the selected home type's items (A/B) and
+// give each type its own lightbox group, so the lightbox only cycles those 3 items.
+// Type comes from the hidden .furniture-type text (CMS field "Home Type") in each card.
+function syncFurnitureByType() {
+  var t = selectedUnitType === 'b' ? 'B' : 'A';
+  var group = 'polaris-features-' + t.toLowerCase();
+  document.querySelectorAll('#furn-list .app-item').forEach(function (item) {
+    var typeEl = item.querySelector('.furniture-type');
+    var itemType = typeEl ? typeEl.textContent.trim().toUpperCase() : '';
+    var show = !itemType || itemType === t;
+    item.style.display = show ? '' : 'none';
+    var link = item.querySelector('.furniture-lightbox-link');
+    var img = link && link.querySelector('img');
+    var json = link && link.querySelector('script.w-json');
+    if (!img || !json) return;
+    json.textContent = JSON.stringify({
+      items: show ? [{ url: img.getAttribute('src'), type: 'image', caption: img.alt || '' }] : [],
+      group: show ? group : ''
+    });
+  });
+  try {
+    if (window.Webflow && Webflow.require) Webflow.require('lightbox').ready();
+  } catch (e) {}
+}
+$(function () { syncFurnitureByType(); });
 window.HL_POLARIS_CONFIG = HL_POLARIS_CONFIG;
 
 let totalNumberOfAddons = 3;
@@ -442,6 +468,8 @@ $("input[data-total-contribute='true']").click(function () {
           if (el) el.style.display = show;
         });
       })();
+
+      syncFurnitureByType();
 
       oldselectedUnitXraiIframeLink = selectedUnitXraiIframeLink;
       selectedUnitXraiIframeLink = $(this).attr('data-xrai-iframe-link');
