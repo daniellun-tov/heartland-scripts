@@ -326,24 +326,46 @@
       var total = r.height - vh;
       if (total <= 0) { paint(0); return; }
       var p = Math.min(1, Math.max(0, -r.top / total));
-      paint(Math.min(n - 1, Math.floor(p * n)));
-      glassTo(p);
+      if (!glassTo(p)) { paint(Math.min(n - 1, Math.floor(p * n))); }
     }
-    /* Ruan's frosted pane (30 Sep). The copy sits on a sheet of frosted glass that sweeps
-       across the render as you move from one chapter to the next and draws back while a
-       chapter holds, so the change of picture happens behind the glass. Desktop only;
-       phones get a static frosted foot under the caption (CSS). */
-    var glass = d.createElement("div"), sticky = qs(".sd2_life_sticky", root), wideGlass = w.matchMedia("(min-width: 992px)");
-    glass.className = "sd2_life_glass";
-    glass.setAttribute("aria-hidden", "true");
-    if (sticky) { sticky.insertBefore(glass, qs(".sd2_life_ui", sticky) || null); }
+    /* Glass. Phones keep a static frosted foot under the caption (.sd2_life_glass, CSS).
+       Desktop (30 Sep, second pass): the change from one chapter to the next is a pane of
+       frosted glass the reader slides across the picture themselves. Each chapter holds for
+       the first part of its scroll, then the pane travels from beyond the right edge to beyond
+       the left, driven directly by scroll position. The outgoing render is cut off at the pane's
+       leading edge, so the new one is uncovered behind the glass as it passes. */
+    var sticky = qs(".sd2_life_sticky", root), wideGlass = w.matchMedia("(min-width: 992px)");
+    var glass = d.createElement("div"), sweep = d.createElement("div");
+    glass.className = "sd2_life_glass"; sweep.className = "sd2_life_sweep";
+    glass.setAttribute("aria-hidden", "true"); sweep.setAttribute("aria-hidden", "true");
+    if (sticky) { var ui0 = qs(".sd2_life_ui", sticky) || null; sticky.insertBefore(glass, ui0); sticky.insertBefore(sweep, ui0); }
+    var HOLD = 0.4, PANE = 0.36, scrubbing = false;
+    function scrubOn() { return !reduceMotion && wideGlass.matches && !!sticky; }
     function glassTo(p) {
-      if (reduceMotion || !wideGlass.matches) { glass.style.removeProperty("--lg-x"); return; }
-      var f = (p * n) % 1, t = Math.min(f, 1 - f);                 // 0 at a chapter change, .5 mid-chapter
-      var k = Math.max(0, Math.min(1, t / 0.28)), e = k * k * (3 - 2 * k);   // smoothstep
-      if (p <= 0 || p >= 1) { e = 1; }
-      glass.style.setProperty("--lg-x", (-6 - 26 * e).toFixed(2) + "%");
-      glass.style.setProperty("--lg-edge", (0.9 - 0.5 * e).toFixed(2));
+      var on_ = scrubOn();
+      if (on_ !== scrubbing) {
+        scrubbing = on_;
+        root.classList.toggle("is-scrub", on_);
+        if (!on_) { slides.forEach(function (s) { s.style.opacity = ""; s.style.clipPath = ""; s.style.zIndex = ""; }); sweep.style.opacity = "0"; }
+      }
+      if (!on_) { return false; }
+      var W = sticky.clientWidth, sr = sticky.getBoundingClientRect();
+      var x = Math.min(n - 1e-6, Math.max(0, p * n)), i = Math.floor(x), f = x - i, t = 0;
+      if (i < n - 1 && f > HOLD) { t = (f - HOLD) / (1 - HOLD); }
+      var e = t * t * (3 - 2 * t);                                   // ease in and out of the glide
+      var eX = W * (1 - e * (1 + PANE));                              // pane's leading (left) edge
+      paint(i + (e >= 0.5 ? 1 : 0));                                  // captions + rail follow the pane
+      slides.forEach(function (s, j) {
+        if (j === i) {
+          var r = s.getBoundingClientRect(), right = r.right - sr.left, cut = t > 0 ? Math.min(r.width, Math.max(0, right - Math.max(0, eX))) : 0;
+          s.style.opacity = "1"; s.style.zIndex = "1"; s.style.clipPath = cut > 0 ? "inset(0 " + cut.toFixed(1) + "px 0 0)" : "none";
+        } else if (j === i + 1 && t > 0) {
+          s.style.opacity = "1"; s.style.zIndex = "0"; s.style.clipPath = "none";
+        } else { s.style.opacity = "0"; s.style.clipPath = "none"; s.style.zIndex = ""; }
+      });
+      sweep.style.transform = "translate3d(" + eX.toFixed(1) + "px,0,0)";
+      sweep.style.opacity = t > 0 && t < 1 ? "1" : "0";
+      return true;
     }
     dots.forEach(function (dd, i) {
       on(dd, "click", function (e) {
@@ -351,7 +373,7 @@
         var top = root.getBoundingClientRect().top + w.pageYOffset;
         var panel = qs(".sd2_life_sticky", root);
         var step = (root.offsetHeight - ((panel && panel.offsetHeight) || w.innerHeight)) / n;
-        w.scrollTo({ top: top + step * i + step / 2, behavior: reduceMotion ? "auto" : "smooth" });
+        w.scrollTo({ top: top + step * i + step * 0.2, behavior: reduceMotion ? "auto" : "smooth" });
       });
     });
     /* On a phone a 480vh free-scrolling section means every flick lands mid-crossfade.
@@ -746,6 +768,7 @@
       lb.classList.add("is-open"); d.documentElement.classList.add("sd2-lb-open");
       qs(".is-close", lb).focus({ preventScroll: true });
     }
+    w.SD2_LB = function (set, k, from) { lbOpen(set, k || 0, from); };
     function lbClose() {
       lb.classList.remove("is-open"); d.documentElement.classList.remove("sd2-lb-open");
       if (lbReturn && lbReturn.focus) { lbReturn.focus({ preventScroll: true }); }
@@ -1024,7 +1047,7 @@
       u.pin.style.top = u.y.toFixed(2) + "%";
       u.pin.classList.toggle("is-reserved", u.status === "Reserved");
       u.pin.classList.toggle("is-sold", u.status === "Sold");
-      u.pin.setAttribute("aria-label", "Home " + u.n + " — " + u.status);
+      u.pin.setAttribute("aria-label", "Home " + u.n + ", " + u.status);
       if (u.strip) {
         var b = qs(".sd2_strip_btn", u.strip);
         if (b) {
@@ -1060,7 +1083,7 @@
         if (price && !PRE && GATED && u.status !== "Sold") { price.setAttribute("data-sd2-price", ""); }
         var cta = qs("[data-sd2-detail=cta]", u.detail);
         if (cta && !PRE) {
-          cta.textContent = u.status === "Sold" ? "Sold — see other homes" : u.status === "Reserved" ? "Join the waiting list" : "Reserve home " + u.n;
+          cta.textContent = u.status === "Sold" ? "Sold, see other homes" : u.status === "Reserved" ? "Join the waiting list" : "Reserve home " + u.n;
           cta.setAttribute("href", u.status === "Sold" ? "#sd2-select" : "#sd2-reserve");
         }
         var tlink = qs("[data-sd2-detail=type-link]", u.detail);
@@ -1110,7 +1133,7 @@
       // per-device since only desktop actually has a hover to invite.
       var touchDevice = w.matchMedia("(max-width: 767px)").matches;
       hint.textContent = f
-        ? "Home " + f.n + " — " + f.status
+        ? "Home " + f.n + " · " + f.status
         : (touchDevice ? "Tap a home to see it" : "Hover a home to see it");
     }
     paintSelected();
@@ -1203,6 +1226,34 @@
     });
   }
 
+  /* Home detail cards (30 Sep): the two plan slots show the home's type's rendered ground and
+     first-floor plans (the same images as the type cards), and open both in the page lightbox.
+     The CMS slots still bind the old 2D thumbnails; they are only a fallback now. */
+  function detailPlans() {
+    UNITS.forEach(function (u) {
+      if (!u.detail) { return; }
+      var card = qs('.sd2_type[data-type-slug="' + u.typeSlug + '"]');
+      var slots = qsa(".sd2_detail_plan", u.detail);
+      if (!card || !slots.length) { return; }
+      var src = [["ground", "Ground floor"], ["first", "First floor"]].map(function (t) {
+        var im = qs("[data-plan=" + t[0] + "] img", card);
+        return im && im.getAttribute("src") ? { src: im.getAttribute("src"), alt: "Home " + u.n + ", " + t[1].toLowerCase() + " plan", label: t[1] } : null;
+      }).filter(Boolean);
+      if (!src.length) { return; }
+      slots.forEach(function (slot, k) {
+        var it = src[k], im = qs("img", slot);
+        if (!it || !im) { slot.style.display = it ? "" : "none"; return; }
+        im.removeAttribute("srcset"); im.removeAttribute("sizes");
+        im.setAttribute("src", it.src); im.setAttribute("alt", it.alt); im.setAttribute("loading", "lazy");
+        slot.setAttribute("data-label", it.label); slot.setAttribute("role", "button"); slot.setAttribute("tabindex", "0");
+        slot.setAttribute("aria-label", "Open " + it.label.toLowerCase() + " plan full screen");
+        var open = function (e) { if (e) { e.preventDefault(); } if (w.SD2_LB) { w.SD2_LB(src, k, slot); } };
+        on(slot, "click", open);
+        on(slot, "keydown", function (e) { if (e.key === "Enter" || e.key === " ") { open(e); } });
+      });
+    });
+  }
+
   function pick(slug, fromUser) {
     var u = unitBy(slug);
     if (!u || u.status === "Sold" || u.status === "Reserved") { return; }
@@ -1236,6 +1287,7 @@
       }
     });
     hitShapes(map);
+    detailPlans();
     qsa(".sd2_filter").forEach(function (b) {
       on(b, "click", function (e) {
         e.preventDefault();
@@ -2513,7 +2565,7 @@
       });
       // Section 09's summary goes back to the selected home: keep the eyebrow's number.
       qsa("#sd2-reserve .sd2_eyebrow").forEach(function (el) {
-        if (!el.closest(".sd2_form_done")) { el.textContent = el.textContent.replace(/\u2014.*$/, "\u2014 Reserve"); }
+        if (!el.closest(".sd2_form_done")) { el.textContent = el.textContent.replace(/\s*[\u2014\u00b7].*$/, " \u00b7 Reserve"); }
       });
       var keys = { homes: ["Selected", "home-type"], from: ["Price", "price"] };
       qsa("#sd2-reserve [data-sd2-wl]").forEach(function (v) {
@@ -2882,7 +2934,7 @@
       if (!pool.length) { pool = list; }
       var ys = pool.map(function (u) { return u.yld; });
       var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys);
-      return lo === hi ? pct(lo) : pct(lo).replace("%", "") + "–" + pct(hi);
+      return lo === hi ? pct(lo) : pct(lo).replace("%", "") + " to " + pct(hi);
     }
     function el(tag, cls, txt, attrs) {
       var n = d.createElement(tag);
@@ -2979,8 +3031,8 @@
       set("yld", pct(f.yld));
       set("rent", money(f.rent));
       set("rent2", money(f.rent));
-      set("costs", f.costs ? money(f.costs) : "—");
-      set("net", f.costs ? pct(f.net) : "—");
+      set("costs", f.costs ? money(f.costs) : "·");
+      set("net", f.costs ? pct(f.net) : "·");
       set("price", money(u.price));
       set("duty", money(f.duty));
       set("me-key", "Home " + u.n + ", Sanford Heart");
@@ -3074,7 +3126,7 @@
       var y = qs("[data-inv-fin=yld]"), du = qs("[data-inv-fin=duty]");
       if (y) { y.textContent = u ? pct(u.yld) : range(list); }
       var p = u ? u.price : fromPrice();
-      if (du) { du.textContent = p ? "≈ " + money(duty(p)) : "—"; }
+      if (du) { du.textContent = p ? "≈ " + money(duty(p)) : "·"; }
     }
 
     on(d, "click", function (e) {
