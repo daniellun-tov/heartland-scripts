@@ -289,54 +289,30 @@
   })();
 
   /* ----------------------------------------------------------- 5. life chapters
-     30 Sep (fourth pass): the Designer's sticky crossfade is rebuilt into flowing chapters.
-     Each render keeps its native ratio and sits off-grid (LAYOUT below), its caption on a
-     frosted pane that overlaps it, and the three layers drift at different rates as the
-     chapter passes through the viewport. No pinning, no reveal. The chapter dots move into a
-     fixed rail that shows only while the section is on screen. Reduced motion: same layout,
-     no drift. Without JS the Designer's sticky version still renders. */
+     30 Sep (fourth pass): the chapters are Designer elements — .sd2_life_flow > .sd2_life_ch
+     (data-sd2-ch, data-side, data-cpos) > .sd2_life_fig > img.sd2_life_slide, and
+     .sd2_life_copy > .sd2_life_num + .sd2_life_cap. Placement per chapter is CSS in the page
+     footer keyed on data-sd2-ch. This only drives the drift: --p goes 0 (entering the viewport)
+     to 1 (leaving) on each chapter, --r is the render's native ratio, the fixed rail of dots
+     shows while the section is on screen, and a dot scrolls to its chapter. */
   (function life() {
-    var root = qs("[data-sd2-life]"), sticky = root && qs(".sd2_life_sticky", root);
-    if (!root || !sticky) { return; }
-    var slides = qsa(".sd2_life_slide", root), caps = qsa(".sd2_life_cap", root), dots = qsa(".sd2_life_dot", root), dotsWrap = qs(".sd2_life_dots", root);
-    var n = slides.length;
-    if (!n || caps.length !== n) { return; }
-    // side: which edge the render sits against; cpos: caption corner; r: ratio fallback until the
-    // image reports its own; fw/fh: width cap and height cap; fx: inset from the edge; cw/cx/cy: caption
-    var LAYOUT = [
-      { side: "right", cpos: "bl", r: 1,     fw: "60vw", fh: "92vh", fx: "4vw",  cw: "44vw", cx: "6vw",  cy: "8vh"  },
-      { side: "left",  cpos: "tr", r: .8333, fw: "50vw", fh: "92vh", fx: "6vw",  cw: "44vw", cx: "8vw",  cy: "22vh" },
-      { side: "left",  cpos: "bl", r: .8316, fw: "46vw", fh: "92vh", fx: "30vw", cw: "38vw", cx: "5vw",  cy: "8vh"  },
-      { side: "right", cpos: "tl", r: .667,  fw: "40vw", fh: "94vh", fx: "12vw", cw: "46vw", cx: "10vw", cy: "14vh" },
-      { side: "left",  cpos: "br", r: .8333, fw: "54vw", fh: "92vh", fx: "4vw",  cw: "48vw", cx: "6vw",  cy: "8vh"  },
-      { side: "right", cpos: "bl", r: 1.067, fw: "64vw", fh: "92vh", fx: "5vw",  cw: "46vw", cx: "5vw",  cy: "8vh"  }
-    ];
-    var flow = d.createElement("div"), chs = [];
-    flow.className = "sd2_life_flow";
-    slides.forEach(function (img, i) {
-      var L = LAYOUT[i % LAYOUT.length], ch = d.createElement("div"), fig = d.createElement("div"), copy = d.createElement("div"), num = d.createElement("span");
-      ch.className = "sd2_life_ch"; fig.className = "sd2_life_fig"; copy.className = "sd2_life_copy"; num.className = "sd2_life_num";
-      ch.setAttribute("data-side", L.side); ch.setAttribute("data-cpos", L.cpos);
-      ch.style.cssText = "--r:" + L.r + ";--fw:" + L.fw + ";--fh:" + L.fh + ";--fx:" + L.fx + ";--cw:" + L.cw + ";--cx:" + L.cx + ";--cy:" + L.cy;
-      num.textContent = (i + 1) + " / " + n;
-      img.classList.remove("is-active"); img.style.objectPosition = ""; img.style.opacity = ""; img.style.transform = "";
-      if (img.tagName === "IMG") { img.setAttribute("decoding", "async"); if (i < 2) { img.setAttribute("loading", "eager"); } img.setAttribute("sizes", "(max-width: 991px) 94vw, 64vw"); }
-      var setRatio = function () { if (img.naturalWidth && img.naturalHeight) { ch.style.setProperty("--r", (img.naturalWidth / img.naturalHeight).toFixed(4)); } };
+    var root = qs("[data-sd2-life]");
+    if (!root) { return; }
+    var chs = qsa(".sd2_life_ch", root), dots = qsa(".sd2_life_dot", root), rail = qs(".sd2_life_rail", root);
+    if (!chs.length) { return; }
+    chs.forEach(function (c, i) {
+      var img = qs(".sd2_life_slide", c);
+      if (!img) { return; }
+      img.classList.remove("is-active");
+      if (img.tagName === "IMG") { img.setAttribute("decoding", "async"); if (i < 2) { img.setAttribute("loading", "eager"); } img.setAttribute("sizes", "(max-width: 991px) 94vw, 60vw"); }
+      var setRatio = function () { if (img.naturalWidth && img.naturalHeight) { c.style.setProperty("--r", (img.naturalWidth / img.naturalHeight).toFixed(4)); } };
       if (img.complete) { setRatio(); } else { on(img, "load", setRatio); }
-      fig.appendChild(img); copy.appendChild(num); copy.appendChild(caps[i]); caps[i].classList.add("is-on");
-      ch.appendChild(fig); ch.appendChild(copy); flow.appendChild(ch); chs.push(ch);
     });
-    root.appendChild(flow);
-    var rail = d.createElement("nav");
-    rail.className = "sd2_life_rail"; rail.setAttribute("aria-label", "Chapters");
-    if (dotsWrap) { rail.appendChild(dotsWrap); }
-    root.appendChild(rail);
-    root.classList.add("is-flow");
     var cur = -1, ticking = false;
     function sync() {
       ticking = false;
       var vh = w.innerHeight, rr = root.getBoundingClientRect(), best = 0, bestD = Infinity;
-      rail.classList.toggle("is-on", rr.top < vh * 0.6 && rr.bottom > vh * 0.4);
+      if (rail) { rail.classList.toggle("is-on", rr.top < vh * 0.6 && rr.bottom > vh * 0.4); }
       chs.forEach(function (c, i) {
         var r = c.getBoundingClientRect();
         if (r.bottom < -vh || r.top > vh * 2) { return; }
