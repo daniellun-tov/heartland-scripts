@@ -1095,6 +1095,9 @@
       if (u.detail) { u.detail.classList.toggle("is-active", f ? u.slug === f.slug : false); }
     });
     qsa(".sd2_filter").forEach(function (b) { b.classList.toggle("is-active", (b.getAttribute("data-filter") || "all") === SEL.filter); });
+    // Aerial masterplan: with any home lit, the rest of the picture greys back (CSS on .is-lit).
+    var mapEl = qs("[data-sd2-map]");
+    if (mapEl) { mapEl.classList.toggle("is-lit", UNITS.some(function (u) { return u.overlay && u.overlay.classList.contains("is-on"); })); }
     var hint = qs("[data-sd2-hint]");
     if (hint) {
       // "Hover" has no meaning on a touch screen — mobile never sets SEL.hover, so this used
@@ -1104,7 +1107,7 @@
       var touchDevice = w.matchMedia("(max-width: 767px)").matches;
       hint.textContent = f
         ? "Home " + f.n + " — " + f.status
-        : (touchDevice ? "Tap a marker to see a home" : "Hover a marker to light its footprint");
+        : (touchDevice ? "Tap a home to see it" : "Hover a home to see it");
     }
     paintSelected();
   }
@@ -1148,6 +1151,54 @@
     }
   }
 
+  /* Aerial masterplan (30 Sep). Each home's overlay is a cut-out of that home from the same
+     render (CMS "Unit Highlight (Alt)"), so the whole building answers to the pointer, not just
+     its pin: the overlays are read once into a small hit grid, and pointer moves over the
+     picture hover / click the home underneath. Needs CORS on the CDN (Webflow sends *); if a
+     canvas read fails the pins still work exactly as before. */
+  function hitShapes(map) {
+    var pan = qs(".sd2_map_pan", map) || map;
+    var GW = 320, GH = 0, grid = null, pending = 0;
+    UNITS.forEach(function (u) {
+      var src = u.overlay && (u.overlay.getAttribute("src") || "");
+      if (!src) { return; }
+      pending++;
+      var im = new Image();
+      im.crossOrigin = "anonymous";
+      im.onload = function () {
+        try {
+          if (!GH) { GH = Math.max(1, Math.round(GW * im.naturalHeight / im.naturalWidth)); grid = new Uint8Array(GW * GH); }
+          var c = d.createElement("canvas"); c.width = GW; c.height = GH;
+          var cx = c.getContext("2d"); cx.drawImage(im, 0, 0, GW, GH);
+          var a = cx.getImageData(0, 0, GW, GH).data, idx = UNITS.indexOf(u) + 1;
+          for (var i = 0; i < GW * GH; i++) { if (a[i * 4 + 3] > 110) { grid[i] = idx; } }
+        } catch (err) { log("hit grid", err); }
+      };
+      im.src = src;
+    });
+    if (!pending) { return; }
+    function at(e) {
+      if (!grid) { return null; }
+      var r = pan.getBoundingClientRect();
+      var gx = Math.floor((e.clientX - r.left) / r.width * GW), gy = Math.floor((e.clientY - r.top) / r.height * GH);
+      if (gx < 0 || gy < 0 || gx >= GW || gy >= GH) { return null; }
+      var k = grid[gy * GW + gx];
+      return k ? UNITS[k - 1] : null;
+    }
+    on(pan, "mousemove", function (e) {
+      if (e.target.closest && e.target.closest(".sd2_pin")) { return; }
+      var u = at(e), slug = u ? u.slug : null;
+      pan.style.cursor = u ? (u.status === "Available" ? "pointer" : "not-allowed") : "";
+      if (slug !== SEL.hover) { SEL.hover = slug; paintSelection(); }
+    });
+    on(pan, "mouseleave", function () { pan.style.cursor = ""; if (SEL.hover) { SEL.hover = null; paintSelection(); } });
+    on(pan, "click", function (e) {
+      if (e.target.closest && e.target.closest(".sd2_pin")) { return; }
+      var u = at(e);
+      if (u) { pick(u.slug, true); }
+    });
+  }
+
   function pick(slug, fromUser) {
     var u = unitBy(slug);
     if (!u || u.status === "Sold" || u.status === "Reserved") { return; }
@@ -1180,6 +1231,7 @@
         on(b, "mouseleave", function () { SEL.hover = null; paintSelection(); });
       }
     });
+    hitShapes(map);
     qsa(".sd2_filter").forEach(function (b) {
       on(b, "click", function (e) {
         e.preventDefault();

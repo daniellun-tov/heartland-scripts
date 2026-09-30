@@ -66,4 +66,12 @@
     mask-image:linear-gradient(180deg,#000 0,#000 58%,transparent 100%),linear-gradient(90deg,transparent 0,#000 7%,#000 93%,transparent 100%);mask-composite:intersect}
   @media screen and (max-width: 767px){.sd2_light_stage{aspect-ratio:2400/1461;-webkit-mask-image:linear-gradient(180deg,#000 0,#000 70%,transparent 100%);mask-image:linear-gradient(180deg,#000 0,#000 70%,transparent 100%)}}
   @media (prefers-reduced-motion: reduce){.sd2_life_glass{transform:translate3d(-32%,0,0)}}
+  /* aerial masterplan (30 Sep): Ruan's render replaces the drawing. Each home's overlay is a
+     full-colour cut-out of that home; when one is lit the rest of the picture greys back. */
+  .sd2_map{background-image:none;background-color:#1c1a17}
+  .sd2_map_base{transition:filter .5s ease,opacity .5s ease}
+  .sd2_map.is-lit .sd2_map_base{filter:grayscale(.85) brightness(.78) contrast(.92);opacity:.55}
+  .sd2_map_overlay{mix-blend-mode:normal;object-fit:fill;transition:opacity .4s ease;filter:drop-shadow(0 0 1px rgba(252,250,247,.85)) drop-shadow(0 10px 22px rgba(0,0,0,.35))}
+  .sd2_map_overlay.is-on{opacity:1}
+  @media screen and (max-width: 767px){.sd2_map_frame{aspect-ratio:4/3}}
 </style>
