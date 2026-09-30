@@ -1938,6 +1938,17 @@
       ST.member = m || null;
       ST.onList = onPlan(m);
       ST.homes = m && m.customFields ? homesFrom(m.customFields["waitlist-homes"]) : [];
+      /* ONE LIST. The bar's heart used to write its own "favourite-homes" field, so a home
+         could be on the waitlist (what the cards said) and missing from the heart's count and
+         list (and the other way round) - which read as "the card is lying". The heart now saves
+         to the waitlist, and any old favourites are folded in once, on the next sign-in. */
+      var legacy = m && m.customFields ? homesFrom(m.customFields["favourite-homes"]) : [];
+      if (legacy.length && ST.ms) {
+        var merged = homesFrom(ST.homes.concat(legacy).join(","));
+        ST.homes = merged;
+        ST.ms.updateMember({ customFields: { "waitlist-homes": homesLabel(merged), "favourite-homes": "" } })
+          .catch(function (e) { log("merge favourites", e && e.message); });
+      }
       html.classList.toggle("sd2-member", ST.onList);
       html.classList.toggle("sd2-signed-in", !!m);
       html.classList.add("sd2-auth-known");
@@ -2443,7 +2454,25 @@
       }
     }
 
+    /* Section 09 says which homes you have picked, but the picking happens on the masterplan -
+       so the copy carries a way back to it. */
+    function planLink() {
+      var copy = qs("#sd2-reserve .sd2_reserve_copy");
+      var lead = qs("#sd2-reserve .sd2_reserve_lead");
+      if (!copy || qs(".sd2_wl_plan", copy)) { return; }
+      var row = d.createElement("p");
+      row.className = "sd2_wl_plan";
+      row.setAttribute("style", "margin:-.75rem 0 1.75rem");
+      var a = d.createElement("a");
+      a.className = "sd2_form_done_link";
+      a.href = "#sd2-select";
+      a.textContent = LIVE ? "Choose your home on the masterplan \u2192" : "Add homes from the masterplan \u2192";
+      row.appendChild(a);
+      if (lead && lead.parentNode === copy) { copy.insertBefore(row, lead.nextSibling); } else { copy.appendChild(row); }
+    }
+
     /* ---------------- boot */
+    planLink();
     if (LIVE) { liveCopy(); paintSelected(); } else {
       prepForm();
       // Every "join" on the page opens the same flow, whatever the Designer called it.
@@ -2457,7 +2486,23 @@
       ms.getCurrentMember().then(function (r) { setMember(r && r.data); }).catch(function () { setMember(null); });
       if (ms.onAuthChange) { ms.onAuthChange(function (m) { setMember(m && (m.data || m)); }); }
     });
-    w.SD2_WAITLIST = { state: ST, open: openAuth, close: closeAuth };
+    /* The single way anything else on the page changes the list (the bar's heart uses it):
+       saves to Memberstack, keeps the section 09 form in step and tells the team. */
+    w.SD2_WAITLIST = {
+      state: ST, open: openAuth, close: closeAuth,
+      homes: function () { return ST.homes.slice(); },
+      signedIn: function () { return !!ST.member; },
+      toggle: function (n) {
+        n = String(n);
+        if (!ST.member) { openAuth("email", { homes: [n] }); return Promise.resolve(false); }
+        return (ST.onList ? toggleHome(n) : saveMember({ homes: [n] })).then(function () {
+          chosen = ST.homes.slice();
+          notifyTeam(true);
+          paintWaitlist();
+          return ST.homes.indexOf(n) >= 0;
+        }).catch(function (err) { log("toggle", err && err.message); return null; });
+      }
+    };
   })();
 
   /* ----------------------------------------------------------- 16. points of interest modal
@@ -2494,16 +2539,16 @@
   })();
 
   /* ----------------------------------------------------------- 17. favourites (floating bar)
-     A signed-in member can heart homes. The heart in the sticky bar toggles the home that is
-     selected on the plan; the count beside it opens a small list of saved homes (tap one to
-     select it, x to remove it). Saved on the member as the Memberstack custom field
-     "favourite-homes" ("Home 2, Home 5"), so the sales team sees them too. Hidden for anyone
-     who is not signed in. */
+     The heart in the sticky bar adds the home selected on the plan TO THE WAITLIST - the same
+     list the home cards' buttons and the section 09 form work on ("waitlist-homes" on the
+     member). The count beside it opens that list (tap one to select it, x to remove it).
+     It keeps no list of its own: everything goes through SD2_WAITLIST, so the heart, the card
+     button, the hearts on the pins and the form can never disagree. Hidden when signed out. */
   (function favourites() {
     var bar = qs("[data-sd2-bar]");
     if (!bar) { return; }
-    var FIELD = "favourite-homes";
     var ms = null, member = null, favs = [];
+    function WL() { return w.SD2_WAITLIST || null; }
     var HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20.3s-7.4-4.5-9.2-9C1.5 8 3.4 4.6 6.9 4.6c2.1 0 3.6 1.2 4.3 2.4l.8 1.3.8-1.3c.7-1.2 2.2-2.4 4.3-2.4 3.5 0 5.4 3.4 4.1 6.7-1.8 4.5-9.2 9-9.2 9z"/></svg>';
     function mk(tag, cl, txt) { var e = d.createElement(tag); e.className = cl; if (txt) { e.textContent = txt; } return e; }
     var wrap = mk("div", "sd2_bar_favs");
@@ -2524,13 +2569,13 @@
       var u = current(), isOn = !!(u && favs.indexOf(String(u.n)) >= 0);
       btn.classList.toggle("is-on", isOn);
       btn.setAttribute("aria-pressed", isOn ? "true" : "false");
-      btn.setAttribute("aria-label", u ? (isOn ? "Remove Home " + u.n + " from favourites" : "Save Home " + u.n + " to favourites") : "Select a home to save it");
+      btn.setAttribute("aria-label", u ? (isOn ? "Remove Home " + u.n + " from your waitlist" : "Add Home " + u.n + " to your waitlist") : "Select a home to add it");
       btn.disabled = !u;
       count.hidden = !favs.length;
       count.textContent = favs.length ? String(favs.length) : "";
-      count.setAttribute("aria-label", favs.length + " saved " + (favs.length === 1 ? "home" : "homes"));
+      count.setAttribute("aria-label", favs.length + (favs.length === 1 ? " home" : " homes") + " on your waitlist");
       pop.innerHTML = "";
-      pop.appendChild(mk("p", "sd2_fav_pop_title", "Saved homes"));
+      pop.appendChild(mk("p", "sd2_fav_pop_title", "Your waitlist"));
       favs.forEach(function (n) {
         var fu = unitN(n);
         var row = mk("div", "sd2_fav_row");
@@ -2554,27 +2599,30 @@
           var m = qs(".sd2_fav_mark", host);
           if (!m && fav) { m = mk("span", "sd2_fav_mark"); m.setAttribute("aria-hidden", "true"); m.innerHTML = HEART; host.appendChild(m); }
           host.classList.toggle("is-fav", fav);
-          if (fav) { host.setAttribute("title", "Saved to your favourites"); } else { host.removeAttribute("title"); }
+          if (fav) { host.setAttribute("title", "On your waitlist"); } else { host.removeAttribute("title"); }
         });
       });
     }
-    function save(prev) {
-      if (!ms || !member) { return; }
-      var cf = {}; cf[FIELD] = favs.map(function (n) { return "Home " + n; }).join(", ");
-      ms.updateMember({ customFields: cf }).catch(function (err) { log("favourites", err && err.message); favs = prev; paint(); });
-    }
+    // Optimistic paint, then the waitlist module's answer is the truth (it re-reads the member
+    // and fires sd2:member, which repaints this with whatever actually saved).
     function toggle(n) {
       n = String(n);
+      var wl = WL();
+      if (!wl) { return; }
       var prev = favs.slice(), i = favs.indexOf(n);
       if (i >= 0) { favs.splice(i, 1); } else { favs.push(n); favs.sort(function (a, b) { return a - b; }); }
-      paint(); save(prev);
+      paint();
+      wl.toggle(n).then(function (ok) {
+        if (ok === null) { favs = prev; paint(); return; }
+        favs = wl.homes(); paint();
+      });
     }
     function openPop() { if (!favs.length) { return; } pop.classList.add("is-open"); count.setAttribute("aria-expanded", "true"); }
     function closePop() { pop.classList.remove("is-open"); count.setAttribute("aria-expanded", "false"); }
 
     on(btn, "click", function () {
       var u = current(); if (!u) { return; }
-      if (!member) { if (w.SD2_WAITLIST) { w.SD2_WAITLIST.open("email"); } return; }
+      if (!member) { if (WL()) { WL().open("email", { homes: [String(u.n)] }); } return; }
       var adding = favs.indexOf(String(u.n)) < 0;
       toggle(u.n);
       if (adding) { btn.classList.remove("is-pop"); void btn.offsetWidth; btn.classList.add("is-pop"); }
@@ -2585,7 +2633,8 @@
 
     function setM(m) {
       member = m || null;
-      favs = member && member.customFields ? nums(member.customFields[FIELD]) : [];
+      var wl = WL();
+      favs = !member ? [] : (wl ? wl.homes() : nums(m && m.customFields && m.customFields["waitlist-homes"]));
       paint();
     }
     d.addEventListener("sd2:selected", paint);
