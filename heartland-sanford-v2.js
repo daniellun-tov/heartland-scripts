@@ -898,6 +898,11 @@
         typeSlug: type ? type.slug : typeSlug, letter: type ? type.letter : letterOf(typeSlug),
         price: num(item.getAttribute("data-price")),
         priceText: item.getAttribute("data-price-text") || "",
+        // Investment figures (module 19): gross yield % (CMS "Gross Yield %", text like "8.24"),
+        // monthly levy and rates. Absent attributes read as 0 and the module falls back.
+        yld: num(item.getAttribute("data-yield")),
+        levy: num(item.getAttribute("data-levy")),
+        rates: num(item.getAttribute("data-rates")),
         x: num(item.getAttribute("data-x")), y: num(item.getAttribute("data-y")),
         status: statusOf(item),
         map: item,
@@ -2683,6 +2688,273 @@
     d.addEventListener("sd2:catalogue", paint);
     d.addEventListener("sd2:selected", paint);
     paint();
+  })();
+
+  /* ----------------------------------------------------------- 19. investment case
+     A "8.24% gross yield" chip beside each home's price, two rows and a button in section 11
+     (finance), and a side drawer like the bond calculator's with the home's investment figures.
+     Everything comes from the Units CMS via the map items: data-yield ("Gross Yield %", plain
+     text like "8.24"), data-price, data-levy, data-rates. Estimated rent is derived, never stored:
+     rent = price x yield / 100 / 12, so it can never disagree with the yield.
+     Gated like prices: the yield % shows to everyone (it gives no price away); every rand
+     figure carries data-sd2-price="derived" (only when GATED - the live-phase CSS draws a dash on any
+     [data-sd2-price] for non-members, gate or no gate), so the head CSS shows a dash to non-members and a
+     click opens sign-up (module 15). Drawer copy lives here in COPY.
+     The investment pack PDF: set data-sd2-invest-pdf="<url>" on .sd2_page in the Designer; until
+     then the download button reads "coming soon". */
+  (function invest() {
+    var COPY = {
+      eyebrow: "Investment case",
+      demand: "High-demand area for diplomats",   // Eugene's line (Waterkloof / Brooklyn embassy belt)
+      heroLabel: "Estimated gross rental yield",
+      bench: 7.1,
+      benchLabel: "Gauteng full-title homes, average",
+      benchSrc: "TPN / PayProp Rental Index, 2025",
+      pdf: "Download the investment pack",
+      pdfSoon: "Investment pack · coming soon",
+      gate: "Sign up to see rent, running costs and returns in rand →",
+      note: "Estimates for illustration only, not financial advice. Rent is estimated from the gross yield and the " +
+            "purchase price; actual rent, vacancy, letting fees, tax and bond costs will differ. Levies and rates are " +
+            "the 2027 budget estimates. Transfer duty saving compares buying this home resale at the same price " +
+            "(SARS table from 1 March 2026)."
+    };
+    var html = d.documentElement, drawer = null, backdrop = null, cur = null, last = null;
+
+    function pct(v) { return v.toFixed(2) + "%"; }   // "8.00%", as in the developer's schedule
+    // SARS transfer duty from 1 March 2026 - what a resale buyer would pay at this price.
+    function duty(p) {
+      var B = [[13310000, 1241456, 0.13], [2994800, 106784, 0.11], [2329300, 53544, 0.08], [1663800, 13614, 0.06], [1210000, 0, 0.03]];
+      for (var i = 0; i < B.length; i++) { if (p > B[i][0]) { return B[i][1] + (p - B[i][0]) * B[i][2]; } }
+      return 0;
+    }
+    function fig(u) {
+      var levy = u.levy || (u.detail ? num(text(qs("[data-sd2-detail=levies]", u.detail))) : 0);
+      var rates = u.rates || (u.detail ? num(text(qs("[data-sd2-detail=rates]", u.detail))) : 0);
+      var rent = u.price * u.yld / 100 / 12;
+      return { yld: u.yld, rent: rent, levy: levy, rates: rates, costs: levy + rates,
+               net: u.price ? (rent - levy - rates) * 12 / u.price * 100 : 0, duty: duty(u.price) };
+    }
+    function homes() { return UNITS.filter(function (u) { return u.yld > 0 && u.price > 0; }); }
+    function range(list) {
+      var pool = list.filter(function (u) { return u.status === "Available"; });
+      if (!pool.length) { pool = list; }
+      var ys = pool.map(function (u) { return u.yld; });
+      var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys);
+      return lo === hi ? pct(lo) : pct(lo).replace("%", "") + "–" + pct(hi);
+    }
+    function el(tag, cls, txt, attrs) {
+      var n = d.createElement(tag);
+      if (cls) { n.className = cls; }
+      if (txt !== undefined && txt !== null) { n.textContent = txt; }
+      Object.keys(attrs || {}).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+      return n;
+    }
+    function row(key, inv, derived) {
+      var r = el("div", "sd2_calc_row");  // own value class: module 15 dashes every .sd2_calc_row_val / .sd2_calc_big
+      r.appendChild(el("div", "sd2_calc_field_key", key));
+      var v = el("div", "sd2_inv_row_val", "", { "data-inv": inv });
+      if (derived && GATED) { v.setAttribute("data-sd2-price", "derived"); }
+      r.appendChild(v);
+      return r;
+    }
+    function bar(cls, inv) {
+      var b = el("div", "sd2_inv_bar" + (cls ? " " + cls : ""));
+      b.appendChild(el("div", "sd2_inv_bar_key", "", { "data-inv": inv + "-key" }));
+      b.appendChild(el("div", "sd2_inv_bar_val", "", { "data-inv": inv + "-val" }));
+      var t = el("div", "sd2_inv_bar_track");
+      t.appendChild(el("div", "sd2_inv_bar_fill", "", { "data-inv": inv + "-fill" }));
+      b.appendChild(t);
+      return b;
+    }
+
+    /* ---- the drawer (built once, beside the bond calculator's) */
+    function build() {
+      if (drawer) { return; }
+      var host = qs(".sd2_calc_wrap") || d.body;
+      backdrop = el("div", "sd2_calc_backdrop", "", { "data-sd2-inv-backdrop": "" });
+      drawer = el("aside", "sd2_calc sd2_inv", "", { role: "dialog", "aria-label": COPY.eyebrow, "aria-hidden": "true", "data-sd2-inv": "" });
+      var head = el("div", "sd2_calc_head"), hc = el("div", "sd2_calc_headcopy");
+      hc.appendChild(el("div", "sd2_calc_eyebrow", COPY.eyebrow));
+      hc.appendChild(el("div", "sd2_calc_title", "", { "data-inv": "title" }));
+      head.appendChild(hc);
+      head.appendChild(el("a", "sd2_calc_close", "×", { href: "#", "aria-label": "Close", "data-sd2-inv-close": "" }));
+      drawer.appendChild(head);
+
+      var tabs = el("div", "sd2_inv_homes", "", { role: "group", "aria-label": "Choose a home" });
+      homes().forEach(function (u) {
+        var b = el("button", "sd2_inv_home", u.n, { type: "button", "data-unit": u.slug, "aria-label": "Home " + u.n + (u.status === "Sold" ? " (sold)" : "") });
+        if (u.status === "Sold") { b.disabled = true; }
+        tabs.appendChild(b);
+      });
+      drawer.appendChild(tabs);
+
+      drawer.appendChild(el("div", "sd2_inv_tag", COPY.demand));
+      var hero = el("div", "sd2_calc_hero");
+      hero.appendChild(el("div", "sd2_calc_label", COPY.heroLabel));
+      hero.appendChild(el("div", "sd2_inv_big", "", { "data-inv": "yld" }));
+      var sub = el("div", "sd2_calc_sub");
+      sub.appendChild(el("div", "sd2_calc_sub_item", "≈"));
+      sub.appendChild(el("div", "sd2_calc_sub_item", "", GATED ? { "data-inv": "rent", "data-sd2-price": "derived" } : { "data-inv": "rent" }));
+      sub.appendChild(el("div", "sd2_calc_sub_item", "a month in rent"));
+      hero.appendChild(sub);
+      drawer.appendChild(hero);
+
+      drawer.appendChild(el("a", "sd2_inv_gate", COPY.gate, { href: "#", "data-sd2-signin": "" }));
+
+      var rows = el("div", "sd2_calc_rows");
+      rows.appendChild(row("Est. monthly rent", "rent2", true));
+      rows.appendChild(row("Levies + rates, monthly", "costs", true));
+      rows.appendChild(row("Net yield after levies & rates", "net", false));
+      rows.appendChild(row("Purchase price (VAT incl.)", "price", true));
+      rows.appendChild(row("Transfer duty saved vs resale", "duty", true));
+      drawer.appendChild(rows);
+
+      var bench = el("div", "sd2_inv_bench");
+      bench.appendChild(el("div", "sd2_calc_field_key", "How it compares · gross yield"));
+      bench.appendChild(bar("", "me"));
+      bench.appendChild(bar("is-bench", "bm"));
+      bench.appendChild(el("div", "sd2_inv_src", "Benchmark: " + COPY.benchSrc));
+      drawer.appendChild(bench);
+
+      var acts = el("div", "sd2_inv_actions");
+      var url = PAGE.getAttribute("data-sd2-invest-pdf") || "";
+      var pdf = el("a", "sd2_btn is-dark", url ? COPY.pdf : COPY.pdfSoon, url ? { href: url, target: "_blank", rel: "noopener" } : { href: "#", "aria-disabled": "true", tabindex: "-1" });
+      acts.appendChild(pdf);
+      acts.appendChild(el("a", "sd2_btn is-outline-dark", "Open the Bond Calculator", { href: "#", "data-sd2-inv-calc": "" }));
+      drawer.appendChild(acts);
+      drawer.appendChild(el("p", "sd2_calc_note", COPY.note));
+
+      host.appendChild(backdrop);
+      host.appendChild(drawer);
+    }
+
+    function paint() {
+      var u = unitBy(cur);
+      if (!u || !drawer) { return; }
+      var f = fig(u), t = TYPES[u.typeSlug];
+      var set = function (k, v) { qsa("[data-inv=\"" + k + "\"]", drawer).forEach(function (n) { n.textContent = v; }); };
+      set("title", "Home " + u.n + " · Type " + u.letter + (t && t.desc ? " · " + t.desc.toLowerCase() : ""));
+      set("yld", pct(f.yld));
+      set("rent", money(f.rent));
+      set("rent2", money(f.rent));
+      set("costs", f.costs ? money(f.costs) : "—");
+      set("net", f.costs ? pct(f.net) : "—");
+      set("price", money(u.price));
+      set("duty", money(f.duty));
+      set("me-key", "Home " + u.n + ", Sanford Heart");
+      set("me-val", pct(f.yld));
+      set("bm-key", COPY.benchLabel);
+      set("bm-val", COPY.bench.toFixed(1) + "%");
+      var max = Math.max(f.yld, COPY.bench) * 1.15;
+      var mf = qs("[data-inv=\"me-fill\"]", drawer), bf = qs("[data-inv=\"bm-fill\"]", drawer);
+      if (mf) { mf.style.width = (f.yld / max * 100).toFixed(1) + "%"; }
+      if (bf) { bf.style.width = (COPY.bench / max * 100).toFixed(1) + "%"; }
+      qsa(".sd2_inv_home", drawer).forEach(function (b) {
+        var on_ = b.getAttribute("data-unit") === u.slug;
+        b.classList.toggle("is-active", on_);
+        b.setAttribute("aria-pressed", on_ ? "true" : "false");
+      });
+    }
+
+    function open(slug, from) {
+      var list = homes();
+      if (!list.length) { return; }
+      build();
+      var pickable = function (x) { return x && x.yld > 0 && x.status !== "Sold"; };
+      var u = unitBy(slug);
+      if (!pickable(u)) { u = unitBy(SEL.selected); }
+      if (!pickable(u)) { u = list.filter(pickable)[0] || list[0]; }
+      cur = u.slug;
+      last = from || d.activeElement;
+      paint();
+      drawer.classList.add("is-open");
+      drawer.setAttribute("aria-hidden", "false");
+      backdrop.classList.add("is-open");
+      html.classList.add("sd2-inv-open");
+      var c = qs("[data-sd2-inv-close]", drawer);
+      if (c) { setTimeout(function () { try { c.focus({ preventScroll: true }); } catch (e) {} }, 60); }
+    }
+    function close() {
+      if (!drawer || !drawer.classList.contains("is-open")) { return; }
+      drawer.classList.remove("is-open");
+      drawer.setAttribute("aria-hidden", "true");
+      backdrop.classList.remove("is-open");
+      html.classList.remove("sd2-inv-open");
+      if (last && last.focus) { try { last.focus({ preventScroll: true }); } catch (e) {} }
+    }
+
+    /* ---- chips beside each home's price, and the finance section */
+    function decorate() {
+      var list = homes();
+      if (!list.length) { return; }
+      list.forEach(function (u) {
+        if (!u.detail) { return; }
+        var old = qs(".sd2_yield_chip", u.detail);
+        if (u.status === "Sold") { if (old) { old.remove(); } return; }
+        if (old) { return; }
+        var rowEl = qs(".sd2_price_row", u.detail);
+        if (!rowEl) { return; }
+        var chip = el("button", "sd2_yield_chip", "", { type: "button", "data-sd2-invest-open": "", "data-unit": u.slug,
+                                                        "aria-label": "Investment case for home " + u.n + ": " + pct(u.yld) + " estimated gross yield" });
+        chip.appendChild(el("span", "sd2_yield_chip_val", pct(u.yld)));
+        chip.appendChild(d.createTextNode(" gross yield "));
+        chip.appendChild(el("span", "sd2_yield_chip_arrow", "↗", { "aria-hidden": "true" }));
+        rowEl.appendChild(chip);
+      });
+      var rowsHost = qs(".sd2_fin_rows");
+      if (rowsHost && !qs("[data-sd2-inv-fin]", rowsHost)) {
+        var after = qs("[data-sd2-fin=transfer]", rowsHost);
+        after = after ? after.closest(".sd2_fin_row") : null;
+        var mk = function (key, k, derived) {
+          var r = el("div", "sd2_fin_row", "", { "data-sd2-inv-fin": k });
+          r.appendChild(el("div", "sd2_fin_key", key));
+          var v = el("div", "sd2_fin_val", "", { "data-inv-fin": k });
+          if (derived && GATED) { v.setAttribute("data-sd2-price", "derived"); }
+          r.appendChild(v);
+          return r;
+        };
+        var r1 = mk("Est. gross rental yield", "yld", false), r2 = mk("Transfer duty saved vs resale", "duty", true);
+        if (after && after.nextSibling) { rowsHost.insertBefore(r1, after.nextSibling); rowsHost.insertBefore(r2, r1); }
+        else { rowsHost.appendChild(r2); rowsHost.appendChild(r1); }
+      }
+      var act = qs(".sd2_fin_action");
+      if (act && !qs(".sd2_inv_tag", act.parentNode)) { act.parentNode.insertBefore(el("div", "sd2_inv_tag is-fin", COPY.demand), act); }
+      if (act && !qs("[data-sd2-invest-open]", act)) {
+        act.appendChild(el("a", "sd2_btn is-outline-dark", "See the Investment Case →", { href: "#", "data-sd2-invest-open": "" }));
+      }
+      paintFin();
+    }
+    function paintFin() {
+      var list = homes();
+      if (!list.length) { return; }
+      var u = !PRE && SEL.selected ? unitBy(SEL.selected) : null;
+      if (u && !(u.yld > 0)) { u = null; }
+      var y = qs("[data-inv-fin=yld]"), du = qs("[data-inv-fin=duty]");
+      if (y) { y.textContent = u ? pct(u.yld) : range(list); }
+      var p = u ? u.price : fromPrice();
+      if (du) { du.textContent = p ? "≈ " + money(duty(p)) : "—"; }
+    }
+
+    on(d, "click", function (e) {
+      var t = e.target.closest && e.target.closest("[data-sd2-invest-open], [data-sd2-inv-close], [data-sd2-inv-backdrop], [data-sd2-inv-calc], .sd2_inv_home, .sd2_inv [data-sd2-signin], .sd2_inv [aria-disabled=true]");
+      if (!t) { return; }
+      if (t.hasAttribute("data-sd2-signin")) { close(); return; }   // module 15 opens sign-up
+      e.preventDefault();
+      e.stopPropagation();
+      if (t.hasAttribute("data-sd2-invest-open")) { open(t.getAttribute("data-unit"), t); }
+      else if (t.classList.contains("sd2_inv_home")) { if (!t.disabled) { cur = t.getAttribute("data-unit"); paint(); } }
+      else if (t.hasAttribute("data-sd2-inv-calc")) {
+        close();
+        var c = qs(".sd2_fin_action [data-sd2-calc-open]") || qs("[data-sd2-calc-open]");
+        if (c) { setTimeout(function () { c.click(); }, 50); }
+      }
+      else if (t.getAttribute("aria-disabled") === "true") { /* pack not published yet */ }
+      else { close(); }
+    }, true);
+    on(d, "keydown", function (e) { if (e.key === "Escape") { close(); } });
+    d.addEventListener("sd2:catalogue", decorate);
+    d.addEventListener("sd2:selected", paintFin);
+    w.SD2_INVEST = { open: open, close: close, figures: function (slug) { var u = unitBy(slug); return u ? fig(u) : null; } };
   })();
 
   /* ----------------------------------------------------------- 14. boot the catalogue-driven parts */
