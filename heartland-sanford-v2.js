@@ -327,6 +327,23 @@
       if (total <= 0) { paint(0); return; }
       var p = Math.min(1, Math.max(0, -r.top / total));
       paint(Math.min(n - 1, Math.floor(p * n)));
+      glassTo(p);
+    }
+    /* Ruan's frosted pane (30 Sep). The copy sits on a sheet of frosted glass that sweeps
+       across the render as you move from one chapter to the next and draws back while a
+       chapter holds, so the change of picture happens behind the glass. Desktop only;
+       phones get a static frosted foot under the caption (CSS). */
+    var glass = d.createElement("div"), sticky = qs(".sd2_life_sticky", root), wideGlass = w.matchMedia("(min-width: 992px)");
+    glass.className = "sd2_life_glass";
+    glass.setAttribute("aria-hidden", "true");
+    if (sticky) { sticky.insertBefore(glass, qs(".sd2_life_ui", sticky) || null); }
+    function glassTo(p) {
+      if (reduceMotion || !wideGlass.matches) { glass.style.removeProperty("--lg-x"); return; }
+      var f = (p * n) % 1, t = Math.min(f, 1 - f);                 // 0 at a chapter change, .5 mid-chapter
+      var k = Math.max(0, Math.min(1, t / 0.28)), e = k * k * (3 - 2 * k);   // smoothstep
+      if (p <= 0 || p >= 1) { e = 1; }
+      glass.style.setProperty("--lg-x", (-6 - 26 * e).toFixed(2) + "%");
+      glass.style.setProperty("--lg-edge", (0.9 - 0.5 * e).toFixed(2));
     }
     dots.forEach(function (dd, i) {
       on(dd, "click", function (e) {
@@ -596,6 +613,33 @@
       }
       if (broken) { b.classList.add("is-static"); log("band: fixed disabled, transformed ancestor"); }
     });
+    /* Frosted glass (30 Sep): each band enters behind frosted glass that clears from the
+       bottom up as it rises to the middle of the screen, the way a steamed pane clears. */
+    if (reduceMotion) { return; }
+    var panes = bands.map(function (b) {
+      var g = d.createElement("div");
+      g.className = "sd2_band_glass";
+      g.setAttribute("aria-hidden", "true");
+      b.insertBefore(g, qs(".sd2_band_cap", b) || null);
+      return g;
+    });
+    var raf = null;
+    function clear() {
+      raf = null;
+      var vh = w.innerHeight;
+      bands.forEach(function (b, i) {
+        var r = b.getBoundingClientRect();
+        if (r.bottom < -50 || r.top > vh + 50) { return; }
+        // 0 while the band's top is at the bottom of the screen, 1 once its centre reaches the middle
+        var p = Math.max(0, Math.min(1, (vh - r.top) / (vh / 2 + r.height / 2)));
+        var a = (100 - 150 * p);
+        panes[i].style.setProperty("--bg-a", a.toFixed(1) + "%");
+        panes[i].style.setProperty("--bg-b", (a + 30).toFixed(1) + "%");
+      });
+    }
+    on(w, "scroll", function () { if (!raf) { raf = w.requestAnimationFrame(clear); } }, { passive: true });
+    on(w, "resize", clear);
+    clear();
   })();
 
   /* ----------------------------------------------------------- 6c. gallery: drag + parallax */
