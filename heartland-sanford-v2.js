@@ -2719,6 +2719,48 @@
             "(SARS table from 1 March 2026)."
     };
     var html = d.documentElement, drawer = null, backdrop = null, cur = null, last = null;
+    /* Styles ship with the module (every element here is built by it, so nothing paints unstyled).
+       The last rule: the live-phase price prompts in the head CSS are not scoped to the gate, so an
+       ungated live page (data-sd2-gate="off", ?sd2_demo=open) drew a stray dash after every price. */
+    (function () {
+      var st = d.createElement("style");
+      st.setAttribute("data-sd2-inv-css", "");
+      st.textContent =
+      ".sd2_yield_chip{display:inline-flex;align-items:center;gap:.4em;padding:.45rem .8rem;border:1px solid rgba(169,117,75,.4);border-radius:999px;background:rgba(169,117,75,.08);color:#7A5234;font:600 .72rem/1 Manrope,sans-serif;letter-spacing:.02em;white-space:nowrap;cursor:pointer;transition:background-color .25s ease,border-color .25s ease;-webkit-appearance:none;appearance:none}" +
+      ".sd2_yield_chip:hover,.sd2_yield_chip:focus-visible{background:rgba(169,117,75,.16);border-color:#A9754B}" +
+      ".sd2_yield_chip_val{font:400 .875rem/1 Righteous,Arial,sans-serif;letter-spacing:.01em;color:#1C1A17}" +
+      ".sd2_yield_chip_arrow{font-size:.8rem;transition:transform .25s ease}" +
+      ".sd2_yield_chip:hover .sd2_yield_chip_arrow{transform:translate(2px,-2px)}" +
+      ".sd2_price_row{align-items:center}" +
+      ".sd2_fin_action{display:flex;flex-wrap:wrap;gap:.75rem}" +
+      ".sd2_inv_homes{display:flex;flex-wrap:wrap;gap:.375rem}" +
+      ".sd2_inv_home{min-width:2.5rem;height:2.5rem;padding:0 .8rem;border:1px solid rgba(28,26,23,.2);border-radius:999px;background:transparent;color:#1C1A17;font:500 .8125rem/1 Manrope,sans-serif;cursor:pointer;transition:background-color .2s ease,color .2s ease,border-color .2s ease;-webkit-appearance:none;appearance:none}" +
+      ".sd2_inv_home:hover{border-color:#1C1A17}" +
+      ".sd2_inv_home.is-active{background:#1C1A17;border-color:#1C1A17;color:#FCFAF7}" +
+      ".sd2_inv_home:disabled{opacity:.35;cursor:not-allowed;text-decoration:line-through}" +
+      ".sd2_inv_big{font-family:Righteous,Arial,sans-serif;margin-top:.5rem;font-size:2.375rem;line-height:1.1}" +
+      ".sd2_inv_row_val{white-space:nowrap;text-align:right}" +
+      ".sd2_inv_bench{display:grid;gap:.875rem}" +
+      ".sd2_inv_bar{display:grid;grid-template-columns:1fr auto;gap:.4rem .75rem;align-items:baseline;font-size:.8125rem;color:#45413A}" +
+      ".sd2_inv_bar_val{font-family:Righteous,Arial,sans-serif;color:#1C1A17}" +
+      ".sd2_inv_bar_track{grid-column:1/-1;height:.5rem;border-radius:999px;background:rgba(28,26,23,.08);overflow:hidden}" +
+      ".sd2_inv_bar_fill{width:0;height:100%;border-radius:inherit;background:#A9754B;transition:width .7s cubic-bezier(.2,.7,.2,1)}" +
+      ".sd2_inv_bar.is-bench .sd2_inv_bar_fill{background:#8C867C}" +
+      ".sd2_inv_src{color:#8C867C;font-size:.6875rem}" +
+      ".sd2_inv_actions{display:grid;gap:.625rem}" +
+      ".sd2_inv_actions .sd2_btn{width:100%}" +
+      ".sd2_inv .sd2_btn[aria-disabled=true]{opacity:.45;cursor:default}" +
+      ".sd2_inv_gate{display:none;color:#7A5234;font-size:.8125rem;text-decoration:underline;text-decoration-color:#C79A6E;text-underline-offset:4px}" +
+      "html.sd2-gated:not(.sd2-member) .sd2_inv_gate{display:block}" +
+      "html.sd2-gated:not(.sd2-member) .sd2_inv .sd2_calc_sub{display:none}" +
+      "html.sd2-inv-open{overflow:hidden}" +
+      ".sd2_inv_tag{justify-self:start;display:inline-flex;align-items:center;gap:.5em;padding:.4rem .75rem;border-radius:999px;background:rgba(138,147,128,.16);color:#4B5343;font:600 .72rem/1.2 Manrope,sans-serif;letter-spacing:.02em}" +
+      ".sd2_inv_tag::before{content:\"\";width:.4rem;height:.4rem;border-radius:50%;background:#8A9380}" +
+      ".sd2_inv_tag.is-fin{margin-top:1.5rem}" +
+      "@media screen and (max-width: 479px){.sd2_price_row{align-items:flex-start}.sd2_fin_action .sd2_btn{width:100%}}" +
+      "html.sd2-live:not(.sd2-gated):not(.sd2-member) [data-sd2-price]::after{content:none}";
+      d.head.appendChild(st);
+    })();
 
     function pct(v) { return v.toFixed(2) + "%"; }   // "8.00%", as in the developer's schedule
     // SARS transfer duty from 1 March 2026 - what a resale buyer would pay at this price.
