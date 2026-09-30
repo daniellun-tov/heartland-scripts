@@ -9,7 +9,7 @@
           openssl dgst -sha384 -binary heartland-sanford-v2.js | openssl base64 -A
      Source of truth for this block: src/sanford-v2/page-footer.html in heartland-scripts. -->
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a6b87bac8b93a0f37c3399d5d30a0de1e32f80fb/heartland-reserve.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@4ed840448e5d1dc7c670a675a5e70e27035d9810/heartland-sanford-v2.js" integrity="sha384-DIf9hdyzAz7jG+WbBkBxwuXu1rBgLNCnIOCrE2B3MH+DtUCs/KGXb/7tiXvuHkKv" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@07aa5460657891a3dbdf9b46f9aef0012bd0c13f/heartland-sanford-v2.js" integrity="sha384-qzpN1ydExsN4k6Ps5mGtUMA7hdAw/3m8j0E8zmvvtr2mWowguM9GozSU3uA6sUtp" crossorigin="anonymous"></script>
 
 <!-- Sanford Bot Chat Widget -->
 <script src="https://widgets.leadconnectorhq.com/loader.js" data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js" data-widget-id="6a69ceebf2ad8308219b3dde"></script>
@@ -25,9 +25,8 @@
   :root{--sd2-grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
   .sd2_section,.sd2_life,.sd2_band,.sd2_gallery,.sd2_reserve,.sd2_pros,.sd2_cta,.sd2_vr,.sd2_fin,.sd2_team,.sd2_apply,.sd2_in,.sd2_stats{background-image:var(--sd2-grain);background-size:240px 240px;background-blend-mode:soft-light}
   .sd2_gate_card{background-image:var(--sd2-grain);background-size:240px 240px;background-blend-mode:soft-light}
-  .sd2_life_sticky::before,.sd2_light_stage::after,.sd2_band::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background-image:var(--sd2-grain);background-size:240px 240px;mix-blend-mode:overlay;opacity:.32}
+  .sd2_light_stage::after,.sd2_band::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background-image:var(--sd2-grain);background-size:240px 240px;mix-blend-mode:overlay;opacity:.32}
   .sd2_band::after{z-index:1}
-  .sd2_life_ui,.sd2_life_hint{z-index:3}
 
   /* bands: frosted glass that clears as the band scrolls in; the first band is a slim strip */
   .sd2_band_glass{position:absolute;inset:0;z-index:1;pointer-events:none;
@@ -55,43 +54,46 @@
   .sd2_light_stage::before{content:"";position:absolute;left:0;right:0;top:0;height:24%;z-index:1;pointer-events:none;
     -webkit-backdrop-filter:blur(16px) saturate(115%);backdrop-filter:blur(16px) saturate(115%);
     -webkit-mask-image:linear-gradient(180deg,#000 0,rgba(0,0,0,.6) 45%,transparent 100%);mask-image:linear-gradient(180deg,#000 0,rgba(0,0,0,.6) 45%,transparent 100%)}
-  /* life chapters (30 Sep, fourth pass): the bundle rebuilds the sticky crossfade into flowing
-     chapters. Each render keeps its native ratio (--r) and sits off-grid; the caption is on a
-     frosted pane overlapping it; --p (0 entering, 1 leaving) drives the drift of each layer. */
-  html.sd2-js .sd2_life.is-flow{height:auto;min-height:0;padding:0 0 clamp(2rem,7vh,5rem)}
-  html.sd2-js .sd2_life.is-flow .sd2_life_sticky{display:none}
-  .sd2_life_ch{position:relative;padding:0 0 clamp(2rem,7vh,5rem)}
-  .sd2_life_fig{position:relative;width:min(var(--fw),calc(var(--fh) * var(--r)));aspect-ratio:var(--r);max-width:100%;overflow:hidden;background-color:#26231f;isolation:isolate;
+  /* life chapters (30 Sep, fourth pass): Designer elements .sd2_life_flow > .sd2_life_ch > .sd2_life_fig +
+     .sd2_life_copy. The Webflow classes hold the static styling; this block holds what the Designer
+     can't: each render's native ratio (--r, set by the bundle), the per-chapter placement as a share
+     of the contained width, and the drift driven by --p (0 entering the viewport, 1 leaving). */
+  html.sd2-js .sd2_life{height:auto;min-height:0;padding:0 0 clamp(2rem,7vh,5rem)}
+  .sd2_life_fig{width:min(var(--fw,60%),calc(var(--fh,88vh) * var(--r,1)));aspect-ratio:var(--r,1);isolation:isolate;
     transform:translate3d(0,calc((.5 - var(--p,.5)) * 10vh),0);will-change:transform}
-  .sd2_life_ch[data-side=right] .sd2_life_fig{margin-left:auto;margin-right:var(--fx)}
-  .sd2_life_ch[data-side=left] .sd2_life_fig{margin-left:var(--fx)}
-  html.sd2-js .sd2_life.is-flow .sd2_life_slide{position:absolute;inset:-7% 0;width:100%;height:114%;object-fit:cover;object-position:50% 50%;opacity:1;
+  .sd2_life_ch[data-side=right] .sd2_life_fig{margin-left:auto;margin-right:var(--fx,0)}
+  .sd2_life_ch[data-side=left] .sd2_life_fig{margin-left:var(--fx,0)}
+  .sd2_life_ch[data-sd2-ch="1"]{--fw:66%;--fx:0;--cx:4%;--cy:10%}
+  .sd2_life_ch[data-sd2-ch="2"]{--fw:52%;--fx:2%;--cx:14%;--cy:16%}
+  .sd2_life_ch[data-sd2-ch="3"]{--fw:48%;--fx:30%;--cx:0;--cy:10%}
+  .sd2_life_ch[data-sd2-ch="4"]{--fw:42%;--fx:8%;--cx:16%;--cy:12%}
+  .sd2_life_ch[data-sd2-ch="5"]{--fw:58%;--fx:0;--cx:10%;--cy:10%}
+  .sd2_life_ch[data-sd2-ch="6"]{--fw:68%;--fx:0;--cx:0;--cy:10%}
+  html.sd2-js .sd2_life .sd2_life_slide{position:absolute;inset:-7% 0;width:100%;height:114%;object-fit:cover;object-position:50% 50%;opacity:1;
     transform:translate3d(0,calc((var(--p,.5) - .5) * 7%),0);transition:none;will-change:transform;-webkit-mask-image:none;mask-image:none}
   .sd2_life_fig::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(252,250,247,.08);pointer-events:none;z-index:4}
-  .sd2_life_copy{position:absolute;z-index:6;width:var(--cw);max-width:calc(100% - 10vw);padding:2rem 2.25rem 2.25rem;color:#fcfaf7;
-    background:linear-gradient(120deg,rgba(28,26,23,.62),rgba(28,26,23,.34));-webkit-backdrop-filter:blur(22px) saturate(118%);backdrop-filter:blur(22px) saturate(118%);
-    border:1px solid rgba(252,250,247,.14);border-left-color:rgba(252,250,247,.34);
+  .sd2_life_copy{border-left-color:rgba(252,250,247,.34);background-image:linear-gradient(120deg,rgba(28,26,23,.3),rgba(28,26,23,0));
+    -webkit-backdrop-filter:blur(22px) saturate(118%);backdrop-filter:blur(22px) saturate(118%);
     transform:translate3d(0,calc((.5 - var(--p,.5)) * 22vh),0);will-change:transform}
   .sd2_life_copy::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:var(--sd2-grain);background-size:240px 240px;mix-blend-mode:overlay;opacity:.35}
   .sd2_life_ch[data-cpos=bl] .sd2_life_copy{left:var(--cx);bottom:var(--cy)} .sd2_life_ch[data-cpos=br] .sd2_life_copy{right:var(--cx);bottom:var(--cy)}
   .sd2_life_ch[data-cpos=tl] .sd2_life_copy{left:var(--cx);top:var(--cy)} .sd2_life_ch[data-cpos=tr] .sd2_life_copy{right:var(--cx);top:var(--cy)}
-  html.sd2-js .sd2_life.is-flow .sd2_life_cap{position:static;opacity:1;transform:none;pointer-events:auto;transition:none}
-  html.sd2-js .sd2_life.is-flow .sd2_life_title{font-size:clamp(2rem,3.4vw,3.4rem)}
-  html.sd2-js .sd2_life.is-flow .sd2_life_body{font-size:.9375rem}
-  .sd2_life_num{position:absolute;top:1.25rem;right:1.5rem;font-family:var(--_sanford-v2---sd2-font-accent,Righteous,sans-serif);font-size:.625rem;letter-spacing:.2em;color:rgba(252,250,247,.4)}
-  .sd2_life_rail{position:fixed;right:2.5vw;top:50%;transform:translateY(-50%);z-index:9;opacity:0;pointer-events:none;transition:opacity .4s}
+  html.sd2-js .sd2_life .sd2_life_cap{position:static;opacity:1;transform:none;pointer-events:auto;transition:none}
+  html.sd2-js .sd2_life .sd2_life_title{font-size:clamp(2rem,3vw,2.75rem)}
+  html.sd2-js .sd2_life .sd2_life_body{font-size:.9375rem}
+  .sd2_life_num{font-family:var(--_sanford-v2---sd2-font-accent,Righteous,sans-serif);text-transform:uppercase}
+  .sd2_life_rail{transform:translateY(-50%);transition:opacity .4s}
   .sd2_life_rail.is-on{opacity:1;pointer-events:auto}
   .sd2_life_rail .sd2_life_dot:focus-visible{outline:1px solid #c9a66b;outline-offset:4px}
   @media screen and (max-width: 991px){
-    .sd2_life_ch{padding-bottom:2.5rem}
-    .sd2_life_ch[data-side] .sd2_life_fig{margin:0 auto;width:min(94vw,calc(70svh * var(--r)));transform:translate3d(0,calc((.5 - var(--p,.5)) * 6vh),0)}
-    .sd2_life_ch[data-cpos] .sd2_life_copy{position:relative;left:auto;right:auto;top:auto;bottom:auto;margin:-14vw 5vw 0;width:auto;max-width:none;padding:1.5rem 1.375rem 1.625rem;transform:translate3d(0,calc((.5 - var(--p,.5)) * 5vh),0)}
-    html.sd2-js .sd2_life.is-flow .sd2_life_title{font-size:1.875rem}
-    html.sd2-js .sd2_life.is-flow .sd2_life_body{font-size:.875rem}
-    .sd2_life_rail{right:auto;left:5vw;top:auto;bottom:1.25rem;transform:none}
+    .sd2_life_ch[data-side] .sd2_life_fig{margin:0 auto;width:min(100%,calc(70svh * var(--r,1)));transform:translate3d(0,calc((.5 - var(--p,.5)) * 6vh),0)}
+    .sd2_life_ch[data-cpos] .sd2_life_copy{left:auto;right:auto;top:auto;bottom:auto;transform:translate3d(0,calc((.5 - var(--p,.5)) * 5vh),0)}
+    html.sd2-js .sd2_life .sd2_life_title{font-size:1.875rem}
+    html.sd2-js .sd2_life .sd2_life_body{font-size:.875rem}
+    .sd2_life_rail{transform:none}
   }
   @media (prefers-reduced-motion: reduce){
-    .sd2_life_fig,.sd2_life_copy,html.sd2-js .sd2_life.is-flow .sd2_life_slide{transform:none!important}
+    .sd2_life_fig,.sd2_life_copy,html.sd2-js .sd2_life .sd2_life_slide{transform:none!important}
   }
   /* type cards: plans centred in a fixed-height stage (no jump between floors), price in the list, button centred at the foot */
   .sd2_type_inner{display:flex;flex-direction:column}
