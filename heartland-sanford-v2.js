@@ -288,114 +288,75 @@
     if (d.readyState === "complete") { boot(); } else { on(w, "load", boot); }
   })();
 
-  /* ----------------------------------------------------------- 5. life scroller */
+  /* ----------------------------------------------------------- 5. life chapters
+     30 Sep (fourth pass): the Designer's sticky crossfade is rebuilt into flowing chapters.
+     Each render keeps its native ratio and sits off-grid (LAYOUT below), its caption on a
+     frosted pane that overlaps it, and the three layers drift at different rates as the
+     chapter passes through the viewport. No pinning, no reveal. The chapter dots move into a
+     fixed rail that shows only while the section is on screen. Reduced motion: same layout,
+     no drift. Without JS the Designer's sticky version still renders. */
   (function life() {
-    var root = qs("[data-sd2-life]");
-    if (!root) { return; }
-    var slides = qsa(".sd2_life_slide", root), caps = qsa(".sd2_life_cap", root), dots = qsa(".sd2_life_dot", root);
-    var n = slides.length, cur = -1, primed = false;
-    if (!n) { return; }
-    // Portrait renders crop hard in a full-bleed panel; each slide says where its subject is.
-    slides.forEach(function (s) { var f = s.getAttribute("data-focus"); if (f) { s.style.objectPosition = f; } });
-    // The slides are lazy <img>s that the browser only fetches once on screen — one scroll step
-    // too late. Switch them to eager as soon as the section is within two viewports.
-    function prime() {
-      if (primed) { return; }
-      primed = true;
-      slides.forEach(function (s) {
-        if (s.tagName !== "IMG") { return; }
-        s.setAttribute("decoding", "async");
-        if (s.getAttribute("loading") === "lazy") { s.setAttribute("loading", "eager"); }
-      });
-    }
-    function paint(i) {
-      if (i === cur) { return; }
-      cur = i;
-      if (!rail) { slides.forEach(function (s, k) { s.classList.toggle("is-active", k === i); }); }
-      caps.forEach(function (c, k) { c.classList.toggle("is-on", rail || k === i); });
-      dots.forEach(function (dd, k) { dd.classList.toggle("is-current", k === i); });
-    }
-    var sticky = qs(".sd2_life_sticky", root);
-    /* Desktop (30 Sep, third pass): a horizontal rail. The six chapters sit side by side —
-       copy on the left, the render full height on the right — and vertical scroll slides the
-       whole rail left, copy and all. Each render is uncovered once, the moment its panel comes
-       in: an opaque cover and a pane of frosted glass travel across it right to left (CSS
-       transition on .is-in), so the reveal is a crisp event rather than a scrubbed one. It
-       re-arms when the panel leaves to the right, so scrolling back replays it.
-       Phones keep the stacked crossfade with the static frosted foot (.sd2_life_glass). */
-    var rail = !reduceMotion && w.matchMedia("(min-width: 992px)").matches && !!sticky && caps.length === n;
-    var track = null, panels = [], figs = [];
-    if (rail) {
-      track = d.createElement("div"); track.className = "sd2_life_rail";
-      slides.forEach(function (s, i) {
-        var panel = d.createElement("div"), copy = d.createElement("div"), fig = d.createElement("div"), wipe = d.createElement("div"), cover = d.createElement("div"), pane = d.createElement("div");
-        panel.className = "sd2_life_panel"; copy.className = "sd2_life_copy"; fig.className = "sd2_life_fig"; wipe.className = "sd2_life_wipe"; cover.className = "sd2_life_cover"; pane.className = "sd2_life_pane";
-        wipe.setAttribute("aria-hidden", "true");
-        copy.appendChild(caps[i]); fig.appendChild(s); wipe.appendChild(cover); wipe.appendChild(pane); fig.appendChild(wipe);
-        panel.appendChild(copy); panel.appendChild(fig); track.appendChild(panel);
-        panels.push(panel); figs.push(fig);
-      });
-      var scrim = qs(".sd2_scrim.is-life", sticky);
-      sticky.insertBefore(track, scrim ? scrim.nextSibling : sticky.firstChild);
-      root.classList.add("is-rail");
-      root.style.height = "calc(100vh + " + ((n - 1) * 110) + "vh)";
-    } else {
-      var glass = d.createElement("div");
-      glass.className = "sd2_life_glass"; glass.setAttribute("aria-hidden", "true");
-      if (sticky) { sticky.insertBefore(glass, qs(".sd2_life_ui", sticky) || null); }
-    }
+    var root = qs("[data-sd2-life]"), sticky = root && qs(".sd2_life_sticky", root);
+    if (!root || !sticky) { return; }
+    var slides = qsa(".sd2_life_slide", root), caps = qsa(".sd2_life_cap", root), dots = qsa(".sd2_life_dot", root), dotsWrap = qs(".sd2_life_dots", root);
+    var n = slides.length;
+    if (!n || caps.length !== n) { return; }
+    // side: which edge the render sits against; cpos: caption corner; r: ratio fallback until the
+    // image reports its own; fw/fh: width cap and height cap; fx: inset from the edge; cw/cx/cy: caption
+    var LAYOUT = [
+      { side: "right", cpos: "bl", r: 1,     fw: "60vw", fh: "92vh", fx: "4vw",  cw: "44vw", cx: "6vw",  cy: "8vh"  },
+      { side: "left",  cpos: "tr", r: .8333, fw: "50vw", fh: "92vh", fx: "6vw",  cw: "44vw", cx: "8vw",  cy: "22vh" },
+      { side: "left",  cpos: "bl", r: .8316, fw: "46vw", fh: "92vh", fx: "30vw", cw: "38vw", cx: "5vw",  cy: "8vh"  },
+      { side: "right", cpos: "tl", r: .667,  fw: "40vw", fh: "94vh", fx: "12vw", cw: "46vw", cx: "10vw", cy: "14vh" },
+      { side: "left",  cpos: "br", r: .8333, fw: "54vw", fh: "92vh", fx: "4vw",  cw: "48vw", cx: "6vw",  cy: "8vh"  },
+      { side: "right", cpos: "bl", r: 1.067, fw: "64vw", fh: "92vh", fx: "5vw",  cw: "46vw", cx: "5vw",  cy: "8vh"  }
+    ];
+    var flow = d.createElement("div"), chs = [];
+    flow.className = "sd2_life_flow";
+    slides.forEach(function (img, i) {
+      var L = LAYOUT[i % LAYOUT.length], ch = d.createElement("div"), fig = d.createElement("div"), copy = d.createElement("div"), num = d.createElement("span");
+      ch.className = "sd2_life_ch"; fig.className = "sd2_life_fig"; copy.className = "sd2_life_copy"; num.className = "sd2_life_num";
+      ch.setAttribute("data-side", L.side); ch.setAttribute("data-cpos", L.cpos);
+      ch.style.cssText = "--r:" + L.r + ";--fw:" + L.fw + ";--fh:" + L.fh + ";--fx:" + L.fx + ";--cw:" + L.cw + ";--cx:" + L.cx + ";--cy:" + L.cy;
+      num.textContent = (i + 1) + " / " + n;
+      img.classList.remove("is-active"); img.style.objectPosition = ""; img.style.opacity = ""; img.style.transform = "";
+      if (img.tagName === "IMG") { img.setAttribute("decoding", "async"); if (i < 2) { img.setAttribute("loading", "eager"); } img.setAttribute("sizes", "(max-width: 991px) 94vw, 64vw"); }
+      var setRatio = function () { if (img.naturalWidth && img.naturalHeight) { ch.style.setProperty("--r", (img.naturalWidth / img.naturalHeight).toFixed(4)); } };
+      if (img.complete) { setRatio(); } else { on(img, "load", setRatio); }
+      fig.appendChild(img); copy.appendChild(num); copy.appendChild(caps[i]); caps[i].classList.add("is-on");
+      ch.appendChild(fig); ch.appendChild(copy); flow.appendChild(ch); chs.push(ch);
+    });
+    root.appendChild(flow);
+    var rail = d.createElement("nav");
+    rail.className = "sd2_life_rail"; rail.setAttribute("aria-label", "Chapters");
+    if (dotsWrap) { rail.appendChild(dotsWrap); }
+    root.appendChild(rail);
+    root.classList.add("is-flow");
+    var cur = -1, ticking = false;
     function sync() {
-      var r = root.getBoundingClientRect();
-      if (!primed && r.top < w.innerHeight * 2 && r.bottom > 0) { prime(); }
-      // the sticky panel's own height (100svh) is the stable measure on phones, where innerHeight
-      // jumps as the browser toolbar collapses mid-scroll
-      var vh = (sticky && sticky.offsetHeight) || w.innerHeight;
-      var total = r.height - vh;
-      if (total <= 0) { paint(0); return; }
-      var p = Math.min(1, Math.max(0, -r.top / total));
-      if (!rail) { paint(Math.min(n - 1, Math.floor(p * n))); return; }
-      var W = sticky.clientWidth, x = p * (n - 1) * W;
-      track.style.transform = "translate3d(" + (-x).toFixed(1) + "px,0,0)";
-      paint(Math.round(p * (n - 1)));
-      // a render is uncovered as soon as it enters from the right; the first one waits until the
-      // section has climbed to mid-screen, so the reveal is seen rather than already over
-      var onScreen = r.top < vh && r.bottom > 0, first = r.top < vh * 0.5;
-      figs.forEach(function (f, i) {
-        var left = i * W + W * 0.34 - x;                                // the render's left edge
-        if (onScreen && (i ? left < W * 0.96 : first)) { panels[i].classList.add("is-in"); }
-        else if (left >= W || (!i && r.top >= vh)) { panels[i].classList.remove("is-in"); }   // gone: re-arm
+      ticking = false;
+      var vh = w.innerHeight, rr = root.getBoundingClientRect(), best = 0, bestD = Infinity;
+      rail.classList.toggle("is-on", rr.top < vh * 0.6 && rr.bottom > vh * 0.4);
+      chs.forEach(function (c, i) {
+        var r = c.getBoundingClientRect();
+        if (r.bottom < -vh || r.top > vh * 2) { return; }
+        var p = Math.min(1, Math.max(0, (vh - r.top) / (vh + r.height)));
+        c.style.setProperty("--p", p.toFixed(4));
+        var dd = Math.abs(r.top + r.height / 2 - vh / 2);
+        if (dd < bestD) { bestD = dd; best = i; }
       });
+      if (best !== cur) { cur = best; dots.forEach(function (a, i) { a.classList.toggle("is-current", i === best); }); }
     }
-    dots.forEach(function (dd, i) {
-      on(dd, "click", function (e) {
+    function onScroll() { if (!ticking) { ticking = true; w.requestAnimationFrame(sync); } }
+    dots.forEach(function (a, i) {
+      on(a, "click", function (e) {
         e.preventDefault();
-        var top = root.getBoundingClientRect().top + w.pageYOffset;
-        var vh = (sticky && sticky.offsetHeight) || w.innerHeight;
-        var y = rail ? top + (root.offsetHeight - vh) / (n - 1) * i : top + (root.offsetHeight - vh) / n * (i + 0.2);
-        w.scrollTo({ top: y, behavior: reduceMotion ? "auto" : "smooth" });
+        var c = chs[i]; if (!c) { return; }
+        var top = c.getBoundingClientRect().top + w.pageYOffset - Math.max(0, (w.innerHeight - c.offsetHeight) / 2);
+        w.scrollTo({ top: top, behavior: reduceMotion ? "auto" : "smooth" });
       });
     });
-    /* On a phone a 480vh free-scrolling section means every flick lands mid-crossfade.
-       These bands give the page something to snap to — one per slide — so a swipe up
-       settles on the next picture. They are invisible and only exist under 768px;
-       the snapping itself is CSS (html gets scroll-snap-type in the page head). */
-    function buildSnaps() {
-      if (qs(".sd2_life_snaps", root)) { return; }
-      var wrap = d.createElement("div");
-      wrap.className = "sd2_life_snaps";
-      wrap.setAttribute("aria-hidden", "true");
-      for (var i = 0; i < n; i++) {
-        var band = d.createElement("div");
-        band.className = "sd2_life_snap";
-        band.style.top = (i * 100 / n) + "%";
-        band.style.height = (100 / n) + "%";
-        wrap.appendChild(band);
-      }
-      root.appendChild(wrap);
-    }
-    if (!reduceMotion && w.matchMedia("(max-width: 767px)").matches) { buildSnaps(); }
-
-    on(w, "scroll", sync, { passive: true });
+    on(w, "scroll", onScroll, { passive: true });
     on(w, "resize", sync);
     sync();
   })();
