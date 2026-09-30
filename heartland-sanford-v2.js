@@ -297,9 +297,8 @@
     if (!n) { return; }
     // Portrait renders crop hard in a full-bleed panel; each slide says where its subject is.
     slides.forEach(function (s) { var f = s.getAttribute("data-focus"); if (f) { s.style.objectPosition = f; } });
-    // The slides are lazy <img>s stacked at the same spot inside the sticky panel, so the browser
-    // only fetches them once the panel is on screen — one scroll step too late on a phone. Switch
-    // them to eager as soon as the section is within two viewports.
+    // The slides are lazy <img>s that the browser only fetches once on screen — one scroll step
+    // too late. Switch them to eager as soon as the section is within two viewports.
     function prime() {
       if (primed) { return; }
       primed = true;
@@ -312,68 +311,68 @@
     function paint(i) {
       if (i === cur) { return; }
       cur = i;
-      slides.forEach(function (s, k) { s.classList.toggle("is-active", k === i); });
-      caps.forEach(function (c, k) { c.classList.toggle("is-on", k === i); });
+      if (!rail) { slides.forEach(function (s, k) { s.classList.toggle("is-active", k === i); }); }
+      caps.forEach(function (c, k) { c.classList.toggle("is-on", rail || k === i); });
       dots.forEach(function (dd, k) { dd.classList.toggle("is-current", k === i); });
+    }
+    var sticky = qs(".sd2_life_sticky", root);
+    /* Desktop (30 Sep, third pass): a horizontal rail. The six chapters sit side by side —
+       copy on the left, the render full height on the right — and vertical scroll slides the
+       whole rail left, copy and all. Each render is uncovered once, the moment its panel comes
+       in: an opaque cover and a pane of frosted glass travel across it right to left (CSS
+       transition on .is-in), so the reveal is a crisp event rather than a scrubbed one. It
+       re-arms when the panel leaves to the right, so scrolling back replays it.
+       Phones keep the stacked crossfade with the static frosted foot (.sd2_life_glass). */
+    var rail = !reduceMotion && w.matchMedia("(min-width: 992px)").matches && !!sticky && caps.length === n;
+    var track = null, panels = [], figs = [];
+    if (rail) {
+      track = d.createElement("div"); track.className = "sd2_life_rail";
+      slides.forEach(function (s, i) {
+        var panel = d.createElement("div"), copy = d.createElement("div"), fig = d.createElement("div"), wipe = d.createElement("div"), cover = d.createElement("div"), pane = d.createElement("div");
+        panel.className = "sd2_life_panel"; copy.className = "sd2_life_copy"; fig.className = "sd2_life_fig"; wipe.className = "sd2_life_wipe"; cover.className = "sd2_life_cover"; pane.className = "sd2_life_pane";
+        wipe.setAttribute("aria-hidden", "true");
+        copy.appendChild(caps[i]); fig.appendChild(s); wipe.appendChild(cover); wipe.appendChild(pane); fig.appendChild(wipe);
+        panel.appendChild(copy); panel.appendChild(fig); track.appendChild(panel);
+        panels.push(panel); figs.push(fig);
+      });
+      var scrim = qs(".sd2_scrim.is-life", sticky);
+      sticky.insertBefore(track, scrim ? scrim.nextSibling : sticky.firstChild);
+      root.classList.add("is-rail");
+      root.style.height = "calc(100vh + " + ((n - 1) * 110) + "vh)";
+    } else {
+      var glass = d.createElement("div");
+      glass.className = "sd2_life_glass"; glass.setAttribute("aria-hidden", "true");
+      if (sticky) { sticky.insertBefore(glass, qs(".sd2_life_ui", sticky) || null); }
     }
     function sync() {
       var r = root.getBoundingClientRect();
       if (!primed && r.top < w.innerHeight * 2 && r.bottom > 0) { prime(); }
       // the sticky panel's own height (100svh) is the stable measure on phones, where innerHeight
       // jumps as the browser toolbar collapses mid-scroll
-      var panel = qs(".sd2_life_sticky", root);
-      var vh = (panel && panel.offsetHeight) || w.innerHeight;
+      var vh = (sticky && sticky.offsetHeight) || w.innerHeight;
       var total = r.height - vh;
       if (total <= 0) { paint(0); return; }
       var p = Math.min(1, Math.max(0, -r.top / total));
-      if (!glassTo(p)) { paint(Math.min(n - 1, Math.floor(p * n))); }
-    }
-    /* Glass. Phones keep a static frosted foot under the caption (.sd2_life_glass, CSS).
-       Desktop (30 Sep, second pass): the change from one chapter to the next is a pane of
-       frosted glass the reader slides across the picture themselves. Each chapter holds for
-       the first part of its scroll, then the pane travels from beyond the right edge to beyond
-       the left, driven directly by scroll position. The outgoing render is cut off at the pane's
-       leading edge, so the new one is uncovered behind the glass as it passes. */
-    var sticky = qs(".sd2_life_sticky", root), wideGlass = w.matchMedia("(min-width: 992px)");
-    var glass = d.createElement("div"), sweep = d.createElement("div");
-    glass.className = "sd2_life_glass"; sweep.className = "sd2_life_sweep";
-    glass.setAttribute("aria-hidden", "true"); sweep.setAttribute("aria-hidden", "true");
-    if (sticky) { var ui0 = qs(".sd2_life_ui", sticky) || null; sticky.insertBefore(glass, ui0); sticky.insertBefore(sweep, ui0); }
-    var HOLD = 0.4, PANE = 0.36, scrubbing = false;
-    function scrubOn() { return !reduceMotion && wideGlass.matches && !!sticky; }
-    function glassTo(p) {
-      var on_ = scrubOn();
-      if (on_ !== scrubbing) {
-        scrubbing = on_;
-        root.classList.toggle("is-scrub", on_);
-        if (!on_) { slides.forEach(function (s) { s.style.opacity = ""; s.style.clipPath = ""; s.style.zIndex = ""; }); sweep.style.opacity = "0"; }
-      }
-      if (!on_) { return false; }
-      var W = sticky.clientWidth, sr = sticky.getBoundingClientRect();
-      var x = Math.min(n - 1e-6, Math.max(0, p * n)), i = Math.floor(x), f = x - i, t = 0;
-      if (i < n - 1 && f > HOLD) { t = (f - HOLD) / (1 - HOLD); }
-      var e = t * t * (3 - 2 * t);                                   // ease in and out of the glide
-      var eX = W * (1 - e * (1 + PANE));                              // pane's leading (left) edge
-      paint(i + (e >= 0.5 ? 1 : 0));                                  // captions + rail follow the pane
-      slides.forEach(function (s, j) {
-        if (j === i) {
-          var r = s.getBoundingClientRect(), right = r.right - sr.left, cut = t > 0 ? Math.min(r.width, Math.max(0, right - Math.max(0, eX))) : 0;
-          s.style.opacity = "1"; s.style.zIndex = "1"; s.style.clipPath = cut > 0 ? "inset(0 " + cut.toFixed(1) + "px 0 0)" : "none";
-        } else if (j === i + 1 && t > 0) {
-          s.style.opacity = "1"; s.style.zIndex = "0"; s.style.clipPath = "none";
-        } else { s.style.opacity = "0"; s.style.clipPath = "none"; s.style.zIndex = ""; }
+      if (!rail) { paint(Math.min(n - 1, Math.floor(p * n))); return; }
+      var W = sticky.clientWidth, x = p * (n - 1) * W;
+      track.style.transform = "translate3d(" + (-x).toFixed(1) + "px,0,0)";
+      paint(Math.round(p * (n - 1)));
+      // a render is uncovered as soon as it enters from the right; the first one waits until the
+      // section has climbed to mid-screen, so the reveal is seen rather than already over
+      var onScreen = r.top < vh && r.bottom > 0, first = r.top < vh * 0.5;
+      figs.forEach(function (f, i) {
+        var left = i * W + W * 0.34 - x;                                // the render's left edge
+        if (onScreen && (i ? left < W * 0.96 : first)) { panels[i].classList.add("is-in"); }
+        else if (left >= W || (!i && r.top >= vh)) { panels[i].classList.remove("is-in"); }   // gone: re-arm
       });
-      sweep.style.transform = "translate3d(" + eX.toFixed(1) + "px,0,0)";
-      sweep.style.opacity = t > 0 && t < 1 ? "1" : "0";
-      return true;
     }
     dots.forEach(function (dd, i) {
       on(dd, "click", function (e) {
         e.preventDefault();
         var top = root.getBoundingClientRect().top + w.pageYOffset;
-        var panel = qs(".sd2_life_sticky", root);
-        var step = (root.offsetHeight - ((panel && panel.offsetHeight) || w.innerHeight)) / n;
-        w.scrollTo({ top: top + step * i + step * 0.2, behavior: reduceMotion ? "auto" : "smooth" });
+        var vh = (sticky && sticky.offsetHeight) || w.innerHeight;
+        var y = rail ? top + (root.offsetHeight - vh) / (n - 1) * i : top + (root.offsetHeight - vh) / n * (i + 0.2);
+        w.scrollTo({ top: y, behavior: reduceMotion ? "auto" : "smooth" });
       });
     });
     /* On a phone a 480vh free-scrolling section means every flick lands mid-crossfade.
