@@ -1006,8 +1006,12 @@
     if (!frame) { return; }
     var overX = frame.scrollWidth - frame.clientWidth;
     var overY = frame.scrollHeight - frame.clientHeight;
-    if (overX > 4) { frame.scrollLeft = overX / 2; }
-    if (overY > 4) { frame.scrollTop = overY / 2; }
+    // Centre on the homes, not the picture: the aerial has a lot of neighbourhood around them.
+    var pts = UNITS.filter(function (u) { return u.x || u.y; });
+    var cx = pts.length ? pts.reduce(function (a, u) { return a + u.x; }, 0) / pts.length / 100 : 0.5;
+    var cy = pts.length ? pts.reduce(function (a, u) { return a + u.y; }, 0) / pts.length / 100 : 0.5;
+    if (overX > 4) { frame.scrollLeft = Math.max(0, Math.min(overX, frame.scrollWidth * cx - frame.clientWidth / 2)); }
+    if (overY > 4) { frame.scrollTop = Math.max(0, Math.min(overY, frame.scrollHeight * cy - frame.clientHeight / 2)); }
   }
 
   function positionPins() {
