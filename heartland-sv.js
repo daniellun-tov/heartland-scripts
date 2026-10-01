@@ -2215,12 +2215,18 @@ let audioContext;
 
     mountSwiper();
     if (!slider.swiper) {
-      /* Swiper's script is async and the slides arrive with the render list */
-      var tries = 0;
-      var timer = setInterval(function () {
-        mountSwiper();
-        if (slider.swiper || ++tries > 40) clearInterval(timer);
-      }, 250);
+      /* Swiper is lazy-loaded by the Home head snippet (window.svWhenSwiper) only
+         once the slider comes within two viewports. The old 10 s poll gave up
+         before that for anyone who read the hero first, so the arrows stayed
+         dead. Hook the loader instead; poll without a cap only as a fallback. */
+      if (typeof window.svWhenSwiper === 'function') {
+        window.svWhenSwiper(mountSwiper);
+      } else {
+        var timer = setInterval(function () {
+          mountSwiper();
+          if (slider.swiper) clearInterval(timer);
+        }, 250);
+      }
     }
 
     function media() {
