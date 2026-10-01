@@ -9,7 +9,7 @@
           openssl dgst -sha384 -binary heartland-sanford-v2.js | openssl base64 -A
      Source of truth for this block: src/sanford-v2/page-footer.html in heartland-scripts. -->
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a6b87bac8b93a0f37c3399d5d30a0de1e32f80fb/heartland-reserve.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@07aa5460657891a3dbdf9b46f9aef0012bd0c13f/heartland-sanford-v2.js" integrity="sha384-qzpN1ydExsN4k6Ps5mGtUMA7hdAw/3m8j0E8zmvvtr2mWowguM9GozSU3uA6sUtp" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@b368deeb11fc0813e454a00849ae60c8b8d2b13e/heartland-sanford-v2.js" integrity="sha384-2JorX1o9f/1LmSaAxA67dAa4b79xg2Gcj0dxXR8BTgmSCj2h0RC+nv0p1d0OWxZJ" crossorigin="anonymous"></script>
 
 <!-- Sanford Bot Chat Widget -->
 <script src="https://widgets.leadconnectorhq.com/loader.js" data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js" data-widget-id="6a69ceebf2ad8308219b3dde"></script>
@@ -115,4 +115,34 @@
   .sd2_detail_plan:focus-visible{outline:2px solid #A9754B;outline-offset:2px}
   /* no em dashes: the gated "derived" price placeholders */
   html.sd2-gated:not(.sd2-member) [data-sd2-price=derived]::after,html.sd2-live:not(.sd2-member) [data-sd2-price=derived]::after{content:"\00B7"}
+  /* Type colours (1 Oct): Type A = clay, Type B = moss/sage. The bundle (tones()) tags [data-sd2-tone=a|b].
+     --tn on light surfaces, --tn-d on the dark selector. Status keeps its own hues: Reserved stone, Sold brick. */
+  [data-sd2-tone=a]{--tn:#A9754B;--tn-d:#B98352;--tn-soft:rgba(169,117,75,.14)}
+  [data-sd2-tone=b]{--tn:#677A5A;--tn-d:#7E9A72;--tn-soft:rgba(126,154,114,.16)}
+  .sd2_type[data-sd2-tone] .sd2_type_inner{border-top:4px solid var(--tn)}
+  .sd2_type[data-sd2-tone] .sd2_type_name{color:var(--tn)}
+  .sd2_type[data-sd2-tone] .sd2_type_count{color:var(--tn)}
+  .sd2_filter[data-sd2-tone]{display:inline-flex;align-items:center;gap:.5rem}
+  .sd2_filter[data-sd2-tone]::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--tn-d);flex:none}
+  .sd2_filter[data-sd2-tone].is-active{background-color:var(--tn-d);color:#FCFAF7}
+  .sd2_filter[data-sd2-tone].is-active::before{background:#FCFAF7}
+  .sd2_legend_dot[data-sd2-tone]{background-color:var(--tn-d)}
+  .sd2_legend_item:not(.is-type) .sd2_legend_dot:not(.is-reserved):not(.is-sold){background:linear-gradient(90deg,#B98352 50%,#7E9A72 50%)}
+  .sd2_legend_dot.is-reserved{background-color:#8C867C}
+  .sd2_legend_item.is-type + .sd2_legend_item:not(.is-type){margin-left:.75rem;padding-left:1rem;border-left:1px solid rgba(246,243,238,.18)}
+  .sd2_pin[data-sd2-tone]:not(.is-reserved):not(.is-sold){background-color:var(--tn-d);border-color:rgba(252,250,247,.85);color:#FCFAF7}
+  .sd2_pin[data-sd2-tone]:not(.is-reserved):not(.is-sold) .sd2_pin_ring{border-color:var(--tn-d)}
+  .sd2_pin[data-sd2-tone].is-active{background-color:var(--tn-d);border-color:#FCFAF7;box-shadow:0 0 0 7px var(--tn-soft),0 0 0 9px var(--tn-d),0 10px 26px rgba(28,26,23,.3)}
+  .sd2_pin.is-reserved[data-sd2-tone]{background-color:#8C867C;border-color:#6B665E;color:#FCFAF7}
+  .sd2_pin_tag{background-color:#6B665E}
+  .sd2_map_overlay[data-sd2-tone]{filter:drop-shadow(0 0 1.5px var(--tn-d)) drop-shadow(0 0 1.5px var(--tn-d)) drop-shadow(0 10px 22px rgba(0,0,0,.35))}
+  .sd2_strip_btn[data-sd2-tone]{border-left-color:var(--tn-d)}
+  .sd2_strip_btn[data-sd2-tone]:not(.is-active):not(.is-reserved):not(.is-sold) .sd2_strip_no{color:var(--tn-d)}
+  .sd2_strip_btn.is-reserved[data-sd2-tone]{border-left-color:#8C867C}
+  .sd2_strip_btn.is-sold[data-sd2-tone]{border-left-color:var(--_sanford-v2---sd2-sold,#B54A3E)}
+  .sd2_detail[data-sd2-tone]{box-shadow:inset 0 4px 0 var(--tn)}
+  .sd2_detail[data-sd2-tone] .sd2_detail_title{color:var(--tn)}
+  .sd2_detail[data-sd2-tone] .sd2_status{background-color:var(--tn)}
+  .sd2_status_reserved{background-color:#8C867C}
+  [data-sd2-bar][data-sd2-tone] .sd2_bar_no{color:var(--tn-d)}
 </style>
