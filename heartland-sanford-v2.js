@@ -304,10 +304,44 @@
       var img = qs(".sd2_life_slide", c);
       if (!img) { return; }
       img.classList.remove("is-active");
-      if (img.tagName === "IMG") { img.setAttribute("decoding", "async"); if (i < 2) { img.setAttribute("loading", "eager"); } img.setAttribute("sizes", "(max-width: 991px) 94vw, 60vw"); }
+      // 1 Oct: a chapter carrying data-video (+ data-video-m for phones, data-poster) plays a
+      // muted loop from R2 instead of the render. The Designer <img> stays as the poster (it
+      // still sets --r and is what paints first); the <video> is added behind the same class
+      // so it inherits the cover/drift rules, and fades in once it is actually playing.
+      var vid = c.getAttribute("data-video"), poster = c.getAttribute("data-poster");
+      if (vid && poster && img.tagName === "IMG") {
+        img.removeAttribute("srcset"); img.removeAttribute("sizes"); img.src = poster;
+      }
+      if (img.tagName === "IMG") { img.setAttribute("decoding", "async"); if (i < 2) { img.setAttribute("loading", "eager"); } if (!vid) { img.setAttribute("sizes", "(max-width: 991px) 94vw, 60vw"); } }
       var setRatio = function () { if (img.naturalWidth && img.naturalHeight) { c.style.setProperty("--r", (img.naturalWidth / img.naturalHeight).toFixed(4)); } };
       if (img.complete) { setRatio(); } else { on(img, "load", setRatio); }
+      if (vid) { lifeVideo(c, img, vid); }
     });
+    function lifeVideo(c, img, src) {
+      if (reduceMotion) { return; }
+      if (navigator.connection && navigator.connection.saveData) { return; }
+      if (w.matchMedia("(max-width: 767px)").matches && c.getAttribute("data-video-m")) { src = c.getAttribute("data-video-m"); }
+      var v = d.createElement("video");
+      v.className = "sd2_life_slide sd2_life_video";
+      v.muted = true; v.defaultMuted = true; v.loop = true;
+      v.setAttribute("muted", ""); v.setAttribute("loop", ""); v.setAttribute("playsinline", ""); v.setAttribute("preload", "none");
+      v.setAttribute("aria-hidden", "true"); v.tabIndex = -1;
+      if (img.style.objectPosition) { v.style.objectPosition = img.style.objectPosition; }
+      v.style.opacity = "0"; v.style.transition = "opacity .9s ease";
+      v.addEventListener("playing", function () { v.style.opacity = "1"; }, { once: true });
+      img.parentNode.insertBefore(v, img.nextSibling);
+      var started = false;
+      function play() {
+        if (!started) { started = true; v.setAttribute("src", src); v.load(); log("life video", src); }
+        var p = v.play(); if (p && p.catch) { p.catch(function () {}); }
+      }
+      if ("IntersectionObserver" in w) {
+        var io = new IntersectionObserver(function (es) {
+          es.forEach(function (e) { if (e.isIntersecting) { play(); } else if (started) { v.pause(); } });
+        }, { rootMargin: "60% 0px" });
+        io.observe(c);
+      } else { play(); }
+    }
     var cur = -1, ticking = false;
     function sync() {
       ticking = false;
