@@ -957,6 +957,35 @@
     });
   }
 
+  /* Type colours (1 Oct): Type A reads clay, Type B moss/sage, everywhere a home or a type appears.
+     This only tags elements with data-sd2-tone="a|b"; the colours live in the page footer CSS.
+     Status no longer uses those hues (Reserved is stone, Sold stays brick). */
+  function tones() {
+    function tone(el, l) { if (el && l) { el.setAttribute("data-sd2-tone", l.toLowerCase()); } }
+    Object.keys(TYPES).forEach(function (k) {
+      var t = TYPES[k];
+      tone(t.el, t.letter);
+      tone(qs(".sd2_filter[data-filter=\"" + k + "\"]"), t.letter);
+      qsa('[data-type-slug="' + k + '"]').forEach(function (el) { tone(el, t.letter); });
+    });
+    UNITS.forEach(function (u) {
+      tone(u.map, u.letter); tone(u.pin, u.letter); tone(u.overlay, u.letter); tone(u.detail, u.letter);
+      if (u.strip) { tone(u.strip, u.letter); tone(qs(".sd2_strip_btn", u.strip), u.letter); }
+    });
+    // Legend: one swatch per type ahead of the status keys.
+    var lg = qs("#sd2-select .sd2_legend");
+    if (lg && !qs(".sd2_legend_item.is-type", lg)) {
+      Object.keys(TYPES).map(function (k) { return TYPES[k]; })
+        .sort(function (a, b) { return a.letter < b.letter ? 1 : -1; })
+        .forEach(function (t) {
+          var it = d.createElement("div"); it.className = "sd2_legend_item is-type";
+          var dot = d.createElement("div"); dot.className = "sd2_legend_dot"; tone(dot, t.letter);
+          var tx = d.createElement("div"); tx.className = "sd2_legend_text"; tx.textContent = "Type " + t.letter;
+          it.appendChild(dot); it.appendChild(tx); lg.insertBefore(it, lg.firstChild);
+        });
+    }
+  }
+
   /* On phones the masterplan is a drawing twice the width of its frame (.sd2_map_pan inside
      a square .sd2_map_frame), pannable on both axes. Open it in the middle of both rather
      than hard against a corner. */
@@ -1081,6 +1110,7 @@
     var u = SEL.selected && unitBy(SEL.selected);
     if (!u) { return; }
     var member = d.documentElement.classList.contains("sd2-member");
+    qsa("[data-sd2-bar]").forEach(function (el) { if (u.letter) { el.setAttribute("data-sd2-tone", u.letter.toLowerCase()); } });
     qsa("[data-sd2-selected]").forEach(function (el) {
       var k = el.getAttribute("data-sd2-selected");
       var inBar = !!el.closest("[data-sd2-bar]");
@@ -3093,6 +3123,7 @@
     readUnits();
     log("types", Object.keys(TYPES), "units", UNITS.map(function (u) { return u.no + ":" + u.status; }));
     paintCounts();
+    tones();
     positionPins();
     bindSelector();
     try { d.dispatchEvent(new CustomEvent("sd2:catalogue")); } catch (e) {}
