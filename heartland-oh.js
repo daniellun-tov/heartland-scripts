@@ -2531,7 +2531,7 @@ window.ohNativeSubmit = async function (form, doneText) {
         const res = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         let data = null; try { data = await res.json(); } catch (_) {}
         if (!res.ok) throw new Error((data && data.message) || 'We could not save that. Please try again.');
-        const doneText = 'Thank you — you are on the list for unit ' + payload.unit_number + '. We will be in touch the moment it is released.';
+        const doneText = 'Thank you, you are on the list for unit ' + payload.unit_number + '. We will be in touch the moment it is released.';
         /* Webflow Forms copy (feeds LeadConnector, unit_number/unit_id included); Webflow then shows its success block */
         const native = await window.ohNativeSubmit(form, doneText);
         form.querySelectorAll('[data-notify="fields"]').forEach((el) => { el.style.display = 'none'; });
@@ -3800,7 +3800,7 @@ window.ohNativeSubmit = async function (form, doneText) {
         '<div class="oh-welcome_body">' +
           '<p class="oh-welcome_eyebrow">Oakhills Estate &middot; Stellenbosch</p>' +
           '<h2 class="oh-welcome_title" id="oh-welcome-title">Find your apartment on the plan</h2>' +
-          '<p class="oh-welcome_lede">Every apartment at Oakhills, with live availability and pricing &mdash; explore the estate, or filter straight to what you are after.</p>' +
+          '<p class="oh-welcome_lede">Every apartment at Oakhills, with live availability and pricing. Explore the estate, or filter straight to what you are after.</p>' +
           '<ul class="oh-welcome_list">' +
             '<li><strong>Explore the estate.</strong> Tap any block or apartment for its price, size and orientation.</li>' +
             '<li><strong>Narrow it down.</strong> Filter by price, type, block, orientation or parking.</li>' +
