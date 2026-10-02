@@ -634,6 +634,26 @@
     clear();
   })();
 
+  /* A set of picture boxes that open in the shared lightbox (window.SD2_LB, built in 6d) as
+     one group. Used by the gallery and by the section 06 neighbourhood photos. */
+  function zoomGroup(boxes, label) {
+    boxes = boxes.filter(function (b) { var im = qs("img", b); return im && im.getAttribute("src"); });
+    if (!boxes.length) { return; }
+    var set = boxes.map(function (b) { var im = qs("img", b); return { src: im.getAttribute("src"), alt: im.getAttribute("alt") || "" }; });
+    boxes.forEach(function (b, k) {
+      b.setAttribute("data-sd2-zoom", "");
+      b.setAttribute("role", "button");
+      b.setAttribute("tabindex", "0");
+      b.setAttribute("aria-label", "Enlarge" + (set[k].alt ? ": " + set[k].alt : " picture " + (k + 1)));
+      var open = function (e) { if (e) { e.preventDefault(); } if (w.SD2_LB) { w.SD2_LB(set, k, b, label); } };
+      on(b, "click", open);
+      on(b, "keydown", function (e) { if (e.key === "Enter" || e.key === " ") { open(e); } });
+    });
+  }
+  (function locPhotos() {
+    zoomGroup(qsa(".sd2_loc_photos .sd2_loc_photo").filter(function (b) { return !qs("video", b); }), "Neighbourhood");
+  })();
+
   /* ----------------------------------------------------------- 6c. gallery: drag + parallax */
   (function gallery() {
     var track = qs(".sd2_gallery_track");
@@ -642,8 +662,9 @@
     // drag to scroll with a mouse (touch already scrolls natively)
     var down = false, moved = false, x0 = 0, s0 = 0;
     on(track, "pointerdown", function (e) {
+      moved = false;
       if (e.pointerType !== "mouse" || e.button !== 0) { return; }
-      down = true; moved = false; x0 = e.clientX; s0 = track.scrollLeft;
+      down = true; x0 = e.clientX; s0 = track.scrollLeft;
     });
     on(w, "pointermove", function (e) {
       if (!down) { return; }
@@ -653,7 +674,12 @@
     });
     var up = function () { if (!down) { return; } down = false; setTimeout(function () { track.classList.remove("is-dragging"); }, 40); };
     on(w, "pointerup", up); on(w, "pointercancel", up);
+    // A mouse-down on an <img> starts the browser's own image drag, which cancels the pointer
+    // and killed the scroll-drag wherever the cursor was over a picture (i.e. almost everywhere).
+    on(track, "dragstart", function (e) { e.preventDefault(); });
     on(track, "click", function (e) { if (moved) { e.preventDefault(); e.stopPropagation(); } }, true);
+    // A click that was not a drag opens the picture in the shared lightbox (one group).
+    zoomGroup(qsa(".sd2_gallery_item", track), "Gallery");
     if (reduceMotion || !imgs.length) { return; }
     var raf = null;
     var paint = function () {
@@ -731,14 +757,15 @@
       lbCount.textContent = (lbCur + 1) + " / " + lbSet.length;
       lb.classList.toggle("is-single", lbSet.length < 2);
     }
-    function lbOpen(set, k, from) {
+    function lbOpen(set, k, from, label) {
       if (!lb) { lbBuild(); }
+      lb.setAttribute("aria-label", label || "3D renders");
       lbSet = set; lbReturn = from || null;
       lbGo(k);
       lb.classList.add("is-open"); d.documentElement.classList.add("sd2-lb-open");
       qs(".is-close", lb).focus({ preventScroll: true });
     }
-    w.SD2_LB = function (set, k, from) { lbOpen(set, k || 0, from); };
+    w.SD2_LB = function (set, k, from, label) { lbOpen(set, k || 0, from, label); };
     function lbClose() {
       lb.classList.remove("is-open"); d.documentElement.classList.remove("sd2-lb-open");
       if (lbReturn && lbReturn.focus) { lbReturn.focus({ preventScroll: true }); }
@@ -2426,6 +2453,50 @@
       var note = qs("[data-sd2-selected=note]", form);
       if (note) { note.textContent = "No password, no payment. We'll email you a 6-digit code to confirm it's you."; }
     }
+    /* Signed in: a Sign Out button in the nav (shown by html.sd2-signed-in). */
+    (function navOut() {
+      var menu = qs("[data-sd2-nav] .sd2_nav_menu");
+      if (!menu) { return; }
+      var b = d.createElement("button");
+      b.type = "button"; b.className = "sd2_nav_out"; b.textContent = "Sign Out";
+      menu.appendChild(b);
+      on(b, "click", function () {
+        if (!ST.ms || b.disabled) { return; }
+        b.disabled = true; b.textContent = "Signing out\u2026";
+        var bye = function () { w.location.reload(); };
+        try { ST.ms.logout().then(bye, bye); } catch (e) { bye(); }
+      });
+    })();
+    /* On the waitlist: the contact fields give way to one personal line, the home chips and
+       the update button. "Edit details" brings the fields back (pre-filled) to change them. */
+    var me = null;
+    function paintMe() {
+      if (!form) { return; }
+      var m = ST.member, onIt = !!(m && ST.onList);
+      form.classList.toggle("is-member", onIt);
+      var em = field("sd2-email");
+      if (em) { em.readOnly = onIt; }
+      if (!onIt) { form.classList.remove("is-editing"); if (me) { me.style.display = "none"; } return; }
+      if (!me) {
+        me = d.createElement("div"); me.className = "sd2_wl_me";
+        me.innerHTML = '<p class="sd2_wl_hello"></p><p class="sd2_wl_sub"></p><button type="button" class="sd2_wl_edit"></button>';
+        form.insertBefore(me, form.firstChild);
+        on(qs(".sd2_wl_edit", me), "click", function () {
+          var open = form.classList.toggle("is-editing");
+          paintMe();
+          if (open) { var f = field("sd2-first-name"); if (f) { try { f.focus({ preventScroll: true }); } catch (e) { f.focus(); } } }
+        });
+      }
+      me.style.display = "";
+      var cf = m.customFields || {}, first = String(cf["first-name"] || "").trim();
+      var email = (m.auth && m.auth.email) || "";
+      var editing = form.classList.contains("is-editing");
+      qs(".sd2_wl_hello", me).textContent = first ? "Welcome back, " + first + "." : "Welcome back.";
+      qs(".sd2_wl_sub", me).textContent = "You\u2019re on the waitlist" + (email ? " as " + email : "") + ".";
+      var eb = qs(".sd2_wl_edit", me);
+      eb.textContent = editing ? "Hide details" : "Edit details";
+      eb.setAttribute("aria-expanded", editing ? "true" : "false");
+    }
     function paintWaitlist() {
       if (LIVE) { paintLive(); return; }
       paintDetailCtas();
@@ -2443,6 +2514,7 @@
         if (note && ST.onList) { note.textContent = "You're on the list. Change your homes any time and update."; }
         var sub = qs("input[type=submit]", form);
         if (sub) { sub.value = ST.onList ? "Update My Waitlist" : "Join the Waitlist"; }
+        paintMe();
       }
       paintPicker();
       qsa(".sd2_bar_cta, .sd2_nav_cta").forEach(function (a) { a.textContent = ST.onList ? "My Waitlist" : "Join the Waitlist"; });
