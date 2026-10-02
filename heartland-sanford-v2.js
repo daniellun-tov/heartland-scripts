@@ -626,6 +626,7 @@
         if (was || !userPaused) { tryPlay(); }
       }
       function paint() {
+        syncPlaying();
         var t = v.currentTime || 0, i = chapAt(t), c = CH[i], D = dur(c) || 1, pf = Math.max(0, Math.min(1, (t - c.start) / D));
         if (i !== cur) {
           cur = i;
@@ -649,8 +650,11 @@
         play.setAttribute("aria-label", p ? "Pause" : "Play");
         if (p && !raf) { raf = w.requestAnimationFrame(loop); }
       }
-      on_(v, "play", function () { setPlaying(true); });
-      on_(v, "pause", function () { setPlaying(false); if (on) { paint(); } });
+      // The button mirrors the element's real state (not just play/pause events): a play() that the
+      // browser refuses, a seek while paused, or a stall must never leave the icon wrong (2 Oct).
+      function syncPlaying() { var p = !v.paused && !v.ended; if (p !== playing) { setPlaying(p); } }
+      ["play", "playing", "timeupdate", "ended", "emptied"].forEach(function (ev) { on_(v, ev, syncPlaying); });
+      on_(v, "pause", function () { syncPlaying(); if (on) { paint(); } });
       on_(v, "loadedmetadata", function () { total = v.duration || 0; buildRail(); cur = -1; paint(); });
       on_(play, "click", function (e) { e.stopPropagation(); if (playing) { userPaused = true; v.pause(); } else { userPaused = false; ensureSrc(); tryPlay(); } });
       // scrub
