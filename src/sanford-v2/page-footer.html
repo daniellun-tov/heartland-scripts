@@ -191,4 +191,7 @@
     .sd2_in_media.is-fly .sd2_in_cap{display:none}
     .sd2_in_media.is-fly .sd2_in_rail{padding-top:1rem}
   }
+  /* 2 Oct: on phones the hero grows past 100vh (the card sits under the copy) and the copy started
+     3rem down, under the fixed nav. Clear the nav with room to breathe. */
+  @media screen and (max-width: 767px){.sd2_hero_inner{padding-top:8rem}}
 </style>
