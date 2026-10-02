@@ -9,7 +9,7 @@
           openssl dgst -sha384 -binary heartland-sanford-v2.js | openssl base64 -A
      Source of truth for this block: src/sanford-v2/page-footer.html in heartland-scripts. -->
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a6b87bac8b93a0f37c3399d5d30a0de1e32f80fb/heartland-reserve.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@c77ad45414f23f63572bb3fccc60ac95be92f12d/heartland-sanford-v2.js" integrity="sha384-GuHXxQwLLy5wdAnpqjQE0Xc5vOu6+sW2VlynsHICKLC5JzXoeDhzwNIcxRCXSOXd" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a85587d24bbfb368c595eadb147aa3a2a0749de5/heartland-sanford-v2.js" integrity="sha384-s6WMEktj7IGhLRdHfCLJHGXQ4Eptf3OR3P3/90GxXKDp6FUjyYrmqWL955cXCqhR" crossorigin="anonymous"></script>
 
 <!-- Sanford Bot Chat Widget -->
 <script src="https://widgets.leadconnectorhq.com/loader.js" data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js" data-widget-id="6a69ceebf2ad8308219b3dde"></script>
@@ -194,4 +194,10 @@
   /* 2 Oct: on phones the hero grows past 100vh (the card sits under the copy) and the copy started
      3rem down, under the fixed nav. Clear the nav with room to breathe. */
   @media screen and (max-width: 767px){.sd2_hero_inner{padding-top:8rem}}
+  /* flythrough play/pause: on pointer devices it only appears while the stage is hovered (playing or not);
+     on touch it stays visible whenever the film is paused (the head block hides it while playing). */
+  @media (hover: hover){
+    .sd2_in_media.is-fly .sd2_in_stage:not(:hover) .sd2_in_play{opacity:0}
+    .sd2_in_media.is-fly .sd2_in_stage .sd2_in_play:focus-visible{opacity:1}
+  }
 </style>
