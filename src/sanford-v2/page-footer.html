@@ -9,7 +9,7 @@
           openssl dgst -sha384 -binary heartland-sanford-v2.js | openssl base64 -A
      Source of truth for this block: src/sanford-v2/page-footer.html in heartland-scripts. -->
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a6b87bac8b93a0f37c3399d5d30a0de1e32f80fb/heartland-reserve.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@7b5f7bb36c0712f9a97a0eddd7ca4639079d3738/heartland-sanford-v2.js" integrity="sha384-yCjgFrSfmodqRFexgxHuqR93+Vz4S6fh0AUInxl2m2vr/sTvguj/ZtSfoR1EA4jW" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@91bc1acddb505c42fdf6a04d25adcf8d61b9fb80/heartland-sanford-v2.js" integrity="sha384-875l9o6SocC6rvg8XXGx7VNru76Nu9AkD+UDis+btnK/79DDjJbznZoWBZvH/wak" crossorigin="anonymous"></script>
 
 <!-- Sanford Bot Chat Widget -->
 <script src="https://widgets.leadconnectorhq.com/loader.js" data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js" data-widget-id="6a69ceebf2ad8308219b3dde"></script>
@@ -57,7 +57,11 @@
   /* life chapters (30 Sep, fourth pass): Designer elements .sd2_life_flow > .sd2_life_ch > .sd2_life_fig +
      .sd2_life_copy. The Webflow classes hold the static styling; this block holds what the Designer
      can't: each render's native ratio (--r, set by the bundle), the per-chapter placement as a share
-     of the contained width, and the drift driven by --p (0 entering the viewport, 1 leaving). */
+     of the contained width, and the drift driven by --p (0 entering the viewport, 1 leaving).
+     --fw figure width / --fx its inset from its side / --cx --cy the caption's offset from its corner.
+     The caption pane is a fixed 28rem, so a WIDE figure on the same side as the caption eats the
+     overlap budget twice: raise --fw and the figure grows towards the caption, not away from it.
+     Keep the overlap in the 10-20% band the other chapters sit in (2 Oct: ch4 was at 45%). */
   html.sd2-js .sd2_life{height:auto;min-height:0;padding:0 0 clamp(2rem,7vh,5rem)}
   .sd2_life_fig{width:min(var(--fw,60%),calc(var(--fh,88vh) * var(--r,1)));aspect-ratio:var(--r,1);isolation:isolate;
     transform:translate3d(0,calc((.5 - var(--p,.5)) * 10vh),0);will-change:transform}
@@ -66,7 +70,7 @@
   .sd2_life_ch[data-sd2-ch="1"]{--fw:66%;--fx:0;--cx:4%;--cy:10%}
   .sd2_life_ch[data-sd2-ch="2"]{--fw:52%;--fx:2%;--cx:14%;--cy:16%}
   .sd2_life_ch[data-sd2-ch="3"]{--fw:48%;--fx:30%;--cx:0;--cy:10%}
-  .sd2_life_ch[data-sd2-ch="4"]{--fw:67%;--fx:8%;--cx:16%;--cy:12%}
+  .sd2_life_ch[data-sd2-ch="4"]{--fw:67%;--fx:4%;--cx:0;--cy:12%}
   .sd2_life_ch[data-sd2-ch="5"]{--fw:58%;--fx:0;--cx:10%;--cy:10%}
   .sd2_life_ch[data-sd2-ch="6"]{--fw:68%;--fx:0;--cx:0;--cy:10%}
   html.sd2-js .sd2_life .sd2_life_slide{position:absolute;inset:-7% 0;width:100%;height:114%;object-fit:cover;object-position:50% 50%;opacity:1;
