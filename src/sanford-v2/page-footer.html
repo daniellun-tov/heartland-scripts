@@ -9,7 +9,7 @@
           openssl dgst -sha384 -binary heartland-sanford-v2.js | openssl base64 -A
      Source of truth for this block: src/sanford-v2/page-footer.html in heartland-scripts. -->
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a6b87bac8b93a0f37c3399d5d30a0de1e32f80fb/heartland-reserve.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@b368deeb11fc0813e454a00849ae60c8b8d2b13e/heartland-sanford-v2.js" integrity="sha384-2JorX1o9f/1LmSaAxA67dAa4b79xg2Gcj0dxXR8BTgmSCj2h0RC+nv0p1d0OWxZJ" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@7b5f7bb36c0712f9a97a0eddd7ca4639079d3738/heartland-sanford-v2.js" integrity="sha384-yCjgFrSfmodqRFexgxHuqR93+Vz4S6fh0AUInxl2m2vr/sTvguj/ZtSfoR1EA4jW" crossorigin="anonymous"></script>
 
 <!-- Sanford Bot Chat Widget -->
 <script src="https://widgets.leadconnectorhq.com/loader.js" data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js" data-widget-id="6a69ceebf2ad8308219b3dde"></script>
@@ -66,7 +66,7 @@
   .sd2_life_ch[data-sd2-ch="1"]{--fw:66%;--fx:0;--cx:4%;--cy:10%}
   .sd2_life_ch[data-sd2-ch="2"]{--fw:52%;--fx:2%;--cx:14%;--cy:16%}
   .sd2_life_ch[data-sd2-ch="3"]{--fw:48%;--fx:30%;--cx:0;--cy:10%}
-  .sd2_life_ch[data-sd2-ch="4"]{--fw:42%;--fx:8%;--cx:16%;--cy:12%}
+  .sd2_life_ch[data-sd2-ch="4"]{--fw:67%;--fx:8%;--cx:16%;--cy:12%}
   .sd2_life_ch[data-sd2-ch="5"]{--fw:58%;--fx:0;--cx:10%;--cy:10%}
   .sd2_life_ch[data-sd2-ch="6"]{--fw:68%;--fx:0;--cx:0;--cy:10%}
   html.sd2-js .sd2_life .sd2_life_slide{position:absolute;inset:-7% 0;width:100%;height:114%;object-fit:cover;object-position:50% 50%;opacity:1;
@@ -145,4 +145,34 @@
   .sd2_detail[data-sd2-tone] .sd2_status{background-color:var(--tn)}
   .sd2_status_reserved{background-color:#8C867C}
   [data-sd2-bar][data-sd2-tone] .sd2_bar_no{color:var(--tn-d)}
+  /* ---- 2 Oct: band captions on glass, taller strip, lightbox groups, signed-in nav + waitlist ---- */
+  html.sd2-js .sd2_band[data-sd2-band=strip]{height:58vh;min-height:24rem}
+  @media screen and (max-width: 767px){html.sd2-js .sd2_band[data-sd2-band=strip]{height:46vh;min-height:18rem}}
+  /* a soft frosted foot under the caption of both full-width bands, so the line reads on any render */
+  .sd2_band::before{content:"";position:absolute;left:0;right:0;bottom:0;height:min(42%,13rem);z-index:1;pointer-events:none;
+    background:linear-gradient(0deg,rgba(28,26,23,.5),rgba(28,26,23,0));
+    -webkit-backdrop-filter:blur(5px) saturate(110%);backdrop-filter:blur(5px) saturate(110%);
+    -webkit-mask-image:linear-gradient(0deg,#000 0,#000 30%,transparent 100%);mask-image:linear-gradient(0deg,#000 0,#000 30%,transparent 100%)}
+  /* pictures that open in the lightbox (gallery + section 06 photos); gallery keeps its grab cursor */
+  .sd2_loc_photo[data-sd2-zoom]{cursor:zoom-in}
+  [data-sd2-zoom]:focus-visible{outline:2px solid #A9754B;outline-offset:3px}
+  .sd2_gallery_item img{-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
+  /* nav: Sign Out (secondary), signed-in members only */
+  .sd2_nav_out{display:none;appearance:none;-webkit-appearance:none;align-items:center;margin-left:-1.25rem;padding:.625rem 1.125rem;border:1px solid rgba(252,250,247,.4);border-radius:999px;background:transparent;color:inherit;font:inherit;font-size:.75rem;font-weight:600;letter-spacing:.04em;line-height:inherit;white-space:nowrap;cursor:pointer;transition:background-color .2s,border-color .2s,color .2s}
+  html.sd2-signed-in .sd2_nav_out{display:inline-flex}
+  .sd2_nav_out:hover{background:rgba(252,250,247,.14)}
+  .sd2_nav.is-scrolled .sd2_nav_out{border-color:rgba(28,26,23,.28)}
+  .sd2_nav.is-scrolled .sd2_nav_out:hover{background:rgba(28,26,23,.06)}
+  .sd2_nav_out:disabled{opacity:.6;cursor:progress}
+  .sd2_nav_out:focus-visible{outline:2px solid #A9754B;outline-offset:3px}
+  @media screen and (max-width: 479px){html.sd2-signed-in .sd2_nav_tag{display:none}html.sd2-signed-in .sd2_nav_cta,.sd2_nav_out{padding:.5rem .75rem;font-size:.6875rem}.sd2_nav_out{margin-left:-1.5rem}}
+  /* section 09 for a member: a personal line instead of the contact fields, until "Edit details" */
+  .sd2_form.is-member:not(.is-editing) .sd2_form_row,.sd2_form.is-member:not(.is-editing) > .sd2_input{display:none}
+  .sd2_wl_me{display:grid;gap:.5rem;margin-bottom:.5rem}
+  .sd2_wl_hello{margin:0;font-family:var(--_sanford-v2---sd2-font-display,Newsreader,serif);font-size:2.25rem;font-weight:300;line-height:1.08;color:#F6F3EE}
+  .sd2_wl_sub{margin:0;font-size:.875rem;line-height:1.6;color:rgba(246,243,238,.7);overflow-wrap:anywhere}
+  .sd2_wl_edit{justify-self:start;appearance:none;-webkit-appearance:none;margin-top:.25rem;padding:0;border:0;background:none;color:#F6F3EE;font:500 .8125rem/1.4 Manrope,sans-serif;text-decoration:underline #C79A6E;text-underline-offset:4px;cursor:pointer}
+  .sd2_wl_edit:focus-visible{outline:2px solid #C79A6E;outline-offset:3px}
+  .sd2_form.is-member #sd2-email{background-color:transparent;color:rgba(246,243,238,.5);cursor:not-allowed}
+  @media screen and (max-width: 767px){.sd2_wl_hello{font-size:1.75rem}}
 </style>
