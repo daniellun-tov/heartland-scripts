@@ -681,9 +681,17 @@
         },
         leave: function () { on = false; media.classList.remove("is-fly"); if (playing) { v.pause(); } },
         active: function () { return on; },
-        step: step
+        step: step,
+        // "See the flythrough" on the type cards: jump to the video on this unit type and play from the top
+        open: function (t) {
+          if (!on) { show(pics.indexOf(vpic)); }
+          if (TYPES[t] && t !== type) { setType(t); }
+          userPaused = false; ensureSrc(); seek(0); tryPlay();
+          root.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+        }
       };
     })();
+    w.SD2_FLY = fly;
     function show(i) {
       if (i === cur) { return; }
       cur = i;
@@ -1502,6 +1510,17 @@
         paintSelection();
       });
     });
+    // Secondary "See the flythrough" next to "See These Homes" on each type card (2 Oct): scrolls to
+    // 02 · Inside and starts that type's flythrough from the top.
+    if (w.SD2_FLY) {
+      qsa(".sd2_type_foot [data-filter-type]").forEach(function (b) {
+        var m = (b.getAttribute("data-filter-type") || "").match(/-([ab])$/); if (!m) { return; }
+        var a = d.createElement("a"); a.href = "#sd2-inside"; a.className = "sd2_btn is-outline-dark is-small"; a.textContent = "See the flythrough";
+        a.setAttribute("data-fly-open", m[1]);
+        on(a, "click", function (e) { e.preventDefault(); w.SD2_FLY.open(m[1]); });
+        b.parentNode.insertBefore(a, b.nextSibling);
+      });
+    }
     // Default: the first available home, lowest number first (the design's "07" was a placeholder).
     var def = UNITS.filter(function (u) { return u.status === "Available"; })[0] || UNITS[0];
     if (def && def.status !== "Sold") { SEL.selected = def.slug; }
