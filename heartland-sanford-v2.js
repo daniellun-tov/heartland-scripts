@@ -631,8 +631,13 @@
         if (i !== cur) {
           cur = i;
           ths.forEach(function (b, k) { b.classList.toggle("is-on", k === i); });
+          // Keep the active thumb in view with the least movement: nothing if it is already fully
+          // visible, otherwise just enough to bring it in. Measured against the rail itself
+          // (offsetLeft is relative to a positioned ancestor and overshot the scene, 2 Oct).
           if (ths[i] && thumbs.scrollWidth > thumbs.clientWidth) {
-            thumbs.scrollTo({ left: Math.max(0, ths[i].offsetLeft - 8), behavior: reduceMotion ? "auto" : "smooth" });
+            var tr = thumbs.getBoundingClientRect(), br = ths[i].getBoundingClientRect(), dx = 0;
+            if (br.left < tr.left) { dx = br.left - tr.left - 8; } else if (br.right > tr.right) { dx = br.right - tr.right + 8; }
+            if (dx) { thumbs.scrollTo({ left: Math.max(0, thumbs.scrollLeft + dx), behavior: reduceMotion ? "auto" : "smooth" }); }
           }
           if (caps.t) { caps.t.textContent = c.n; }
         }
