@@ -571,7 +571,7 @@
         thumbs.innerHTML = ""; bar.innerHTML = ""; ths = []; segs = [];
         CH.forEach(function (c, i) {
           var b = d.createElement("button"); b.type = "button"; b.className = "sd2_in_th";
-          b.innerHTML = '<span class="sd2_in_th_im"><img alt="" loading="lazy"><span class="sd2_in_th_play">&#9654;</span><span class="sd2_in_th_prog"></span></span><span class="sd2_in_th_lbl"><span></span><em></em></span>';
+          b.innerHTML = '<span class="sd2_in_th_im"><img alt="" loading="lazy"><span class="sd2_in_th_prog"></span></span><span class="sd2_in_th_lbl"><span></span><em></em></span>';
           qs("img", b).src = file(type, "s" + ("0" + (i + 1)).slice(-2) + ".webp");
           qs(".sd2_in_th_lbl span", b).textContent = c.n;
           qs(".sd2_in_th_lbl em", b).textContent = fmt(dur(c));
