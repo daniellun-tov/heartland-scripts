@@ -9,7 +9,7 @@
           openssl dgst -sha384 -binary heartland-sanford-v2.js | openssl base64 -A
      Source of truth for this block: src/sanford-v2/page-footer.html in heartland-scripts. -->
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a6b87bac8b93a0f37c3399d5d30a0de1e32f80fb/heartland-reserve.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@d09c82de129fa26cfd9ee411a564cca69adf1c59/heartland-sanford-v2.js" integrity="sha384-jidQWwxJOvuXSTArB566Lw2D9vxTQAKuAkCbkyNhHQSwYytHytg+LpEhCqbEhJuS" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@9c8c50e31a736497093a5dfd0381958c5f7252f8/heartland-sanford-v2.js" integrity="sha384-Uv06pNTAYQTlxq0Izwoh0QY2oUoDhZ0qoUJl0D3HYeG0C9bhyO6B6a6B2Y8tIVG2" crossorigin="anonymous"></script>
 
 <!-- Sanford Bot Chat Widget -->
 <script src="https://widgets.leadconnectorhq.com/loader.js" data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js" data-widget-id="6a69ceebf2ad8308219b3dde"></script>
@@ -40,7 +40,9 @@
   @media screen and (min-width: 768px){.sd2_light{aspect-ratio:2400/1461}}
   .sd2_light_stage{-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 13%,#000 58%,transparent 100%),linear-gradient(90deg,transparent 0,#000 7%,#000 93%,transparent 100%);-webkit-mask-composite:source-in;
     mask-image:linear-gradient(180deg,transparent 0,#000 13%,#000 58%,transparent 100%),linear-gradient(90deg,transparent 0,#000 7%,#000 93%,transparent 100%);mask-composite:intersect}
-  @media screen and (max-width: 767px){.sd2_light_stage{aspect-ratio:2400/1461;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 70%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 70%,transparent 100%)}}
+  @media screen and (max-width: 767px){.sd2_light_stage{aspect-ratio:2400/1461;
+    -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 70%,transparent 100%),linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%);-webkit-mask-composite:source-in;
+    mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 70%,transparent 100%),linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%);mask-composite:intersect}}
   /* aerial masterplan (30 Sep): Ruan's render replaces the drawing. Each home's overlay is a
      full-colour cut-out of that home; when one is lit the rest of the picture greys back. */
   .sd2_map{background-image:none;background-color:#1c1a17}
@@ -189,4 +191,6 @@
     .sd2_in_media.is-fly .sd2_in_cap{display:none}
     .sd2_in_media.is-fly .sd2_in_rail{padding-top:1rem}
   }
+  /* ---- 2 Oct: "See the flythrough" beside "See These Homes" on the type cards (bundle adds it) ---- */
+  @media screen and (max-width: 767px){.sd2_type_foot{justify-content:center}}
 </style>
