@@ -772,6 +772,10 @@
     bands.forEach(function (b) {
       var img = qs("img", b), f = img && img.getAttribute("data-focus");
       if (img && f) { img.style.objectPosition = f; }
+      // The render is 16:9 but the band is tall on phones, so object-fit: cover scales it by HEIGHT:
+      // Webflow's sizes="100vw" makes the browser pick the 1080 variant and upscale it ~1.6× (soft).
+      // Ask for a wider candidate on narrow screens (2 Oct, Daniel's phone screenshot).
+      if (img && img.srcset) { img.sizes = "(max-width: 767px) 230vw, (max-width: 991px) 150vw, 100vw"; }
       var el = b.parentElement, broken = false;
       while (el && el !== d.body) {
         var cs = w.getComputedStyle(el);
