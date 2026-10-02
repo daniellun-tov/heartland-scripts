@@ -10,8 +10,8 @@
 <link rel="preload" as="font" type="font/woff2" crossorigin href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6a2985a0b9c89b7ba97ce32c_Righteous-Regular.woff2">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="https://webflow-files-prod.global.ssl.fastly.net/61110f294933f9d0faf6d77f/fonts/6aab8a93e7878c50f4fd8d11-Newsreader-ExtraLight.woff2">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="https://webflow-files-prod.global.ssl.fastly.net/61110f294933f9d0faf6d77f/fonts/6aab8a92fbccf47717872c7c-Manrope-Regular.woff2">
-<link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6aaaaaccb498ff08c62f9876_sd2-hero-poster-16x9.jpg" media="(min-width: 768px)">
-<link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6aaaaaccb498ff08c62f988c_sd2-hero-poster-9x16.jpg" media="(max-width: 767px)">
+<link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6abe792d6b6f81230977e51f_sd2-hero-poster-16x9-v2.jpg" media="(min-width: 768px)">
+<link rel="preload" as="image" fetchpriority="high" href="https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6abe792d6a0270b3d439f0a5_sd2-hero-poster-9x16-v2.jpg" media="(max-width: 767px)">
 <!-- Memberstack (the Heartland app) - the pre-launch waitlist is a passwordless sign-up onto the
      Sanford Heart plan. Deferred: nothing on this page needs it before first paint, and the
      bundle waits for window.$memberstackDom. webflow.io domains run in Memberstack's SANDBOX
@@ -377,6 +377,65 @@
   .sd2_in_nav.is-prev{left:.75rem}.sd2_in_nav.is-next{right:.75rem}
   .sd2_in_progress{position:absolute;top:0;left:0;right:0;height:2px;background:rgba(246,243,238,.15);display:none;z-index:4}
   .sd2_in_progress i{display:block;height:100%;background:#C79A6E;width:0;transition:width .4s}
+  /* 02 Inside — flythrough (2 Oct 2026): the stage lives in .sd2_in_media, a fixed-height column.
+     In flythrough mode the scene rail takes the bottom of it; on a still the rail goes and the
+     picture fills the column. Built by the bundle; scene names come from data-fly-a / data-fly-b. */
+  .sd2_in_media{display:flex;flex-direction:column;min-width:0;aspect-ratio:4/3}
+  html.sd2-js .sd2_in_media .sd2_in_stage{aspect-ratio:auto;flex:1 1 auto;min-height:0;height:auto}
+  .sd2_in_media.is-fly .sd2_in_pic video{opacity:1}
+  .sd2_in_rail{display:none;flex:0 0 auto;flex-direction:column;gap:.75rem;padding-top:1.1rem}
+  .sd2_in_media.is-fly .sd2_in_rail{display:flex}
+  .sd2_in_rail_h{display:flex;align-items:center;justify-content:space-between;gap:.75rem;min-height:2rem}
+  .sd2_in_rail_lab{font:400 .6875rem/1 var(--_sanford-v2---sd2-font-accent,Righteous,sans-serif);letter-spacing:.2em;text-transform:uppercase;color:#C79A6E}
+  .sd2_in_rail_lab{white-space:nowrap}
+  .sd2_in_rail_lab small{font:500 .6875rem/1 Manrope,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:rgba(246,243,238,.4);margin-left:.6rem;font-variant-numeric:tabular-nums}
+  .sd2_in_rail_lab small b{font-weight:500}.sd2_in_rail_lab small i{font-style:normal}
+  .sd2_in_seg{display:inline-flex;background:rgba(246,243,238,.05);border:1px solid rgba(246,243,238,.14);border-radius:999px;padding:3px}
+  .sd2_in_seg button{appearance:none;-webkit-appearance:none;white-space:nowrap;font:500 .75rem/1 Manrope,sans-serif;border:0;background:transparent;color:rgba(246,243,238,.62);padding:.5rem .8rem;border-radius:999px;cursor:pointer;min-height:2rem}
+  .sd2_in_seg button.is-on{background:#F6F3EE;color:#1C1A17}
+  .sd2_in_seg button:focus-visible{outline:2px solid #C79A6E;outline-offset:2px}
+  .sd2_in_thumbs{display:flex;gap:.6rem;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 2px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .sd2_in_thumbs::-webkit-scrollbar{display:none}
+  .sd2_in_th{flex:0 0 auto;width:8.25rem;appearance:none;-webkit-appearance:none;border:0;padding:0;background:transparent;color:#F6F3EE;cursor:pointer;text-align:left;scroll-snap-align:start;border-radius:6px;font-family:Manrope,sans-serif}
+  .sd2_in_th:focus-visible{outline:2px solid #C79A6E;outline-offset:2px}
+  .sd2_in_th_im{position:relative;display:block;border-radius:4px;overflow:hidden;aspect-ratio:16/10;outline:1.5px solid transparent;outline-offset:-1.5px;transition:outline-color .2s;background:#0F0E0C}
+  .sd2_in_th_im img{width:100%;height:100%;object-fit:cover;display:block}
+  .sd2_in_th_im::after{content:"";position:absolute;inset:0;background:rgba(15,14,12,.45);transition:opacity .2s}
+  .sd2_in_th:hover .sd2_in_th_im::after{opacity:.2}
+  .sd2_in_th.is-on .sd2_in_th_im{outline-color:#F6F3EE}
+  .sd2_in_th.is-on .sd2_in_th_im::after{opacity:0}
+  .sd2_in_th_play{position:absolute;left:.5rem;top:.5rem;z-index:1;width:1.375rem;height:1.375rem;border-radius:50%;background:rgba(15,14,12,.6);display:grid;place-items:center;color:#fff;font-size:.5rem;padding-left:1px}
+  .sd2_in_th.is-on .sd2_in_th_play{display:none}
+  .sd2_in_th_prog{position:absolute;left:0;right:0;bottom:0;z-index:1;height:3px;background:#F6F3EE;transform-origin:0 50%;transform:scaleX(var(--p,0));display:none}
+  .sd2_in_th.is-on .sd2_in_th_prog{display:block}
+  .sd2_in_th_lbl{display:flex;justify-content:space-between;gap:.5rem;margin-top:.45rem;align-items:baseline}
+  .sd2_in_th_lbl span{font:300 .85rem/1.2 var(--_sanford-v2---sd2-font-display,Newsreader,serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(246,243,238,.62)}
+  .sd2_in_th.is-on .sd2_in_th_lbl span{color:#F6F3EE}
+  .sd2_in_th_lbl em{font:500 .625rem/1 Manrope,sans-serif;font-style:normal;color:rgba(246,243,238,.4);font-variant-numeric:tabular-nums;letter-spacing:.06em}
+  .sd2_in_play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;display:none;place-items:center;width:4rem;height:4rem;padding:0;border:0;border-radius:50%;background:#F6F3EE;color:#1C1A17;cursor:pointer;transition:opacity .25s;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  .sd2_in_play svg{width:1.25rem;height:1.25rem;fill:currentColor}
+  .sd2_in_play:focus-visible{outline:2px solid #C79A6E;outline-offset:3px}
+  .sd2_in_media.is-fly .sd2_in_play{display:grid}
+  .sd2_in_media.is-fly.is-playing .sd2_in_stage:not(:hover) .sd2_in_play{opacity:0}
+  .sd2_in_bar{position:absolute;left:1.5rem;right:1.5rem;bottom:calc(var(--cap-h,4.5rem) + .5rem);z-index:5;display:none;gap:3px;cursor:pointer;touch-action:none;padding:6px 0}
+  .sd2_in_media.is-fly .sd2_in_bar{display:flex}
+  .sd2_in_bar i{position:relative;display:block;flex:var(--w,5) 1 0;height:3px;border-radius:2px;background:rgba(246,243,238,.28);overflow:hidden;transition:height .15s}
+  .sd2_in_bar:hover i{height:4px}
+  .sd2_in_bar i b{position:absolute;inset:0;width:var(--p,0%);background:#F6F3EE}
+  .sd2_in_bar:focus-visible{outline:2px solid #C79A6E;outline-offset:4px}
+  .sd2_in_media.is-fly .sd2_in_nav{display:grid;opacity:0;transition:opacity .2s}
+  .sd2_in_media.is-fly .sd2_in_stage:hover .sd2_in_nav,.sd2_in_media.is-fly .sd2_in_nav:focus-visible{opacity:1}
+  @media screen and (max-width: 991px){
+    .sd2_in_media{aspect-ratio:4/5}
+    .sd2_in_media.is-fly .sd2_in_nav{opacity:1}
+    .sd2_in_bar{left:1rem;right:1rem}
+    .sd2_in_bar i{height:4px}
+    .sd2_in_play{width:3.5rem;height:3.5rem}
+    .sd2_in_th{width:6.5rem}
+    .sd2_in_rail_lab small i{display:none}
+    .sd2_in_seg button{padding:.5rem .65rem}
+    .sd2_in_th_lbl span{font-size:.8rem}
+  }
   @media screen and (max-width: 991px){
     .sd2_in_chips{display:flex}
     .sd2_in_nav{display:grid;top:.85rem;transform:none;width:2.25rem;height:2.25rem;font-size:1.2rem}

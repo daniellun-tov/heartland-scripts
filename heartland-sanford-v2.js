@@ -376,7 +376,10 @@
      markers (.sd2_in_hs with data-x/data-y as % of the IMAGE, data-dir up|down, data-len px,
      data-side left|right) whose label and description are Designer copy. The flythrough video is
      the first item and plays only while it is the one on the stage. On phones the list becomes
-     a chip row, the stage swipes, and the markers draw in when the stage scrolls into view. */
+     a chip row, the stage swipes, and the markers draw in when the stage scrolls into view.
+     Since 2 Oct 2026 the video is a chaptered flythrough (one R2 file per unit type) with a
+     scene rail under the stage; picking a still drops the rail and the picture takes the
+     whole column. See `fly` below. */
   (function inside() {
     var root = qs("[data-sd2-inside]");
     if (!root) { return; }
@@ -395,7 +398,7 @@
     ["prev", "next"].forEach(function (k) {
       var b = d.createElement("button"); b.type = "button"; b.className = "sd2_in_nav is-" + k;
       b.setAttribute("aria-label", k === "prev" ? "Previous room" : "Next room"); b.textContent = k === "prev" ? "‹" : "›";
-      on(b, "click", function () { show((cur + (k === "prev" ? -1 : 1) + pics.length) % pics.length); });
+      on(b, "click", function () { if (fly && fly.active()) { fly.step(k === "prev" ? -1 : 1); return; } show((cur + (k === "prev" ? -1 : 1) + pics.length) % pics.length); });
       stage.appendChild(b);
     });
 
@@ -518,6 +521,161 @@
     }
     var video = qs("video", root);
     if (video) { video.removeAttribute("data-sd2-video"); }   // module 4 must not autoplay it off-stage
+    // ---- flythrough: one chaptered video per unit type, a scene rail under the stage ----
+    // Scenes come from the Designer: data-fly-base (R2 folder) and data-fly-a / data-fly-b
+    // ("Name@start,Name@start,…" in seconds) on the video pic. Files follow the bucket
+    // convention: sh-fly-{a|b}-1x1-{1080|720}.mp4, sh-fly-{a|b}-poster.webp, sh-fly-{a|b}-s{nn}.webp.
+    var fly = (function () {
+      var vpic = pics.filter(function (p) { return p.getAttribute("data-sd2-in-pic") === "video"; })[0];
+      var v = vpic && qs("video", vpic), base = vpic && vpic.getAttribute("data-fly-base");
+      if (!v || !base || !vpic.getAttribute("data-fly-a")) { return null; }
+      var media = d.createElement("div"); media.className = "sd2_in_media";
+      stage.parentNode.insertBefore(media, stage); media.appendChild(stage);
+      var TYPES = {}, order = [];
+      ["a", "b"].forEach(function (t) {
+        var raw = vpic.getAttribute("data-fly-" + t); if (!raw) { return; }
+        var sc = raw.split(",").map(function (s) { var m = s.trim().match(/^(.*)@([\d.]+)$/); return m ? { n: m[1].trim(), start: +m[2] } : null; }).filter(Boolean);
+        sc.forEach(function (c, i) { c.end = i + 1 < sc.length ? sc[i + 1].start : null; });
+        TYPES[t] = sc; order.push(t);
+      });
+      var type = order[0], CH = TYPES[type], on = false, playing = false, cur = -1, raf = null, userPaused = false, total = 0;
+      var fmt = function (s) { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); };
+      var file = function (t, k) { return base + "sh-fly-" + t + "-" + k; };
+      var chapAt = function (t) { var i = 0; for (var j = 0; j < CH.length; j++) { if (t >= CH[j].start - 0.05) { i = j; } } return i; };
+      var dur = function (c) { return (c.end !== null ? c.end : total || c.start) - c.start; };
+
+      // stage controls: play/pause, segmented bar
+      var play = d.createElement("button"); play.type = "button"; play.className = "sd2_in_play"; play.setAttribute("aria-label", "Play");
+      play.innerHTML = '<svg viewBox="0 0 24 24" data-ico="play"><path d="M8 5v14l11-7z"/></svg><svg viewBox="0 0 24 24" data-ico="pause" hidden><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
+      stage.appendChild(play);
+      var bar = d.createElement("div"); bar.className = "sd2_in_bar"; bar.setAttribute("role", "slider"); bar.setAttribute("aria-label", "Scrub the flythrough"); bar.tabIndex = 0;
+      stage.appendChild(bar);
+      var cap = qs(".sd2_in_cap", stage);
+      // rail under the stage
+      var rail = d.createElement("div"); rail.className = "sd2_in_rail";
+      var head = d.createElement("div"); head.className = "sd2_in_rail_h";
+      var lab = d.createElement("span"); lab.className = "sd2_in_rail_lab"; lab.innerHTML = "Flythrough <small><b></b><i></i></small>";
+      var seg = d.createElement("div"); seg.className = "sd2_in_seg"; seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "Unit type");
+      order.forEach(function (t) {
+        var b = d.createElement("button"); b.type = "button"; b.textContent = "Type " + t.toUpperCase(); b.setAttribute("data-type", t);
+        b.classList.toggle("is-on", t === type); b.setAttribute("aria-pressed", t === type ? "true" : "false");
+        on_(b, "click", function () { setType(t); });
+        seg.appendChild(b);
+      });
+      head.appendChild(lab); if (order.length > 1) { head.appendChild(seg); }
+      var thumbs = d.createElement("div"); thumbs.className = "sd2_in_thumbs";
+      rail.appendChild(head); rail.appendChild(thumbs); media.appendChild(rail);
+      var ths = [], segs = [];
+      function on_(el, ev, fn, o) { el.addEventListener(ev, fn, o || false); }
+      function buildRail() {
+        thumbs.innerHTML = ""; bar.innerHTML = ""; ths = []; segs = [];
+        CH.forEach(function (c, i) {
+          var b = d.createElement("button"); b.type = "button"; b.className = "sd2_in_th";
+          b.innerHTML = '<span class="sd2_in_th_im"><img alt="" loading="lazy"><span class="sd2_in_th_play">&#9654;</span><span class="sd2_in_th_prog"></span></span><span class="sd2_in_th_lbl"><span></span><em></em></span>';
+          qs("img", b).src = file(type, "s" + ("0" + (i + 1)).slice(-2) + ".webp");
+          qs(".sd2_in_th_lbl span", b).textContent = c.n;
+          qs(".sd2_in_th_lbl em", b).textContent = fmt(dur(c));
+          b.setAttribute("aria-label", "Play from " + c.n);
+          on_(b, "click", function () { go(i); });
+          thumbs.appendChild(b); ths.push(b);
+          var s = d.createElement("i"); s.style.setProperty("--w", String(Math.max(1, dur(c)))); s.innerHTML = "<b></b>"; bar.appendChild(s); segs.push(s);
+        });
+        qs("small b", lab).textContent = total ? fmt(total) : ""; qs("small i", lab).textContent = (total ? " · " : "") + CH.length + " scenes";
+      }
+      function ensureSrc() {
+        var want = file(type, "1x1-" + (w.matchMedia("(max-width: 767px)").matches ? "720" : "1080") + ".mp4");
+        if (v.getAttribute("src") === want) { return false; }
+        v.muted = true; v.defaultMuted = true; v.loop = true;
+        v.setAttribute("muted", ""); v.setAttribute("loop", ""); v.setAttribute("playsinline", ""); v.setAttribute("preload", "metadata");
+        v.setAttribute("poster", file(type, "poster.webp"));
+        v.setAttribute("src", want); v.load();
+        return true;
+      }
+      function seek(t) {
+        var go_ = function () { try { v.currentTime = Math.max(0, t); } catch (e) {} paint(); };
+        if (v.readyState >= 1) { go_(); } else { v.addEventListener("loadedmetadata", go_, { once: true }); }
+      }
+      function tryPlay() {
+        var p = v.play(); if (p && p.catch) { p.catch(function () {}); }
+      }
+      function go(i) {
+        if (!on) { show(pics.indexOf(vpic)); }
+        userPaused = false;
+        ensureSrc(); seek(CH[i].start); tryPlay();
+      }
+      function step(dir) {
+        var i = chapAt(v.currentTime || 0);
+        if (dir < 0) { seek(v.currentTime - CH[i].start > 2 ? CH[i].start : CH[Math.max(0, i - 1)].start); }
+        else { seek(CH[Math.min(CH.length - 1, i + 1)].start); }
+      }
+      function setType(t) {
+        if (t === type || !TYPES[t]) { return; }
+        var name = CH[chapAt(v.currentTime || 0)].n, was = playing;
+        type = t; CH = TYPES[t]; total = 0; cur = -1;
+        qsa("button", seg).forEach(function (b) { var onB = b.getAttribute("data-type") === t; b.classList.toggle("is-on", onB); b.setAttribute("aria-pressed", onB ? "true" : "false"); });
+        buildRail();
+        var j = 0; CH.forEach(function (c, k) { if (c.n === name) { j = k; } });
+        v.removeAttribute("src"); ensureSrc(); seek(CH[j].start);
+        if (was || !userPaused) { tryPlay(); }
+      }
+      function paint() {
+        var t = v.currentTime || 0, i = chapAt(t), c = CH[i], D = dur(c) || 1, pf = Math.max(0, Math.min(1, (t - c.start) / D));
+        if (i !== cur) {
+          cur = i;
+          ths.forEach(function (b, k) { b.classList.toggle("is-on", k === i); });
+          if (ths[i] && thumbs.scrollWidth > thumbs.clientWidth) {
+            thumbs.scrollTo({ left: Math.max(0, ths[i].offsetLeft - 8), behavior: reduceMotion ? "auto" : "smooth" });
+          }
+          if (caps.t) { caps.t.textContent = c.n; }
+        }
+        if (caps.k) { caps.k.textContent = "Flythrough · " + ("0" + (i + 1)).slice(-2) + " / " + ("0" + CH.length).slice(-2); }
+        if (caps.i) { caps.i.textContent = "Type " + type.toUpperCase() + " · " + fmt(t) + " / " + fmt(total); }
+        segs.forEach(function (s, k) { s.style.setProperty("--p", k < i ? "100%" : k === i ? (pf * 100).toFixed(1) + "%" : "0%"); });
+        if (ths[i]) { ths[i].style.setProperty("--p", pf.toFixed(3)); }
+        if (cap) { stage.style.setProperty("--cap-h", cap.offsetHeight + "px"); }
+      }
+      function loop() { raf = null; if (!on || !playing) { return; } paint(); raf = w.requestAnimationFrame(loop); }
+      function setPlaying(p) {
+        playing = p; media.classList.toggle("is-playing", p);
+        qs("[data-ico=play]", play).hidden = p; qs("[data-ico=pause]", play).hidden = !p;
+        play.setAttribute("aria-label", p ? "Pause" : "Play");
+        if (p && !raf) { raf = w.requestAnimationFrame(loop); }
+      }
+      on_(v, "play", function () { setPlaying(true); });
+      on_(v, "pause", function () { setPlaying(false); if (on) { paint(); } });
+      on_(v, "loadedmetadata", function () { total = v.duration || 0; buildRail(); cur = -1; paint(); });
+      on_(play, "click", function (e) { e.stopPropagation(); if (playing) { userPaused = true; v.pause(); } else { userPaused = false; ensureSrc(); tryPlay(); } });
+      // scrub
+      var fromX = function (e) { var r = bar.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (total || 0); };
+      var drag = false;
+      on_(bar, "pointerdown", function (e) { e.stopPropagation(); drag = true; bar.setPointerCapture(e.pointerId); seek(fromX(e)); });
+      on_(bar, "pointermove", function (e) { if (drag) { seek(fromX(e)); } });
+      on_(bar, "pointerup", function () { drag = false; });
+      on_(bar, "pointercancel", function () { drag = false; });
+      on_(bar, "click", function (e) { e.stopPropagation(); });
+      on_(bar, "keydown", function (e) { if (e.key === "ArrowRight") { seek((v.currentTime || 0) + 5); } else if (e.key === "ArrowLeft") { seek((v.currentTime || 0) - 5); } });
+      // autoplay while on stage and in view, pause off screen (muted, like the hero)
+      if ("IntersectionObserver" in w) {
+        new IntersectionObserver(function (es) {
+          if (!on) { return; }
+          if (es[0].isIntersecting) { if (!userPaused && !reduceMotion && !(navigator.connection && navigator.connection.saveData)) { ensureSrc(); tryPlay(); } }
+          else if (playing) { v.pause(); }
+        }, { threshold: 0.35 }).observe(stage);
+      }
+      on_(w, "resize", function () { if (on) { paint(); } });
+      buildRail();
+      return {
+        enter: function () {
+          on = true; cur = -1; media.classList.add("is-fly");
+          ensureSrc(); paint();
+          var r = stage.getBoundingClientRect();
+          if (r.bottom > 0 && r.top < w.innerHeight && !userPaused && !reduceMotion) { tryPlay(); }
+        },
+        leave: function () { on = false; media.classList.remove("is-fly"); if (playing) { v.pause(); } },
+        active: function () { return on; },
+        step: step
+      };
+    })();
     function show(i) {
       if (i === cur) { return; }
       cur = i;
@@ -539,8 +697,8 @@
       if (caps.i) { caps.i.textContent = pic.getAttribute("data-i") || ""; }
       prog.style.width = ((i + 1) / pics.length * 100) + "%";
       var v = qs("video", pic);
-      if (v) { attachVideo(v, false); var pp = v.play(); if (pp && pp.catch) { pp.catch(function () {}); } }
-      if (video && !v) { video.pause(); }
+      if (v) { if (fly) { fly.enter(); } else { attachVideo(v, false); var pp = v.play(); if (pp && pp.catch) { pp.catch(function () {}); } } }
+      if (video && !v) { if (fly) { fly.leave(); } else { video.pause(); } }
       if (!v) { drawMarkers(pic, 700); }
     }
     on(stage, "click", function (e) {
@@ -554,7 +712,7 @@
     on(stage, "touchend", function (e) {
       if (sx === null) { return; }
       var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = sy = null;
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { show((cur + (dx < 0 ? 1 : -1) + pics.length) % pics.length); }
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { if (fly && fly.active()) { fly.step(dx < 0 ? 1 : -1); } else { show((cur + (dx < 0 ? 1 : -1) + pics.length) % pics.length); } }
     }, { passive: true });
     applyFocus();
     on(w, "resize", function () { applyFocus(); if (cur >= 0) { fit(pics[cur]); clampLabels(pics[cur]); uncrowd(pics[cur]); } });
@@ -583,7 +741,8 @@
       on(w, "scroll", function () { if (!raf) { raf = w.requestAnimationFrame(paint); } }, { passive: true });
       paint();
     }
-    show(1);
+    // the flythrough opens the section when it is wired up; otherwise the first still
+    show(fly ? pics.indexOf(qsa("[data-sd2-in-pic=video]", root)[0]) : 1);
   })();
 
   /* ----------------------------------------------------------- 6b. full-width bands
