@@ -551,6 +551,12 @@
       var bar = d.createElement("div"); bar.className = "sd2_in_bar"; bar.setAttribute("role", "slider"); bar.setAttribute("aria-label", "Scrub the flythrough"); bar.tabIndex = 0;
       stage.appendChild(bar);
       var cap = qs(".sd2_in_cap", stage);
+      // phones: the bar and the running caption sit under the video, not over it
+      var under = d.createElement("div"); under.className = "sd2_in_under";
+      var ucap = d.createElement("div"); ucap.className = "sd2_in_under_cap"; ucap.innerHTML = "<span></span><span></span>";
+      under.appendChild(ucap); media.appendChild(under);
+      var phoneQ = w.matchMedia("(max-width: 991px)");
+      function place() { var host = phoneQ.matches ? under : stage; if (bar.parentNode !== host) { host.insertBefore(bar, host.firstChild); } }
       // rail under the stage
       var rail = d.createElement("div"); rail.className = "sd2_in_rail";
       var head = d.createElement("div"); head.className = "sd2_in_rail_h";
@@ -565,6 +571,7 @@
       head.appendChild(lab); if (order.length > 1) { head.appendChild(seg); }
       var thumbs = d.createElement("div"); thumbs.className = "sd2_in_thumbs";
       rail.appendChild(head); rail.appendChild(thumbs); media.appendChild(rail);
+      place();
       var ths = [], segs = [];
       function on_(el, ev, fn, o) { el.addEventListener(ev, fn, o || false); }
       function buildRail() {
@@ -630,6 +637,7 @@
         }
         if (caps.k) { caps.k.textContent = "Flythrough · " + ("0" + (i + 1)).slice(-2) + " / " + ("0" + CH.length).slice(-2); }
         if (caps.i) { caps.i.textContent = "Type " + type.toUpperCase() + " · " + fmt(t) + " / " + fmt(total); }
+        ucap.firstChild.textContent = caps.k ? caps.k.textContent : ""; ucap.lastChild.textContent = caps.i ? caps.i.textContent : "";
         segs.forEach(function (s, k) { s.style.setProperty("--p", k < i ? "100%" : k === i ? (pf * 100).toFixed(1) + "%" : "0%"); });
         if (ths[i]) { ths[i].style.setProperty("--p", pf.toFixed(3)); }
         if (cap) { stage.style.setProperty("--cap-h", cap.offsetHeight + "px"); }
@@ -662,7 +670,7 @@
           else if (playing) { v.pause(); }
         }, { threshold: 0.35 }).observe(stage);
       }
-      on_(w, "resize", function () { if (on) { paint(); } });
+      on_(w, "resize", function () { place(); if (on) { paint(); } });
       buildRail();
       return {
         enter: function () {
