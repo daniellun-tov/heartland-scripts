@@ -9,7 +9,9 @@
           openssl dgst -sha384 -binary heartland-sanford-v2.js | openssl base64 -A
      Source of truth for this block: src/sanford-v2/page-footer.html in heartland-scripts. -->
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a6b87bac8b93a0f37c3399d5d30a0de1e32f80fb/heartland-reserve.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@b354c0e530e43a04cf04de0a123ff47ac2f8f49a/heartland-sanford-v2.js" integrity="sha384-utuCZwPtcBKxF46zaE2VdG++8nhP2rKJnV02hw6nyufHuFrBeKqcju84Q5rjh3A+" crossorigin="anonymous"></script>
+<!-- Floor plan PDFs, one per unit type (Site assets). The bundle adds the download links. -->
+<script>window.SD2_PLANS={a:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6abfc0b17d22f5934a09d594_sanford-heart-type-a-floor-plans.pdf",b:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6abfc0b11ccad9cb938674f6_sanford-heart-type-b-floor-plans.pdf"};</script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@8d5b757ed9963a39bd2de3e4a50afc8e16a98e69/heartland-sanford-v2.js" integrity="sha384-e44D3vCXAlPnkaE0c8z4Nb7tymuHFEmChoBI1NwgUzhv+rrkNYsNL5M4z2LguEKJ" crossorigin="anonymous"></script>
 
 <!-- Sanford Bot Chat Widget -->
 <script src="https://widgets.leadconnectorhq.com/loader.js" data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js" data-widget-id="6a69ceebf2ad8308219b3dde"></script>
@@ -203,4 +205,12 @@
   /* flythrough caption: "FLYTHROUGH · 08 / 13" and the scene name share one line */
   .sd2_in_media.is-fly .sd2_in_cap > div{display:flex;align-items:baseline;gap:.9rem;flex-wrap:wrap}
   .sd2_in_media.is-fly .sd2_in_cap > div .sd2_in_cap_k{margin-bottom:0}
+  /* floor plan PDFs (2 Oct): a quiet text link under the buttons on the type cards and in the home detail
+     panel. Built by the bundle from window.SD2_PLANS (set above the bundle tag). */
+  .sd2_type_foot,.sd2_detail_actions{flex-wrap:wrap}
+  .sd2_plan_dl{flex:0 0 100%;display:inline-flex;align-items:center;gap:.5rem;margin-top:.5rem;color:#1C1A17;font:500 .8125rem/1.4 Manrope,sans-serif;text-decoration:underline;text-decoration-color:#C79A6E;text-decoration-thickness:1px;text-underline-offset:4px;transition:text-decoration-color .25s ease}
+  .sd2_type_foot .sd2_plan_dl{justify-content:center}
+  .sd2_plan_dl:hover{text-decoration-color:currentColor}
+  .sd2_plan_dl svg{flex:none;width:.875rem;height:.875rem}
+  .sd2_plan_dl:focus-visible{outline:2px solid #A9754B;outline-offset:3px}
 </style>
