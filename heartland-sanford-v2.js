@@ -1206,6 +1206,17 @@
     });
   }
 
+  /* Floor plan PDFs (2 Oct): one presentation sheet per unit type. The URLs are page data, not bundle
+     data: window.SD2_PLANS = {a: "...pdf", b: "...pdf"} is set in the page footer block. No entry, no link. */
+  function planPdfLink(letter) {
+    var k = String(letter || "").toLowerCase(), url = (w.SD2_PLANS || {})[k];
+    if (!url) { return null; }
+    var a = d.createElement("a"); a.className = "sd2_plan_dl"; a.href = url; a.target = "_blank"; a.rel = "noopener";
+    a.setAttribute("data-plan-pdf", k);
+    a.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v8.5M4.5 7.5 8 11l3.5-3.5M2.5 13.5h11"/></svg><span></span>';
+    a.lastChild.textContent = "Download Type " + k.toUpperCase() + " floor plans (PDF)";
+    return a;
+  }
   /* Type colours (1 Oct): Type A reads clay, Type B moss/sage, everywhere a home or a type appears.
      This only tags elements with data-sd2-tone="a|b"; the colours live in the page footer CSS.
      Status no longer uses those hues (Reserved is stone, Sold stays brick). */
@@ -1302,6 +1313,9 @@
         }
         var tlink = qs("[data-sd2-detail=type-link]", u.detail);
         if (tlink) { tlink.textContent = "Type " + u.letter + " Details"; }
+        // Floor plan PDF for this home's type (2 Oct): window.SD2_PLANS = {a: url, b: url} in the page footer.
+        var acts = qs(".sd2_detail_actions", u.detail), pdl = planPdfLink(u.letter);
+        if (acts && pdl && !qs("[data-plan-pdf]", acts)) { acts.appendChild(pdl); }
         // Bring type-level facts into the card (bedrooms / bathrooms / parking).
         var t = TYPES[u.typeSlug];
         if (t) {
@@ -1534,6 +1548,11 @@
         b.parentNode.insertBefore(a, b.nextSibling);
       });
     }
+    // "Download floor plan" under the buttons on each type card (2 Oct).
+    qsa(".sd2_type_foot [data-filter-type]").forEach(function (b) {
+      var m = (b.getAttribute("data-filter-type") || "").match(/-([ab])$/), l = m && planPdfLink(m[1]);
+      if (l && !qs("[data-plan-pdf]", b.parentNode)) { b.parentNode.appendChild(l); }
+    });
     // Default: the first available home, lowest number first (the design's "07" was a placeholder).
     var def = UNITS.filter(function (u) { return u.status === "Available"; })[0] || UNITS[0];
     if (def && def.status !== "Sold") { SEL.selected = def.slug; }
