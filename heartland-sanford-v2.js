@@ -28,7 +28,7 @@
 
    CLASS CONTRACT (all Webflow-native combos toggled here)
      .sd2_reveal            + .is-inview
-     .sd2_nav               + .is-scrolled
+     .sd2_nav               + .is-scrolled .has-burger .is-open   (builds button.sd2_nav_burger)
      .sd2_hero_video, .sd2_fly_video        + .is-playing
      .sd2_life_slide .is-active  .sd2_life_cap .is-on  .sd2_life_dot .is-current
      .sd2_light .is-auto   .sd2_light_img .is-on   .sd2_light_tab .is-active
@@ -241,6 +241,56 @@
     }
     on(w, "scroll", sync, { passive: true });
     sync();
+
+    /* Tablet and phone (<=991px): Webflow hides .sd2_nav_links there, so the links had no
+       home. A menu button opens them as a sheet under the bar. The primary CTA is not part
+       of the sheet - it stays in the bar. Everything visual lives in the page footer CSS,
+       keyed on .sd2_nav.has-burger / .is-open, so without this script nothing changes. */
+    var links = qs(".sd2_nav_links", el), menu = qs(".sd2_nav_menu", el);
+    if (!links || !menu) { return; }
+    var mq = w.matchMedia ? w.matchMedia("(max-width: 991px)") : null;
+    var btn = d.createElement("button");
+    btn.type = "button"; btn.className = "sd2_nav_burger";
+    btn.setAttribute("aria-label", "Menu");
+    btn.setAttribute("aria-expanded", "false");
+    if (!links.id) { links.id = "sd2-nav-links"; }
+    btn.setAttribute("aria-controls", links.id);
+    btn.innerHTML = "<span></span><span></span>";
+    menu.appendChild(btn);
+    // Sign Out sits beside the CTA on desktop; on a phone there is no room, so the sheet
+    // carries its own row (shown by html.sd2-signed-in) that presses the real button.
+    var out = d.createElement("a");
+    out.href = "#"; out.className = "sd2_nav_link is-out"; out.textContent = "Sign Out";
+    links.appendChild(out);
+    el.classList.add("has-burger");
+    function setOpen(open) {
+      open = !!open && (!mq || mq.matches);
+      el.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      btn.setAttribute("aria-label", open ? "Close menu" : "Menu");
+    }
+    on(btn, "click", function () { setOpen(!el.classList.contains("is-open")); });
+    // On the links themselves, not delegated: nativeAnchors() stops in-page links bubbling.
+    qsa("a", links).forEach(function (a) {
+      on(a, "click", function (e) {
+        if (a === out) {
+          e.preventDefault();
+          var real = qs(".sd2_nav_out", el);
+          if (real) { real.click(); }
+        }
+        setOpen(false);
+      });
+    });
+    on(d, "keydown", function (e) {
+      if ((e.key === "Escape" || e.keyCode === 27) && el.classList.contains("is-open")) { setOpen(false); btn.focus(); }
+    });
+    d.addEventListener("click", function (e) {
+      if (el.classList.contains("is-open") && !el.contains(e.target)) { setOpen(false); }
+    }, true);
+    if (mq) {
+      var back = function () { if (!mq.matches) { setOpen(false); } };
+      if (mq.addEventListener) { mq.addEventListener("change", back); } else if (mq.addListener) { mq.addListener(back); }
+    }
   })();
 
   /* ----------------------------------------------------------- 4. videos */
