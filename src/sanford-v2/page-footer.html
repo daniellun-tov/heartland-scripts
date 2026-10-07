@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a6b87bac8b93a0f37c3399d5d30a0de1e32f80fb/heartland-reserve.js"></script>
 <!-- Floor plan PDFs, one per unit type (Site assets). The bundle adds the download links. -->
 <script>window.SD2_PLANS={a:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6abfc0b17d22f5934a09d594_sanford-heart-type-a-floor-plans.pdf",b:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6abfc0b11ccad9cb938674f6_sanford-heart-type-b-floor-plans.pdf"};</script>
-<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@8d5b757ed9963a39bd2de3e4a50afc8e16a98e69/heartland-sanford-v2.js" integrity="sha384-e44D3vCXAlPnkaE0c8z4Nb7tymuHFEmChoBI1NwgUzhv+rrkNYsNL5M4z2LguEKJ" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@029f8be7cbdc482e93421dee3562cd684d601003/heartland-sanford-v2.js" integrity="sha384-YPt0hW1CAY8RYJCqOKsEUs7UOe6mKgaLTVzi5s2+WHTHY/621EP0gKrGRcyOFyXt" crossorigin="anonymous"></script>
 
 <!-- Sanford Bot Chat Widget -->
 <script src="https://widgets.leadconnectorhq.com/loader.js" data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js" data-widget-id="6a69ceebf2ad8308219b3dde"></script>
@@ -213,4 +213,29 @@
   .sd2_plan_dl:hover{text-decoration-color:currentColor}
   .sd2_plan_dl svg{flex:none;width:.875rem;height:.875rem}
   .sd2_plan_dl:focus-visible{outline:2px solid #A9754B;outline-offset:3px}
+  /* mobile menu (7 Oct): at <=991px Webflow hides .sd2_nav_links. The bundle adds button.sd2_nav_burger
+     and .has-burger; the links open as a sheet under the bar (.is-open). The CTA stays in the bar. */
+  .sd2_nav_burger,.sd2_nav_link.is-out{display:none}
+  @media screen and (max-width: 991px){
+    .sd2_nav.has-burger .sd2_nav_menu{gap:.5rem}
+    .sd2_nav_burger{order:9;display:inline-flex;flex:none;flex-direction:column;align-items:center;justify-content:center;gap:.375rem;width:2.75rem;height:2.75rem;margin-right:-.625rem;padding:0;border:0;border-radius:999px;background:none;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .sd2_nav_burger span{display:block;width:1.375rem;height:1.5px;border-radius:1px;background:currentColor;transition:transform .3s cubic-bezier(.2,.7,.2,1)}
+    .sd2_nav.is-open .sd2_nav_burger span:first-child{transform:translateY(.234375rem) rotate(45deg)}
+    .sd2_nav.is-open .sd2_nav_burger span:last-child{transform:translateY(-.234375rem) rotate(-45deg)}
+    .sd2_nav_burger:focus-visible{outline:2px solid #A9754B;outline-offset:-4px}
+    /* open: the bar takes its scrolled (cream) look so bar and sheet read as one surface */
+    .sd2_nav.is-open{border-bottom-color:transparent;background-color:#F6F3EE;background-image:none;color:#1C1A17}
+    .sd2_nav.is-open .sd2_nav_cta{background:#1C1A17;color:#F6F3EE;border-color:transparent}
+    .sd2_nav.has-burger .sd2_nav_links{display:flex;flex-direction:column;align-items:stretch;gap:0;position:absolute;top:100%;left:0;right:0;max-height:calc(100vh - 100%);max-height:calc(100dvh - 100%);overflow-y:auto;padding:.25rem 5% 1.5rem;border-bottom:1px solid rgba(28,26,23,.08);background:#F6F3EE;color:#1C1A17;box-shadow:0 1.5rem 2.5rem -1.5rem rgba(28,26,23,.35);visibility:hidden;opacity:0;transform:translateY(-.5rem);pointer-events:none;transition:opacity .25s ease,transform .3s cubic-bezier(.2,.7,.2,1),visibility 0s linear .3s}
+    .sd2_nav.has-burger.is-open .sd2_nav_links{visibility:visible;opacity:1;transform:none;pointer-events:auto;transition-delay:0s}
+    .sd2_nav.has-burger .sd2_nav_links .sd2_nav_link{display:block;padding:1rem 0;border-bottom:1px solid rgba(28,26,23,.1);opacity:1;font-size:1rem;font-weight:500;letter-spacing:0}
+    .sd2_nav.has-burger .sd2_nav_links .sd2_nav_link:last-child,html:not(.sd2-signed-in) .sd2_nav.has-burger .sd2_nav_links .sd2_nav_link:nth-last-child(2){border-bottom:0}
+    .sd2_nav.has-burger .sd2_nav_links .sd2_nav_link.is-out{display:none;color:rgba(28,26,23,.6)}
+    html.sd2-signed-in .sd2_nav.has-burger .sd2_nav_links .sd2_nav_link.is-out{display:block}
+    html.sd2-signed-in .sd2_nav.has-burger .sd2_nav_out{display:none}
+  }
+  @media screen and (max-width: 479px){.sd2_nav.has-burger .sd2_nav_cta{padding:.5rem .75rem;font-size:.6875rem}}
+  @media screen and (max-width: 389px){.sd2_nav.has-burger{column-gap:.75rem}.sd2_nav.has-burger .sd2_nav_logo{font-size:1rem;white-space:nowrap}}
+  @media screen and (max-width: 339px){.sd2_nav.has-burger .sd2_nav_logo{font-size:.875rem}}
+  @media (prefers-reduced-motion: reduce){.sd2_nav.has-burger .sd2_nav_links,.sd2_nav_burger span{transition:none}}
 </style>
