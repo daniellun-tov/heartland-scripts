@@ -496,10 +496,5 @@
   .sd2_lb.is-single .sd2_lb_btn.is-prev,.sd2_lb.is-single .sd2_lb_btn.is-next,.sd2_lb.is-single .sd2_lb_count{display:none}
   .sd2_lb_count{position:absolute;left:50%;bottom:max(1rem,env(safe-area-inset-bottom));transform:translateX(-50%);font:500 .7rem/1 Manrope,sans-serif;letter-spacing:.14em;color:rgba(246,243,238,.7)}
   html.sd2-lb-open{overflow:hidden}
-  /* The lift (7 Oct): dialog open state, pin pulse, and the preview video in Make it yours */
-  .sd2_lift_lb.is-open{display:flex}
-  @keyframes sd2-lift-pulse{0%,100%{box-shadow:0 0 0 6px rgba(199,154,110,.25)}50%{box-shadow:0 0 0 13px rgba(199,154,110,.06)}}
-  @media (prefers-reduced-motion:no-preference){.sd2_lift_pin_dot{animation:sd2-lift-pulse 2.4s ease-in-out infinite}}
-  .sd2_up_preview video.sd2_cover{background:#EFEAE3}
   @media screen and (max-width: 767px){.sd2_lb_btn.is-prev,.sd2_lb_btn.is-next{top:auto;bottom:max(.75rem,env(safe-area-inset-bottom));transform:none;width:2.25rem;height:2.25rem}.sd2_lb_btn.is-prev{left:1rem}.sd2_lb_btn.is-next{right:1rem}.sd2_lb_count{bottom:calc(max(.75rem,env(safe-area-inset-bottom)) + .8rem)}}
 </style>

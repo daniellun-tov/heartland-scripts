@@ -222,4 +222,10 @@
     html.sd2-signed-in .sd2_nav .sd2_nav_out{display:none}
   }
   @media screen and (max-width: 359px){.sd2_nav_logo{font-size:.875rem}}
+  /* the lift (7 Oct): the dialog's open state (.is-open is JS-only, so it cannot be a Webflow combo),
+     the pin's pulse, and a ground for the looping preview video in Make it yours */
+  .sd2_lift_lb.is-open{display:flex}
+  @keyframes sd2-lift-pulse{0%,100%{box-shadow:0 0 0 6px rgba(199,154,110,.25)}50%{box-shadow:0 0 0 13px rgba(199,154,110,.06)}}
+  @media (prefers-reduced-motion:no-preference){.sd2_lift_pin_dot{animation:sd2-lift-pulse 2.4s ease-in-out infinite}}
+  .sd2_up_preview video.sd2_cover{background:#EFEAE3}
 </style>
