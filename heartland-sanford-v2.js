@@ -3027,6 +3027,53 @@
     w.SD2_POI = { open: open, close: close };
   })();
 
+  /* ----------------------------------------------------------- 16b. the lift: video lightbox (7 Oct)
+     Designer elements only: [data-sd2-lift-open] (the "Watch the lift" button in #sd2-lift)
+     and the dialog [data-sd2-lift-lb] > .sd2_lift_lb_backdrop[data-sd2-lift-close] +
+     .sd2_lift_lb_frame > video[data-sd2-lift-video] (data-src-desktop / data-src-mobile,
+     poster, controls) + a.sd2_lift_lb_close[data-sd2-lift-close]. Webflow's own Lightbox only
+     embeds YouTube/Vimeo, so the self-hosted R2 mp4 needs this. Opening picks the source for
+     the viewport, loads it once and plays; closing pauses. Open state is .is-open (head CSS)
+     plus html.sd2-lb-open for the scroll lock. Capture phase, same reason as poi(). */
+  (function lift() {
+    var lb = qs("[data-sd2-lift-lb]");
+    if (!lb) { return; }
+    var html = d.documentElement, video = qs("[data-sd2-lift-video]", lb), last = null;
+    function src() {
+      var ds = video ? video.dataset : {};
+      return w.matchMedia("(max-width: 767px)").matches ? (ds.srcMobile || ds.srcDesktop) : (ds.srcDesktop || ds.srcMobile);
+    }
+    function open(from) {
+      last = from || d.activeElement;
+      lb.classList.add("is-open");
+      html.classList.add("sd2-lb-open");
+      if (video) {
+        var s = src();
+        if (s && video.getAttribute("src") !== s) { video.setAttribute("src", s); video.load(); }
+        var p = video.play();
+        if (p && p.catch) { p.catch(function () {}); }
+      }
+      var c = qs("a[data-sd2-lift-close]", lb);
+      if (c) { setTimeout(function () { try { c.focus({ preventScroll: true }); } catch (e) {} }, 60); }
+    }
+    function close() {
+      if (!lb.classList.contains("is-open")) { return; }
+      lb.classList.remove("is-open");
+      html.classList.remove("sd2-lb-open");
+      if (video) { try { video.pause(); } catch (e) {} }
+      if (last && last.focus) { try { last.focus({ preventScroll: true }); } catch (e) {} }
+    }
+    on(d, "click", function (e) {
+      var t = e.target.closest && e.target.closest("[data-sd2-lift-open], [data-sd2-lift-close]");
+      if (!t) { return; }
+      e.preventDefault();
+      e.stopPropagation();
+      if (t.hasAttribute("data-sd2-lift-open")) { open(t); } else { close(); }
+    }, true);
+    on(d, "keydown", function (e) { if (e.key === "Escape") { close(); } });
+    w.SD2_LIFT = { open: open, close: close };
+  })();
+
   /* ----------------------------------------------------------- 17. favourites (floating bar)
      The heart in the sticky bar adds the home selected on the plan TO THE WAITLIST - the same
      list the home cards' buttons and the section 09 form work on ("waitlist-homes" on the
