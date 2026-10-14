@@ -60,6 +60,9 @@
   var on = function (el, ev, fn, opts) { if (el) { el.addEventListener(ev, fn, opts || false); } };
   var isHidden = function (el) { return !el || el.classList.contains("w-condition-invisible"); };
   var text = function (el) { return el ? String(el.textContent || "").trim() : ""; };
+  // a11y (14 Oct): a video whose frame the visitor paused ([data-sd2-paused] on its pause scope)
+  // must not be restarted by any autoplay path (WCAG 2.2.2). See pauses() at the end.
+  var userPaused = function (v) { return !!(v && v.closest && v.closest("[data-sd2-paused]")); };
   var num = function (v) { var n = parseFloat(String(v === null || v === undefined ? "" : v).replace(/[^0-9.\-]/g, "")); return isNaN(n) ? 0 : n; };
 
   /* Prices in the CMS are stored both as text ("R3,595,000") and as a number.
@@ -304,8 +307,7 @@
       v.addEventListener("playing", function () { v.classList.add("is-playing"); }, { once: true });
       v.setAttribute("src", src);
       v.load();
-      var p = v.play();
-      if (p && p.catch) { p.catch(function () {}); }
+      if (!userPaused(v)) { var p = v.play(); if (p && p.catch) { p.catch(function () {}); } }
       log("video attached", src);
     }
     if (whenVisible && "IntersectionObserver" in w) {
@@ -374,6 +376,7 @@
       img.parentNode.insertBefore(v, img.nextSibling);
       var started = false;
       function play() {
+        if (userPaused(v)) { return; }
         if (!started) { started = true; v.setAttribute("src", src); v.load(); log("life video", src); }
         var p = v.play(); if (p && p.catch) { p.catch(function () {}); }
       }
@@ -591,6 +594,7 @@
       play.innerHTML = '<svg viewBox="0 0 24 24" data-ico="play"><path d="M8 5v14l11-7z"/></svg><svg viewBox="0 0 24 24" data-ico="pause" hidden><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
       stage.appendChild(play);
       var bar = d.createElement("div"); bar.className = "sd2_in_bar"; bar.setAttribute("role", "slider"); bar.setAttribute("aria-label", "Scrub the flythrough"); bar.tabIndex = 0;
+      bar.setAttribute("aria-valuemin", "0"); bar.setAttribute("aria-valuemax", "0"); bar.setAttribute("aria-valuenow", "0");
       stage.appendChild(bar);
       var cap = qs(".sd2_in_cap", stage);
       // phones: the bar and the running caption sit under the video, not over it
@@ -686,6 +690,10 @@
         if (caps.k) { caps.k.textContent = "Flythrough · " + ("0" + (i + 1)).slice(-2) + " / " + ("0" + CH.length).slice(-2); }
         if (caps.i) { caps.i.textContent = "Type " + type.toUpperCase() + " · " + fmt(t) + " / " + fmt(total); }
         ucap.firstChild.textContent = caps.k ? caps.k.textContent : ""; ucap.lastChild.textContent = caps.i ? caps.i.textContent : "";
+        // a11y (14 Oct): the slider reports where the film is (seconds), and the scene by name
+        bar.setAttribute("aria-valuemax", String(Math.round(total || 0)));
+        bar.setAttribute("aria-valuenow", String(Math.min(Math.round(t), Math.round(total || 0))));
+        bar.setAttribute("aria-valuetext", fmt(t) + " of " + fmt(total) + ", " + c.n);
         segs.forEach(function (s, k) { s.style.setProperty("--p", k < i ? "100%" : k === i ? (pf * 100).toFixed(1) + "%" : "0%"); });
         if (ths[i]) { ths[i].style.setProperty("--p", pf.toFixed(3)); }
         if (cap) { stage.style.setProperty("--cap-h", cap.offsetHeight + "px"); }
@@ -749,6 +757,9 @@
       timers.forEach(clearTimeout); timers = [];
       pics.forEach(function (p, k) {
         p.classList.toggle("is-on", k === i);
+        // a11y (14 Oct): the stacked pictures that are not on show keep their markers out of the
+        // Tab order and away from screen readers (they were 37 invisible stops).
+        if (k === i) { p.removeAttribute("inert"); p.removeAttribute("aria-hidden"); } else { p.setAttribute("inert", ""); p.setAttribute("aria-hidden", "true"); }
         p.classList.remove("has-open");
         qsa(".sd2_in_hs", p).forEach(function (h) { h.classList.remove("is-in", "is-open"); });
       });
@@ -3644,5 +3655,64 @@
     paintSelected();   // re-fill Unit ID now that the field carries its name
     d.documentElement.classList.add("sd2-ready");
     w.SD2 = { units: function () { return UNITS; }, types: function () { return TYPES; }, pick: pick, state: SEL };
+  })();
+  /* ----------------------------------------------------------- a11y (14 Oct 2026)
+     1. Pause controls (WCAG 2.2.2). Every looping video has a small Designer button in a corner
+        of its frame: [data-sd2-pause="<what it is>"], class .sd2_pause. It pauses/plays every
+        <video> in its scope (the closest [data-sd2-pause-scope], else its parent), stays hidden
+        until one of them is actually playing (so it never shows with reduced motion or Save-Data,
+        when nothing moves), and the choice sticks: the scope carries data-sd2-paused, which
+        attachVideo() and the life chapters check before they play.
+     2. Modals keep Tab inside themselves (2.4.3): auth, points of interest, lift, lightbox, drawers.
+     3. Links that are really buttons (href="#") say so, and Space works on them (4.1.2). */
+  (function pauses() {
+    qsa("[data-sd2-pause]").forEach(function (btn) {
+      var scope = btn.closest("[data-sd2-pause-scope]") || btn.parentElement;
+      if (!scope) { return; }
+      if (btn.tagName === "BUTTON") { btn.type = "button"; }
+      var what = btn.getAttribute("data-sd2-pause") || "video";
+      var vids = function () { return qsa("video", scope); };
+      var paint = function (p) { btn.classList.toggle("is-paused", p); btn.setAttribute("aria-label", (p ? "Play " : "Pause ") + what); };
+      var show = function () { btn.style.display = ""; };
+      btn.style.display = "none";
+      paint(false);
+      on(scope, "playing", show, true);
+      if (vids().some(function (v) { return !v.paused; })) { show(); }
+      on(btn, "click", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        var p = !scope.hasAttribute("data-sd2-paused");
+        if (p) { scope.setAttribute("data-sd2-paused", ""); vids().forEach(function (v) { v.pause(); }); }
+        else {
+          scope.removeAttribute("data-sd2-paused");
+          vids().forEach(function (v) { if (v.currentSrc || v.getAttribute("src")) { var pr = v.play(); if (pr && pr.catch) { pr.catch(function () {}); } } });
+        }
+        paint(p);
+      });
+    });
+  })();
+
+  (function trapFocus() {
+    var MODALS = ".sd2_auth.is-open, .sd2_poi.is-open, .sd2_lift_lb.is-open, .sd2_lb.is-open, .sd2_calc.is-open";
+    var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    on(d, "keydown", function (e) {
+      if (e.key !== "Tab") { return; }
+      var m = qsa(MODALS).pop();
+      if (!m) { return; }
+      var f = qsa(FOCUSABLE, m).filter(function (el) { return !el.closest("[inert]") && (el.offsetWidth || el.offsetHeight || el.getClientRects().length); });
+      if (!f.length) { return; }
+      var first = f[0], last = f[f.length - 1], a = d.activeElement;
+      if (!m.contains(a)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && a === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+    });
+  })();
+
+  (function buttonLinks() {
+    qsa('a[href="#"]', PAGE).forEach(function (a) { if (!a.hasAttribute("role")) { a.setAttribute("role", "button"); } });
+    on(d, "keydown", function (e) {
+      if (e.key !== " " || e.defaultPrevented) { return; }
+      var a = e.target;
+      if (a && a.matches && a.matches('a[role="button"]')) { e.preventDefault(); a.click(); }
+    });
   })();
 })(window, document);
