@@ -52,8 +52,6 @@
      element carries in the Designer is published by Webflow as a BARE selector (.is-active{…})
      and leaks onto every other page of the site. Everything below is toggled by the bundle. */
   .sd2_nav.is-scrolled{border-bottom:1px solid rgba(28,26,23,.08);background-color:rgba(246,243,238,.86);background-image:none;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#1C1A17}
-  .sd2_life_cap.is-on{opacity:1;pointer-events:auto;transform:translateY(0)}
-  .sd2_life_dot.is-current{width:3.5rem;color:#FCFAF7}
   .sd2_hero_video.is-playing,.sd2_fly_video.is-playing{opacity:1}
   .sd2_map_overlay.is-on{opacity:.85}
   .sd2_pin.is-reserved{border-color:#A9754B;background-color:#C79A6E;color:#1C1A17;cursor:not-allowed}
@@ -90,25 +88,6 @@
   .sd2_nav.is-scrolled .sd2_nav_cta{background:#1C1A17;color:#F6F3EE;border-color:transparent}
   .sd2_nav.is-scrolled .sd2_nav_cta:hover{background:#A9754B;color:#FCFAF7}
 
-  /* life scroller — multi-property transitions */
-  .sd2_life_slide{transition:opacity 1.1s cubic-bezier(.2,.7,.2,1),transform 6s ease-out;will-change:transform,opacity}
-  .sd2_life_cap{transition:opacity .8s ease,transform .9s cubic-bezier(.2,.7,.2,1)}
-  .sd2_life_dot.is-current .sd2_life_dot_label{opacity:1}
-  .sd2_life_hint{writing-mode:vertical-rl}
-  /* the sticky panel must never be taller than the VISIBLE viewport: on iOS 100vh includes the
-     collapsed toolbar area, which pushes the caption under Safari's bottom bar. svh is the small
-     viewport; browsers without it keep the 100vh from the class. */
-  .sd2_life_sticky{height:100svh}
-  .sd2_life_ui{padding-bottom:env(safe-area-inset-bottom)}
-  /* One slide per swipe on phones. The bands are invisible boxes the page can snap to —
-     one per picture — added by the bundle only under 768px. Proximity, not mandatory, so
-     the rest of the page still scrolls freely; the negative scroll-margin cancels the
-     5rem scroll-padding so a snapped slide sits flush against the top. */
-  @media screen and (max-width: 767px){
-    html.sd2-js{scroll-snap-type:y proximity}
-    .sd2_life_snaps{position:absolute;inset:0;pointer-events:none}
-    .sd2_life_snap{position:absolute;left:0;right:0;scroll-snap-align:start;scroll-margin-top:-5rem}
-  }
 
   /* masterplan: on phones the frame is a square window that pans in both directions over a
      drawing twice its width (.sd2_map_pan). Webflow owns the sizes; these are the bits its
@@ -122,13 +101,6 @@
   .sd2_map_frame{scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;overscroll-behavior-y:auto}
   .sd2_map_frame::-webkit-scrollbar{display:none}
 
-  @media screen and (max-width: 767px){
-    .sd2_life{height:480vh}
-    /* six full-screen composited layers with a 6s scale is what makes phones drop frames / flash
-       black panels — on small screens the slides just cross-fade */
-    .sd2_life_slide{transform:none;transition:opacity .75s ease;will-change:auto}
-    .sd2_life_caps{min-height:0}
-  }
 
   /* lighting toggle */
   .sd2_light_tab_bg{transition:transform 380ms cubic-bezier(.4,0,.2,1),opacity 260ms cubic-bezier(.4,0,.2,1)}
@@ -329,10 +301,6 @@
   .sd2_input:focus{border-color:#C79A6E;outline:none}
 
   /* ---------------- renders pass (29 Sep): life bars on phones, Inside explorer, bands, gallery drag, type-card 3D gallery + lightbox */
-  @media screen and (max-width: 767px){
-    .sd2_life_dot.is-current{width:2rem}
-    .sd2_life_ui{grid-row-gap:1rem}
-  }
   /* 02 Inside — state classes and the marker anatomy the bundle builds inside each .sd2_in_hs */
   .sd2_in_item.is-on{color:#F6F3EE;padding-left:.6rem}
   .sd2_in_item.is-on .sd2_in_item_n{opacity:1}

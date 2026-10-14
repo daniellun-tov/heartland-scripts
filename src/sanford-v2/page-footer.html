@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a6b87bac8b93a0f37c3399d5d30a0de1e32f80fb/heartland-reserve.js"></script>
 <!-- Floor plan PDFs, one per unit type (Site assets). The bundle adds the download links. -->
 <script>window.SD2_PLANS={a:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6abfc0b17d22f5934a09d594_sanford-heart-type-a-floor-plans.pdf",b:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6abfc0b11ccad9cb938674f6_sanford-heart-type-b-floor-plans.pdf"};</script>
-<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@22693109155acefdf988142c332b46f7b2db4643/heartland-sanford-v2.js" integrity="sha384-abQsMNT0OKkf5CYIzb7tRluVbIVmbj9dRjRcXjpPFHcn41lCArA9u5WgDxQEaHJc" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@b15a4e55da588886b53accf7c6e76fd669cbab53/heartland-sanford-v2.js" integrity="sha384-e6nKOWpqoJFe04nEkaP/yKlLT2asjPxt/qjkwFzh6/oVlES6vZPDmYN4NpPpAB0W" crossorigin="anonymous"></script>
 
 <!-- Sanford Bot Chat Widget -->
 <script src="https://widgets.leadconnectorhq.com/loader.js" data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js" data-widget-id="6a69ceebf2ad8308219b3dde"></script>
@@ -58,50 +58,21 @@
   .sd2_light_stage::before{content:"";position:absolute;left:0;right:0;top:0;height:24%;z-index:1;pointer-events:none;
     -webkit-backdrop-filter:blur(16px) saturate(115%);backdrop-filter:blur(16px) saturate(115%);
     -webkit-mask-image:linear-gradient(180deg,#000 0,rgba(0,0,0,.6) 45%,transparent 100%);mask-image:linear-gradient(180deg,#000 0,rgba(0,0,0,.6) 45%,transparent 100%)}
-  /* life chapters (30 Sep, fourth pass): Designer elements .sd2_life_flow > .sd2_life_ch > .sd2_life_fig +
-     .sd2_life_copy. The Webflow classes hold the static styling; this block holds what the Designer
-     can't: each render's native ratio (--r, set by the bundle), the per-chapter placement as a share
-     of the contained width, and the drift driven by --p (0 entering the viewport, 1 leaving).
-     --fw figure width / --fx its inset from its side / --cx --cy the caption's offset from its corner.
-     The caption pane is a fixed 28rem, so a WIDE figure on the same side as the caption eats the
-     overlap budget twice: raise --fw and the figure grows towards the caption, not away from it.
-     Keep the overlap in the 10-20% band the other chapters sit in (2 Oct: ch4 was at 45%). */
-  html.sd2-js .sd2_life{height:auto;min-height:0;padding:0 0 clamp(2rem,7vh,5rem)}
-  .sd2_life_fig{width:min(var(--fw,60%),calc(var(--fh,88vh) * var(--r,1)));aspect-ratio:var(--r,1);isolation:isolate;
-    transform:translate3d(0,calc((.5 - var(--p,.5)) * 10vh),0);will-change:transform}
-  .sd2_life_ch[data-side=right] .sd2_life_fig{margin-left:auto;margin-right:var(--fx,0)}
-  .sd2_life_ch[data-side=left] .sd2_life_fig{margin-left:var(--fx,0)}
-  .sd2_life_ch[data-sd2-ch="1"]{--fw:66%;--fx:0;--cx:4%;--cy:10%}
-  .sd2_life_ch[data-sd2-ch="2"]{--fw:52%;--fx:2%;--cx:14%;--cy:16%}
-  .sd2_life_ch[data-sd2-ch="3"]{--fw:48%;--fx:30%;--cx:0;--cy:10%}
-  .sd2_life_ch[data-sd2-ch="4"]{--fw:67%;--fx:4%;--cx:0;--cy:12%}
-  .sd2_life_ch[data-sd2-ch="5"]{--fw:58%;--fx:0;--cx:10%;--cy:10%}
-  .sd2_life_ch[data-sd2-ch="6"]{--fw:68%;--fx:0;--cx:0;--cy:10%}
-  html.sd2-js .sd2_life .sd2_life_slide{position:absolute;inset:-7% 0;width:100%;height:114%;object-fit:cover;object-position:50% 50%;opacity:1;
-    transform:translate3d(0,calc((var(--p,.5) - .5) * 7%),0);transition:none;will-change:transform;-webkit-mask-image:none;mask-image:none}
+  /* life chapters (14 Oct): layout, glass, type and the dot/rail states are Designer classes now —
+     .sd2_life_fig / .sd2_life_copy carry an is-ch1…is-ch6 combo per chapter (figure width + side
+     inset, caption corner + offset), and the drift reads var(--p) inside those classes. The bundle
+     still sets --r (the render's ratio) and --p (0 entering the viewport, 1 leaving) on each
+     .sd2_life_ch, adds the R2 <video>, and toggles .is-current on the dots and .is-on on the rail.
+     Caption overlap: the pane is a fixed 28rem, so keep each figure's overlap with its caption in
+     the 10-20% band (2 Oct: ch4 was at 45%). Only what the style panel cannot express stays here:
+     pseudo-element overlays, a parent-state → child rule, the rail's state (no element carries it
+     in the Designer, so as a combo it would publish as a bare .is-on) and reduced motion. */
   .sd2_life_fig::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(252,250,247,.08);pointer-events:none;z-index:4}
-  .sd2_life_copy{border-left-color:rgba(252,250,247,.34);background-image:linear-gradient(120deg,rgba(28,26,23,.3),rgba(28,26,23,0));
-    -webkit-backdrop-filter:blur(22px) saturate(118%);backdrop-filter:blur(22px) saturate(118%);
-    transform:translate3d(0,calc((.5 - var(--p,.5)) * 22vh),0);will-change:transform}
   .sd2_life_copy::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:var(--sd2-grain);background-size:240px 240px;mix-blend-mode:overlay;opacity:.35}
-  .sd2_life_ch[data-cpos=bl] .sd2_life_copy{left:var(--cx);bottom:var(--cy)} .sd2_life_ch[data-cpos=br] .sd2_life_copy{right:var(--cx);bottom:var(--cy)}
-  .sd2_life_ch[data-cpos=tl] .sd2_life_copy{left:var(--cx);top:var(--cy)} .sd2_life_ch[data-cpos=tr] .sd2_life_copy{right:var(--cx);top:var(--cy)}
-  html.sd2-js .sd2_life .sd2_life_cap{position:static;opacity:1;transform:none;pointer-events:auto;transition:none}
-  html.sd2-js .sd2_life .sd2_life_title{font-size:clamp(2rem,3vw,2.75rem)}
-  html.sd2-js .sd2_life .sd2_life_body{font-size:.9375rem}
-  .sd2_life_num{font-family:var(--_sanford-v2---sd2-font-accent,Righteous,sans-serif);text-transform:uppercase}
-  .sd2_life_rail{transform:translateY(-50%);transition:opacity .4s}
+  .sd2_life_dot.is-current .sd2_life_dot_label{opacity:1}
   .sd2_life_rail.is-on{opacity:1;pointer-events:auto}
-  .sd2_life_rail .sd2_life_dot:focus-visible{outline:1px solid #c9a66b;outline-offset:4px}
-  @media screen and (max-width: 991px){
-    .sd2_life_ch[data-side] .sd2_life_fig{margin:0 auto;width:min(100%,calc(70svh * var(--r,1)));transform:translate3d(0,calc((.5 - var(--p,.5)) * 6vh),0)}
-    .sd2_life_ch[data-cpos] .sd2_life_copy{left:auto;right:auto;top:auto;bottom:auto;transform:translate3d(0,calc((.5 - var(--p,.5)) * 5vh),0)}
-    html.sd2-js .sd2_life .sd2_life_title{font-size:1.875rem}
-    html.sd2-js .sd2_life .sd2_life_body{font-size:.875rem}
-    .sd2_life_rail{transform:none}
-  }
   @media (prefers-reduced-motion: reduce){
-    .sd2_life_fig,.sd2_life_copy,html.sd2-js .sd2_life .sd2_life_slide{transform:none!important}
+    .sd2_life_fig,.sd2_life_copy,.sd2_life_slide{transform:none!important}
   }
   /* type cards: plans centred in a fixed-height stage (no jump between floors), price in the list, button centred at the foot */
   .sd2_type_inner{display:flex;flex-direction:column}
@@ -113,7 +84,7 @@
   .sd2_type_view img.sd2_contain{width:auto;height:100%;max-width:100%;max-height:100%;object-fit:contain}
   @media screen and (max-width: 767px){.sd2_type_view{height:25rem;padding:3rem 1rem 1rem}}
   .sd2_type_gal{background-color:#efeae3;border-color:transparent}
-  .sd2_facts .sd2_type_from{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.6875rem 0;border-bottom:1px solid rgba(28,26,23,.09);font-size:.875rem;color:#8c867c}
+  .sd2_facts .sd2_type_from{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.6875rem 0;border-bottom:1px solid rgba(28,26,23,.09);font-size:.875rem;color:#6B665E}
   .sd2_facts .sd2_type_from_val{text-align:right}
   .sd2_type_foot{justify-content:center;margin-top:auto}
   /* home detail: the rendered plans, tap to enlarge */
@@ -125,11 +96,11 @@
   html.sd2-gated:not(.sd2-member) [data-sd2-price=derived]::after,html.sd2-live:not(.sd2-member) [data-sd2-price=derived]::after{content:"\00B7"}
   /* Type colours (1 Oct): Type A = clay, Type B = moss/sage. The bundle (tones()) tags [data-sd2-tone=a|b].
      --tn on light surfaces, --tn-d on the dark selector. Status keeps its own hues: Reserved stone, Sold brick. */
-  [data-sd2-tone=a]{--tn:#A9754B;--tn-d:#B98352;--tn-soft:rgba(169,117,75,.14)}
-  [data-sd2-tone=b]{--tn:#677A5A;--tn-d:#7E9A72;--tn-soft:rgba(126,154,114,.16)}
+  [data-sd2-tone=a]{--tn:#A9754B;--tn-d:#B98352;--tn-soft:rgba(169,117,75,.14);--tn-text:#8A5D39}
+  [data-sd2-tone=b]{--tn:#677A5A;--tn-d:#7E9A72;--tn-soft:rgba(126,154,114,.16);--tn-text:#5C6D50}
   .sd2_type[data-sd2-tone] .sd2_type_inner{border-top:4px solid var(--tn)}
   .sd2_type[data-sd2-tone] .sd2_type_name{color:var(--tn)}
-  .sd2_type[data-sd2-tone] .sd2_type_count{color:var(--tn)}
+  .sd2_type[data-sd2-tone] .sd2_type_count{color:var(--tn-text)}
   .sd2_filter[data-sd2-tone]{display:inline-flex;align-items:center;gap:.5rem}
   .sd2_filter[data-sd2-tone]::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--tn-d);flex:none}
   .sd2_filter[data-sd2-tone].is-active{background-color:var(--tn-d);color:#FCFAF7}
@@ -227,4 +198,10 @@
   .sd2_lift_lb.is-open{display:flex}
   .sd2_lift_pin_dot::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:1px solid rgba(246,243,238,.7);animation:sd2-pulse 2.6s ease-out infinite}
   .sd2_up_preview video.sd2_cover{background:#EFEAE3}
+  /* accessibility (14 Oct): small text on cream holds 4.5:1 (WCAG 1.4.3) — --tn-text is the darker
+     tone for the type cards' home count, and the gallery hint overrides the head block's 45% ink.
+     Pause buttons (.sd2_pause, Designer elements, wired by the bundle's pauses()): .is-paused is
+     JS-only state, so the play triangle lives here rather than as a combo class. */
+  .sd2_type_gal_hint{color:#6B665E}
+  .sd2_pause.is-paused .sd2_pause_icon{width:0;height:0;border-style:solid;border-width:4.5px 0 4.5px 7px;border-color:transparent transparent transparent currentColor;margin-left:2px}
 </style>
