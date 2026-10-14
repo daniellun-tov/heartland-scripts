@@ -3773,7 +3773,7 @@ window.ohNativeSubmit = async function (form, doneText) {
   }
   function seenRecently() { var t = stamp(); return !!t && (Date.now() - t) < WEEK; }
   /* a visitor who arrived at a specific unit or type is here for that, not for us */
-  function deepLinked() { return /[?&](unit|unitType|type)=/.test(location.search); }
+  function deepLinked() { return /[?&](unit|unitType|type|block)=/.test(location.search); }
 
   var el = null, lastFocus = null;
 
@@ -3879,4 +3879,522 @@ window.ohNativeSubmit = async function (form, doneText) {
     close: close,
     reset: function () { stamp(null); fired = false; }
   };
+})();
+
+/* ============================================================
+   Estate 3D view + block view (Variant A: block to plans) - 14 Oct
+   Two more ways into the same selection engine, both rendered by this
+   controller from the units the page already holds (no Wized elements):
+
+   - Estate view: the aerial render with the twelve blocks as clickable
+     outlines, switchable with the site plan from a "View: Plan | 3D" pill
+     in the map toolbar. Tap a block to open it.
+   - Block view: the block's isometric render with its four floors marked;
+     tap a floor (band or button) and the floor plans slide out of the
+     building - each one cut to the block's outline and fitted to its floor -
+     and lay flat into four strips of unit chips. Tapping a chip or a plot
+     opens the existing unit panel (available), the notify form (coming
+     soon) or nothing (reserved / sold). Tap the block itself to rest at the
+     lifted stack; "Block" runs it back.
+
+   Geometry (OH_BLOCK_GEO): per drawing type the unit polygons in the
+   architect's floor-plan frame (1104x1093, from v1's per-position
+   highlights); per render type the building outline in that frame, the
+   isometric camera (tilt 54.74deg, azimuth psi, scale k) and per-floor
+   translation fitted onto the floor-highlight bands (assets/oh/tools/
+   block-fit/fit_iso.py), plus the band paths (860x640) themselves. The
+   estate outlines are in the estate render's 1110x706 frame.
+   ============================================================ */
+(function () {
+  if (window.__ohBlockView) return;
+  window.__ohBlockView = true;
+
+  var GEO = {"frame":{"drawing":[1104,1093],"render":[1356,1026],"band":[860,640]},"drawings":{"a":{"units":{"01":[[65.8,1001.3],[374.3,1001.3],[374.3,788.7],[158.6,788.7],[158.6,809.7],[87.8,809.7],[87.8,801.6],[65.8,801.6],[65.8,1001.3]],"02":[[65.8,569.6],[374.3,569.6],[374.3,782.3],[158.6,782.3],[158.6,761.3],[87.8,761.3],[87.8,769.4],[65.8,769.4],[65.8,569.6]],"03":[[286.8,224.8],[286.8,531.9],[500.4,531.9],[500.4,317.1],[479.3,317.1],[479.3,246.7],[487.5,246.7],[487.5,224.8],[286.8,224.8]],"04":[[720.0,224.8],[720.0,531.9],[506.4,531.9],[506.4,317.1],[527.5,317.1],[527.5,246.7],[519.3,246.7],[519.3,224.8],[720.0,224.8]],"05":[[938.6,569.3],[630.1,569.3],[630.1,781.9],[845.8,781.9],[845.8,760.9],[916.6,760.9],[916.6,769.0],[938.6,769.0],[938.6,569.3]],"06":[[938.6,1000.8],[630.1,1000.8],[630.1,788.2],[845.8,788.2],[845.8,809.1],[916.6,809.1],[916.6,801.0],[938.6,801.0],[938.6,1000.8]]}},"b1":{"units":{"01":[[78.0,817.0],[325.3,817.0],[325.3,1017.4],[78.0,1017.4],[78.0,817.0]],"02":[[77.6,809.5],[324.9,809.5],[324.9,641.1],[153.6,641.1],[153.6,662.2],[113.3,662.2],[113.3,641.1],[77.6,641.1],[77.6,809.5]],"03":[[78.0,468.3],[325.3,468.3],[325.3,636.7],[154.0,636.7],[154.0,615.6],[113.7,615.6],[113.7,636.7],[78.0,636.7],[78.0,468.3]],"04":[[327.7,81.1],[545.1,81.1],[545.1,111.6],[536.1,111.6],[536.1,146.2],[536.1,188.3],[559.5,188.3],[559.5,422.7],[390.0,422.7],[327.7,422.7],[327.7,81.1]],"05":[[797.0,80.9],[579.7,80.9],[579.7,111.4],[588.6,111.4],[588.6,145.9],[588.6,188.0],[565.3,188.0],[565.3,422.5],[734.7,422.5],[797.0,422.5],[797.0,80.9]],"06":[[699.1,461.0],[1040.6,461.0],[1040.6,680.2],[1011.9,680.2],[1011.9,669.4],[934.9,669.3],[934.9,699.3],[791.1,699.3],[699.1,699.3],[699.1,461.0]],"07":[[699.9,931.5],[1040.8,931.5],[1040.8,714.0],[1012.1,714.0],[1012.1,723.0],[935.4,723.1],[935.4,693.2],[791.8,693.2],[699.9,693.2],[699.9,931.5]]}},"b2":{"units":{"01":[[107.3,835.1],[390.8,835.1],[390.8,1065.6],[183.7,1065.6],[183.7,1052.3],[107.3,1052.3],[107.3,835.1]],"02":[[107.3,646.7],[390.8,646.7],[390.8,834.6],[183.7,834.6],[107.3,834.6],[107.3,646.7]],"03":[[107.3,459.5],[390.8,459.5],[390.8,647.9],[183.7,647.9],[107.3,647.9],[107.3,459.5]],"04":[[288.2,41.3],[537.3,41.3],[537.3,410.1],[355.4,410.1],[288.2,410.1],[288.2,41.3]],"05":[[544.0,41.3],[794.6,41.3],[794.6,410.1],[611.5,410.1],[544.0,410.1],[544.0,41.3]],"06":[[689.2,479.4],[1030.8,479.4],[1030.8,698.6],[1002.0,698.6],[1002.0,687.9],[925.1,687.7],[925.1,717.7],[781.3,717.7],[689.2,717.7],[689.2,479.4]],"07":[[690.1,949.9],[1050.9,949.9],[1050.9,722.2],[1026.6,722.2],[1026.6,733.9],[944.5,733.9],[944.5,709.0],[787.3,709.0],[690.1,709.0],[690.1,949.9]]}}},"renders":{"a1":{"drawing":"a","hull":[[65.8,1001.3],[374.3,1001.3],[374.3,794.8],[630.1,794.8],[630.1,1000.8],[938.6,1000.8],[938.6,569.3],[632.1,569.3],[632.1,531.9],[720.0,531.9],[720.0,224.8],[286.8,224.8],[286.8,531.9],[372.3,531.9],[372.3,569.6],[65.8,569.6]],"psi":224.896,"k":0.82482,"tx":588.28,"ty":{"1":1006.5,"2":951.13,"3":895.75,"4":840.38},"bands":{"1":["M188.81 427.567V394.732L346.976 483.158L460.107 425.598L463.704 426.705V456.426L459.839 454.217L346.976 518.871L335.785 512.234V509.868L203.401 433.179L200.63 434.256L188.81 427.567Z","M559.867 492.832L463.718 441.656V412.483L556.376 462.206L718.698 369.293V398.305V401.622L707.253 407.871L704.532 406.659L571.903 483.255V486.358L559.867 492.832Z"],"2":["M188.81 394.285L189.041 361.074L347.144 451.089L459.712 388.96L463.465 390.518V420.367L459.712 418.816L346.785 485.365L188.81 394.285Z","M556.594 461.625L463.474 409.336V376.618L557.108 427.601L718.698 333.631V367.644L556.594 461.625Z"],"3":["M188.81 359.828L189.041 326.617L347.144 416.632L459.712 354.503L463.465 356.061V385.909L459.712 384.359L346.785 450.908L188.81 359.828Z","M556.594 427.167L463.474 374.878V342.161L557.108 393.144L718.698 299.174V333.187L556.594 427.167Z"],"4":["M188.81 325.201L189.041 291.99L347.144 382.005L459.712 319.876L463.465 321.434V351.283L459.712 349.732L346.785 416.281L188.81 325.201Z","M556.594 392.541L463.474 340.252V307.534L557.108 358.517L718.698 264.547V298.56L556.594 392.541Z"]}},"a2":{"drawing":"a","hull":[[65.8,1001.3],[374.3,1001.3],[374.3,794.8],[630.1,794.8],[630.1,1000.8],[938.6,1000.8],[938.6,569.3],[632.1,569.3],[632.1,531.9],[720.0,531.9],[720.0,224.8],[286.8,224.8],[286.8,531.9],[372.3,531.9],[372.3,569.6],[65.8,569.6]],"psi":133.647,"k":0.68462,"tx":1252.99,"ty":{"1":534.64,"2":486.14,"3":437.65,"4":389.15},"bands":{"1":["M198.433 324.68V296.801V294.977L331.535 370.652V366.427L337.848 364.706L340.561 364.132H342.022L375.1 347.231V342.901L382.509 339.197L386.631 338.363V337.163L395.187 334.868L395.5 333.459H398.474V332.468L400.717 331.634L407.03 329.286H409.535H412.3V349.265L430.508 356.414L435.726 359.176L437.59 361.263H440.891L449.761 365.592L452.578 367.627L461.724 373L463.721 374.199H467.264L491.798 387.397L498.752 389.588H503.552L506.211 390.793L638.222 315.809V344.69L512.254 416.927L510.068 416.051L512.501 414.543L512.254 411.669L508.144 410.001L506.211 411.136L505.132 410.733L504.371 411.136L497.818 408.286H497.072L496.859 408.579L496.113 408.952H495.554L494.222 409.485L491.798 408.153V404.93L467.264 394.091L463.721 396.062L461.724 395.369V391.907L441.212 382.772L437.59 384.29L435.404 383L409.256 368.501L406.77 367.067V356.414L330.089 400.678L198.433 324.68Z"],"2":["M198.68 297.308L198.433 266.064L330.17 340.581L408.784 298.029V325.775L330.17 373.465L198.68 297.308Z","M498.634 394.915L408.734 344.321V315.195L499.218 367.181L638.223 288.725V316.792L498.634 394.915Z"],"3":["M198.681 264.187L198.433 232.885L330.416 307.541L409.176 264.909V292.707L330.416 340.486L198.681 264.187Z","M499.194 361.974L409.126 311.286V282.106L499.779 334.189L639.043 255.586V283.706L499.194 361.974Z"],"4":["M198.433 236.158V207.051L330.79 281.695L398.003 243.719L401.03 245.549L406.24 247.661L406.803 249.35L409.968 251.345V265.287L330.79 313.08L198.433 236.158Z","M499.689 334.583L409.968 283.942L409.901 254.745L500.274 306.778L639.043 228.41V256.404L499.689 334.583Z"]}},"a3":{"drawing":"a","hull":[[65.8,1001.3],[374.3,1001.3],[374.3,794.8],[630.1,794.8],[630.1,1000.8],[938.6,1000.8],[938.6,569.3],[632.1,569.3],[632.1,531.9],[720.0,531.9],[720.0,224.8],[286.8,224.8],[286.8,531.9],[372.3,531.9],[372.3,569.6],[65.8,569.6]],"psi":135.468,"k":0.73666,"tx":1260.68,"ty":{"1":665.36,"2":610.73,"3":556.09,"4":501.46},"bands":{"1":["M163.112 325.919V300.136L257.802 352.854L358.381 297.637V299.577L354.584 304.841V329.537L257.802 380.438L163.112 325.919Z","M473.389 504.075L358.05 439.07L358.05 412.796L473.389 473.703L630.874 383.518V414.945L473.389 504.075Z"],"2":["M162.974 291.998V264.256L257.693 316.989L358.301 261.756V263.697V289.282L257.693 344.582L162.974 291.998Z","M473.342 474.459L357.97 406.307V376.033L473.343 440.95L630.874 350.738V383.854L473.342 474.459Z"],"3":["M162.918 258.101V230.356L257.648 283.096L358.268 227.855V229.797V255.385L257.648 310.691L162.918 258.101Z","M473.324 440.583L357.937 372.423V342.145L473.324 407.07L630.874 316.848V349.968L473.324 440.583Z"],"4":["M162.918 226.059V195.934L257.535 251.024L358.035 196.803V197.788V225.089L257.535 280.723L162.918 226.059Z","M472.953 406.396L357.704 338.318V305.937L472.953 370.393L630.874 280.723L630.315 315.889L472.953 406.396Z"]}},"b1":{"drawing":"b1","hull":[[78.0,468.3],[78.0,1017.4],[325.3,1017.4],[324.9,696.3],[699.1,696.3],[699.9,931.5],[1040.8,931.5],[1040.6,461.0],[701.1,461.0],[701.1,422.5],[797.0,422.5],[797.0,80.9],[327.7,81.1],[323.3,468.3]],"psi":221.388,"k":0.72716,"tx":716.23,"ty":{"1":887.49,"2":840.2,"3":792.92,"4":745.63},"bands":{"1":["M202.632 393.048V364.992L357.658 452.638L474.7 390.689V419.411L359.77 484.318L202.632 393.048Z","M569.564 445.508L485.688 399.174V366.026L573.642 411.628L735.794 318.266V349.663L569.564 445.508Z"],"2":["M202.783 358.795L203.078 326.289L357.568 414.62L474.759 351.525V385.165L359.683 450.155L202.783 358.795Z","M569.742 418.927L485.759 372.534V339.344L573.826 385.004L736.183 291.523V322.961L569.742 418.927Z"],"3":["M202.783 327.568L203.078 295.062L357.568 383.393L474.759 320.298V353.939L359.683 418.928L202.783 327.568Z","M569.742 387.7L485.759 341.307V308.117L573.826 353.778L736.183 260.297V291.734L569.742 387.7Z"],"4":["M202.783 303.975L203.077 271.49L357.466 359.762L474.908 298.122V330.275L359.579 395.274L202.783 303.975Z","M569.889 355.821L485.926 309.314L485.926 290.317L501.301 289.218L530.588 306.513L547.198 326.445L560.856 319.062L569.889 324.614L736.183 228.213V259.762L569.889 355.821Z"]}},"b2":{"drawing":"b2","hull":[[107.3,1065.6],[390.8,1065.6],[390.8,711.7],[690.1,711.7],[690.1,949.9],[1050.9,949.9],[1050.9,709.0],[692.1,709.0],[692.1,410.1],[794.6,410.1],[794.6,41.3],[288.2,41.3],[288.2,410.1],[388.8,410.1],[388.8,459.5],[107.3,459.5]],"psi":220.779,"k":0.65401,"tx":692.42,"ty":{"1":853.19,"2":802.08,"3":750.97,"4":699.87},"bands":{"1":["M200.339 392.399V362.641L355.041 451.698L470.44 390.429V418.214L354.747 483.357L200.339 392.399Z","M522.501 431.043L470.152 402.075L470.152 371.232L522.501 398.705L692.663 301.305L692.663 333.634L522.501 431.043Z"],"2":["M200.452 360.127V330.391L355.04 419.382L470.354 358.159V385.923L354.747 451.017L200.452 360.127Z","M522.376 398.744L470.066 369.797L470.066 338.977L522.376 366.43L692.412 269.102L692.412 301.407L522.376 398.744Z"],"3":["M200.452 325.416V295.68L355.04 384.671L470.354 323.448V351.212L354.747 416.306L200.452 325.416Z","M522.376 364.033L470.066 335.086L470.066 304.266L522.376 331.719L692.412 234.391L692.412 266.696L522.376 364.033Z"],"4":["M200.452 296.368V266.631L355.04 355.622L470.354 294.399V322.163L354.747 387.258L200.452 296.368Z","M522.376 334.981L470.066 306.034V278.156L500.515 295.493L506.847 302.666H522.376L692.412 205.338L692.412 237.643L522.376 334.981Z"]}}},"estate":{"frame":[1110,706],"paths":{"A":"M417.0,278.9 404.0,278.0 385.0,282.6 384.0,264.2 372.0,247.8 359.0,248.7 306.0,265.2 306.0,271.6 300.0,272.5 281.0,289.0 281.0,330.2 314.0,353.1 355.0,343.0 380.0,359.5 426.0,344.8 427.0,293.6Z","B":"M280.0,196.5 236.0,203.8 235.0,180.0 222.0,162.6 157.0,179.1 156.0,187.3 147.0,191.0 131.0,204.7 131.0,249.6 172.0,279.8 205.0,268.8 213.0,268.8 229.0,278.0 289.0,257.8 289.0,245.0 286.0,243.2 286.0,206.6Z","C":"M409.0,140.6 371.0,146.1 370.0,128.7 358.0,112.2 342.0,114.1 291.0,128.7 291.0,137.0 282.0,140.6 266.0,154.4 266.0,197.4 280.0,196.5 287.0,207.5 287.0,213.0 308.0,229.5 340.0,218.5 348.0,218.5 354.0,223.0 417.0,202.0 417.0,189.2 414.0,187.3 414.0,149.8Z","D":"M534.0,103.1 499.0,108.6 498.0,93.0 485.0,74.7 468.0,76.5 419.0,91.2 418.0,99.4 413.0,100.3 393.0,116.8 393.0,142.5 410.0,143.4 415.0,151.6 415.0,176.3 433.0,191.0 468.0,180.9 475.0,180.9 482.0,185.5 544.0,165.4 544.0,151.6 541.0,149.8 541.0,114.1Z","E":"M610.0,192.0 581.0,197.0 580.0,178.0 569.0,159.0 551.0,161.0 503.0,177.0 501.0,186.0 495.0,187.0 476.0,206.0 476.0,246.0 511.0,273.0 544.0,261.0 552.0,261.0 564.0,270.0 578.0,257.0 586.0,255.0 587.0,246.0 624.0,233.0 624.0,212.0Z","F":"M698.0,267.9 667.0,271.6 665.0,253.3 654.0,236.8 636.0,238.6 587.0,253.3 585.0,261.5 579.0,262.4 560.0,278.9 560.0,319.2 597.0,343.9 630.0,331.1 639.0,331.1 652.0,336.6 666.0,324.7 672.0,324.7 674.0,315.5 710.0,304.5 710.0,284.4Z","G":"M784.0,331.1 753.0,333.8 752.0,316.4 740.0,299.0 724.0,300.9 673.0,316.4 673.0,323.8 667.0,324.7 648.0,342.1 648.0,377.8 685.0,403.4 717.0,392.4 725.0,392.4 743.0,403.4 768.0,382.4 774.0,382.4 775.0,373.2 796.0,366.8 796.0,348.5Z","H":"M898.0,402.5 885.0,387.0 855.0,391.5 853.0,373.2 842.0,357.6 829.0,356.7 773.0,373.2 772.0,380.5 747.0,397.9 747.0,435.5 785.0,461.1 821.0,448.3 853.0,456.5 883.0,449.2 898.0,434.6Z","I":"M957.0,461.1 923.0,437.3 901.0,432.7 884.0,447.4 883.0,466.6 874.0,466.6 854.0,456.5 836.0,452.0 815.0,469.4 815.0,484.0 832.0,496.8 832.0,517.9 856.0,534.4 872.0,528.0 880.0,528.0 901.0,542.6 958.0,522.5 958.0,485.8 955.0,483.1Z","J":"M797.0,473.0 778.0,467.5 761.0,483.1 759.0,501.4 749.0,502.3 730.0,492.3 711.0,488.6 692.0,505.1 692.0,552.7 738.0,586.6 757.0,580.2 766.0,580.2 782.0,590.2 834.0,573.8 834.0,496.8Z","K":"M717.0,447.4 684.0,423.6 663.0,418.1 650.0,421.7 642.0,410.8 627.0,411.7 573.0,429.1 573.0,498.7 610.0,526.1 648.0,516.1 659.0,517.0 692.0,506.9 710.0,490.4 717.0,489.5Z","L":"M545.0,358.7 535.0,367.8 535.0,390.7 530.0,393.5 521.0,394.4 514.0,388.9 481.0,380.6 461.0,399.0 461.0,437.4 471.0,443.8 471.0,450.2 499.0,470.4 525.0,464.9 553.0,484.1 581.0,475.0 581.0,441.1 605.0,432.8 605.0,410.9 599.0,403.5 598.0,388.0 560.0,362.3Z"}}};
+
+  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/698dc3b31548f3fe0dc66daa_img-3d-buildings-render.webp';
+  var TILT = 54.74;
+  var TONE = { 4: '#491e0d', 3: '#7e452f', 2: '#af6042', 1: '#c7907b' };
+  var ORD = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' };
+  var FILL = { available: '#99ac99', reserved: '#ddb365', pending: '#ddb365', sold: '#ef9898', 'sold-out': '#ef9898', unreleased: '#ffffff' };
+  var FO = { available: 0.62, reserved: 0.6, pending: 0.6, sold: 0.6, 'sold-out': 0.6, unreleased: 0.78 };
+  var LABEL = { available: 'Available', reserved: 'Reserved', pending: 'Reserved', sold: 'Sold', 'sold-out': 'Sold', unreleased: 'Coming soon' };
+  var EASE = 'cubic-bezier(0.2,0.8,0.2,1)';
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  function units() { try { return window.ohSitePlan ? window.ohSitePlan.units() : []; } catch (e) { return []; } }
+  function mapWrap() { return document.querySelector('.unit-filter_map'); }
+  function mapBox() { return document.querySelector('.unit-filter_map-container'); }
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  function svgEl(tag, attrs) { var e = document.createElementNS(SVGNS, tag); Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); }); return e; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function salesOpen() { return document.documentElement.classList.contains('sales-open'); }
+  function isDimmed(u) { var p = document.getElementById(u.plot_id); return !!(p && p.classList.contains('is-dimmed')); }
+  function shortNo(u) { var n = String(u.unit_number || ''); var i = n.indexOf('-'); return i >= 0 ? n.slice(i + 1) : n; }
+  function renderType(u) { var m = /img-3d-block-([a-z])-(\d)/i.exec(u.block_image_url || ''); return m ? (m[1] + m[2]).toLowerCase() : null; }
+  function drawingType(u) { var m = /block-([ab]\d?)-floorplan/i.exec(u.block_floorplan_url || ''); return m ? m[1].toLowerCase() : null; }
+  function blockOf(name) {
+    var list = units().filter(function (u) { return String(u.block_name) === String(name); });
+    return list.length ? { name: String(name), units: list } : null;
+  }
+  function availCount(list) { return list.filter(function (u) { return u.status_key === 'available'; }).length; }
+  function price(u) { return (!u.prices_hidden && u.price_display) ? u.price_display : ''; }
+  function lowest(list) {
+    var av = list.filter(function (u) { return u.status_key === 'available' && u.price_value; });
+    av.sort(function (a, b) { return a.price_value - b.price_value; });
+    return av[0] ? price(av[0]) : '';
+  }
+  /* what a unit does when tapped: the same rules as the plan's plots */
+  function pick(u) {
+    if (!u || isDimmed(u)) return;
+    if (u.status_key === 'available') { window.ohSitePlan.open(u.unit_number); return; }
+    if (u.status_key === 'unreleased') {
+      if (window.ohSheet && window.ohSheet.shouldUse()) window.ohSheet.open(u, 'soon');
+      else if (window.ohNotify) window.ohNotify.open(u);
+    }
+  }
+
+  /* ------------------------------------------------------------
+     View switch: "View  Plan | 3D" in the map toolbar, same pill as colour-by
+     ------------------------------------------------------------ */
+  var estate = null, estateOn = false, viewSwitch = null;
+  function buildSwitch() {
+    var bar = document.querySelector('.unit-filter_map .site-plan_toolbar');
+    if (!bar || viewSwitch) return;
+    viewSwitch = el('div', 'site-plan_colourby oh-viewswitch');
+    viewSwitch.innerHTML = '<span class="site-plan_switch-label">View</span>' +
+      '<button type="button" class="site-plan_colourby-btn oh-viewswitch-btn is-active" data-oh-view="plan">Plan</button>' +
+      '<button type="button" class="site-plan_colourby-btn oh-viewswitch-btn" data-oh-view="estate">3D</button>';
+    bar.insertBefore(viewSwitch, bar.firstChild);
+    viewSwitch.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-oh-view]'); if (!b) return;
+      setEstate(b.getAttribute('data-oh-view') === 'estate');
+    });
+  }
+  function setEstate(on) {
+    estateOn = !!on;
+    var w = mapWrap(); if (!w) return;
+    if (estateOn) buildEstate();
+    w.classList.toggle('is-oh-estate', estateOn);
+    if (viewSwitch) viewSwitch.querySelectorAll('[data-oh-view]').forEach(function (b) {
+      b.classList.toggle('is-active', (b.getAttribute('data-oh-view') === 'estate') === estateOn);
+    });
+    if (estateOn) paintEstate();
+    document.dispatchEvent(new CustomEvent('oh:estate-view', { detail: { on: estateOn } }));
+  }
+
+  /* ------------------------------------------------------------
+     Estate view
+     ------------------------------------------------------------ */
+  function buildEstate() {
+    if (estate) return estate;
+    var w = mapWrap(); if (!w) return null;
+    estate = el('div', 'oh-estate');
+    estate.innerHTML =
+      '<div class="oh-estate_frame">' +
+        '<img class="oh-estate_img" alt="Aerial render of Oakhills Estate with all twelve blocks" src="' + ESTATE_IMG + '">' +
+        '<svg class="oh-estate_svg" viewBox="0 0 ' + GEO.estate.frame[0] + ' ' + GEO.estate.frame[1] + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="The twelve blocks, tap one to open it"></svg>' +
+        '<div class="oh-estate_cap" aria-live="polite"></div>' +
+      '</div>';
+    var svg = estate.querySelector('svg');
+    Object.keys(GEO.estate.paths).forEach(function (name) {
+      var p = svgEl('path', { d: GEO.estate.paths[name], 'data-block': name, 'class': 'oh-estate_block', role: 'button', tabindex: '0' });
+      svg.appendChild(p);
+      var open = function () { openBlock(name); };
+      p.addEventListener('click', open);
+      p.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+      p.addEventListener('mouseenter', function () { caption(name); });
+      p.addEventListener('mouseleave', function () { caption(null); });
+    });
+    w.appendChild(estate);
+    return estate;
+  }
+  function caption(name) {
+    var cap = estate && estate.querySelector('.oh-estate_cap'); if (!cap) return;
+    var b = name ? blockOf(name) : null;
+    if (!b) {
+      var all = units(); var av = availCount(all);
+      cap.textContent = salesOpen() ? (av + ' of ' + all.length + ' homes available · tap a block') : 'Tap a block to open it';
+      return;
+    }
+    var av2 = availCount(b.units);
+    cap.textContent = 'Block ' + b.name + ' · ' + (!salesOpen() ? b.units.length + ' homes' : (av2 ? av2 + ' of ' + b.units.length + ' available' : (b.units.every(function (u) { return u.status_key === 'unreleased'; }) ? 'coming soon' : 'sold out')));
+  }
+  function paintEstate() {
+    if (!estate) return;
+    var sel = (window.ohSitePlan.active('block') || []).map(function (v) { return String(v).toLowerCase(); });
+    estate.querySelectorAll('.oh-estate_block').forEach(function (p) {
+      var b = blockOf(p.getAttribute('data-block')); if (!b) return;
+      var av = availCount(b.units);
+      var soon = b.units.every(function (u) { return u.status_key === 'unreleased'; });
+      var listed = b.units.some(function (u) { return u.status_key === 'available' && !isDimmed(u); });
+      p.classList.toggle('is-soon', soon && salesOpen());
+      p.classList.toggle('is-open', av > 0 || !salesOpen());
+      p.classList.toggle('is-dimmed', salesOpen() && !listed && !soon);
+      p.classList.toggle('is-selected', sel.indexOf(b.name.toLowerCase()) >= 0);
+      p.setAttribute('aria-label', 'Block ' + b.name + ', ' + (salesOpen() ? (soon ? 'coming soon' : av + ' of ' + b.units.length + ' available') : b.units.length + ' homes'));
+    });
+    caption(null);
+  }
+
+  /* ------------------------------------------------------------
+     Block view
+     ------------------------------------------------------------ */
+  var bv = null, cur = null, mode = 'block', timer = null, sel = null, facetBefore = null;
+  var R = {};  /* geometry for the current block */
+
+  function hatch(P) {
+    /* diagonal hatch (spacing 32 drawing px) clipped to a polygon */
+    var mn = Infinity, mx = -Infinity, d = '', i;
+    for (i = 0; i < P.length; i++) { var c0 = P[i][0] - P[i][1]; if (c0 < mn) mn = c0; if (c0 > mx) mx = c0; }
+    for (var c = Math.ceil(mn / 32) * 32 + 8; c < mx; c += 32) {
+      var hits = [];
+      for (i = 0; i < P.length; i++) {
+        var a = P[i], b = P[(i + 1) % P.length];
+        var fa = a[0] - a[1] - c, fb = b[0] - b[1] - c;
+        if ((fa < 0) !== (fb < 0)) { var t = fa / (fa - fb); hits.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+      }
+      hits.sort(function (p, q) { return p[0] - q[0]; });
+      for (var k = 0; k + 1 < hits.length; k += 2) d += 'M' + hits[k][0].toFixed(1) + ' ' + hits[k][1].toFixed(1) + 'L' + hits[k + 1][0].toFixed(1) + ' ' + hits[k + 1][1].toFixed(1);
+    }
+    return d || 'M0 0';
+  }
+  function centroid(P) {
+    var x = 0, y = 0; P.forEach(function (p) { x += p[0]; y += p[1]; }); return [x / P.length, y / P.length];
+  }
+
+  function build() {
+    if (bv) return bv;
+    var w = mapWrap(); if (!w) return null;
+    bv = el('div', 'oh-bv');
+    bv.setAttribute('data-lenis-prevent', '');
+    bv.innerHTML =
+      '<div class="oh-bv_head">' +
+        '<button type="button" class="oh-bv_back" aria-label="Back to the estate">' +
+          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"></path></svg>' +
+        '</button>' +
+        '<div class="oh-bv_title"><div class="oh-bv_name"></div><div class="oh-bv_sub"></div></div>' +
+        '<button type="button" class="site-plan_floor-switch oh-bv_mode"><span class="site-plan_floor-btn is-active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"></path><path d="m3 13 9 5 9-5"></path><path d="m3 18 9 5 9-5"></path></svg><span class="oh-bv_mode-label">Floors</span></span></button>' +
+      '</div>' +
+      '<div class="oh-bv_stage">' +
+        '<img class="oh-bv_render" alt="">' +
+        '<svg class="oh-bv_bands" viewBox="0 0 860 640" preserveAspectRatio="none" aria-hidden="true"></svg>' +
+        '<div class="oh-bv_strips"></div>' +
+        '<div class="oh-bv_slices"></div>' +
+        '<div class="oh-bv_hint"><div class="oh-bv_hint-title">Four floors</div><div class="oh-bv_hint-text"></div></div>' +
+        '<button type="button" class="oh-bv_cover" aria-label="Open the block up into its floors"></button>' +
+        '<div class="oh-bv_tags"></div>' +
+      '</div>' +
+      '<div class="oh-bv_legend"></div>';
+    w.appendChild(bv);
+    bv.querySelector('.oh-bv_back').addEventListener('click', closeBlock);
+    bv.querySelector('.oh-bv_mode').addEventListener('click', function () { go(mode === 'block' ? 'stack' : 'block'); });
+    bv.querySelector('.oh-bv_cover').addEventListener('click', function () { go(mode === 'block' ? 'stack' : 'flat'); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && cur && !document.querySelector('.site-plan_detail-wrap.is-open')) closeBlock(); });
+    if (window.ResizeObserver) new ResizeObserver(function () { if (cur) layout(); }).observe(bv);
+    /* legend: the same tokens as the plan's */
+    bv.querySelector('.oh-bv_legend').innerHTML = ['available', 'reserved', 'sold', 'unreleased'].map(function (k) {
+      return '<span class="oh-bv_legend-item"><i class="oh-bv_dot is-' + k + '"></i>' + LABEL[k] + '</span>';
+    }).join('');
+    return bv;
+  }
+
+  /* ---- open / close ---- */
+  function openBlock(name, opts) {
+    var b = blockOf(name); if (!b) return false;
+    var rt = renderType(b.units[0]), dt = drawingType(b.units[0]);
+    if (!rt || !GEO.renders[rt] || !dt || !GEO.drawings[dt]) { console.warn('[block-view] no geometry for block', name, rt, dt); return false; }
+    build();
+    cur = b; sel = null;
+    R = { rt: rt, dt: dt, g: GEO.renders[rt], d: GEO.drawings[dt], img: b.units[0].block_image_url, plan: b.units[0].block_floorplan_url };
+    /* the list beside the plan follows the block: set the Block facet, and
+       remember what was selected so Back can put it back */
+    facetBefore = window.ohSitePlan.active('block').slice();
+    facetBefore.forEach(function (v) { if (String(v) !== b.name) window.ohSitePlan.toggle('block', v, false); });
+    if (!window.ohSitePlan.isActive('block', b.name)) window.ohSitePlan.toggle('block', b.name, true);
+    populate();
+    var w = mapWrap();
+    w.classList.add('is-oh-block');
+    bv.scrollTop = 0;
+    mode = 'block';
+    render();
+    try { history.replaceState(null, '', setParam(location.href, 'block', b.name)); } catch (e) {}
+    if (opts && opts.floor) setTimeout(function () { openFloor(Number(opts.floor)); }, 60);
+    document.dispatchEvent(new CustomEvent('oh:block-open', { detail: { block: b.name } }));
+    return true;
+  }
+  function closeBlock() {
+    if (!cur) return;
+    var name = cur.name;
+    cur = null; if (timer) clearTimeout(timer);
+    mapWrap().classList.remove('is-oh-block');
+    /* restore the Block facet as it was */
+    if (facetBefore) {
+      if (facetBefore.indexOf(name) < 0 && window.ohSitePlan.isActive('block', name)) window.ohSitePlan.toggle('block', name, false);
+      facetBefore.forEach(function (v) { if (!window.ohSitePlan.isActive('block', v)) window.ohSitePlan.toggle('block', v, true); });
+      facetBefore = null;
+    }
+    try { history.replaceState(null, '', setParam(location.href, 'block', null)); } catch (e) {}
+    if (estate) paintEstate();
+    document.dispatchEvent(new CustomEvent('oh:block-close', { detail: { block: name } }));
+  }
+  function setParam(href, key, val) {
+    var u = new URL(href); if (val == null) u.searchParams.delete(key); else u.searchParams.set(key, val);
+    return u.pathname + (u.search || '') + u.hash;
+  }
+
+  /* ---- the mode sequencer ---- */
+  var PATH = {
+    block: { merge: ['merge'], stack: ['merge', 'stack'], flat: ['merge', 'flat'] },
+    merge: { block: ['block'], stack: ['stack'], flat: ['flat'] },
+    stack: { block: ['merge', 'block'], merge: ['merge'], flat: ['flat'] },
+    flat: { block: ['merge', 'block'], merge: ['merge'], stack: ['stack'] }
+  };
+  var WAIT = { 'block>merge': 480, 'flat>merge': 820, 'stack>merge': 820 };
+  function go(target) {
+    if (!cur) return;
+    if (timer) clearTimeout(timer);
+    var steps = ((PATH[mode] || {})[target] || []).slice();
+    var prev = mode;
+    var step = function () {
+      var m = steps.shift(); if (!m) return;
+      mode = m; render();
+      if (steps.length) timer = setTimeout(step, WAIT[prev + '>' + m] || 0);
+      prev = m;
+    };
+    step();
+  }
+  function openFloor(f) {
+    var us = cur.units.filter(function (u) { return u.floor_level === f; });
+    var first = us.filter(function (u) { return u.status_key === 'available' && !isDimmed(u); })[0] || us[0];
+    sel = first || null;
+    go('flat');
+    paintSelection();
+  }
+
+  /* ---- DOM for the current block (built once per open) ---- */
+  function populate() {
+    var floors = [4, 3, 2, 1];
+    var head = bv.querySelector('.oh-bv_head');
+    head.querySelector('.oh-bv_name').textContent = 'Block ' + cur.name;
+    var av = availCount(cur.units);
+    head.querySelector('.oh-bv_sub').textContent = salesOpen() ? (av + ' of ' + cur.units.length + ' homes available') : (cur.units.length + ' homes');
+    bv.querySelector('.oh-bv_render').src = R.img;
+    bv.querySelector('.oh-bv_render').alt = 'Isometric render of Block ' + cur.name;
+
+    /* floor bands on the render, in the floor's tone */
+    var bands = bv.querySelector('.oh-bv_bands'); bands.innerHTML = '';
+    floors.forEach(function (f) {
+      (R.g.bands[String(f)] || []).forEach(function (d) {
+        var p = svgEl('path', { d: d, fill: TONE[f], 'fill-opacity': '0.68', stroke: '#ffffff', 'stroke-width': '2', 'stroke-linejoin': 'round', 'data-floor': f });
+        p.addEventListener('click', function () { openFloor(f); });
+        bands.appendChild(p);
+      });
+    });
+
+    /* slices: one plate per floor, clipped to the building outline */
+    var hull = R.g.hull.map(function (p) { return (p[0] / 1104 * 100).toFixed(2) + '% ' + (p[1] / 1093 * 100).toFixed(2) + '%'; }).join(',');
+    var slices = bv.querySelector('.oh-bv_slices'); slices.innerHTML = '';
+    var strips = bv.querySelector('.oh-bv_strips'); strips.innerHTML = '';
+    var tags = bv.querySelector('.oh-bv_tags'); tags.innerHTML = '';
+    floors.forEach(function (f, i) {
+      var us = cur.units.filter(function (u) { return u.floor_level === f; });
+      var wrap = el('div', 'oh-bv_wrap'); wrap.setAttribute('data-floor', f); wrap.style.zIndex = 10 - i;
+      var plate = el('div', 'oh-bv_plate'); plate.style.clipPath = 'polygon(' + hull + ')';
+      var img = el('img', 'oh-bv_plan'); img.src = R.plan; img.alt = 'Floor plan of the ' + ORD[f] + ' floor of Block ' + cur.name; img.draggable = false;
+      plate.appendChild(img);
+      var svg = svgEl('svg', { viewBox: '0 0 1104 1093', 'class': 'oh-bv_plots', role: 'img', 'aria-label': 'Plan of the ' + ORD[f] + ' floor, ' + availCount(us) + ' of ' + us.length + ' homes available' });
+      var hp = svgEl('polygon', { points: R.g.hull.map(function (p) { return p.join(','); }).join(' '), fill: 'none', stroke: '#5f4d3f', 'stroke-width': '10', 'stroke-linejoin': 'round', 'class': 'oh-bv_outline' });
+      svg.appendChild(hp);
+      us.forEach(function (u) {
+        var P = R.d.units[String(u.onfloor_label || '').padStart(2, '0')];
+        if (!P) return;
+        var g = svgEl('g', { 'data-unit': u.plot_id, 'data-status': u.status_key, 'class': 'oh-bv_plot' });
+        var poly = svgEl('polygon', { points: P.map(function (p) { return p.join(','); }).join(' '), fill: FILL[u.status_key] || '#fff', 'fill-opacity': FO[u.status_key] || 0.6, stroke: '#5f4d3f', 'stroke-width': '5', 'stroke-linejoin': 'round' });
+        g.appendChild(poly);
+        if (u.status_key === 'unreleased') g.appendChild(svgEl('path', { d: hatch(P), fill: 'none', stroke: '#8d8b87', 'stroke-width': '6', 'pointer-events': 'none' }));
+        var c = centroid(P);
+        var t = svgEl('text', { x: c[0], y: c[1] + 32, 'text-anchor': 'middle', 'font-size': '92', 'class': 'oh-bv_plot-no' });
+        t.textContent = String(u.onfloor_label || shortNo(u).slice(-2));
+        g.appendChild(t);
+        g.addEventListener('click', function () { if (mode === 'flat') pick(u); else openFloor(f); });
+        svg.appendChild(g);
+      });
+      plate.appendChild(svg);
+      wrap.appendChild(plate);
+      slices.appendChild(wrap);
+
+      /* strip: floor summary + chips */
+      var strip = el('div', 'oh-bv_strip'); strip.setAttribute('data-floor', f);
+      var low = lowest(us);
+      strip.innerHTML = '<div class="oh-bv_strip-head"><span class="oh-bv_strip-label">' + ORD[f] + ' floor</span>' +
+        '<span class="oh-bv_strip-count"></span><span class="oh-bv_strip-from">' + (low ? 'from ' + esc(low) : '') + '</span></div>' +
+        '<div class="oh-bv_chips"></div>';
+      var chips = strip.querySelector('.oh-bv_chips');
+      us.filter(function (u) { return u.status_key !== 'unreleased'; }).forEach(function (u) {
+        var btn = el('button', 'oh-bv_chip is-' + u.status_key); btn.type = 'button';
+        btn.setAttribute('data-unit', u.plot_id);
+        var sub = u.status_key === 'available' ? (price(u) || LABEL.available) : LABEL[u.status_key];
+        btn.innerHTML = '<span class="oh-bv_chip-no">' + esc(shortNo(u)) + '</span><span class="oh-bv_chip-sub">' + esc(sub) + '</span>';
+        btn.setAttribute('aria-label', 'Unit ' + u.unit_number + ', ' + sub);
+        btn.addEventListener('click', function () { sel = u; paintSelection(); pick(u); });
+        chips.appendChild(btn);
+      });
+      if (!chips.children.length) chips.innerHTML = '<span class="oh-bv_chips-empty">All homes on this floor are coming soon</span>';
+      strips.appendChild(strip);
+
+      /* floor button */
+      var tag = el('button', 'oh-bv_tag'); tag.type = 'button'; tag.setAttribute('data-floor', f);
+      tag.innerHTML = '<span class="oh-bv_swatch" style="background:' + TONE[f] + '"></span><span class="oh-bv_tag-text"><span class="oh-bv_tag-label">' + ORD[f] + ' floor</span><span class="oh-bv_tag-sub"></span></span>' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7e452f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>';
+      tag.addEventListener('click', function () { openFloor(f); });
+      tags.appendChild(tag);
+    });
+    paintCounts();
+  }
+
+  /* counts and dimming follow the filters */
+  function paintCounts() {
+    if (!cur || !bv) return;
+    [4, 3, 2, 1].forEach(function (f) {
+      var us = cur.units.filter(function (u) { return u.floor_level === f; });
+      var free = us.filter(function (u) { return u.status_key === 'available' && !isDimmed(u); }).length;
+      var soon = us.length && us.every(function (u) { return u.status_key === 'unreleased'; });
+      var txt = !salesOpen() ? (us.length + ' homes') : (free ? (free + ' of ' + us.length + ' available') : (soon ? 'Coming soon' : 'Sold out'));
+      var strip = bv.querySelector('.oh-bv_strip[data-floor="' + f + '"] .oh-bv_strip-count'); if (strip) strip.textContent = txt;
+      var tag = bv.querySelector('.oh-bv_tag[data-floor="' + f + '"] .oh-bv_tag-sub'); if (tag) tag.textContent = !salesOpen() ? (us.length + ' homes') : (free ? (free + ' of ' + us.length + ' free') : (soon ? 'Coming soon' : 'Sold out'));
+      var t = bv.querySelector('.oh-bv_tag[data-floor="' + f + '"]'); if (t) t.setAttribute('aria-label', 'Open the ' + ORD[f] + ' floor, ' + txt);
+    });
+    cur.units.forEach(function (u) {
+      var off = isDimmed(u);
+      bv.querySelectorAll('[data-unit="' + u.plot_id + '"]').forEach(function (n) { n.classList.toggle('is-dimmed', off); });
+    });
+  }
+  function paintSelection() {
+    if (!bv) return;
+    bv.querySelectorAll('.is-selected').forEach(function (n) { n.classList.remove('is-selected'); });
+    if (sel) bv.querySelectorAll('[data-unit="' + sel.plot_id + '"]').forEach(function (n) { n.classList.add('is-selected'); });
+  }
+
+  /* ---- layout + mode ---- */
+  var U = 1, S = 390, RW = 420, RH = 420 * 1026 / 1356, PLATE = 124, STRIP = 168, STACK = 88;
+  function measure() {
+    var w = bv.clientWidth || 390;
+    S = Math.min(w, 520); U = S / 390;
+    RW = 420 * U; RH = RW * 1026 / 1356; PLATE = 124 * U; STRIP = 168 * U; STACK = 88 * U;
+  }
+  /* hull bbox under the linear part of the camera, in plate px: used to place the stack */
+  function hullBox(k) {
+    var a = cam(k), xs = [], ys = [];
+    R.g.hull.forEach(function (p) {
+      var x = p[0] * PLATE / 1104, y = p[1] * PLATE / 1104;
+      xs.push(a[0] * x + a[2] * y); ys.push(a[1] * x + a[3] * y);
+    });
+    return { x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs), y0: Math.min.apply(null, ys), y1: Math.max.apply(null, ys) };
+  }
+  /* 2x2 linear part for scale k (plate px -> stage px): k * diag(1,cos tilt) * R(psi), column-major a b c d */
+  function cam(k) {
+    var psi = R.g.psi * Math.PI / 180, c = Math.cos(psi), s = Math.sin(psi), ct = Math.cos(TILT * Math.PI / 180);
+    return [k * c, k * ct * s, -k * s, k * ct * c];
+  }
+  function render() {
+    if (!cur || !bv) return;
+    measure();
+    var flat = mode === 'flat', inCtx = mode === 'block' || mode === 'merge', stack = mode === 'stack';
+    var left0 = (S - RW) / 2, top0 = 10 * U;                 /* render box in the stage */
+    var sR = RW / 1356;                                        /* render px -> stage px */
+    var kCtx = R.g.k * sR * 1104 / PLATE;                      /* plate px -> stage px, in context */
+    var kStack = kCtx * 0.78;
+    var tagsTop = top0 + RH + 14 * U;
+    var stageH = flat ? 4 * STRIP : (stack ? 4 * STACK + 130 * U + 80 * U : tagsTop + 2 * 56 * U + 86 * U);
+    var stage = bv.querySelector('.oh-bv_stage');
+    stage.style.height = stageH + 'px';
+    stage.style.width = S + 'px';
+    bv.classList.toggle('is-flat', flat); bv.classList.toggle('is-stack', stack); bv.classList.toggle('is-ctx', inCtx);
+    bv.setAttribute('data-mode', mode);
+    var img = bv.querySelector('.oh-bv_render');
+    img.style.cssText = 'left:' + left0 + 'px;top:' + top0 + 'px;width:' + RW + 'px;height:' + RH + 'px;opacity:' + (mode === 'block' ? 1 : 0);
+    var bands = bv.querySelector('.oh-bv_bands');
+    bands.style.cssText = 'left:' + left0 + 'px;top:' + top0 + 'px;width:' + RW + 'px;height:' + RH + 'px;opacity:' + (mode === 'block' ? 1 : 0) + ';pointer-events:' + (mode === 'block' ? 'auto' : 'none');
+    bv.querySelector('.oh-bv_mode-label').textContent = mode === 'block' ? 'Floors' : 'Block';
+    bv.querySelector('.oh-bv_mode').setAttribute('aria-label', mode === 'block' ? 'Open the block up into its floors' : 'Put the floors back into the block');
+    var hint = bv.querySelector('.oh-bv_hint');
+    hint.querySelector('.oh-bv_hint-title').textContent = 'Four floors, ' + cur.units.length + ' homes';
+    hint.querySelector('.oh-bv_hint-text').textContent = mode === 'block' ? 'Pick a floor, or tap the block to open it up.' : 'Pick a floor, or tap to lay them all out flat.';
+    hint.style.cssText = 'top:' + (stageH - 62 * U) + 'px;opacity:' + (flat ? 0 : 1);
+    var cover = bv.querySelector('.oh-bv_cover');
+    cover.style.display = flat ? 'none' : '';
+    cover.setAttribute('aria-label', mode === 'block' ? 'Open the block up into its floors' : 'Lay the floors out as plans');
+
+    var box = hullBox(stack ? kStack : kCtx);
+    [4, 3, 2, 1].forEach(function (f, i) {
+      var wrap = bv.querySelector('.oh-bv_wrap[data-floor="' + f + '"]');
+      var plate = wrap.firstChild;
+      var tf, shadow;
+      wrap.style.width = PLATE + 'px'; wrap.style.height = PLATE * 1093 / 1104 + 'px';
+      if (flat) {
+        tf = 'translate(' + (16 * U) + 'px,' + (i * STRIP + 30 * U) + 'px) rotateX(0deg) rotateZ(0deg) scale(1)';
+        shadow = 'drop-shadow(0 0 0 rgba(0,0,0,0))';
+      } else if (inCtx) {
+        var tx = R.g.tx * sR + left0, ty = R.g.ty[String(f)] * sR + top0;
+        tf = 'translate(' + tx + 'px,' + ty + 'px) rotateX(' + TILT + 'deg) rotateZ(' + R.g.psi + 'deg) scale(' + kCtx + ')';
+        shadow = 'drop-shadow(0 4px 0 #b9b6ae)';
+      } else {
+        var cx = S * 0.34, cy = 70 * U + i * STACK + (box.y1 - box.y0) / 2;
+        var tx2 = cx - (box.x0 + box.x1) / 2, ty2 = cy - (box.y0 + box.y1) / 2;
+        tf = 'translate(' + tx2 + 'px,' + ty2 + 'px) rotateX(' + TILT + 'deg) rotateZ(' + R.g.psi + 'deg) scale(' + kStack + ')';
+        shadow = 'drop-shadow(0 8px 0 #b9b6ae) drop-shadow(0 14px 10px rgba(95,77,63,.22))';
+      }
+      plate.style.transform = tf;
+      wrap.style.filter = shadow;
+      wrap.style.opacity = mode === 'block' ? 0 : 1;
+      wrap.style.pointerEvents = mode === 'block' ? 'none' : 'auto';
+      var strip = bv.querySelector('.oh-bv_strip[data-floor="' + f + '"]');
+      strip.style.cssText = 'top:' + (i * STRIP) + 'px;height:' + STRIP + 'px;opacity:' + (flat ? 1 : 0) + ';pointer-events:' + (flat ? 'auto' : 'none');
+      strip.querySelector('.oh-bv_chips').style.marginLeft = (PLATE + 12 * U) + 'px';
+      var tag = bv.querySelector('.oh-bv_tag[data-floor="' + f + '"]');
+      if (stack) {
+        tag.style.cssText = 'left:' + (S * 0.6) + 'px;top:' + (70 * U + i * STACK + (box.y1 - box.y0) / 2 - 24 * U) + 'px;width:' + (S * 0.36) + 'px;opacity:1';
+      } else {
+        tag.style.cssText = 'left:' + (i % 2 ? S / 2 + 4 * U : 16 * U) + 'px;top:' + (tagsTop + (i < 2 ? 0 : 56 * U)) + 'px;width:' + (S / 2 - 20 * U) + 'px;opacity:' + (flat ? 0 : 1) + (flat ? ';pointer-events:none' : '');
+      }
+    });
+    /* bands keep their tone for the plan of the same floor: tint the plate's outline */
+    bv.querySelectorAll('.oh-bv_wrap').forEach(function (w) { w.querySelector('.oh-bv_outline').setAttribute('stroke', flat ? '#5f4d3f' : TONE[w.getAttribute('data-floor')]); });
+    paintSelection();
+  }
+  function layout() { render(); }
+
+  /* ------------------------------------------------------------
+     Entry points
+     ------------------------------------------------------------ */
+  /* tapping a block hull on the site plan opens the block view (the plan's
+     own handler toggles the Block facet; this runs first and stops it) */
+  document.addEventListener('click', function (e) {
+    var p = e.target.closest && e.target.closest('.site-plan_map-svg .site-plan_block');
+    if (!p || !window.ohSitePlan) return;
+    var name = p.getAttribute('data-block'); if (!name) return;
+    if (window.ohMapView && window.ohMapView.dragging && window.ohMapView.dragging()) return;
+    e.stopPropagation(); e.preventDefault();
+    openBlock(name);
+  }, true);
+
+  function boot() {
+    if (!window.ohSitePlan || !units().length) { setTimeout(boot, 250); return; }
+    buildSwitch();
+    window.ohSitePlan.onChange(function () { if (estate) paintEstate(); paintCounts(); });
+    document.addEventListener('oh:sales-phase', function () { if (estate) paintEstate(); paintCounts(); });
+    var q = new URLSearchParams(location.search);
+    var b = q.get('block');
+    if (b && blockOf(b.toUpperCase())) {
+      var open = function () { openBlock(b.toUpperCase(), { floor: q.get('floor') }); };
+      if (document.documentElement.classList.contains('oh-reveal')) document.addEventListener('oh:map-revealed', open, { once: true });
+      else open();
+    } else if (q.get('view') === '3d') setEstate(true);
+  }
+  window.ohBlockView = {
+    open: openBlock, close: closeBlock, current: function () { return cur ? cur.name : null; },
+    mode: function () { return mode; }, go: go, floor: openFloor,
+    estate: setEstate, geo: GEO
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
