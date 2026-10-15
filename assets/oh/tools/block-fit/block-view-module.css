@@ -109,6 +109,11 @@ html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}
 /* phones (16 Oct): the render sits in its own viewport (max 50vh, set by the controller) and pans both ways;
    the chooser and its sticky button follow under it */
 .oh-estate.is-pan.is-fit{overflow-x:hidden;overflow-y:auto}
+/* the chooser takes the rest of the pane and its cards grow to fill it (Daniel, 16 Oct) */
+.unit-filter_map.is-oh-estate .oh-estate.is-pan.is-fit{display:flex;flex-direction:column}
+.oh-estate.is-pan.is-fit .oh-estate_viewport{flex:0 0 auto}
+.oh-estate.is-pan.is-fit .oh-estate_choose{flex:1 0 auto}
+.oh-estate.is-pan.is-fit .oh-estate_grid{flex:1 1 auto;grid-auto-rows:1fr;align-content:stretch}
 .oh-estate.is-pan.is-fit .oh-estate_viewport{position:relative;display:block;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;overscroll-behavior:contain}
 /* 3D view: no colour-by (the render is not coloured by status or type) */
 html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){display:none}
@@ -140,3 +145,6 @@ html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){dis
 }
 /* block view on phones (16 Oct): floor buttons one per row, label and count side by side */
 .oh-bv:not(.is-desk) .oh-bv_tag-text{display:flex;flex:1 1 auto;flex-direction:row;align-items:baseline;justify-content:space-between;gap:.75rem;min-width:0}
+/* the cookie-settings button (cookie-consent.js) floats over the chooser and the panel's sticky bar:
+   not on this page; the consent banner itself still shows to first-time visitors */
+.cookie-floating-button{display:none!important}

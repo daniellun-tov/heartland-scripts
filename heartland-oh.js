@@ -4068,7 +4068,8 @@ window.ohNativeSubmit = async function (form, doneText) {
     if (chooser) {
       /* the render sits in its own viewport, at most half the screen (and never more than the
          chooser leaves), and pans both ways over the enlarged picture */
-      var chH = chooser.offsetHeight || 300;
+      /* the chooser's own height, not the height it grows to when it fills the pane */
+      chooser.style.flex = '0 0 auto'; var chH = chooser.offsetHeight || 300; chooser.style.flex = '';
       vh = Math.round(Math.min(window.innerHeight * 0.5, Math.max(200, ph - chH)));
       fw = Math.max(pw * 1.9, 760); fh = fw * GEO.estate.frame[1] / GEO.estate.frame[0];
       if (fh < vh) { fh = vh; fw = fh * GEO.estate.frame[0] / GEO.estate.frame[1]; }
