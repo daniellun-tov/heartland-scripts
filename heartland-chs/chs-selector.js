@@ -67,8 +67,9 @@
   var UNRELEASED  = 'Unreleased';
 
   // Canvas cannot use Webflow classes. Keep in step with the CHS variables.
-  var INK = { gold: '#B79A63', navy: '#171B54', wash: 'rgba(246,243,236,.55)',
-              muted: 'rgba(32,34,84,.28)', mutedInk: 'rgba(255,255,255,.85)' };
+  // Golden Hour palette (Oct 2026): gold = CHS Gold #FF6B2C, navy = CHS Navy #1E1230.
+  var INK = { gold: '#FF6B2C', navy: '#1E1230', wash: 'rgba(255,246,234,.55)',
+              muted: 'rgba(30,18,48,.28)', mutedInk: 'rgba(255,255,255,.85)' };
 
   // bands: each floor's vertical slice of the stacked stage, 0-1 of stage height.
   // Measured from the plan images themselves - no hardcoded dimensions.
