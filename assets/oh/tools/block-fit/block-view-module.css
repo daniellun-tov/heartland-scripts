@@ -96,7 +96,6 @@ html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}
 .unit-details_stage .ud-media{transition:transform .25s ease}
 .unit-details_stage.is-oh-drag .ud-media{transition:none}
 /* "Where you'll be": the whole card opens it */
-.ud-block_fig{cursor:pointer}
 .ud-block_fig:focus-visible{outline:2px solid #af6042;outline-offset:3px}
 
 /* phone: Choose a block under the render */
@@ -148,3 +147,16 @@ html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){dis
 /* the cookie-settings button (cookie-consent.js) floats over the chooser and the panel's sticky bar:
    not on this page; the consent banner itself still shows to first-time visitors */
 .cookie-floating-button{display:none!important}
+/* unit panel (16 Oct): the tabs sit between the gallery and the specs, full width of the panel,
+   the active underline on the bar's own border; the bar and Reserve stay at the bottom on desktop */
+.unit-details_body{padding-top:0}
+.unit-details_scroll-nav{margin-left:-2rem;margin-right:-2rem;padding-left:2rem;padding-right:2rem}
+@media (max-width:991px){.unit-details_scroll-nav{margin-left:-1.25rem;margin-right:-1.25rem;padding-left:1.25rem;padding-right:1.25rem;overflow-x:auto;scrollbar-width:none}}
+.unit-details_nav-link{white-space:nowrap}
+.unit-details_actionbar{z-index:8}
+@media (min-width:992px){.unit-details_actionbar{box-shadow:0 -10px 14px -10px rgba(21,23,20,.22)}.unit-details_actionbar .button{width:auto}}
+/* share popover (desktop; phones get the system share sheet) */
+.oh-share.is-open{display:flex}
+/* "Where you'll be": only the estate card opens something */
+.ud-block_fig{cursor:default}
+.ud-block_fig[data-block-fig="estate"]{cursor:pointer}

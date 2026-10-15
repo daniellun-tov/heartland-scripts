@@ -80,13 +80,20 @@
       t.classList.toggle('is-active', on); t.setAttribute('aria-selected', on ? 'true' : 'false');
     });
     var pdf = q('[data-oh-fpv-dl="pdf"]'); if (pdf) { pdf.setAttribute('href', cur.pdf); pdf.setAttribute('download', fileName('pdf')); pdf.setAttribute('target', '_blank'); pdf.setAttribute('rel', 'noopener'); }
-    var im = q('[data-oh-fpv-dl="image"]'); if (im) im.setAttribute('href', src);
+    /* one download button (Daniel, 16 Oct): the plan as the architect's PDF, or the furnished 3D image */
+    var im = q('[data-oh-fpv-dl="image"]');
+    if (im) {
+      im.setAttribute('href', which === 'plan' ? cur.pdf : src);
+      var lab = im.querySelector('[data-oh-fpv-label]') || im.lastElementChild;
+      if (lab) lab.textContent = which === 'plan' ? 'Download floor plan' : 'Download 3D floor plan';
+    }
   }
   function fileName(ext) {
     return 'Oakhills ' + cur.title + (ext === 'pdf' ? ' floor plan.pdf' : (view === 'plan' ? ' line drawing' : ' 3D floor plan') + '.' + ext);
   }
   function download(kind) {
     if (!cur) return;
+    if (kind !== 'pdf' && view === 'plan') kind = 'pdf';   /* the single button: plan = PDF */
     var url = kind === 'pdf' ? cur.pdf : (view === 'plan' ? cur.plan : cur.img3d);
     var name = fileName(kind === 'pdf' ? 'pdf' : 'webp');
     /* the files live on the Webflow CDN (another origin), so a plain download

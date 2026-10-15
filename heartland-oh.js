@@ -3057,7 +3057,7 @@ window.ohNativeSubmit = async function (form, doneText) {
     var bar = panel.querySelector('[data-actionbar]');
     var stickyHead = null;
     if (bar) {
-      var mq = window.matchMedia('(min-width: 992px)');
+      var mq = window.matchMedia('(min-width: 99999px)');   /* 16 Oct: never - the bar stays at the bottom on desktop too */
       var place = function () {
         if (mq.matches) {
           if (!stickyHead) {
@@ -4842,7 +4842,8 @@ window.ohNativeSubmit = async function (form, doneText) {
   var EXPAND = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9"/></svg>';
   function expanders() {
     var box = q('.ud-block'); if (!box) return;
-    box.querySelectorAll('.ud-block_fig').forEach(function (fig) {
+    /* only the estate figure opens something (Daniel, 16 Oct): the floor figure is a picture */
+    box.querySelectorAll('.ud-block_fig[data-block-fig="estate"]').forEach(function (fig) {
       if (fig.querySelector('.ud-block_expand')) return;
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'ud-block_expand'; b.innerHTML = EXPAND;
@@ -4922,19 +4923,18 @@ window.ohNativeSubmit = async function (form, doneText) {
 
   /* ---- wiring ---- */
   document.addEventListener('oh:unit-open', function (e) { fill(e.detail && e.detail.unit); setTimeout(syncPrice, 50); setTimeout(syncPrice, 400); });
-  document.addEventListener('oh:unit-close', function () { cur = null; estateScreen(false); });
+  document.addEventListener('oh:unit-close', function () { cur = null; estateScreen(false); shareMenu(false); });
   document.addEventListener('click', function (e) {
     /* a swipe ends in a click: do not let it open the lightbox */
     if (swiped && Date.now() - swiped < 400 && e.target.closest && e.target.closest('[data-gallery="stage"]')) { e.preventDefault(); e.stopImmediatePropagation(); return; }
     var back = e.target.closest && e.target.closest('a[data-close-detail]');
     if (back) { e.preventDefault(); return; }   /* the plan module closes the panel */
     var sh = e.target.closest && e.target.closest('[data-oh-share]');
-    if (sh) {
-      e.preventDefault(); e.stopImmediatePropagation();
-      var w = q('[wized="v2_shareWhatsapp"]'); if (w) w.click();
-      return;
-    }
-    var t = e.target.closest && e.target.closest('[data-oh-fpbtn], .ud-block_expand, .ud-block_fig, [data-oh-es-back], [data-oh-es-tab], [data-oh-es-reserve]');
+    if (sh) { e.preventDefault(); e.stopImmediatePropagation(); share(); return; }
+    var via = e.target.closest && e.target.closest('[data-oh-share-via]');
+    if (via) { shareVia(via, e); return; }
+    if (!(e.target.closest && e.target.closest('[data-oh-native="share"]'))) shareMenu(false);
+    var t = e.target.closest && e.target.closest('[data-oh-fpbtn], .ud-block_expand, .ud-block_fig[data-block-fig="estate"], [data-oh-es-back], [data-oh-es-tab], [data-oh-es-reserve]');
     if (!t || !cur) return;
     e.preventDefault();
     if (t.hasAttribute('data-oh-fpbtn')) {
@@ -4962,7 +4962,46 @@ window.ohNativeSubmit = async function (form, doneText) {
       var r = q('[data-actionbar-reserve] a, [wized="v2_udReserveBtn"]'); if (r) r.click();
     }
   }, true);
+  /* ---- share: the system share sheet on phones, a small menu (email, WhatsApp, copy link) elsewhere ---- */
+  function shareData() {
+    var url = location.origin + location.pathname + (cur ? '?unit=' + encodeURIComponent(cur.unit_number) : '');
+    var title = cur ? 'Oakhills Estate · Unit ' + cur.unit_number : 'Oakhills Estate';
+    var text = cur ? 'Unit ' + cur.unit_number + ' at Oakhills Estate, Stellenbosch (Block ' + cur.block_name + ', ' + (cur.floor_label || '') + ' floor, Type ' + cur.type_code + ')' : 'Oakhills Estate, Stellenbosch';
+    return { url: url, title: title, text: text };
+  }
+  function shareMenu(on) {
+    var m = q('[data-oh-native="share"]'); if (!m) return;
+    m.classList.toggle('is-open', !!on);
+    var b = q('[data-oh-share]'); if (b) b.setAttribute('aria-expanded', on ? 'true' : 'false');
+    if (!on) { var c = m.querySelector('[data-oh-share-copied]'); if (c) c.textContent = 'Copy link'; }
+  }
+  function share() {
+    var d = shareData();
+    if (navigator.share && window.matchMedia('(pointer: coarse)').matches) {
+      navigator.share({ title: d.title, text: d.text, url: d.url }).catch(function () {});
+      return;
+    }
+    var m = q('[data-oh-native="share"]'); if (!m) return;
+    m.querySelector('[data-oh-share-via="email"]').setAttribute('href', 'mailto:?subject=' + encodeURIComponent(d.title) + '&body=' + encodeURIComponent(d.text + '\n\n' + d.url));
+    var wa = m.querySelector('[data-oh-share-via="whatsapp"]');
+    wa.setAttribute('href', 'https://wa.me/?text=' + encodeURIComponent(d.text + ' ' + d.url)); wa.setAttribute('target', '_blank'); wa.setAttribute('rel', 'noopener');
+    shareMenu(!m.classList.contains('is-open'));
+  }
+  function shareVia(el, e) {
+    var how = el.getAttribute('data-oh-share-via');
+    if (how === 'copy') {
+      e.preventDefault();
+      var d = shareData(), lab = el.querySelector('[data-oh-share-copied]');
+      var done = function () { if (lab) lab.textContent = 'Link copied'; setTimeout(function () { shareMenu(false); }, 1200); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(d.url).then(done, function () { window.prompt('Copy this link', d.url); });
+      else { window.prompt('Copy this link', d.url); }
+      return;
+    }
+    setTimeout(function () { shareMenu(false); }, 50);   /* email / WhatsApp: let the link open */
+  }
+
   document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { var sm = q('[data-oh-native="share"].is-open'); if (sm) { e.stopImmediatePropagation(); shareMenu(false); return; } }
     if (e.key !== 'Escape') return;
     var s = q('[data-oh-native="estate-screen"]'); if (s && s.classList.contains('is-open')) { e.stopImmediatePropagation(); estateScreen(false); }
   }, true);
