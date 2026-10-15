@@ -654,6 +654,7 @@ html:not(.sales-open) .oh-welcome_sales{display:none}
 .oh-estate_block.is-open{stroke:var(--oh-available);stroke-opacity:.4;stroke-width:1.5;fill:var(--oh-available);fill-opacity:.34}
 .oh-estate_block.is-open:hover,.oh-estate_block.is-open:focus-visible{fill-opacity:.48;stroke-opacity:.8}
 .oh-estate_block.is-phase2{fill:#6f6d68;fill-opacity:.55;stroke:#fff;stroke-opacity:.35;stroke-dasharray:6 5;cursor:default;pointer-events:none}
+.oh-estate:not(.is-pan) .oh-estate_block.is-phase2{pointer-events:visiblePainted}   /* desktop: hover shows the tooltip, a click does nothing */
 .oh-estate_block.is-dimmed{fill-opacity:0;stroke-opacity:.35}
 /* sold (16 Oct): red, semi-transparent, faint edge; beats the dimmed state, which every sold block also has */
 .oh-estate_block.is-sold,.oh-estate_block.is-sold.is-dimmed{fill:var(--oh-sold);fill-opacity:.34;stroke:var(--oh-sold);stroke-opacity:.35;stroke-width:1.5}
@@ -802,3 +803,6 @@ html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){dis
 /* "Where you'll be": only the estate card opens something */
 .ud-block_fig{cursor:default}
 .ud-block_fig[data-block-fig="estate"]{cursor:pointer}
+/* desktop estate (16 Oct): the wider picture fades into a dark pane; the hover tooltip */
+.unit-filter_map.is-oh-estate .oh-estate:not(.is-pan){background:#080808}
+.oh-estate_tip.is-open{display:flex}

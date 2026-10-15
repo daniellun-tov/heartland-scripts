@@ -34,7 +34,12 @@
 
   var GEO = __OH_BLOCK_GEO__;
 
-  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad07dd846fd3fd8d358d1ff_img-3d-estate-render-v2.webp';
+  /* 16 Oct: the whole render (VIEW 1 ALTERNATIVE, 8354x3800) with the surroundings in greyscale, so the
+     estate sits smaller in its context. The block outlines keep their 1110x706 frame (the old crop
+     at 880,28 5441x3459); VIEW is that crop's coordinate system extended to the full picture. */
+  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad0dde8089f23011d29a388_img-3d-estate-render-v3.webp';
+  var VIEW = { x: -179.52, y: -5.72, w: 1704.25, h: 775.62 };
+  var SITE_C = { x: 555, y: 353 };   /* the estate's middle, in outline coordinates */
   var TILT = 54.74;
   var TONE = { 4: '#491e0d', 3: '#7e452f', 2: '#af6042', 1: '#c7907b' };
   var ORD = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' };
@@ -128,6 +133,8 @@
     estate = document.querySelector('[data-oh-native="estate"]');
     if (!estate) { console.warn('[block-view] native estate view missing on the page'); return null; }
     var svg = estate.querySelector('.oh-estate_svg svg') || estate.querySelector('svg');
+    svg.setAttribute('viewBox', VIEW.x + ' ' + VIEW.y + ' ' + VIEW.w + ' ' + VIEW.h);
+    var tipEl = estate.querySelector('[data-oh-native="estate-tip"]');
     var img = estate.querySelector('.oh-estate_img');
     if (img && !img.getAttribute('src')) img.src = ESTATE_IMG;
     Object.keys(GEO.estate.paths).forEach(function (name) {
@@ -138,8 +145,9 @@
       var open = function () { if (p.classList.contains('is-phase2')) return; openBlock(name); };
       p.addEventListener('click', open);
       p.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
-      p.addEventListener('mouseenter', function () { caption(name); });
-      p.addEventListener('mouseleave', function () { caption(null); });
+      p.addEventListener('mouseenter', function (e) { caption(name); tip(name, e); });
+      p.addEventListener('mousemove', function (e) { tip(name, e); });
+      p.addEventListener('mouseleave', function () { caption(null); tip(null); });
     });
     /* availability markers, one per block, sitting on the building */
     var marks = svg.querySelector('.oh-estate_marks');
@@ -150,7 +158,7 @@
       for (var k = 0; k + 1 < nums.length; k += 2) pts.push([nums[k], nums[k + 1]]);
       var xs = pts.map(function (q) { return q[0]; }), ys = pts.map(function (q) { return q[1]; });
       var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2, cy = Math.min.apply(null, ys) + (Math.max.apply(null, ys) - Math.min.apply(null, ys)) * 0.42;
-      var g = svgEl('g', { 'class': 'oh-estate_mark', 'data-block': name, transform: 'translate(' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' });
+      var g = svgEl('g', { 'class': 'oh-estate_mark', 'data-block': name, 'data-cx': cx.toFixed(1), 'data-cy': cy.toFixed(1), transform: 'translate(' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' });
       g.appendChild(svgEl('rect', { x: -30, y: -13, width: 60, height: 26, rx: 13 }));
       var t = svgEl('text', { x: 0, y: 5, 'text-anchor': 'middle' }); t.textContent = name;
       g.appendChild(t);
@@ -178,8 +186,22 @@
     w.classList.toggle('is-oh-pan', pan);
     /* the caption pill must not pan with the picture: on phones it lives on the map wrapper */
     var cap = (estate.querySelector('.oh-estate_cap') || w.querySelector('.oh-estate_cap'));
-    if (cap) { if (pan && cap.parentNode !== w) w.appendChild(cap); else if (!pan && cap.parentNode !== frame) frame.appendChild(cap); }
-    if (!pan) { frame.style.cssText = ''; estate.classList.remove('is-fit'); var v0 = viewport(); if (v0 !== estate) v0.style.cssText = ''; return; }
+    if (cap) { if (pan && cap.parentNode !== w) w.appendChild(cap); else if (!pan && cap.parentNode !== estate) estate.appendChild(cap); }
+    if (!pan) {
+      /* desktop: the estate about 4/5 of the pane wide, centred, the greyscale surroundings around it
+         (the picture's edges fade to the pane's dark background) */
+      estate.classList.remove('is-fit'); var v0 = viewport(); if (v0 !== estate) v0.style.cssText = '';
+      var Wd = pw * 1.18, Hd = Wd * VIEW.h / VIEW.w;
+      if (Hd > ph) { Hd = ph; Wd = Hd * VIEW.w / VIEW.h; }
+      var left = pw / 2 - (SITE_C.x - VIEW.x) / VIEW.w * Wd;
+      if (Wd > pw) left = Math.min(0, Math.max(pw - Wd, left)); else left = (pw - Wd) / 2;
+      var top = ph / 2 - (SITE_C.y - VIEW.y) / VIEW.h * Hd;
+      top = Hd > ph ? Math.min(0, Math.max(ph - Hd, top)) : Math.max(0, Math.min(ph - Hd, top));
+      frame.style.cssText = 'position:absolute;left:' + left.toFixed(1) + 'px;top:' + top.toFixed(1) + 'px;width:' + Wd.toFixed(1) + 'px;height:' + Hd.toFixed(1) + 'px;right:auto;bottom:auto';
+      scaleMarks(Wd);
+      return;
+    }
+    scaleMarks(0);
     var chooser = estate.querySelector('[data-oh-native="choose"]');
     var vp = viewport();
     var fw, fh, vh = ph;
@@ -189,23 +211,25 @@
       /* the chooser's own height, not the height it grows to when it fills the pane */
       chooser.style.flex = '0 0 auto'; var chH = chooser.offsetHeight || 300; chooser.style.flex = '';
       vh = Math.round(Math.min(window.innerHeight * 0.5, Math.max(200, ph - chH)));
-      fw = Math.max(pw * 1.9, 760); fh = fw * GEO.estate.frame[1] / GEO.estate.frame[0];
-      if (fh < vh) { fh = vh; fw = fh * GEO.estate.frame[0] / GEO.estate.frame[1]; }
+      /* the estate at the same size as before the wider picture: 1.9x the pane across the old crop */
+      fw = Math.max(pw * 1.9, 760) * VIEW.w / 1110; fh = fw * VIEW.h / VIEW.w;
+      if (fh < vh) { fh = vh; fw = fh * VIEW.w / VIEW.h; }
       estate.classList.add('is-fit');
       if (vp !== estate) vp.style.cssText = 'height:' + vh + 'px';
       frame.style.cssText = 'position:relative;width:' + fw + 'px;height:' + fh + 'px';
     } else {
-      fw = Math.max(pw * 1.9, 760); fh = fw * GEO.estate.frame[1] / GEO.estate.frame[0];
+      fw = Math.max(pw * 1.9, 760) * VIEW.w / 1110; fh = fw * VIEW.h / VIEW.w;
       frame.style.cssText = 'position:relative;width:' + fw + 'px;height:' + Math.max(fh, ph) + 'px';
     }
     if (!estate.getAttribute('data-oh-panned')) {
-      var x0 = (fw - pw) / 2 + fw * 0.02, y0 = chooser ? (fh - vh) / 2 : Math.max(0, (Math.max(fh, ph) - ph) / 2);
+      var x0 = Math.min(Math.max(0, (SITE_C.x - VIEW.x) / VIEW.w * fw - pw / 2), fw - pw);
+      var y0 = chooser ? Math.min(Math.max(0, (SITE_C.y - VIEW.y) / VIEW.h * fh - vh / 2), fh - vh) : Math.max(0, (Math.max(fh, ph) - ph) / 2);
       if (chooser && chosen && GEO.estate.paths[chosen]) {
         /* start with the picked block in view */
         var nn = (GEO.estate.paths[chosen].match(/-?\d+\.?\d*/g) || []).map(Number), bx = [], by = [];
         for (var q = 0; q + 1 < nn.length; q += 2) { bx.push(nn[q]); by.push(nn[q + 1]); }
-        var cxp = (Math.min.apply(null, bx) + Math.max.apply(null, bx)) / 2 / GEO.estate.frame[0] * fw;
-        var cyp = (Math.min.apply(null, by) + Math.max.apply(null, by)) / 2 / GEO.estate.frame[1] * fh;
+        var cxp = ((Math.min.apply(null, bx) + Math.max.apply(null, bx)) / 2 - VIEW.x) / VIEW.w * fw;
+        var cyp = ((Math.min.apply(null, by) + Math.max.apply(null, by)) / 2 - VIEW.y) / VIEW.h * fh;
         x0 = Math.min(Math.max(0, cxp - pw * 0.35), fw - pw);
         y0 = Math.min(Math.max(0, cyp - vh * 0.45), fh - vh);
       }
@@ -215,10 +239,40 @@
       if (vp !== estate) estate.scrollTop = 0;
     }
   }
+  /* the availability pills keep one size on screen (about 12 px text) however big the picture is drawn */
+  function scaleMarks(drawnW) {
+    var k = estate.classList.contains('is-pan') ? 1 : Math.max(0.6, Math.min(1.6, 0.72 / (drawnW / VIEW.w)));
+    estate.querySelectorAll('.oh-estate_mark').forEach(function (g) {
+      g.setAttribute('transform', 'translate(' + g.getAttribute('data-cx') + ' ' + g.getAttribute('data-cy') + ') scale(' + k.toFixed(3) + ')');
+    });
+  }
   /* phones: the element that pans the render (the native viewport; the estate itself as a fallback) */
   function viewport() {
     var v = estate && estate.querySelector('[data-oh-estate="viewport"]');
     return v && estate.classList.contains('is-pan') && estate.querySelector('[data-oh-native="choose"]') ? v : estate;
+  }
+  /* desktop: a tooltip that follows the pointer over a block */
+  function tip(name, e) {
+    var el = estate && estate.querySelector('[data-oh-native="estate-tip"]'); if (!el) return;
+    if (!name || estate.classList.contains('is-pan')) { el.classList.remove('is-open'); return; }
+    var b = blockOf(name); if (!b) { el.classList.remove('is-open'); return; }
+    var set = function (k, t) { var n = el.querySelector('[data-oh-tip="' + k + '"]'); if (n) { n.textContent = t; n.style.display = t ? '' : 'none'; } };
+    var av = availCount(b.units), open = salesOpen();
+    var soon = b.units.every(function (u) { return u.status_key === 'unreleased'; });
+    var phase2 = soon && open;
+    var prices = b.units.filter(function (u) { return u.status_key === 'available' && !u.prices_hidden && u.price_value; }).map(function (u) { return Number(u.price_value); });
+    var from = prices.length ? Math.min.apply(null, prices) : 0;
+    set('title', 'Block ' + b.name);
+    set('sub', !open ? b.units.length + ' homes' : (phase2 ? 'Coming soon · ' + b.units.length + ' homes in a later release' : (av ? av + ' of ' + b.units.length + ' homes available' : 'Sold out')));
+    set('price', open && av && from ? 'From R ' + Math.round(from).toLocaleString('en-ZA').replace(/,/g, ' ') : '');
+    set('hint', phase2 ? '' : 'Click to open the block');
+    el.classList.add('is-open');
+    if (e) {
+      var r = estate.getBoundingClientRect(), x = e.clientX - r.left + 16, y = e.clientY - r.top + 16;
+      if (x + el.offsetWidth > r.width - 8) x = e.clientX - r.left - el.offsetWidth - 16;
+      if (y + el.offsetHeight > r.height - 8) y = e.clientY - r.top - el.offsetHeight - 16;
+      el.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px)';
+    }
   }
   function caption(name) {
     var cap = estate && (estate.querySelector('.oh-estate_cap') || mapWrap().querySelector('.oh-estate_cap')); if (!cap) return;
@@ -293,8 +347,8 @@
       var nums = (GEO.estate.paths[name].match(/-?\d+\.?\d*/g) || []).map(Number), xs = [], ys = [];
       for (var k = 0; k + 1 < nums.length; k += 2) { xs.push(nums[k]); ys.push(nums[k + 1]); }
       if (fw && xs.length) {
-        var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 / GEO.estate.frame[0] * fw;
-        var cy = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2 / GEO.estate.frame[1] * frame.offsetHeight;
+        var cx = ((Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 - VIEW.x) / VIEW.w * fw;
+        var cy = ((Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2 - VIEW.y) / VIEW.h * frame.offsetHeight;
         estate.setAttribute('data-oh-panned', '1');
         var sc = viewport();
         try { sc.scrollTo({ left: cx - sc.clientWidth / 2, top: Math.max(0, cy - sc.clientHeight * 0.45), behavior: 'smooth' }); } catch (e2) { sc.scrollLeft = cx - sc.clientWidth / 2; }

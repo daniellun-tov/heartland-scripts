@@ -3916,7 +3916,12 @@ window.ohNativeSubmit = async function (form, doneText) {
 
   var GEO = {"frame": {"drawing": [1104, 1093], "render": [1356, 1026], "band": [860, 640]}, "drawings": {"a": {"units": {"01": [[65.8, 1001.3], [374.3, 1001.3], [374.3, 788.7], [158.6, 788.7], [158.6, 809.7], [87.8, 809.7], [87.8, 801.6], [65.8, 801.6], [65.8, 1001.3]], "02": [[65.8, 569.6], [374.3, 569.6], [374.3, 782.3], [158.6, 782.3], [158.6, 761.3], [87.8, 761.3], [87.8, 769.4], [65.8, 769.4], [65.8, 569.6]], "03": [[286.8, 224.8], [286.8, 531.9], [500.4, 531.9], [500.4, 317.1], [479.3, 317.1], [479.3, 246.7], [487.5, 246.7], [487.5, 224.8], [286.8, 224.8]], "04": [[720.0, 224.8], [720.0, 531.9], [506.4, 531.9], [506.4, 317.1], [527.5, 317.1], [527.5, 246.7], [519.3, 246.7], [519.3, 224.8], [720.0, 224.8]], "05": [[938.6, 569.3], [630.1, 569.3], [630.1, 781.9], [845.8, 781.9], [845.8, 760.9], [916.6, 760.9], [916.6, 769.0], [938.6, 769.0], [938.6, 569.3]], "06": [[938.6, 1000.8], [630.1, 1000.8], [630.1, 788.2], [845.8, 788.2], [845.8, 809.1], [916.6, 809.1], [916.6, 801.0], [938.6, 801.0], [938.6, 1000.8]]}}, "b1": {"units": {"01": [[78.0, 817.0], [325.3, 817.0], [325.3, 1017.4], [78.0, 1017.4], [78.0, 817.0]], "02": [[77.6, 809.5], [324.9, 809.5], [324.9, 641.1], [153.6, 641.1], [153.6, 662.2], [113.3, 662.2], [113.3, 641.1], [77.6, 641.1], [77.6, 809.5]], "03": [[78.0, 468.3], [325.3, 468.3], [325.3, 636.7], [154.0, 636.7], [154.0, 615.6], [113.7, 615.6], [113.7, 636.7], [78.0, 636.7], [78.0, 468.3]], "04": [[327.7, 81.1], [545.1, 81.1], [545.1, 111.6], [536.1, 111.6], [536.1, 146.2], [536.1, 188.3], [559.5, 188.3], [559.5, 422.7], [390.0, 422.7], [327.7, 422.7], [327.7, 81.1]], "05": [[797.0, 80.9], [579.7, 80.9], [579.7, 111.4], [588.6, 111.4], [588.6, 145.9], [588.6, 188.0], [565.3, 188.0], [565.3, 422.5], [734.7, 422.5], [797.0, 422.5], [797.0, 80.9]], "06": [[699.1, 461.0], [1040.6, 461.0], [1040.6, 680.2], [1011.9, 680.2], [1011.9, 669.4], [934.9, 669.3], [934.9, 699.3], [791.1, 699.3], [699.1, 699.3], [699.1, 461.0]], "07": [[699.9, 931.5], [1040.8, 931.5], [1040.8, 714.0], [1012.1, 714.0], [1012.1, 723.0], [935.4, 723.1], [935.4, 693.2], [791.8, 693.2], [699.9, 693.2], [699.9, 931.5]]}}, "b2": {"units": {"01": [[107.3, 835.1], [390.8, 835.1], [390.8, 1065.6], [183.7, 1065.6], [183.7, 1052.3], [107.3, 1052.3], [107.3, 835.1]], "02": [[107.3, 646.7], [390.8, 646.7], [390.8, 834.6], [183.7, 834.6], [107.3, 834.6], [107.3, 646.7]], "03": [[107.3, 459.5], [390.8, 459.5], [390.8, 647.9], [183.7, 647.9], [107.3, 647.9], [107.3, 459.5]], "04": [[288.2, 41.3], [537.3, 41.3], [537.3, 410.1], [355.4, 410.1], [288.2, 410.1], [288.2, 41.3]], "05": [[544.0, 41.3], [794.6, 41.3], [794.6, 410.1], [611.5, 410.1], [544.0, 410.1], [544.0, 41.3]], "06": [[689.2, 479.4], [1030.8, 479.4], [1030.8, 698.6], [1002.0, 698.6], [1002.0, 687.9], [925.1, 687.7], [925.1, 717.7], [781.3, 717.7], [689.2, 717.7], [689.2, 479.4]], "07": [[690.1, 949.9], [1050.9, 949.9], [1050.9, 722.2], [1026.6, 722.2], [1026.6, 733.9], [944.5, 733.9], [944.5, 709.0], [787.3, 709.0], [690.1, 709.0], [690.1, 949.9]]}}}, "renders": {"a1": {"drawing": "a", "hull": [[65.8, 1001.3], [374.3, 1001.3], [374.3, 794.8], [630.1, 794.8], [630.1, 1000.8], [938.6, 1000.8], [938.6, 569.3], [632.1, 569.3], [632.1, 531.9], [720.0, 531.9], [720.0, 224.8], [286.8, 224.8], [286.8, 531.9], [372.3, 531.9], [372.3, 569.6], [65.8, 569.6]], "psi": 224.896, "k": 0.82482, "tx": 588.28, "ty": {"1": 1006.5, "2": 951.13, "3": 895.75, "4": 840.38}, "bands": {"1": ["M188.81 427.567V394.732L346.976 483.158L460.107 425.598L463.704 426.705V456.426L459.839 454.217L346.976 518.871L335.785 512.234V509.868L203.401 433.179L200.63 434.256L188.81 427.567Z", "M559.867 492.832L463.718 441.656V412.483L556.376 462.206L718.698 369.293V398.305V401.622L707.253 407.871L704.532 406.659L571.903 483.255V486.358L559.867 492.832Z"], "2": ["M188.81 394.285L189.041 361.074L347.144 451.089L459.712 388.96L463.465 390.518V420.367L459.712 418.816L346.785 485.365L188.81 394.285Z", "M556.594 461.625L463.474 409.336V376.618L557.108 427.601L718.698 333.631V367.644L556.594 461.625Z"], "3": ["M188.81 359.828L189.041 326.617L347.144 416.632L459.712 354.503L463.465 356.061V385.909L459.712 384.359L346.785 450.908L188.81 359.828Z", "M556.594 427.167L463.474 374.878V342.161L557.108 393.144L718.698 299.174V333.187L556.594 427.167Z"], "4": ["M188.81 325.201L189.041 291.99L347.144 382.005L459.712 319.876L463.465 321.434V351.283L459.712 349.732L346.785 416.281L188.81 325.201Z", "M556.594 392.541L463.474 340.252V307.534L557.108 358.517L718.698 264.547V298.56L556.594 392.541Z"]}}, "a2": {"drawing": "a", "hull": [[65.8, 1001.3], [374.3, 1001.3], [374.3, 794.8], [630.1, 794.8], [630.1, 1000.8], [938.6, 1000.8], [938.6, 569.3], [632.1, 569.3], [632.1, 531.9], [720.0, 531.9], [720.0, 224.8], [286.8, 224.8], [286.8, 531.9], [372.3, 531.9], [372.3, 569.6], [65.8, 569.6]], "psi": 133.647, "k": 0.68462, "tx": 1252.99, "ty": {"1": 534.64, "2": 486.14, "3": 437.65, "4": 389.15}, "bands": {"1": ["M198.433 324.68V296.801V294.977L331.535 370.652V366.427L337.848 364.706L340.561 364.132H342.022L375.1 347.231V342.901L382.509 339.197L386.631 338.363V337.163L395.187 334.868L395.5 333.459H398.474V332.468L400.717 331.634L407.03 329.286H409.535H412.3V349.265L430.508 356.414L435.726 359.176L437.59 361.263H440.891L449.761 365.592L452.578 367.627L461.724 373L463.721 374.199H467.264L491.798 387.397L498.752 389.588H503.552L506.211 390.793L638.222 315.809V344.69L512.254 416.927L510.068 416.051L512.501 414.543L512.254 411.669L508.144 410.001L506.211 411.136L505.132 410.733L504.371 411.136L497.818 408.286H497.072L496.859 408.579L496.113 408.952H495.554L494.222 409.485L491.798 408.153V404.93L467.264 394.091L463.721 396.062L461.724 395.369V391.907L441.212 382.772L437.59 384.29L435.404 383L409.256 368.501L406.77 367.067V356.414L330.089 400.678L198.433 324.68Z"], "2": ["M198.68 297.308L198.433 266.064L330.17 340.581L408.784 298.029V325.775L330.17 373.465L198.68 297.308Z", "M498.634 394.915L408.734 344.321V315.195L499.218 367.181L638.223 288.725V316.792L498.634 394.915Z"], "3": ["M198.681 264.187L198.433 232.885L330.416 307.541L409.176 264.909V292.707L330.416 340.486L198.681 264.187Z", "M499.194 361.974L409.126 311.286V282.106L499.779 334.189L639.043 255.586V283.706L499.194 361.974Z"], "4": ["M198.433 236.158V207.051L330.79 281.695L398.003 243.719L401.03 245.549L406.24 247.661L406.803 249.35L409.968 251.345V265.287L330.79 313.08L198.433 236.158Z", "M499.689 334.583L409.968 283.942L409.901 254.745L500.274 306.778L639.043 228.41V256.404L499.689 334.583Z"]}}, "a3": {"drawing": "a", "hull": [[65.8, 1001.3], [374.3, 1001.3], [374.3, 794.8], [630.1, 794.8], [630.1, 1000.8], [938.6, 1000.8], [938.6, 569.3], [632.1, 569.3], [632.1, 531.9], [720.0, 531.9], [720.0, 224.8], [286.8, 224.8], [286.8, 531.9], [372.3, 531.9], [372.3, 569.6], [65.8, 569.6]], "psi": 135.468, "k": 0.73666, "tx": 1260.68, "ty": {"1": 665.36, "2": 610.73, "3": 556.09, "4": 501.46}, "bands": {"1": ["M163.112 325.919V300.136L257.802 352.854L358.381 297.637V299.577L354.584 304.841V329.537L257.802 380.438L163.112 325.919Z", "M473.389 504.075L358.05 439.07L358.05 412.796L473.389 473.703L630.874 383.518V414.945L473.389 504.075Z"], "2": ["M162.974 291.998V264.256L257.693 316.989L358.301 261.756V263.697V289.282L257.693 344.582L162.974 291.998Z", "M473.342 474.459L357.97 406.307V376.033L473.343 440.95L630.874 350.738V383.854L473.342 474.459Z"], "3": ["M162.918 258.101V230.356L257.648 283.096L358.268 227.855V229.797V255.385L257.648 310.691L162.918 258.101Z", "M473.324 440.583L357.937 372.423V342.145L473.324 407.07L630.874 316.848V349.968L473.324 440.583Z"], "4": ["M162.918 226.059V195.934L257.535 251.024L358.035 196.803V197.788V225.089L257.535 280.723L162.918 226.059Z", "M472.953 406.396L357.704 338.318V305.937L472.953 370.393L630.874 280.723L630.315 315.889L472.953 406.396Z"]}}, "b1": {"drawing": "b1", "hull": [[78.0, 468.3], [78.0, 1017.4], [325.3, 1017.4], [324.9, 696.3], [699.1, 696.3], [699.9, 931.5], [1040.8, 931.5], [1040.6, 461.0], [701.1, 461.0], [701.1, 422.5], [797.0, 422.5], [797.0, 80.9], [327.7, 81.1], [323.3, 468.3]], "psi": 221.388, "k": 0.72716, "tx": 716.23, "ty": {"1": 887.49, "2": 840.2, "3": 792.92, "4": 745.63}, "bands": {"1": ["M202.632 393.048V364.992L357.658 452.638L474.7 390.689V419.411L359.77 484.318L202.632 393.048Z", "M569.564 445.508L485.688 399.174V366.026L573.642 411.628L735.794 318.266V349.663L569.564 445.508Z"], "2": ["M202.783 358.795L203.078 326.289L357.568 414.62L474.759 351.525V385.165L359.683 450.155L202.783 358.795Z", "M569.742 418.927L485.759 372.534V339.344L573.826 385.004L736.183 291.523V322.961L569.742 418.927Z"], "3": ["M202.783 327.568L203.078 295.062L357.568 383.393L474.759 320.298V353.939L359.683 418.928L202.783 327.568Z", "M569.742 387.7L485.759 341.307V308.117L573.826 353.778L736.183 260.297V291.734L569.742 387.7Z"], "4": ["M202.783 303.975L203.077 271.49L357.466 359.762L474.908 298.122V330.275L359.579 395.274L202.783 303.975Z", "M569.889 355.821L485.926 309.314L485.926 290.317L501.301 289.218L530.588 306.513L547.198 326.445L560.856 319.062L569.889 324.614L736.183 228.213V259.762L569.889 355.821Z"]}}, "b2": {"drawing": "b2", "hull": [[107.3, 1065.6], [390.8, 1065.6], [390.8, 711.7], [690.1, 711.7], [690.1, 949.9], [1050.9, 949.9], [1050.9, 709.0], [692.1, 709.0], [692.1, 410.1], [794.6, 410.1], [794.6, 41.3], [288.2, 41.3], [288.2, 410.1], [388.8, 410.1], [388.8, 459.5], [107.3, 459.5]], "psi": 220.779, "k": 0.65401, "tx": 692.42, "ty": {"1": 853.19, "2": 802.08, "3": 750.97, "4": 699.87}, "bands": {"1": ["M200.339 392.399V362.641L355.041 451.698L470.44 390.429V418.214L354.747 483.357L200.339 392.399Z", "M522.501 431.043L470.152 402.075L470.152 371.232L522.501 398.705L692.663 301.305L692.663 333.634L522.501 431.043Z"], "2": ["M200.452 360.127V330.391L355.04 419.382L470.354 358.159V385.923L354.747 451.017L200.452 360.127Z", "M522.376 398.744L470.066 369.797L470.066 338.977L522.376 366.43L692.412 269.102L692.412 301.407L522.376 398.744Z"], "3": ["M200.452 325.416V295.68L355.04 384.671L470.354 323.448V351.212L354.747 416.306L200.452 325.416Z", "M522.376 364.033L470.066 335.086L470.066 304.266L522.376 331.719L692.412 234.391L692.412 266.696L522.376 364.033Z"], "4": ["M200.452 296.368V266.631L355.04 355.622L470.354 294.399V322.163L354.747 387.258L200.452 296.368Z", "M522.376 334.981L470.066 306.034V278.156L500.515 295.493L506.847 302.666H522.376L692.412 205.338L692.412 237.643L522.376 334.981Z"]}}}, "estate": {"frame": [1110, 706], "paths": {"A": "M377.2 258.5 L365.3 240.6 L357.6 240.6 L299 259.9 L299 268.8 L293.6 267.9 L274.1 286.6 L274.1 330 L307.6 355.3 L346.3 343.4 L372.9 362.5 L420.6 346.2 L420.6 291.9 L409.2 274.1 L396.3 274.1 L377.2 280.9 L377.2 258.5 Z", "B": "M229.4 167.4 L216.3 148 L207 148.7 L148.5 166.9 L148.5 176.8 L143.9 175.7 L123.6 194 L123.6 242.7 L166.3 277 L204.3 262.7 L220.7 274.8 L282.8 253.1 L282.8 237.5 L280.2 236 L280.2 196.7 L271.4 184.1 L246.6 191 L244.3 189.6 L229.4 194.3 L229.4 167.4 Z", "C": "M364.2 112.1 L351.9 93 L336.7 94.9 L285.4 112.8 L285.4 121.7 L281.2 120.6 L279.9 120.4 L269.9 129.9 L259.9 139.4 L260.2 187.1 L271.5 184.1 L280.5 196.7 L280.5 205.9 L301.8 222.2 L339.4 207.8 L348 214.5 L411.2 192.1 L411.2 177.2 L408.5 175 L408.5 135.4 L400.4 123.9 L391.6 125 L374.4 130.1 L371.9 128.2 L364.2 130.7 L364.2 112.1 Z", "D": "M490.6 71.4 L477.9 52.1 L462.7 54 L410.6 70.9 L410.6 80.7 L406.1 80.1 L385.9 98 L385.9 126.6 L390.6 124.7 L400.5 123.8 L408.4 135.4 L408.4 164 L428 180.6 L466.1 166.1 L475.3 172.7 L537.2 151.7 L537.2 136.1 L534.4 134.1 L534.4 95.2 L526.1 82.4 L519.5 82.4 L499.6 89.3 L498 87.4 L490.6 89.9 L490.6 71.4 Z", "E": "M574 179.9 L562.6 160.9 L548.4 162.8 L495.8 180.7 L495.8 189.5 L490.5 188.4 L471.1 207 L471.1 247.5 L507.3 274.4 L543.9 259.9 L559.2 271.1 L575.5 256.2 L580.5 257.3 L580.5 248.1 L617.9 235.3 L617.9 214.1 L605.5 193.9 L592.8 195.3 L578.6 200.4 L576.1 198.2 L574 198.9 L574 179.9 Z", "F": "M633.2 230.6 L617.7 235.3 L580.1 248.2 L580.1 257.3 L575.3 256.5 L557.6 272.2 L557.3 273.8 L555.4 275.1 L555.4 317.6 L592.8 343.6 L630.9 328.5 L645 336.9 L660.3 323.6 L664.8 324.8 L664.8 315.9 L703.1 302.2 L703.1 281 L689.8 261.9 L679.3 263.1 L663.9 268.3 L661.1 266 L659.5 266.8 L659.5 247.7 L648 229.1 L633.2 230.6 Z", "G": "M743.6 315.2 L732.1 296.2 L717.6 297.8 L664.8 315.4 L664.8 324.8 L659.9 323.7 L642.9 338.2 L642.9 341.3 L640.4 342.8 L640.4 382.8 L676.3 409.3 L713.5 396.1 L735.2 409.3 L741.2 406.5 L741.2 405.5 L743.9 404 L743.9 402.1 L761.5 386.2 L766.1 387.2 L766.1 377.8 L787.4 370.6 L787.4 348.9 L775 329.4 L763 331 L748.2 335.8 L745.5 334.2 L743.6 334.4 L743.6 315.2 Z", "H": "M845.5 377.8 L833.7 359.2 L819.9 360 L766.1 378.1 L766 387.3 L761.5 386.3 L743.9 402.2 L743.9 404 L740.9 405.6 L740.9 446 L776.9 472.3 L817.7 458.1 L834.5 465.2 L845.5 467.8 L875.3 458.9 L875.3 457.8 L889.7 444.6 L889.7 409.9 L876.1 392 L867.1 393 L849.7 398.3 L846.7 396.5 L845.5 396.5 L845.5 377.8 Z", "I": "M913.1 446.1 L893.1 441.5 L876.1 457.2 L876.1 477.7 L868.1 481 L845.4 468 L826.9 462.8 L809.7 479.2 L809.7 480.7 L806.2 482.7 L806.2 498.5 L824.8 513.1 L824.8 538.6 L845.8 555.1 L867.9 545.4 L891.6 563.9 L950.2 542.5 L950.2 500.5 L947.9 497.1 L947.9 474.5 L949.6 473.2 L913.1 446.1 Z", "J": "M789 486.7 L770.4 481.4 L753.5 497.8 L753.5 517.2 L744.2 519.7 L721.4 507.5 L704.3 503.3 L684.8 522 L684.8 573.8 L731.6 609.9 L756.2 601.1 L773.7 614.1 L826.1 596.5 L826.1 541.2 L824.9 539.1 L824.9 513.4 L789 486.7 Z", "K": "M644.7 434.2 L635.6 418.9 L620.3 418.9 L566.9 437.2 L566.9 514.3 L605.1 543.9 L646.5 531.1 L649.6 534 L684.8 522 L705.3 503.6 L708.9 503.6 L708.9 457.9 L675.3 431.5 L653.1 426.1 L644.7 434.2 Z", "L": "M544.3 350.7 L532.5 348 L521.4 358.4 L521.7 384.3 L510.3 389.1 L501.9 383.1 L497.8 384.3 L487 376.6 L469.6 371.8 L451.8 387.7 L451.8 390.1 L449.4 391 L449.4 432.3 L458.5 439.4 L458.5 447.1 L487.9 469.3 L510.2 461.3 L538.3 482.9 L566.8 473.5 L566.8 437 L591 428.6 L591 412.2 L590.5 411.3 L590.5 408.9 L585.8 400.7 L585.8 382.3 L544.3 350.7 Z"}}};
 
-  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad07dd846fd3fd8d358d1ff_img-3d-estate-render-v2.webp';
+  /* 16 Oct: the whole render (VIEW 1 ALTERNATIVE, 8354x3800) with the surroundings in greyscale, so the
+     estate sits smaller in its context. The block outlines keep their 1110x706 frame (the old crop
+     at 880,28 5441x3459); VIEW is that crop's coordinate system extended to the full picture. */
+  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad0dde8089f23011d29a388_img-3d-estate-render-v3.webp';
+  var VIEW = { x: -179.52, y: -5.72, w: 1704.25, h: 775.62 };
+  var SITE_C = { x: 555, y: 353 };   /* the estate's middle, in outline coordinates */
   var TILT = 54.74;
   var TONE = { 4: '#491e0d', 3: '#7e452f', 2: '#af6042', 1: '#c7907b' };
   var ORD = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' };
@@ -4010,6 +4015,8 @@ window.ohNativeSubmit = async function (form, doneText) {
     estate = document.querySelector('[data-oh-native="estate"]');
     if (!estate) { console.warn('[block-view] native estate view missing on the page'); return null; }
     var svg = estate.querySelector('.oh-estate_svg svg') || estate.querySelector('svg');
+    svg.setAttribute('viewBox', VIEW.x + ' ' + VIEW.y + ' ' + VIEW.w + ' ' + VIEW.h);
+    var tipEl = estate.querySelector('[data-oh-native="estate-tip"]');
     var img = estate.querySelector('.oh-estate_img');
     if (img && !img.getAttribute('src')) img.src = ESTATE_IMG;
     Object.keys(GEO.estate.paths).forEach(function (name) {
@@ -4020,8 +4027,9 @@ window.ohNativeSubmit = async function (form, doneText) {
       var open = function () { if (p.classList.contains('is-phase2')) return; openBlock(name); };
       p.addEventListener('click', open);
       p.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
-      p.addEventListener('mouseenter', function () { caption(name); });
-      p.addEventListener('mouseleave', function () { caption(null); });
+      p.addEventListener('mouseenter', function (e) { caption(name); tip(name, e); });
+      p.addEventListener('mousemove', function (e) { tip(name, e); });
+      p.addEventListener('mouseleave', function () { caption(null); tip(null); });
     });
     /* availability markers, one per block, sitting on the building */
     var marks = svg.querySelector('.oh-estate_marks');
@@ -4032,7 +4040,7 @@ window.ohNativeSubmit = async function (form, doneText) {
       for (var k = 0; k + 1 < nums.length; k += 2) pts.push([nums[k], nums[k + 1]]);
       var xs = pts.map(function (q) { return q[0]; }), ys = pts.map(function (q) { return q[1]; });
       var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2, cy = Math.min.apply(null, ys) + (Math.max.apply(null, ys) - Math.min.apply(null, ys)) * 0.42;
-      var g = svgEl('g', { 'class': 'oh-estate_mark', 'data-block': name, transform: 'translate(' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' });
+      var g = svgEl('g', { 'class': 'oh-estate_mark', 'data-block': name, 'data-cx': cx.toFixed(1), 'data-cy': cy.toFixed(1), transform: 'translate(' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' });
       g.appendChild(svgEl('rect', { x: -30, y: -13, width: 60, height: 26, rx: 13 }));
       var t = svgEl('text', { x: 0, y: 5, 'text-anchor': 'middle' }); t.textContent = name;
       g.appendChild(t);
@@ -4060,8 +4068,22 @@ window.ohNativeSubmit = async function (form, doneText) {
     w.classList.toggle('is-oh-pan', pan);
     /* the caption pill must not pan with the picture: on phones it lives on the map wrapper */
     var cap = (estate.querySelector('.oh-estate_cap') || w.querySelector('.oh-estate_cap'));
-    if (cap) { if (pan && cap.parentNode !== w) w.appendChild(cap); else if (!pan && cap.parentNode !== frame) frame.appendChild(cap); }
-    if (!pan) { frame.style.cssText = ''; estate.classList.remove('is-fit'); var v0 = viewport(); if (v0 !== estate) v0.style.cssText = ''; return; }
+    if (cap) { if (pan && cap.parentNode !== w) w.appendChild(cap); else if (!pan && cap.parentNode !== estate) estate.appendChild(cap); }
+    if (!pan) {
+      /* desktop: the estate about 4/5 of the pane wide, centred, the greyscale surroundings around it
+         (the picture's edges fade to the pane's dark background) */
+      estate.classList.remove('is-fit'); var v0 = viewport(); if (v0 !== estate) v0.style.cssText = '';
+      var Wd = pw * 1.18, Hd = Wd * VIEW.h / VIEW.w;
+      if (Hd > ph) { Hd = ph; Wd = Hd * VIEW.w / VIEW.h; }
+      var left = pw / 2 - (SITE_C.x - VIEW.x) / VIEW.w * Wd;
+      if (Wd > pw) left = Math.min(0, Math.max(pw - Wd, left)); else left = (pw - Wd) / 2;
+      var top = ph / 2 - (SITE_C.y - VIEW.y) / VIEW.h * Hd;
+      top = Hd > ph ? Math.min(0, Math.max(ph - Hd, top)) : Math.max(0, Math.min(ph - Hd, top));
+      frame.style.cssText = 'position:absolute;left:' + left.toFixed(1) + 'px;top:' + top.toFixed(1) + 'px;width:' + Wd.toFixed(1) + 'px;height:' + Hd.toFixed(1) + 'px;right:auto;bottom:auto';
+      scaleMarks(Wd);
+      return;
+    }
+    scaleMarks(0);
     var chooser = estate.querySelector('[data-oh-native="choose"]');
     var vp = viewport();
     var fw, fh, vh = ph;
@@ -4071,23 +4093,25 @@ window.ohNativeSubmit = async function (form, doneText) {
       /* the chooser's own height, not the height it grows to when it fills the pane */
       chooser.style.flex = '0 0 auto'; var chH = chooser.offsetHeight || 300; chooser.style.flex = '';
       vh = Math.round(Math.min(window.innerHeight * 0.5, Math.max(200, ph - chH)));
-      fw = Math.max(pw * 1.9, 760); fh = fw * GEO.estate.frame[1] / GEO.estate.frame[0];
-      if (fh < vh) { fh = vh; fw = fh * GEO.estate.frame[0] / GEO.estate.frame[1]; }
+      /* the estate at the same size as before the wider picture: 1.9x the pane across the old crop */
+      fw = Math.max(pw * 1.9, 760) * VIEW.w / 1110; fh = fw * VIEW.h / VIEW.w;
+      if (fh < vh) { fh = vh; fw = fh * VIEW.w / VIEW.h; }
       estate.classList.add('is-fit');
       if (vp !== estate) vp.style.cssText = 'height:' + vh + 'px';
       frame.style.cssText = 'position:relative;width:' + fw + 'px;height:' + fh + 'px';
     } else {
-      fw = Math.max(pw * 1.9, 760); fh = fw * GEO.estate.frame[1] / GEO.estate.frame[0];
+      fw = Math.max(pw * 1.9, 760) * VIEW.w / 1110; fh = fw * VIEW.h / VIEW.w;
       frame.style.cssText = 'position:relative;width:' + fw + 'px;height:' + Math.max(fh, ph) + 'px';
     }
     if (!estate.getAttribute('data-oh-panned')) {
-      var x0 = (fw - pw) / 2 + fw * 0.02, y0 = chooser ? (fh - vh) / 2 : Math.max(0, (Math.max(fh, ph) - ph) / 2);
+      var x0 = Math.min(Math.max(0, (SITE_C.x - VIEW.x) / VIEW.w * fw - pw / 2), fw - pw);
+      var y0 = chooser ? Math.min(Math.max(0, (SITE_C.y - VIEW.y) / VIEW.h * fh - vh / 2), fh - vh) : Math.max(0, (Math.max(fh, ph) - ph) / 2);
       if (chooser && chosen && GEO.estate.paths[chosen]) {
         /* start with the picked block in view */
         var nn = (GEO.estate.paths[chosen].match(/-?\d+\.?\d*/g) || []).map(Number), bx = [], by = [];
         for (var q = 0; q + 1 < nn.length; q += 2) { bx.push(nn[q]); by.push(nn[q + 1]); }
-        var cxp = (Math.min.apply(null, bx) + Math.max.apply(null, bx)) / 2 / GEO.estate.frame[0] * fw;
-        var cyp = (Math.min.apply(null, by) + Math.max.apply(null, by)) / 2 / GEO.estate.frame[1] * fh;
+        var cxp = ((Math.min.apply(null, bx) + Math.max.apply(null, bx)) / 2 - VIEW.x) / VIEW.w * fw;
+        var cyp = ((Math.min.apply(null, by) + Math.max.apply(null, by)) / 2 - VIEW.y) / VIEW.h * fh;
         x0 = Math.min(Math.max(0, cxp - pw * 0.35), fw - pw);
         y0 = Math.min(Math.max(0, cyp - vh * 0.45), fh - vh);
       }
@@ -4097,10 +4121,40 @@ window.ohNativeSubmit = async function (form, doneText) {
       if (vp !== estate) estate.scrollTop = 0;
     }
   }
+  /* the availability pills keep one size on screen (about 12 px text) however big the picture is drawn */
+  function scaleMarks(drawnW) {
+    var k = estate.classList.contains('is-pan') ? 1 : Math.max(0.6, Math.min(1.6, 0.72 / (drawnW / VIEW.w)));
+    estate.querySelectorAll('.oh-estate_mark').forEach(function (g) {
+      g.setAttribute('transform', 'translate(' + g.getAttribute('data-cx') + ' ' + g.getAttribute('data-cy') + ') scale(' + k.toFixed(3) + ')');
+    });
+  }
   /* phones: the element that pans the render (the native viewport; the estate itself as a fallback) */
   function viewport() {
     var v = estate && estate.querySelector('[data-oh-estate="viewport"]');
     return v && estate.classList.contains('is-pan') && estate.querySelector('[data-oh-native="choose"]') ? v : estate;
+  }
+  /* desktop: a tooltip that follows the pointer over a block */
+  function tip(name, e) {
+    var el = estate && estate.querySelector('[data-oh-native="estate-tip"]'); if (!el) return;
+    if (!name || estate.classList.contains('is-pan')) { el.classList.remove('is-open'); return; }
+    var b = blockOf(name); if (!b) { el.classList.remove('is-open'); return; }
+    var set = function (k, t) { var n = el.querySelector('[data-oh-tip="' + k + '"]'); if (n) { n.textContent = t; n.style.display = t ? '' : 'none'; } };
+    var av = availCount(b.units), open = salesOpen();
+    var soon = b.units.every(function (u) { return u.status_key === 'unreleased'; });
+    var phase2 = soon && open;
+    var prices = b.units.filter(function (u) { return u.status_key === 'available' && !u.prices_hidden && u.price_value; }).map(function (u) { return Number(u.price_value); });
+    var from = prices.length ? Math.min.apply(null, prices) : 0;
+    set('title', 'Block ' + b.name);
+    set('sub', !open ? b.units.length + ' homes' : (phase2 ? 'Coming soon · ' + b.units.length + ' homes in a later release' : (av ? av + ' of ' + b.units.length + ' homes available' : 'Sold out')));
+    set('price', open && av && from ? 'From R ' + Math.round(from).toLocaleString('en-ZA').replace(/,/g, ' ') : '');
+    set('hint', phase2 ? '' : 'Click to open the block');
+    el.classList.add('is-open');
+    if (e) {
+      var r = estate.getBoundingClientRect(), x = e.clientX - r.left + 16, y = e.clientY - r.top + 16;
+      if (x + el.offsetWidth > r.width - 8) x = e.clientX - r.left - el.offsetWidth - 16;
+      if (y + el.offsetHeight > r.height - 8) y = e.clientY - r.top - el.offsetHeight - 16;
+      el.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px)';
+    }
   }
   function caption(name) {
     var cap = estate && (estate.querySelector('.oh-estate_cap') || mapWrap().querySelector('.oh-estate_cap')); if (!cap) return;
@@ -4175,8 +4229,8 @@ window.ohNativeSubmit = async function (form, doneText) {
       var nums = (GEO.estate.paths[name].match(/-?\d+\.?\d*/g) || []).map(Number), xs = [], ys = [];
       for (var k = 0; k + 1 < nums.length; k += 2) { xs.push(nums[k]); ys.push(nums[k + 1]); }
       if (fw && xs.length) {
-        var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 / GEO.estate.frame[0] * fw;
-        var cy = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2 / GEO.estate.frame[1] * frame.offsetHeight;
+        var cx = ((Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 - VIEW.x) / VIEW.w * fw;
+        var cy = ((Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2 - VIEW.y) / VIEW.h * frame.offsetHeight;
         estate.setAttribute('data-oh-panned', '1');
         var sc = viewport();
         try { sc.scrollTo({ left: cx - sc.clientWidth / 2, top: Math.max(0, cy - sc.clientHeight * 0.45), behavior: 'smooth' }); } catch (e2) { sc.scrollLeft = cx - sc.clientWidth / 2; }
