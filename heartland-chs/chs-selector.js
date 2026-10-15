@@ -550,14 +550,15 @@
     paintGenderAll(active);
   }
 
-  /* The "All" chip is a plain radio in the Gender group that carries no
-     fs-list-field - its label is a Finsweet clear element for the gender
-     field instead. So Finsweet never marks it active; this does, and keeps
-     it checked whenever no gender is filtered (e.g. after a URL restore).    */
+  /* The "All" chip (data-chs-gender-all) is a plain radio with no Finsweet
+     attributes - any fs-list-field on it would filter the list to "All" and
+     show nothing. Choosing it clears the gender radios (see init); this keeps
+     it checked and marked active exactly when no gender is filtered, which
+     also covers a URL restore and a student picking Female or Male.        */
   function paintGenderAll(active) {
     $$('[data-chs-gender-all]').forEach(function (input) {
       var none = !active.gender;
-      if (none && !input.checked) input.checked = true;
+      if (input.checked !== none) input.checked = none;
       var chip = input.closest ? input.closest('label') || input.parentElement : input.parentElement;
       if (chip) chip.classList.toggle(STATE_CLASS.listActive, none);
     });
@@ -1218,6 +1219,24 @@
         var target = $('[data-chs-floorlabel="' + key + '"]') || $('[data-chs-plan="' + key + '"]');
         if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
+    });
+
+    // "All" genders: uncheck the gender radios and tell Finsweet, so the
+    // filter drops the field rather than matching a value called "All".
+    document.addEventListener('change', function (e) {
+      var t = e.target;
+      if (!t || !t.matches) return;
+      if (t.matches('[data-chs-gender-all]') && t.checked) {
+        $$('[fs-list-field="gender"]').forEach(function (r) {
+          if (!r.checked) return;
+          r.checked = false;
+          r.dispatchEvent(new Event('input',  { bubbles: true }));
+          r.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        paintFacets();
+      } else if (t.matches('[fs-list-field="gender"]')) {
+        paintFacets();
+      }
     });
 
     // Delegated so it survives Finsweet re-rendering the list.
