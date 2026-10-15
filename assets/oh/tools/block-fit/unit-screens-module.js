@@ -49,7 +49,7 @@
     cur = u || null; if (!u) return;
     var sz = interior(u), of = onFloor(u);
     var parts = [];
-    if (sz) parts.push(sz.inside + ' m² interior plus ' + (/^[aeiou8]/i.test(sz.patio) ? 'an ' : 'a ') + sz.patio + ' m² patio');
+    if (sz) parts.push(sz.inside + ' m² interior plus ' + (/^(8|11|18|8\d)$/.test(sz.patio) ? 'an ' : 'a ') + sz.patio + ' m² patio');
     if (of.pos && of.n) parts.push('position ' + of.pos + ' of ' + String(of.n).padStart(2, '0'));
     txt('[data-oh-ud="sub"]', parts.join(' · '));
     var o = ORIENT[(u.orientation || '').toUpperCase()] || '';
@@ -148,9 +148,18 @@
         lab.setAttribute('x', right ? -34 - w : 34); t.setAttribute('x', right ? -34 - w / 2 : 34 + w / 2);
       });
       amenity(s.querySelector('[data-oh-es-tab].is-active') ? s.querySelector('[data-oh-es-tab].is-active').getAttribute('data-oh-es-tab') : 'deli');
+      /* the panel is the scroller the screen sits in: park it at the top and freeze it
+         while the screen is up, then put the reader back where they were */
+      var aside = s.closest('.site-plan_detail-panel');
+      if (aside && !s.classList.contains('is-open')) { s._scroll = aside.scrollTop; aside.scrollTop = 0; aside.classList.add('is-oh-es'); }
       s.classList.add('is-open'); s.style.display = 'flex'; s.scrollTop = 0;
       var b = s.querySelector('[data-oh-es-back]'); if (b) b.focus({ preventScroll: true });
-    } else { s.classList.remove('is-open'); s.style.display = ''; }
+    } else {
+      var wasOpen = s.classList.contains('is-open');
+      s.classList.remove('is-open'); s.style.display = '';
+      var host = s.closest('.site-plan_detail-panel');
+      if (host) { host.classList.remove('is-oh-es'); if (wasOpen && s._scroll) host.scrollTop = s._scroll; }
+    }
   }
   function amenity(key) {
     var s = q('[data-oh-native="estate-screen"]'), a = AMENITIES[key]; if (!s || !a) return;

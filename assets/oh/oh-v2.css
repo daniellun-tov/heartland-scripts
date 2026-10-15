@@ -723,3 +723,6 @@ html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}
 .oh-es.is-open{display:flex}
 .oh-es_pin text{font-family:inherit}
 .unit-details_stage{position:relative}
+
+.site-plan_detail-panel.is-oh-es{overflow:hidden}
+@media (max-width:767px){.unit-details_actionbar{flex-wrap:wrap}.oh-ud_pricebar{flex:1 1 100%;flex-direction:row;align-items:baseline;gap:.5rem}.oh-ud_pricebar-sub{margin-top:0}}
