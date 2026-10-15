@@ -101,6 +101,7 @@
     var w = mapWrap(); if (!w) return;
     if (estateOn) buildEstate();
     w.classList.toggle('is-oh-estate', estateOn);
+    if (estateOn && estate) layoutEstate();   /* it was measured while hidden */
     if (viewSwitch) viewSwitch.querySelectorAll('[data-oh-view]').forEach(function (b) {
       b.classList.toggle('is-active', (b.getAttribute('data-oh-view') === 'estate') === estateOn);
     });
@@ -156,7 +157,11 @@
       marks.appendChild(g);
     });
     buildChooser();
-    estate.addEventListener('scroll', function () { estate.setAttribute('data-oh-panned', '1'); }, { passive: true });
+    /* a pan by the reader stops the automatic centring; the controller's own scrolls do not count */
+    var panned = function () { if (Date.now() - (estate._ohProg || 0) > 400) estate.setAttribute('data-oh-panned', '1'); };
+    var vpEl = estate.querySelector('[data-oh-estate="viewport"]');
+    if (vpEl) vpEl.addEventListener('scroll', panned, { passive: true });
+    else estate.addEventListener('scroll', panned, { passive: true });
     if (estate.parentNode !== w) w.appendChild(estate);
     layoutEstate();
     if (window.ResizeObserver) new ResizeObserver(layoutEstate).observe(w);
@@ -174,32 +179,45 @@
     /* the caption pill must not pan with the picture: on phones it lives on the map wrapper */
     var cap = (estate.querySelector('.oh-estate_cap') || w.querySelector('.oh-estate_cap'));
     if (cap) { if (pan && cap.parentNode !== w) w.appendChild(cap); else if (!pan && cap.parentNode !== frame) frame.appendChild(cap); }
-    if (!pan) { frame.style.cssText = ''; estate.classList.remove('is-fit'); return; }
+    if (!pan) { frame.style.cssText = ''; estate.classList.remove('is-fit'); var v0 = viewport(); if (v0 !== estate) v0.style.cssText = ''; return; }
     var chooser = estate.querySelector('[data-oh-native="choose"]');
-    var fw, fh;
+    var vp = viewport();
+    var fw, fh, vh = ph;
     if (chooser) {
-      /* one screen: the render takes what the chooser leaves, and pans sideways only */
+      /* the render sits in its own viewport, at most half the screen (and never more than the
+         chooser leaves), and pans both ways over the enlarged picture */
       var chH = chooser.offsetHeight || 300;
-      fh = Math.max(200, ph - chH);
-      fw = Math.max(pw, fh * GEO.estate.frame[0] / GEO.estate.frame[1]);
+      vh = Math.round(Math.min(window.innerHeight * 0.5, Math.max(200, ph - chH)));
+      fw = Math.max(pw * 1.9, 760); fh = fw * GEO.estate.frame[1] / GEO.estate.frame[0];
+      if (fh < vh) { fh = vh; fw = fh * GEO.estate.frame[0] / GEO.estate.frame[1]; }
       estate.classList.add('is-fit');
+      if (vp !== estate) vp.style.cssText = 'height:' + vh + 'px';
       frame.style.cssText = 'position:relative;width:' + fw + 'px;height:' + fh + 'px';
     } else {
       fw = Math.max(pw * 1.9, 760); fh = fw * GEO.estate.frame[1] / GEO.estate.frame[0];
       frame.style.cssText = 'position:relative;width:' + fw + 'px;height:' + Math.max(fh, ph) + 'px';
     }
     if (!estate.getAttribute('data-oh-panned')) {
-      var x0 = (fw - pw) / 2 + fw * 0.02;
+      var x0 = (fw - pw) / 2 + fw * 0.02, y0 = chooser ? (fh - vh) / 2 : Math.max(0, (Math.max(fh, ph) - ph) / 2);
       if (chooser && chosen && GEO.estate.paths[chosen]) {
         /* start with the picked block in view */
-        var nn = (GEO.estate.paths[chosen].match(/-?\d+\.?\d*/g) || []).map(Number), bx = [];
-        for (var q = 0; q < nn.length; q += 2) bx.push(nn[q]);
+        var nn = (GEO.estate.paths[chosen].match(/-?\d+\.?\d*/g) || []).map(Number), bx = [], by = [];
+        for (var q = 0; q + 1 < nn.length; q += 2) { bx.push(nn[q]); by.push(nn[q + 1]); }
         var cxp = (Math.min.apply(null, bx) + Math.max.apply(null, bx)) / 2 / GEO.estate.frame[0] * fw;
+        var cyp = (Math.min.apply(null, by) + Math.max.apply(null, by)) / 2 / GEO.estate.frame[1] * fh;
         x0 = Math.min(Math.max(0, cxp - pw * 0.35), fw - pw);
+        y0 = Math.min(Math.max(0, cyp - vh * 0.45), fh - vh);
       }
-      estate.scrollLeft = x0;
-      estate.scrollTop = chooser ? 0 : Math.max(0, (Math.max(fh, ph) - ph) / 2);
+      estate._ohProg = Date.now();
+      vp.scrollLeft = x0;
+      vp.scrollTop = y0;
+      if (vp !== estate) estate.scrollTop = 0;
     }
+  }
+  /* phones: the element that pans the render (the native viewport; the estate itself as a fallback) */
+  function viewport() {
+    var v = estate && estate.querySelector('[data-oh-estate="viewport"]');
+    return v && estate.classList.contains('is-pan') && estate.querySelector('[data-oh-native="choose"]') ? v : estate;
   }
   function caption(name) {
     var cap = estate && (estate.querySelector('.oh-estate_cap') || mapWrap().querySelector('.oh-estate_cap')); if (!cap) return;
@@ -224,14 +242,16 @@
       p.classList.toggle('is-phase2', phase2);
       p.classList.toggle('is-open', !phase2 && (av > 0 || !salesOpen()));
       p.classList.toggle('is-dimmed', salesOpen() && !listed && !soon);
+      p.classList.toggle('is-sold', !phase2 && salesOpen() && av === 0);
       p.classList.toggle('is-selected', sel.indexOf(b.name.toLowerCase()) >= 0);
       if (phase2) { p.setAttribute('aria-disabled', 'true'); p.setAttribute('tabindex', '-1'); } else { p.removeAttribute('aria-disabled'); p.setAttribute('tabindex', '0'); }
       p.setAttribute('aria-label', 'Block ' + b.name + ', ' + (salesOpen() ? (phase2 ? 'phase 2, coming soon' : av + ' of ' + b.units.length + ' available') : b.units.length + ' homes'));
       var mk = estate.querySelector('.oh-estate_mark[data-block="' + b.name + '"]');
       if (mk) {
-        var label = !salesOpen() ? b.name : (phase2 ? b.name : (av > 0 ? b.name + ' · ' + av : b.name + ' · 0'));
+        var label = !salesOpen() ? b.name : (phase2 ? b.name : (av > 0 ? b.name + ' · ' + av + ' available' : b.name + ' · Sold out'));
         var t = mk.querySelector('text'); t.textContent = label;
-        var wdt = Math.max(60, label.length * 11 + 22); mk.querySelector('rect').setAttribute('x', -wdt / 2); mk.querySelector('rect').setAttribute('width', wdt);
+        var tw = 0; try { tw = t.getComputedTextLength(); } catch (e3) {}
+        var wdt = Math.max(60, (tw || label.length * 8.6) + 28); mk.querySelector('rect').setAttribute('x', -wdt / 2); mk.querySelector('rect').setAttribute('width', wdt);
         mk.classList.toggle('is-phase2', phase2); mk.classList.toggle('is-open', !phase2 && av > 0); mk.classList.toggle('is-soldout', !phase2 && salesOpen() && av === 0);
         mk.classList.toggle('is-dimmed', salesOpen() && !listed && !soon);
       }
@@ -275,7 +295,8 @@
         var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 / GEO.estate.frame[0] * fw;
         var cy = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2 / GEO.estate.frame[1] * frame.offsetHeight;
         estate.setAttribute('data-oh-panned', '1');
-        try { estate.scrollTo({ left: cx - estate.clientWidth / 2, top: Math.max(0, cy - estate.clientHeight * 0.35), behavior: 'smooth' }); } catch (e2) { estate.scrollLeft = cx - estate.clientWidth / 2; }
+        var sc = viewport();
+        try { sc.scrollTo({ left: cx - sc.clientWidth / 2, top: Math.max(0, cy - sc.clientHeight * 0.45), behavior: 'smooth' }); } catch (e2) { sc.scrollLeft = cx - sc.clientWidth / 2; }
       }
     }
     ch.querySelectorAll('[data-oh-card]').forEach(function (c) { c.classList.toggle('is-selected', c.getAttribute('data-oh-card') === name); });
@@ -354,8 +375,9 @@
       if (!n.hasAttribute('tabindex') && n.tagName !== 'A') n.setAttribute('tabindex', '0');
     };
     press('.oh-bv_back', closeBlock);
-    press('.oh-bv_mode', function () { go(mode === 'block' ? 'stack' : 'block'); });
-    press('.oh-bv_cover', function () { go(mode === 'block' ? 'stack' : 'flat'); });
+    /* phones (Daniel, 16 Oct): no lifted stack, the block opens straight out into the floor plans */
+    press('.oh-bv_mode', function () { go(mode === 'block' ? (DESK ? 'stack' : 'flat') : 'block'); });
+    press('.oh-bv_cover', function () { go(mode === 'block' ? (DESK ? 'stack' : 'flat') : 'flat'); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && cur && !document.querySelector('.site-plan_detail-wrap.is-open')) closeBlock(); });
     if (window.ResizeObserver) new ResizeObserver(function () { if (cur) layout(); }).observe(bv);
     return bv;
@@ -619,7 +641,8 @@
     var tagsTop = top0 + RH + 14 * U;
     /* desktop flat: a 2x2 grid of floor strips */
     var CW = S / 2, CH = DESK ? Math.max(STRIP * 1.6, (H - 90) / 2) : STRIP, FW = DESK ? Math.min(CW * 0.5, 300) : PLATE;
-    var stageH = flat ? (DESK ? 2 * CH : 4 * STRIP) : (stack ? (DESK ? Math.max(4 * STACK + 150 * U, H - 90) : 4 * STACK + 130 * U + 80 * U) : (DESK ? top0 + RH + 110 * U : tagsTop + 2 * 56 * U + 86 * U));
+    var TAGROW = 56 * U;   /* phones: one floor button per row */
+    var stageH = flat ? (DESK ? 2 * CH : 4 * STRIP) : (stack ? (DESK ? Math.max(4 * STACK + 150 * U, H - 90) : 4 * STACK + 130 * U + 80 * U) : (DESK ? top0 + RH + 110 * U : tagsTop + 4 * TAGROW + 80 * U));
     var stackCx = DESK ? S * 0.36 : S * 0.34, stackTop = DESK ? 70 * U : 70 * U;
     var tagX = DESK ? (stack ? S * 0.68 : left0 + RW + 20 * U) : S * 0.6, tagW = DESK ? Math.min(230, S - tagX - 14 * U) : S * 0.36;
     /* desktop tag rows beside the floors, spaced at least a tag apart */
@@ -640,7 +663,7 @@
     stage.style.height = stageH + 'px';
     stage.style.width = S + 'px';
     stage.style.maxWidth = DESK ? 'none' : '';
-    bv.classList.toggle('is-flat', flat); bv.classList.toggle('is-stack', stack); bv.classList.toggle('is-ctx', inCtx);
+    bv.classList.toggle('is-flat', flat); bv.classList.toggle('is-stack', stack); bv.classList.toggle('is-ctx', inCtx); bv.classList.toggle('is-desk', DESK);
     bv.setAttribute('data-mode', mode);
     var img = bv.querySelector('.oh-bv_render');
     img.style.cssText = 'left:' + left0 + 'px;top:' + top0 + 'px;width:' + RW + 'px;height:' + RH + 'px;opacity:' + (mode === 'block' || mode === 'merge' ? 1 : 0);
@@ -702,7 +725,7 @@
       } else if (stack) {
         tag.style.cssText = 'left:' + tagX + 'px;top:' + (stackTop + i * STACK + (box.y1 - box.y0) / 2 - 24 * U) + 'px;width:' + tagW + 'px;opacity:1';
       } else {
-        tag.style.cssText = 'left:' + (i % 2 ? S / 2 + 4 * U : 16 * U) + 'px;top:' + (tagsTop + (i < 2 ? 0 : 56 * U)) + 'px;width:' + (S / 2 - 20 * U) + 'px;opacity:' + (flat ? 0 : 1) + (flat ? ';pointer-events:none' : '');
+        tag.style.cssText = 'left:' + (16 * U) + 'px;top:' + (tagsTop + i * TAGROW) + 'px;width:' + (S - 32 * U) + 'px;opacity:' + (flat ? 0 : 1) + (flat ? ';pointer-events:none' : '');
       }
     });
     /* bands keep their tone for the plan of the same floor: tint the plate's outline */
@@ -751,6 +774,22 @@
       if (document.documentElement.classList.contains('oh-reveal')) document.addEventListener('oh:map-revealed', open, { once: true });
       else open();
     } else if (q.get('view') === '3d') setEstate(true);
+    /* phones and tablets (Daniel, 16 Oct): 3D is the first tab and the landing view, unless the
+       link asks for a unit, a type or another view */
+    else if (window.matchMedia('(max-width: 991px)').matches && !/[?&](unit|unitType|type|view)=/.test(location.search)) setEstate(true);
+    /* phones and tablets: the list's sort toggles live in the toolbar row (left of the count),
+       back in the list head on desktop */
+    (function () {
+      var sort = document.querySelector('.site-plan_sort'), head = sort && sort.parentNode, tb = document.querySelector('.unit-filter_mobile-toolbar');
+      if (!sort || !tb) return;
+      var mq = window.matchMedia('(max-width: 991px)');
+      var place = function () {
+        if (mq.matches) { if (sort.parentNode !== tb) { var cb = tb.querySelector('.site-plan_colourby.is-header'); tb.insertBefore(sort, cb ? cb.nextSibling : tb.firstChild); } }
+        else if (sort.parentNode !== head) head.appendChild(sort);
+      };
+      if (mq.addEventListener) mq.addEventListener('change', place); else if (mq.addListener) mq.addListener(place);
+      place();
+    })();
   }
   window.ohBlockView = {
     open: openBlock, close: closeBlock, current: function () { return cur ? cur.name : null; },

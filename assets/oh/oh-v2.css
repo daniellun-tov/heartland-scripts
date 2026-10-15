@@ -651,11 +651,15 @@ html:not(.sales-open) .oh-welcome_sales{display:none}
 .unit-filter_map.is-oh-estate .unit-filter_map-container,.unit-filter_map.is-oh-estate .site-plan_floor-switch,.unit-filter_map.is-oh-estate .site-plan_zoom,.unit-filter_map.is-oh-estate .site-plan_viewmarks,.unit-filter_map.is-oh-estate .site-plan_legend{visibility:hidden;pointer-events:none}
 .oh-estate_img{user-select:none}
 .oh-estate_block{fill:var(--oh-accent);fill-opacity:0;stroke:#fff;stroke-width:2;stroke-opacity:0;cursor:pointer;transition:fill-opacity .2s,stroke-opacity .2s;outline:none}
-.oh-estate_block.is-open{stroke:var(--oh-available);stroke-opacity:.9;fill:var(--oh-available);fill-opacity:.16}
-.oh-estate_block.is-open:hover,.oh-estate_block.is-open:focus-visible{fill-opacity:.42;stroke:#fff}
+.oh-estate_block.is-open{stroke:var(--oh-available);stroke-opacity:.4;stroke-width:1.5;fill:var(--oh-available);fill-opacity:.34}
+.oh-estate_block.is-open:hover,.oh-estate_block.is-open:focus-visible{fill-opacity:.48;stroke-opacity:.8}
 .oh-estate_block.is-phase2{fill:#6f6d68;fill-opacity:.55;stroke:#fff;stroke-opacity:.35;stroke-dasharray:6 5;cursor:default;pointer-events:none}
 .oh-estate_block.is-dimmed{fill-opacity:0;stroke-opacity:.35}
-.oh-estate_block.is-selected{fill:var(--oh-accent);fill-opacity:.5;stroke:#fff;stroke-opacity:1;stroke-width:3}
+/* sold (16 Oct): red, semi-transparent, faint edge; beats the dimmed state, which every sold block also has */
+.oh-estate_block.is-sold,.oh-estate_block.is-sold.is-dimmed{fill:var(--oh-sold);fill-opacity:.34;stroke:var(--oh-sold);stroke-opacity:.35;stroke-width:1.5}
+/* selected: the same green, solid and thicker edge */
+.oh-estate_block.is-selected,.oh-estate.is-pan .oh-estate_block.is-chosen{fill:var(--oh-available);fill-opacity:.48;stroke:var(--oh-available);stroke-opacity:1;stroke-width:3.5}
+.oh-estate_block.is-sold.is-selected{fill:var(--oh-sold);stroke:var(--oh-sold)}
 @media (max-width:991px){.oh-estate_cap{left:.5rem;bottom:.5rem;font-size:.75rem}}
 .oh-estate_marks{pointer-events:none}
 .oh-estate_mark rect{fill:#fff;stroke:var(--oh-line);stroke-width:1;filter:drop-shadow(0 2px 4px rgba(21,23,20,.18))}
@@ -740,12 +744,14 @@ html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}
 /* phone: Choose a block under the render */
 .oh-estate.is-pan .oh-estate_choose{display:flex}
 .oh-estate_card.is-dimmed{opacity:.55}
-.oh-estate.is-pan .oh-estate_block.is-chosen{stroke:#af6042;stroke-width:3;fill:#af6042;fill-opacity:.35}
-.oh-estate.is-pan .oh-estate_mark.is-chosen rect{fill:#af6042}.oh-estate.is-pan .oh-estate_mark.is-chosen text{fill:#fff}
+.oh-estate.is-pan .oh-estate_mark.is-chosen rect{fill:#4f6650;stroke:#fff;stroke-width:1.5}.oh-estate.is-pan .oh-estate_mark.is-chosen text{fill:#fff}
 .unit-filter_map.is-oh-pan > .oh-estate_cap{display:none}
 
 /* phones: render + Choose a block in one screen, the render pans sideways only */
-.oh-estate.is-pan.is-fit{overflow-x:auto;overflow-y:hidden}
+/* phones (16 Oct): the render sits in its own viewport (max 50vh, set by the controller) and pans both ways;
+   the chooser and its sticky button follow under it */
+.oh-estate.is-pan.is-fit{overflow-x:hidden;overflow-y:auto}
+.oh-estate.is-pan.is-fit .oh-estate_viewport{position:relative;display:block;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;overscroll-behavior:contain}
 /* 3D view: no colour-by (the render is not coloured by status or type) */
 html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){display:none}
 
@@ -758,5 +764,21 @@ html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){dis
   .unit-filter_map .site-plan_floor-switch{top:calc(var(--oh-tb-h, 1.9rem) + .9rem)}
   .unit-filter_map .site-plan_viewmark[data-placement="north"]{top:calc(var(--oh-tb-h, 1.9rem) + 3.75rem)}
   .site-plan_colourby.is-header{padding:.2rem}
-  html.oh-estate-on .site-plan_colourby.is-header,.page_wrap.is-view-list .site-plan_colourby.is-header{visibility:hidden}
+  html.oh-estate-on .site-plan_colourby.is-header,.page_wrap.is-view-list .site-plan_colourby.is-header{display:none}
+  /* header (16 Oct): logo, 3D | Plan | List, filter icon; toolbar row: Status | Type (plan) or the
+     sort toggles (list) on the left, the count on the right */
+  .unit-filter_brand{gap:.5rem}
+  .unit-filter_brand .unit-filter_mobile-view-switch{margin-left:auto}
+  .unit-filter_brand .unit-filter_drawer-btn{position:relative;flex:0 0 auto;width:2.75rem;height:2.75rem;padding:0;justify-content:center}
+  .unit-filter_brand .unit-filter_active-count{position:absolute;top:-.3rem;right:-.3rem;height:1.125rem;min-width:1.125rem;padding:0 .25rem;font-size:.625rem}
+  .unit-filter_mobile-match{margin:0 0 0 auto}
+  .unit-filter_mobile-toolbar .site-plan_sort{display:none;gap:.125rem;margin:0}
+  .page_wrap.is-view-list .unit-filter_mobile-toolbar .site-plan_sort{display:flex}
+  .unit-filter_mobile-toolbar .site-plan_sort-label{display:none}
+  .unit-filter_mobile-toolbar .site-plan_sort-btn{padding:.35rem .6rem;font-size:.8125rem}
+  .page_wrap.is-view-list .site-plan_list-head{display:none}
+  /* 3D (the estate and a block): the toolbar row would only repeat a count the view already shows */
+  html.oh-estate-on .unit-filter_mobile-toolbar,.unit-filter_component:has(.unit-filter_map.is-oh-block) .unit-filter_mobile-toolbar{display:none}
 }
+/* block view on phones (16 Oct): floor buttons one per row, label and count side by side */
+.oh-bv:not(.is-desk) .oh-bv_tag-text{display:flex;flex:1 1 auto;flex-direction:row;align-items:baseline;justify-content:space-between;gap:.75rem;min-width:0}
