@@ -730,8 +730,8 @@ html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}
 /* phone: Choose a block under the render */
 .oh-estate.is-pan .oh-estate_choose{display:flex}
 .oh-estate_card.is-dimmed{opacity:.55}
-.oh-estate_block.is-chosen{stroke:#af6042;stroke-width:3;fill:#af6042;fill-opacity:.35}
-.oh-estate_mark.is-chosen rect{fill:#af6042}.oh-estate_mark.is-chosen text{fill:#fff}
+.oh-estate.is-pan .oh-estate_block.is-chosen{stroke:#af6042;stroke-width:3;fill:#af6042;fill-opacity:.35}
+.oh-estate.is-pan .oh-estate_mark.is-chosen rect{fill:#af6042}.oh-estate.is-pan .oh-estate_mark.is-chosen text{fill:#fff}
 .unit-filter_map.is-oh-pan > .oh-estate_cap{display:none}
 
 /* phones: render + Choose a block in one screen, the render pans sideways only */

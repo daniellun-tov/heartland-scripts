@@ -282,7 +282,7 @@
     estate.querySelectorAll('.oh-estate_block, .oh-estate_mark').forEach(function (p) { p.classList.toggle('is-chosen', p.getAttribute('data-block') === name); });
     var lab = ch.querySelector('[data-oh-ch="cta-label"]'); if (lab) lab.textContent = 'Open Block ' + name;
     var cta = ch.querySelector('[data-oh-ch="cta"]'); if (cta) cta.style.display = name ? '' : 'none';
-    caption(name);
+    if (estate.classList.contains('is-pan')) caption(name);
   }
   function paintChooser() {
     var ch = chooser(); if (!ch) return;
