@@ -728,6 +728,13 @@
   function boot() {
     if (!window.ohSitePlan || !units().length) { setTimeout(boot, 250); return; }
     buildSwitch();
+    /* phones: the level switch sits under the legend, wherever the legend wraps to */
+    (function () {
+      var tb = document.querySelector('.unit-filter_map .site-plan_toolbar'), w = mapWrap();
+      if (!tb || !w || !window.ResizeObserver) return;
+      var set = function () { w.style.setProperty('--oh-tb-h', tb.offsetHeight + 'px'); };
+      new ResizeObserver(set).observe(tb); set();
+    })();
     document.addEventListener('click', function (e) {
       var t = e.target.closest && e.target.closest('.unit-filter_mobile-view-switch [data-view]');
       if (!t) return;

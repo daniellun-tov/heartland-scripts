@@ -48,7 +48,7 @@
   var comp = document.querySelector('.unit-filter_component');
   var listWrap = document.querySelector('.site-plan_list-wrap');
   if (comp && listWrap && listWrap.parentNode !== comp) comp.appendChild(listWrap);
-  var cb = document.querySelector('.site-plan_colourby:not(.oh-viewswitch)');
+  var cb = document.querySelector('.site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch)');
   if (cb && !cb.querySelector('.site-plan_switch-label')) {
     var l = document.createElement('span');
     l.className = 'site-plan_switch-label';
@@ -1205,7 +1205,7 @@ window.Wized.push((Wized) => {
       var counter = src.matches('[data-count="results"]') ? src : src.querySelector('[data-count="results"]');
       var n = ((counter || src).textContent || '').trim().match(/\d+/);
       n = n ? n[0] : '';
-      el.textContent = n ? n + (n === '1' ? ' unit' : ' units') : '';
+      el.textContent = n ? n + ' available' : '';
       /* mirror into the other results counters, never into anything inside
          src itself - that would re-trigger the observer forever */
       document.querySelectorAll('[data-count="results"]').forEach(function (c) {
@@ -4610,6 +4610,13 @@ window.ohNativeSubmit = async function (form, doneText) {
   function boot() {
     if (!window.ohSitePlan || !units().length) { setTimeout(boot, 250); return; }
     buildSwitch();
+    /* phones: the level switch sits under the legend, wherever the legend wraps to */
+    (function () {
+      var tb = document.querySelector('.unit-filter_map .site-plan_toolbar'), w = mapWrap();
+      if (!tb || !w || !window.ResizeObserver) return;
+      var set = function () { w.style.setProperty('--oh-tb-h', tb.offsetHeight + 'px'); };
+      new ResizeObserver(set).observe(tb); set();
+    })();
     document.addEventListener('click', function (e) {
       var t = e.target.closest && e.target.closest('.unit-filter_mobile-view-switch [data-view]');
       if (!t) return;

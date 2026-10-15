@@ -738,3 +738,15 @@ html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}
 .oh-estate.is-pan.is-fit{overflow-x:auto;overflow-y:hidden}
 /* 3D view: no colour-by (the render is not coloured by status or type) */
 html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){display:none}
+
+/* phones/tablets (Daniel, 15 Oct): Status | Type lives in the header (native .site-plan_colourby.is-header),
+   the legend takes the top-left of the plan and the level switch sits under it */
+@media (max-width:991px){
+  .unit-filter_map .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){display:none}
+  .unit-filter_map .site-plan_toolbar{left:.5rem;right:auto;align-items:flex-start;justify-content:flex-start}
+  .unit-filter_map .site-plan_legend-group{justify-content:flex-start}
+  .unit-filter_map .site-plan_floor-switch{top:calc(var(--oh-tb-h, 1.9rem) + .9rem)}
+  .unit-filter_map .site-plan_viewmark[data-placement="north"]{top:calc(var(--oh-tb-h, 1.9rem) + 3.75rem)}
+  .unit-filter_brand .site-plan_colourby.is-header{padding:.2rem}
+  html.oh-estate-on .unit-filter_brand .site-plan_colourby.is-header,.page_wrap.is-view-list .unit-filter_brand .site-plan_colourby.is-header{visibility:hidden}
+}
