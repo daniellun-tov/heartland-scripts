@@ -50,7 +50,7 @@
     ctx = { kind: u ? 'unit' : 'general', unit: u, note: opts.note || '' };
     reset(m);
     if (u) {
-      set('[data-oh-enq="sub"]', unitLine(u).replace(/, /g, ' · '), m);
+      set('[data-oh-enq="sub"]', ['Unit ' + u.unit_number, u.block_name ? 'Block ' + u.block_name : '', u.type_code ? 'Type ' + u.type_code : ''].filter(Boolean).join(' · '), m);
       set('[data-oh-enq="title"]', 'Ask about this home', m);
       set('[data-oh-enq="intro"]', 'Questions about Unit ' + u.unit_number + ', the levy, finance or a viewing? Leave your details and our sales team will get back to you, usually within one working day.', m);
     } else {
@@ -58,6 +58,9 @@
       set('[data-oh-enq="title"]', opts.title || 'Talk to our sales team', m);
       set('[data-oh-enq="intro"]', opts.intro || 'Tell us what you are looking for and our sales team will help you find the right home, usually within one working day.', m);
     }
+    /* the API cannot set placeholders: replace Webflow's "Example Text" */
+    var PH = { first_name: 'First name', last_name: 'Last name', email: 'you@example.com', contact_number: '082 123 4567' };
+    Object.keys(PH).forEach(function (n) { var el = q('[name="' + n + '"]', m); if (el && (!el.placeholder || el.placeholder === 'Example Text')) el.placeholder = PH[n]; });
     var ta = q('[name="message"]', m);
     if (ta) ta.setAttribute('placeholder', u ? 'For example: is parking included, and when can I view it?' : 'For example: a two-bedroom on a higher floor, under R2.6m');
     lastFocus = document.activeElement;
@@ -97,7 +100,7 @@
       var c = ctx || { kind: 'general' };
       var head = c.unit ? 'I have a question about unit ' + c.unit.unit_number + ' (' + unitLine(c.unit).replace(/^Unit [^,]+, /, '') + ').' : 'I would like help finding the right home.';
       if (c.note) head += ' ' + c.note;
-      var src = form.querySelector('[name="Enquiry source"]');
+      var src = form.querySelector('[data-name="Enquiry source"], [name="Enquiry-source"], [name="Enquiry source"]');
       if (src) src.value = (c.unit ? 'Unit selection page, unit ' + c.unit.unit_number + ' (Ask about this home)' : 'Unit selection page (Talk to our sales team)').slice(0, 200);
       var payload = {
         first_name: val(form, 'first_name'),
