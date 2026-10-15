@@ -663,21 +663,25 @@ html:not(.sales-open) .oh-welcome_sales{display:none}
 .unit-filter_map.is-oh-block .unit-filter_map-container,.unit-filter_map.is-oh-block .site-plan_toolbar,.unit-filter_map.is-oh-block .site-plan_floor-switch,.unit-filter_map.is-oh-block .site-plan_zoom,.unit-filter_map.is-oh-block .site-plan_viewmarks,.unit-filter_map.is-oh-block .oh-estate{visibility:hidden;pointer-events:none}
 .oh-bv_back:hover{background:var(--oh-sand)}
 .oh-bv_name,.oh-bv_strip-label,.oh-bv_hint-title{font-family:var(--_typography---font-family--heading,'Tenor Sans',Georgia,serif)}
-.oh-bv_stage{transition:height .6s cubic-bezier(.2,.8,.2,1)}
+.oh-bv_stage{transition:height 1s cubic-bezier(.2,.8,.2,1)}
+.oh-bv_lines{transition:opacity .3s}
+.oh-bv_tag-sub.is-sold,.oh-bv_strip.is-sold .oh-bv_strip-count{color:var(--oh-sold)}
 .oh-bv.is-flat{background:#fff}
-.oh-bv_render{transition:opacity .65s;user-select:none}
-.oh-bv_bands{transition:opacity .55s}
-.oh-bv_bands path{cursor:pointer;transition:fill-opacity .2s}
+.oh-bv_render{transition:opacity 1s;user-select:none}
+.oh-bv_bands{transition:opacity .8s}
+.oh-bv_bands svg{pointer-events:none}
+.oh-bv_bands path{cursor:pointer;pointer-events:none;transition:fill-opacity .2s}
+.oh-bv[data-mode="block"] .oh-bv_bands path{pointer-events:visiblePainted}
 .oh-bv_bands path:hover{fill-opacity:.85}
 .oh-bv_wrap{transition:filter .6s,opacity .6s}
-.oh-bv_plate{transform-origin:0 0;transition:transform .8s cubic-bezier(.2,.8,.2,1);will-change:transform}
+.oh-bv_plate{transform-origin:0 0;transition:transform 1.4s cubic-bezier(.2,.8,.2,1);will-change:transform}
 .oh-bv_plan{user-select:none}
 .oh-bv_plot{cursor:pointer}
 .oh-bv_plot.is-dimmed{opacity:.3}
 .oh-bv_plot.is-selected polygon{stroke:var(--oh-accent);stroke-width:22}
 .oh-bv_plot-no{font-family:var(--_typography---font-family--body,Questrial,Arial,sans-serif);fill:#3b302a;stroke:#fff;stroke-width:22;stroke-linejoin:round;paint-order:stroke;pointer-events:none;opacity:0;transition:opacity .4s}
 .oh-bv.is-flat .oh-bv_plot-no{opacity:1}
-.oh-bv_strip{transition:opacity .4s .45s}
+.oh-bv_strip{transition:opacity .5s .9s}
 .oh-bv:not(.is-flat) .oh-bv_strip{transition:opacity .2s}
 .oh-bv_chip{transition:opacity .2s,transform .15s}
 .oh-bv_chip.is-available{background:#f1f3ef;color:#43503f;border-color:#cfd9ce}
@@ -688,7 +692,7 @@ html:not(.sales-open) .oh-welcome_sales{display:none}
 .oh-bv_chip.is-dimmed{opacity:.35;pointer-events:none}
 .oh-bv_chips-empty{grid-column:1/-1;font-size:.75rem;color:#8d8b87}
 .oh-bv_hint{transition:opacity .3s}
-.oh-bv_tag{transition:left .8s cubic-bezier(.2,.8,.2,1),top .8s cubic-bezier(.2,.8,.2,1),width .8s cubic-bezier(.2,.8,.2,1),opacity .35s}
+.oh-bv_tag{transition:left 1.4s cubic-bezier(.2,.8,.2,1),top 1.4s cubic-bezier(.2,.8,.2,1),width 1.4s cubic-bezier(.2,.8,.2,1),opacity .35s}
 .oh-bv_tag:hover{background:var(--oh-sand)}
 html:not(.sales-open) .oh-bv_legend,html:not(.sales-open) .oh-bv_strip-from,html:not(.sales-open) .oh-bv_chip-sub{display:none}
 @media (prefers-reduced-motion:reduce){.oh-bv_plate,.oh-bv_tag,.oh-bv_wrap,.oh-bv_render,.oh-bv_bands,.oh-bv_strip,.oh-bv_stage{transition:none}}
