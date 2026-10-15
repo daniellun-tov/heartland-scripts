@@ -68,12 +68,21 @@
       }
       var desc = t.q('[wized="unit_type_description"]', item);
       if (desc) desc.style.display = soon ? 'none' : '';
-      if (soon) t.qa('a.button.primary', item).forEach(function (a) {
+      /* Wized's empty template item (letter "-") carries the Coming Soon tag too, and the
+         first real item (Type A) reuses that node: so undo the swap when a type turns out
+         not to be coming soon, and only store a real letter. */
+      var k = t.letter(letterEl && letterEl.textContent);
+      t.qa('a.button.primary', item).forEach(function (a) {
         var tx = t.q('.button-text', a);
-        if (tx && /Select on Map|Register Interest/.test(tx.textContent)) {
+        if (soon && tx && /Select on Map|Register Interest/.test(tx.textContent)) {
           t.txt(tx, 'Register Interest');
           a.setAttribute('href', '#contact-us');
-          a.setAttribute('data-oh-interest', letterEl ? letterEl.textContent : '');
+          a.setAttribute('data-oh-swapped', '');
+          if (k) a.setAttribute('data-oh-interest', k); else a.removeAttribute('data-oh-interest');
+        } else if (!soon && k && a.hasAttribute('data-oh-swapped')) {
+          a.removeAttribute('data-oh-swapped'); a.removeAttribute('data-oh-interest');
+          a.setAttribute('href', '#');
+          t.txt(tx, 'Select on Map');
         }
       });
     });
@@ -174,7 +183,11 @@
     if (ri) {
       e.preventDefault(); e.stopImmediatePropagation();
       var msg = document.querySelector('[wized="interest_message"]'), sec = document.getElementById('contact-us');
-      var k2 = ri.getAttribute('data-oh-interest');
+      /* read the type from where the button sits, not from what was stored on it */
+      var it = ri.closest('[wized="unit_type_item"]');
+      var k2 = it ? t.letter((t.q('[wized="unit_type_letter"]', it) || {}).textContent)
+                  : t.letter((t.q('[wized="details_unit_type_letter"]') || {}).textContent) || t.letter(ri.getAttribute('data-oh-interest'));
+      if (msg && /^I would like to register my interest in Unit Type .*\.$/.test(msg.value)) msg.value = '';
       if (msg && !msg.value && k2) { msg.value = 'I would like to register my interest in Unit Type ' + k2 + '.'; msg.dispatchEvent(new Event('input', { bubbles: true })); }
       if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
