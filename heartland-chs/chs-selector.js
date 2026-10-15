@@ -18,6 +18,9 @@
      4. shows one apartment at a time (all six share the same five plots)
      5. fills the panel, prefills the form, draws the snapshot
      6. switches the form between Reserve and Enquire only
+     7. publishes the plan's width and ratio so the page CSS can turn the
+        plan 90 degrees on phones (the turn itself is CSS, in Page Settings)
+     8. shrinks the nav and logo on scroll (is-chs-scrolled on data-chs-shrink)
 
    Styling lives in these Webflow classes — edit them in the Designer:
      chs_selector_wrap  chs_floors_switch  chs_floors_tab (+ is-chs-active)
@@ -51,6 +54,7 @@
     shown:      'is-chs-shown',
     hidden:     'is-chs-hidden',
     open:       'is-chs-open',
+    scrolled:   'is-chs-scrolled',
     /* Finsweet's own empty-facet class, styled as a combo on .chs_chip
        (dimmed, pointer-events none). Finsweet only maintains it while it
        owns the facet counts, and it does not here - paintFacets() took those
@@ -166,14 +170,20 @@
       if (!img.complete && img.src) { var u = img.src; img.src = u; }
     });
     if (window.ResizeObserver) {
-      var host = $('[data-chs="plan-stage"]');
-      if (host) new ResizeObserver(onReady).observe(host);
+      var ro = new ResizeObserver(onReady);
+      ['plan-stage', 'plan-scroll'].forEach(function (k) {
+        var el = $('[data-chs="' + k + '"]');
+        if (el) ro.observe(el);
+      });
     }
   }
 
 
   /* Re-measure the floor bands and repaint. Safe to call repeatedly. */
   function remeasure() {
+    // Always republish: when the turned plan rescales, every percentage stays
+    // the same, so the signature below would never notice the new width.
+    publishPlanWidth();
     var bands = measureBands();
     if (bands) state.bands = bands;
     var sig = planSignature();
@@ -310,17 +320,38 @@
     return g;
   }
 
-  // Label type scales with the plan, so publish the plan's rendered width and
-  // let the stylesheet do the arithmetic. Keeps the ratio out of this file.
+  /* Publish two measurements and let the stylesheet do the arithmetic, so no
+     size or ratio lives in this file:
+       --chs-plan-w      the visible width of the plan (the scroller), which
+                         label type scales from;
+       --chs-plan-ratio  both floors laid side by side: the sum of each plan
+                         image's natural width / height.
+     On phones the page CSS lays the two floors side by side and turns the
+     whole stage 90 degrees, so each floor runs down the screen at full width
+     (stage height = --chs-plan-w, stage width = that x --chs-plan-ratio).
+     Every overlay is positioned from offsetLeft / offsetTop, which a CSS
+     transform does not touch, so the hotspots need no special case.        */
   function publishPlanWidth() {
     var stage = $('[data-chs="plan-stage"]');
     if (!stage) return;
-    // On mobile the plan is drawn wider than the screen inside a horizontal
-    // scroller, so size the labels from what is actually visible - otherwise
-    // the type would grow with the pannable canvas rather than the viewport.
     var scroll = $('[data-chs="plan-scroll"]');
-    var w = (scroll && scroll.clientWidth) || stage.clientWidth;
-    stage.style.setProperty('--chs-plan-w', w + 'px');
+    var host = scroll || stage;
+    var w = host.clientWidth || stage.clientWidth;
+    if (w) host.style.setProperty('--chs-plan-w', w + 'px');
+    var ratio = 0;
+    $$('[data-chs-plan]').forEach(function (img) {
+      if (img.naturalWidth && img.naturalHeight) ratio += img.naturalWidth / img.naturalHeight;
+    });
+    if (ratio) host.style.setProperty('--chs-plan-ratio', ratio.toFixed(4));
+  }
+
+  // The page CSS decides whether the plan is turned (phones); read it, never
+  // decide it here.
+  function planRotated() {
+    var stage = $('[data-chs="plan-stage"]');
+    if (!stage || !window.getComputedStyle) return false;
+    var t = getComputedStyle(stage).transform;
+    return !!t && t !== 'none';
   }
 
   function paintRooms() {
@@ -576,15 +607,21 @@
     paintEmpty();
   }
 
-  /* Floor captions sit inside the stage, pinned to the top of their band. */
+  /* Floor captions sit inside the stage, pinned to the corner of their floor.
+     Desktop: top-left of the floor. Turned plan (phones): the stylesheet pins
+     them to the stage's bottom edge, which is the top of each floor once the
+     stage is turned, so only the left (the floor's position along the stage)
+     is set here.                                                           */
   function positionFloorLabels() {
+    var turned = planRotated();
     $$('[data-chs-floorlabel]').forEach(function (el) {
-      // On mobile these are static and sit above the plan in normal flow;
-      // pinning a top would do nothing there, and clearing it keeps the
-      // inline style from leaking back when the breakpoint changes.
-      if (getComputedStyle(el).position !== 'absolute') { el.style.top = ''; return; }
+      // Static labels sit in normal flow; clear any inline position so it
+      // cannot leak back when the breakpoint changes.
+      if (getComputedStyle(el).position !== 'absolute') { el.style.top = ''; el.style.left = ''; return; }
       var box = planBox(el.getAttribute('data-chs-floorlabel'));
-      if (box) el.style.top = box.top + '%';
+      if (!box) return;
+      el.style.left = box.left + '%';
+      el.style.top  = turned ? '' : box.top + '%';
     });
   }
 
@@ -1050,6 +1087,24 @@
     c.closePath();
   }
 
+  /* ---------- nav shrink ------------------------------------------------
+     The CHS logo sits large in the nav at the top of the page and shrinks
+     once the page scrolls. Every element marked data-chs-shrink gets
+     is-chs-scrolled; its sizes live in that combo class in the Designer.   */
+  function watchNav() {
+    var els = $$('[data-chs-shrink]');
+    if (!els.length) return;
+    var on = null;
+    var tick = function () {
+      var now = (window.pageYOffset || document.documentElement.scrollTop || 0) > 24;
+      if (now === on) return;
+      on = now;
+      els.forEach(function (el) { el.classList.toggle(STATE_CLASS.scrolled, now); });
+    };
+    window.addEventListener('scroll', tick, { passive: true });
+    tick();
+  }
+
   /* ---------- wiring ----------------------------------------------------- */
   function refresh() {
     state.beds = readBeds();
@@ -1145,6 +1200,7 @@
     refresh();
     deepLink();
     watchPlans(function () { remeasure(); positionFloorLabels(); paintRooms(); });
+    watchNav();
     window.addEventListener('resize', function () { remeasure(); positionFloorLabels(); paintRooms(); });
 
 
