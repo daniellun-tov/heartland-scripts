@@ -34,10 +34,11 @@
 
   var GEO = __OH_BLOCK_GEO__;
 
-  /* 16 Oct: the whole render (VIEW 1 ALTERNATIVE, 8354x3800) with the surroundings in greyscale, so the
+  /* 16 Oct: the whole render (VIEW 1 ALTERNATIVE, 8354x3800) with the surroundings as a light, washed
+     greyscale over the site's sand (v4; v3 was dark), so the
      estate sits smaller in its context. The block outlines keep their 1110x706 frame (the old crop
      at 880,28 5441x3459); VIEW is that crop's coordinate system extended to the full picture. */
-  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad0dde8089f23011d29a388_img-3d-estate-render-v3.webp';
+  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad0e75f96a53e9181ec9d0a_img-3d-estate-render-v4.webp';
   var VIEW = { x: -179.52, y: -5.72, w: 1704.25, h: 775.62 };
   var SITE_C = { x: 555, y: 353 };   /* the estate's middle, in outline coordinates */
   var TILT = 54.74;
@@ -142,7 +143,8 @@
       var p = svg.querySelector('[data-block="' + name + '"]');
       if (!p) { p = svgEl('path', { 'data-block': name, 'class': 'oh-estate_block', role: 'button', tabindex: '0' }); svg.appendChild(p); }
       p.setAttribute('d', GEO.estate.paths[name]);  /* the geometry file is the source of truth */
-      var open = function () { if (p.classList.contains('is-phase2')) return; openBlock(name); };
+      /* coming soon and sold out blocks do not open (Daniel, 16 Oct) */
+      var open = function () { if (p.classList.contains('is-phase2') || p.classList.contains('is-sold')) return; openBlock(name); };
       p.addEventListener('click', open);
       p.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
       p.addEventListener('mouseenter', function (e) { caption(name); tip(name, e); });
@@ -265,7 +267,7 @@
     set('title', 'Block ' + b.name);
     set('sub', !open ? b.units.length + ' homes' : (phase2 ? 'Coming soon · ' + b.units.length + ' homes in a later release' : (av ? av + ' of ' + b.units.length + ' homes available' : 'Sold out')));
     set('price', open && av && from ? 'From R ' + Math.round(from).toLocaleString('en-ZA').replace(/,/g, ' ') : '');
-    set('hint', phase2 ? '' : 'Click to open the block');
+    set('hint', phase2 || (open && !av) ? '' : 'Click to open the block');
     el.classList.add('is-open');
     if (e) {
       var r = estate.getBoundingClientRect(), x = e.clientX - r.left + 16, y = e.clientY - r.top + 16;
@@ -636,8 +638,8 @@
     if (DESK) {
       S = Math.min(w, 1240); U = 1.1;
       var legend = bv.querySelector('.oh-bv_legend'), head = bv.querySelector('.oh-bv_head');
-      var avail = H - (head ? head.offsetHeight : 56) - (legend ? legend.offsetHeight : 28) - 110 * U;  /* room for the hint */
-      RW = Math.min(S * 0.66, Math.max(400, avail * 1356 / 1026)); RH = RW * 1026 / 1356;
+      var avail = H - (head ? head.offsetHeight : 56) - (legend ? legend.offsetHeight : 28) - 76 * U;  /* room for the hint */
+      RW = Math.min(S * 0.7, Math.max(420, avail * 1356 / 1026)); RH = RW * 1026 / 1356;
       PLATE = 124 * U; STRIP = 168 * U; STACK = Math.max(88 * U, Math.min(150, (H - 300) / 4));
     } else {
       S = Math.min(w, 520); U = S / 390;
@@ -646,7 +648,7 @@
   }
   /* bbox of a floor's bands (860x640 render frame) in stage px */
   function bandBox(f, left0, top0) {
-    var sx = RW / 860, sy = RH / 640, x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    var sx = RW / 860, sy = RH / 640, x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, pts = [];
     (R.g.bands[String(f)] || []).forEach(function (d) {
       var cx = 0, cy = 0, cmd = '';
       d.replace(/([MLHVZmlhvz])|(-?[\d.]+)(?:[ ,]+(-?[\d.]+))?/g, function (m, c, a, b) {
@@ -657,11 +659,17 @@
         else if (cmd === 'H') cx = a; else if (cmd === 'h') cx += a;
         else if (cmd === 'V') cy = a; else if (cmd === 'v') cy += a;
         if (cx < x0) x0 = cx; if (cx > x1) x1 = cx; if (cy < y0) y0 = cy; if (cy > y1) y1 = cy;
+        pts.push([cx, cy]);
         return '';
       });
     });
     if (x0 === Infinity) return null;
-    return { x0: left0 + x0 * sx, x1: left0 + x1 * sx, y0: top0 + y0 * sy, y1: top0 + y1 * sy };
+    /* the callout anchor: the middle of the band's right-hand edge (a band is a slanted strip, so the
+       middle of its bounding box sits a floor too low on the right wing) */
+    var ey = [], tol = (x1 - x0) * 0.03;
+    pts.forEach(function (p) { if (p[0] >= x1 - tol) ey.push(p[1]); });
+    var ay = ey.length ? (Math.min.apply(null, ey) + Math.max.apply(null, ey)) / 2 : (y0 + y1) / 2;
+    return { x0: left0 + x0 * sx, x1: left0 + x1 * sx, y0: top0 + y0 * sy, y1: top0 + y1 * sy, ay: top0 + ay * sy };
   }
   function linesSvg() {
     var box = bv.querySelector('.oh-bv_lines');
@@ -690,6 +698,12 @@
     var flat = mode === 'flat', inCtx = mode === 'block' || mode === 'merge', stack = mode === 'stack';
     var box0 = hullBox(mode === 'stack' ? R.g.k * (RW / 1356) * 1104 / PLATE * (DESK ? 1.15 : 0.78) : R.g.k * (RW / 1356) * 1104 / PLATE);
     var left0 = DESK ? S * 0.06 : (S - RW) / 2, top0 = DESK ? 24 * U : 10 * U;   /* render box in the stage */
+    if (DESK) {
+      /* desktop (16 Oct): the render and its hint sit in the middle of the pane, not at the top */
+      var hd0 = bv.querySelector('.oh-bv_head'), lg0 = bv.querySelector('.oh-bv_legend');
+      var room = H - (hd0 ? hd0.offsetHeight : 56) - (lg0 ? lg0.offsetHeight : 28);
+      top0 = Math.max(24 * U, (room - RH - 70 * U) / 2);
+    }
     var sR = RW / 1356;                                        /* render px -> stage px */
     var kCtx = R.g.k * sR * 1104 / PLATE;                      /* plate px -> stage px, in context */
     var kStack = kCtx * (DESK ? 1.15 : 0.78);
@@ -705,7 +719,7 @@
     if (DESK && !flat) {
       var ys = [4, 3, 2, 1].map(function (f) {
         var bb = stack ? null : bandBox(f, left0, top0);
-        return bb ? (bb.y0 + bb.y1) / 2 : 0;
+        return bb ? bb.ay : 0;
       });
       if (stack) ys = [4, 3, 2, 1].map(function (f, i) { return stackTop + i * STACK + (box0.y1 - box0.y0) / 2; });
       var minGap = 56 * U, cy = -Infinity;
@@ -729,7 +743,7 @@
     var hint = bv.querySelector('.oh-bv_hint');
     hint.querySelector('.oh-bv_hint-title').textContent = 'Four floors, ' + cur.units.length + ' homes';
     hint.querySelector('.oh-bv_hint-text').textContent = mode === 'block' ? 'Pick a floor, or tap the block to open it up.' : 'Pick a floor, or tap to lay them all out flat.';
-    hint.style.cssText = (DESK ? 'left:' + left0 + 'px;right:auto;width:' + RW + 'px;' : '') + 'top:' + (stageH - 62 * U) + 'px;opacity:' + (flat ? 0 : 1);
+    hint.style.cssText = (DESK ? 'left:' + left0 + 'px;right:auto;width:' + RW + 'px;' : '') + 'top:' + (DESK && !stack ? top0 + RH + 8 * U : stageH - 62 * U) + 'px;opacity:' + (flat ? 0 : 1);
     var cover = bv.querySelector('.oh-bv_cover');
     cover.style.display = flat ? 'none' : '';
     cover.style.cssText += DESK ? ';left:' + left0 + 'px;top:' + top0 + 'px;width:' + RW + 'px;height:' + RH + 'px;right:auto;bottom:auto' : '';
@@ -772,7 +786,7 @@
         if (mode === 'block') {
           var bb = bandBox(f, left0, top0);
           if (bb) {
-            var ax = bb.x1 - 6 * U, ay = (bb.y0 + bb.y1) / 2, mx = tagX - 14 * U;
+            var ax = bb.x1 - 4 * U, ay = bb.ay, mx = tagX - 14 * U;
             lines.appendChild(svgEl('path', { d: 'M' + ax + ' ' + ay + 'L' + mx + ' ' + rows[f] + 'L' + tagX + ' ' + rows[f], fill: 'none', stroke: TONE[f], 'stroke-width': '1.5' }));
             lines.appendChild(svgEl('circle', { cx: ax, cy: ay, r: 3.5, fill: TONE[f], stroke: '#fff', 'stroke-width': '1.5' }));
           }
