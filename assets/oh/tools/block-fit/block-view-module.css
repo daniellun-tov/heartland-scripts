@@ -1,0 +1,74 @@
+
+/* ---- estate 3D view + block view (14 Oct) ----
+   The base look of every .oh-estate* / .oh-bv* element is a Designer class on
+   the page (Webflow native elements). Only what the style panel cannot express
+   lives here: state classes the controller toggles, SVG internals, hover,
+   transitions, type family tokens, breakpoints and reduced motion. */
+.unit-filter_map .oh-viewswitch{order:-1}
+.unit-filter_map.is-oh-estate .oh-estate{display:block}
+.unit-filter_map.is-oh-estate .unit-filter_map-container,.unit-filter_map.is-oh-estate .site-plan_floor-switch,.unit-filter_map.is-oh-estate .site-plan_zoom,.unit-filter_map.is-oh-estate .site-plan_viewmarks,.unit-filter_map.is-oh-estate .site-plan_legend{visibility:hidden;pointer-events:none}
+.oh-estate_img{user-select:none}
+.oh-estate_block{fill:var(--oh-accent);fill-opacity:0;stroke:#fff;stroke-width:2;stroke-opacity:0;cursor:pointer;transition:fill-opacity .2s,stroke-opacity .2s;outline:none}
+.oh-estate_block.is-open{stroke:var(--oh-available);stroke-opacity:.9;fill:var(--oh-available);fill-opacity:.16}
+.oh-estate_block.is-open:hover,.oh-estate_block.is-open:focus-visible{fill-opacity:.42;stroke:#fff}
+.oh-estate_block.is-phase2{fill:#6f6d68;fill-opacity:.55;stroke:#fff;stroke-opacity:.35;stroke-dasharray:6 5;cursor:default;pointer-events:none}
+.oh-estate_block.is-dimmed{fill-opacity:0;stroke-opacity:.35}
+.oh-estate_block.is-selected{fill:var(--oh-accent);fill-opacity:.5;stroke:#fff;stroke-opacity:1;stroke-width:3}
+@media (max-width:991px){.oh-estate_cap{left:.5rem;bottom:.5rem;font-size:.75rem}}
+.oh-estate_marks{pointer-events:none}
+.oh-estate_mark rect{fill:#fff;stroke:var(--oh-line);stroke-width:1;filter:drop-shadow(0 2px 4px rgba(21,23,20,.18))}
+.oh-estate_mark text{font-family:var(--_typography---font-family--body,Questrial,Arial,sans-serif);font-size:16px;letter-spacing:.02em;fill:var(--oh-ink)}
+.oh-estate_mark.is-open rect{fill:var(--oh-available);stroke:#fff}
+.oh-estate_mark.is-open text{fill:#fff}
+.oh-estate_mark.is-soldout rect{fill:#fbdbda;stroke:#f4c3c1}
+.oh-estate_mark.is-soldout text{fill:#8a2f2c}
+.oh-estate_mark.is-phase2 rect{fill:#e9e6df;stroke:#cfccc5}
+.oh-estate_mark.is-phase2 text{fill:#8d8b87}
+.oh-estate_mark.is-dimmed{opacity:.45}
+.oh-estate.is-pan{overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;overscroll-behavior:contain}
+.oh-estate.is-pan .oh-estate_frame{display:block}
+.unit-filter_map>.oh-estate_cap{z-index:5;display:none}
+.unit-filter_map.is-oh-estate>.oh-estate_cap{display:block}
+.unit-filter_map.is-oh-block>.oh-estate_cap{visibility:hidden}
+
+.unit-filter_map.is-oh-block .oh-bv{display:flex;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.unit-filter_map.is-oh-block .unit-filter_map-container,.unit-filter_map.is-oh-block .site-plan_toolbar,.unit-filter_map.is-oh-block .site-plan_floor-switch,.unit-filter_map.is-oh-block .site-plan_zoom,.unit-filter_map.is-oh-block .site-plan_viewmarks,.unit-filter_map.is-oh-block .oh-estate{visibility:hidden;pointer-events:none}
+.oh-bv_back:hover{background:var(--oh-sand)}
+.oh-bv_name,.oh-bv_strip-label,.oh-bv_hint-title{font-family:var(--_typography---font-family--heading,'Tenor Sans',Georgia,serif)}
+.oh-bv_stage{transition:height 1s cubic-bezier(.2,.8,.2,1)}
+.oh-bv_lines{transition:opacity .3s}
+.oh-bv_tag-sub.is-sold,.oh-bv_strip.is-sold .oh-bv_strip-count{color:var(--oh-sold)}
+.oh-bv.is-flat{background:#fff}
+.oh-bv_render{transition:opacity 1s;user-select:none}
+.oh-bv_bands{transition:opacity .8s}
+.oh-bv_bands svg{pointer-events:none}
+.oh-bv_bands path{cursor:pointer;pointer-events:none;transition:fill-opacity .2s}
+.oh-bv[data-mode="block"] .oh-bv_bands path{pointer-events:visiblePainted}
+.oh-bv_bands path:hover{fill-opacity:.85}
+.oh-bv_wrap{transition:filter .6s,opacity .6s}
+.oh-bv_plate{transform-origin:0 0;transition:transform 1.4s cubic-bezier(.2,.8,.2,1);will-change:transform}
+.oh-bv_plan{user-select:none}
+.oh-bv_plot{cursor:pointer}
+.oh-bv_plot.is-dimmed{opacity:.3}
+.oh-bv_plot.is-selected polygon{stroke:var(--oh-accent);stroke-width:22}
+.oh-bv_plot-no{font-family:var(--_typography---font-family--body,Questrial,Arial,sans-serif);fill:#3b302a;stroke:#fff;stroke-width:22;stroke-linejoin:round;paint-order:stroke;pointer-events:none;opacity:0;transition:opacity .4s}
+.oh-bv.is-flat .oh-bv_plot-no{opacity:1}
+.oh-bv_strip{transition:opacity .5s .9s}
+.oh-bv:not(.is-flat) .oh-bv_strip{transition:opacity .2s}
+.oh-bv_chip{transition:opacity .2s,transform .15s}
+.oh-bv_chip.is-available{background:#f1f3ef;color:#43503f;border-color:#cfd9ce}
+.oh-bv_chip.is-reserved,.oh-bv_chip.is-pending{background:#f9f1e4;color:#6b5320;border-color:#eed8b1;cursor:default}
+.oh-bv_chip.is-sold,.oh-bv_chip.is-sold-out{background:#fbdbda;color:#8a2f2c;border-color:#f4c3c1;cursor:default}
+.oh-bv_chip.is-available:hover{transform:translateY(-1px);border-color:var(--oh-ink)}
+.oh-bv_chip.is-selected{background:var(--oh-accent);color:#fff;border-color:var(--oh-accent)}
+.oh-bv_chip.is-dimmed{opacity:.35;pointer-events:none}
+.oh-bv_chips-empty{grid-column:1/-1;font-size:.75rem;color:#8d8b87}
+.oh-bv_hint{transition:opacity .3s}
+.oh-bv_tag{transition:left 1.4s cubic-bezier(.2,.8,.2,1),top 1.4s cubic-bezier(.2,.8,.2,1),width 1.4s cubic-bezier(.2,.8,.2,1),opacity .35s}
+.oh-bv_tag:hover{background:var(--oh-sand)}
+html:not(.sales-open) .oh-bv_legend,html:not(.sales-open) .oh-bv_strip-from,html:not(.sales-open) .oh-bv_chip-sub{display:none}
+@media (prefers-reduced-motion:reduce){.oh-bv_plate,.oh-bv_tag,.oh-bv_wrap,.oh-bv_render,.oh-bv_bands,.oh-bv_strip,.oh-bv_stage{transition:none}}
+
+/* floor plan viewer (native markup [data-oh-native="fpv"], behaviour in oh-plans.js) */
+.oh-fpv.is-open{display:flex}
+html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}

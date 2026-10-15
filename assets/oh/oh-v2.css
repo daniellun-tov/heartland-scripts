@@ -653,11 +653,25 @@ html:not(.sales-open) .oh-welcome_sales{display:none}
 .oh-estate_block{fill:var(--oh-accent);fill-opacity:0;stroke:#fff;stroke-width:2;stroke-opacity:0;cursor:pointer;transition:fill-opacity .2s,stroke-opacity .2s;outline:none}
 .oh-estate_block.is-open{stroke:var(--oh-available);stroke-opacity:.9;fill:var(--oh-available);fill-opacity:.16}
 .oh-estate_block.is-open:hover,.oh-estate_block.is-open:focus-visible{fill-opacity:.42;stroke:#fff}
-.oh-estate_block.is-soon{stroke:#fff;stroke-opacity:.55;stroke-dasharray:6 5}
-.oh-estate_block.is-soon:hover,.oh-estate_block.is-soon:focus-visible{fill:var(--oh-unreleased);fill-opacity:.35}
+.oh-estate_block.is-phase2{fill:#6f6d68;fill-opacity:.55;stroke:#fff;stroke-opacity:.35;stroke-dasharray:6 5;cursor:default;pointer-events:none}
 .oh-estate_block.is-dimmed{fill-opacity:0;stroke-opacity:.35}
 .oh-estate_block.is-selected{fill:var(--oh-accent);fill-opacity:.5;stroke:#fff;stroke-opacity:1;stroke-width:3}
 @media (max-width:991px){.oh-estate_cap{left:.5rem;bottom:.5rem;font-size:.75rem}}
+.oh-estate_marks{pointer-events:none}
+.oh-estate_mark rect{fill:#fff;stroke:var(--oh-line);stroke-width:1;filter:drop-shadow(0 2px 4px rgba(21,23,20,.18))}
+.oh-estate_mark text{font-family:var(--_typography---font-family--body,Questrial,Arial,sans-serif);font-size:16px;letter-spacing:.02em;fill:var(--oh-ink)}
+.oh-estate_mark.is-open rect{fill:var(--oh-available);stroke:#fff}
+.oh-estate_mark.is-open text{fill:#fff}
+.oh-estate_mark.is-soldout rect{fill:#fbdbda;stroke:#f4c3c1}
+.oh-estate_mark.is-soldout text{fill:#8a2f2c}
+.oh-estate_mark.is-phase2 rect{fill:#e9e6df;stroke:#cfccc5}
+.oh-estate_mark.is-phase2 text{fill:#8d8b87}
+.oh-estate_mark.is-dimmed{opacity:.45}
+.oh-estate.is-pan{overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;overscroll-behavior:contain}
+.oh-estate.is-pan .oh-estate_frame{display:block}
+.unit-filter_map>.oh-estate_cap{z-index:5;display:none}
+.unit-filter_map.is-oh-estate>.oh-estate_cap{display:block}
+.unit-filter_map.is-oh-block>.oh-estate_cap{visibility:hidden}
 
 .unit-filter_map.is-oh-block .oh-bv{display:flex;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .unit-filter_map.is-oh-block .unit-filter_map-container,.unit-filter_map.is-oh-block .site-plan_toolbar,.unit-filter_map.is-oh-block .site-plan_floor-switch,.unit-filter_map.is-oh-block .site-plan_zoom,.unit-filter_map.is-oh-block .site-plan_viewmarks,.unit-filter_map.is-oh-block .oh-estate{visibility:hidden;pointer-events:none}
@@ -696,3 +710,7 @@ html:not(.sales-open) .oh-welcome_sales{display:none}
 .oh-bv_tag:hover{background:var(--oh-sand)}
 html:not(.sales-open) .oh-bv_legend,html:not(.sales-open) .oh-bv_strip-from,html:not(.sales-open) .oh-bv_chip-sub{display:none}
 @media (prefers-reduced-motion:reduce){.oh-bv_plate,.oh-bv_tag,.oh-bv_wrap,.oh-bv_render,.oh-bv_bands,.oh-bv_strip,.oh-bv_stage{transition:none}}
+
+/* floor plan viewer (native markup [data-oh-native="fpv"], behaviour in oh-plans.js) */
+.oh-fpv.is-open{display:flex}
+html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}
