@@ -3987,6 +3987,16 @@ window.ohNativeSubmit = async function (form, doneText) {
       b.classList.toggle('is-active', (b.getAttribute('data-oh-view') === 'estate') === estateOn);
     });
     if (estateOn) paintEstate();
+    /* phones/tablets: the toolbar's Plan · List · 3D tabs follow the view */
+    document.documentElement.classList.toggle('oh-estate-on', estateOn);
+    var tabs = document.querySelectorAll('.unit-filter_mobile-view-switch [data-view]');
+    if (tabs.length) {
+      var list = !!document.querySelector('.unit-filter_component.is-view-list');
+      tabs.forEach(function (t) {
+        var v = t.getAttribute('data-view');
+        t.classList.toggle('is-current', estateOn ? v === 'estate' : (list ? v === 'list' : v === 'map'));
+      });
+    }
     document.dispatchEvent(new CustomEvent('oh:estate-view', { detail: { on: estateOn } }));
   }
 
@@ -4046,12 +4056,30 @@ window.ohNativeSubmit = async function (form, doneText) {
     /* the caption pill must not pan with the picture: on phones it lives on the map wrapper */
     var cap = (estate.querySelector('.oh-estate_cap') || w.querySelector('.oh-estate_cap'));
     if (cap) { if (pan && cap.parentNode !== w) w.appendChild(cap); else if (!pan && cap.parentNode !== frame) frame.appendChild(cap); }
-    if (!pan) { frame.style.cssText = ''; return; }
-    var fw = Math.max(pw * 1.9, 760), fh = fw * GEO.estate.frame[1] / GEO.estate.frame[0];
+    if (!pan) { frame.style.cssText = ''; estate.classList.remove('is-fit'); return; }
     var chooser = estate.querySelector('[data-oh-native="choose"]');
-    frame.style.cssText = 'position:relative;width:' + fw + 'px;height:' + (chooser ? fh : Math.max(fh, ph)) + 'px';
+    var fw, fh;
+    if (chooser) {
+      /* one screen: the render takes what the chooser leaves, and pans sideways only */
+      var chH = chooser.offsetHeight || 300;
+      fh = Math.max(200, ph - chH);
+      fw = Math.max(pw, fh * GEO.estate.frame[0] / GEO.estate.frame[1]);
+      estate.classList.add('is-fit');
+      frame.style.cssText = 'position:relative;width:' + fw + 'px;height:' + fh + 'px';
+    } else {
+      fw = Math.max(pw * 1.9, 760); fh = fw * GEO.estate.frame[1] / GEO.estate.frame[0];
+      frame.style.cssText = 'position:relative;width:' + fw + 'px;height:' + Math.max(fh, ph) + 'px';
+    }
     if (!estate.getAttribute('data-oh-panned')) {
-      estate.scrollLeft = (fw - pw) / 2 + fw * 0.02;
+      var x0 = (fw - pw) / 2 + fw * 0.02;
+      if (chooser && chosen && GEO.estate.paths[chosen]) {
+        /* start with the picked block in view */
+        var nn = (GEO.estate.paths[chosen].match(/-?\d+\.?\d*/g) || []).map(Number), bx = [];
+        for (var q = 0; q < nn.length; q += 2) bx.push(nn[q]);
+        var cxp = (Math.min.apply(null, bx) + Math.max.apply(null, bx)) / 2 / GEO.estate.frame[0] * fw;
+        x0 = Math.min(Math.max(0, cxp - pw * 0.35), fw - pw);
+      }
+      estate.scrollLeft = x0;
       estate.scrollTop = chooser ? 0 : Math.max(0, (Math.max(fh, ph) - ph) / 2);
     }
   }
@@ -4160,6 +4188,7 @@ window.ohNativeSubmit = async function (form, doneText) {
     var cur = chosen && ch.querySelector('[data-oh-card="' + chosen + '"]');
     if (!cur || cur.classList.contains('is-muted')) choose(first);
     else choose(chosen);
+    layoutEstate();
   }
 
   /* ------------------------------------------------------------
@@ -4581,6 +4610,13 @@ window.ohNativeSubmit = async function (form, doneText) {
   function boot() {
     if (!window.ohSitePlan || !units().length) { setTimeout(boot, 250); return; }
     buildSwitch();
+    document.addEventListener('click', function (e) {
+      var t = e.target.closest && e.target.closest('.unit-filter_mobile-view-switch [data-view]');
+      if (!t) return;
+      var v = t.getAttribute('data-view');
+      if (v === 'estate') { e.preventDefault(); if (cur) closeBlock(); setEstate(true); }
+      else if (estateOn || cur) { if (cur) closeBlock(); setEstate(false); }
+    });
     window.ohSitePlan.onChange(function () { if (estate) paintEstate(); paintCounts(); });
     document.addEventListener('oh:sales-phase', function () { if (estate) paintEstate(); paintCounts(); });
     var q = new URLSearchParams(location.search);

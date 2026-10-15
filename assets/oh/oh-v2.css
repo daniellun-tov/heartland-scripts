@@ -733,3 +733,8 @@ html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}
 .oh-estate_block.is-chosen{stroke:#af6042;stroke-width:3;fill:#af6042;fill-opacity:.35}
 .oh-estate_mark.is-chosen rect{fill:#af6042}.oh-estate_mark.is-chosen text{fill:#fff}
 .unit-filter_map.is-oh-pan > .oh-estate_cap{display:none}
+
+/* phones: render + Choose a block in one screen, the render pans sideways only */
+.oh-estate.is-pan.is-fit{overflow-x:auto;overflow-y:hidden}
+/* 3D view: no colour-by (the render is not coloured by status or type) */
+html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){display:none}
