@@ -81,36 +81,79 @@
      Live is the page as it was before the waitlist: per-home prices, "Reserve home N", the
      section 09 reservation hand-off to /reserve-flow. The gate stays: until you sign up or sign
      in, the availability selector is blurred and every price is a "Sign up to see pricing" prompt.
-     Preview either phase on any date with ?sd2_phase=live or ?sd2_phase=prelaunch. */
+     Preview either phase on any date with ?sd2_phase=live or ?sd2_phase=prelaunch (webflow.io only). */
   var PHASE = (PAGE.getAttribute("data-sd2-phase") || "").toLowerCase();
   var LAUNCH = Date.parse(PAGE.getAttribute("data-sd2-launch") || "") || 0;
   var MS_PLAN = PAGE.getAttribute("data-sd2-ms-plan") || "";
   var PHASED = PHASE === "prelaunch" || PHASE === "live";
   var PRE = PHASE === "prelaunch" && !(LAUNCH && Date.now() >= LAUNCH);
-  /* RESERVE-READY DEMO MODE. ?sd2_demo=reserve puts this browser tab in the live phase
-     (reservations on, per-home prices, section 09 hands off to /reserve-flow) and keeps it
-     there across reloads and the trip back from the flow, until ?sd2_demo=off or the tab is
-     closed. ?sd2_demo=open does the same without the sign-up gate. A pill in the corner says
-     it's on and turns it off. Nothing about the page changes for anyone else. */
+  /* DEMO MODE (rebuilt 15 Oct). Two ways to show the whole flow to someone while the real
+     page is still pre-launch and gated:
+       ?sd2_demo=gated   the live page WITH the gate: the selector is blurred and prices are
+                         hidden until you sign up (Memberstack sandbox on webflow.io), then
+                         reserve. "reserve" is kept as an alias for old links.
+       ?sd2_demo=open    the live page with NO gate: prices and reserve straight away.
+       ?sd2_demo=off     ends it.
+     It sticks for the tab (sessionStorage), survives reloads and the trip to /reserve-flow,
+     Payfast and back, and shows a pill that switches mode, signs a demo member out and exits.
+     WEBFLOW.IO ONLY. On www the parameter is ignored and any stored demo is cleared, and so is
+     ?sd2_phase - otherwise anyone could open reservations on production before launch.
+     Everything a staging reservation does is a rehearsal, enforced in Xano rather than here
+     (resolve_reservation_mode): Payfast sandbox always, no home held, the CMS reserved/sold
+     switches never touched, no live member created, reference RES-TEST-SAN-nnn. */
+  var STAGING = /\.webflow\.io$/i.test(String(w.location.hostname || ""));
   var DEMO_KEY = "sd2_demo";
-  var demoQ = /[?&]sd2_demo=(reserve|open|off)\b/.exec(w.location.search);
+  var demoQ = /[?&]sd2_demo=(gated|reserve|open|off)\b/.exec(w.location.search);
   var DEMO = "";
   try {
-    if (demoQ) { if (demoQ[1] === "off") { w.sessionStorage.removeItem(DEMO_KEY); } else { w.sessionStorage.setItem(DEMO_KEY, demoQ[1]); } }
-    DEMO = w.sessionStorage.getItem(DEMO_KEY) || "";
-  } catch (e) { DEMO = demoQ && demoQ[1] !== "off" ? demoQ[1] : ""; }
-  var forced = /[?&]sd2_phase=(prelaunch|live)\b/.exec(w.location.search) || (PHASED && DEMO ? [0, "live"] : null);
+    if (!STAGING || (demoQ && demoQ[1] === "off")) { w.sessionStorage.removeItem(DEMO_KEY); }
+    else if (demoQ) { w.sessionStorage.setItem(DEMO_KEY, demoQ[1] === "open" ? "open" : "gated"); }
+    DEMO = STAGING ? (w.sessionStorage.getItem(DEMO_KEY) || "") : "";
+  } catch (e) { DEMO = STAGING && demoQ && demoQ[1] !== "off" ? (demoQ[1] === "open" ? "open" : "gated") : ""; }
+  if (DEMO === "reserve") { DEMO = "gated"; }
+  var forced = (STAGING && /[?&]sd2_phase=(prelaunch|live)\b/.exec(w.location.search)) || (PHASED && DEMO ? [0, "live"] : null);
   if (PHASED && forced) { PRE = forced[1] === "prelaunch"; }
   var GATED = PHASED && (PRE || (DEMO !== "open" && (PAGE.getAttribute("data-sd2-gate") || "").toLowerCase() !== "off"));
   if (PHASED && DEMO) {
     var addPill = function () {
-      var pill = d.createElement("a");
-      pill.href = w.location.pathname + "?sd2_demo=off";
+      var path = w.location.pathname;
+      var pill = d.createElement("div");
       pill.className = "sd2_demo_pill";
-      pill.textContent = (DEMO === "open" ? "Demo: reserve mode, no sign-up" : "Demo: reserve mode") + "  ·  Exit";
-      pill.setAttribute("style", "position:fixed;left:12px;top:84px;z-index:9998;padding:.45rem .8rem;border-radius:999px;" +
-        "background:#A9754B;color:#FCFAF7;font:600 .6875rem/1 Manrope,sans-serif;letter-spacing:.04em;text-decoration:none;" +
-        "box-shadow:0 6px 18px rgba(28,26,23,.25)");
+      pill.setAttribute("role", "status");
+      pill.setAttribute("style", "position:fixed;left:12px;top:84px;z-index:9998;display:flex;flex-wrap:wrap;align-items:center;gap:.25rem .75rem;" +
+        "max-width:calc(100vw - 24px);padding:.55rem .9rem;border-radius:14px;background:#1C1A17;color:#FCFAF7;" +
+        "font:500 .6875rem/1.35 Manrope,sans-serif;letter-spacing:.03em;box-shadow:0 8px 24px rgba(28,26,23,.3)");
+      var link = function (label, href, onClick) {
+        var a = d.createElement("a");
+        a.textContent = label;
+        a.href = href;
+        a.setAttribute("style", "color:#C79A6E;font-weight:700;text-decoration:none;white-space:nowrap");
+        if (onClick) { a.addEventListener("click", onClick); }
+        return a;
+      };
+      var b = d.createElement("b");
+      b.textContent = DEMO === "open" ? "Demo · open" : "Demo · gated";
+      b.setAttribute("style", "font-weight:700;color:#FCFAF7;white-space:nowrap");
+      var note = d.createElement("span");
+      note.textContent = "Test payments only · nothing is reserved";
+      note.setAttribute("style", "opacity:.7;white-space:nowrap");
+      pill.appendChild(b);
+      pill.appendChild(note);
+      pill.appendChild(link(DEMO === "open" ? "Switch to gated" : "Switch to open", path + "?sd2_demo=" + (DEMO === "open" ? "gated" : "open")));
+      if (DEMO === "gated") {
+        /* To show the gate from the start again, the demo member has to be signed out. */
+        var out = link("Sign out", "#", function (e) {
+          e.preventDefault();
+          var go = function () { w.location.reload(); };
+          try { w.$memberstackDom.logout().then(go, go); } catch (err) { go(); }
+        });
+        out.className = "sd2_demo_signout";
+        pill.appendChild(out);
+      }
+      pill.appendChild(link("Exit demo", path + "?sd2_demo=off"));
+      var css = d.createElement("style");
+      css.textContent = "html:not(.sd2-signed-in) .sd2_demo_signout{display:none}";
+      (d.head || d.documentElement).appendChild(css);
       d.body.appendChild(pill);
     };
     if (d.readyState === "loading") { d.addEventListener("DOMContentLoaded", addPill); } else { addPill(); }

@@ -1882,11 +1882,33 @@
     }, false);
   }
 
+  /* STAGING IS A REHEARSAL, AND SAYS SO (15 Oct). On a *.webflow.io host every reservation
+     is a test - Xano decides that from origin_host (resolve_reservation_mode), not from this
+     banner: Payfast sandbox whatever the property's live switch says, no home held, the CMS
+     reserved/sold switches untouched, no live portal member, reference RES-TEST-. The banner
+     only makes it impossible to mistake a demo for a sale. Nothing on www changes. */
+  function demoBanner() {
+    if (!/\.webflow\.io$/i.test(String(w.location.hostname || ""))) { return; }
+    if (d.getElementById("hl-demo-bar")) { return; }
+    var bar = d.createElement("div");
+    bar.id = "hl-demo-bar";
+    bar.setAttribute("role", "status");
+    bar.setAttribute("style", "position:sticky;top:0;left:0;right:0;z-index:99999;background:#1C1A17;color:#FCFAF7;" +
+      "font:600 13px/1.45 system-ui,-apple-system,sans-serif;letter-spacing:.02em;padding:9px 16px;text-align:center");
+    var b = d.createElement("b");
+    b.textContent = "Demo";
+    b.setAttribute("style", "color:#C79A6E;margin-right:.5em");
+    bar.appendChild(b);
+    bar.appendChild(d.createTextNode("Test payment only (Payfast sandbox, no real money). No home is reserved and no portal account is created."));
+    if (d.body) { d.body.insertBefore(bar, d.body.firstChild); }
+  }
+
   function boot() {
     /* Same rule as the entry point: the page must contain the flow. A page with no
        [data-hl-step] gets nothing, so this file is inert everywhere it is not wanted. */
     if (!d.querySelector("[data-hl-step]")) { return; }
     bind();
+    demoBanner();
     /* Exposed BEFORE the uuid check, deliberately. It used to be set only after a
        reservation had loaded, so the debug handle was missing in exactly the situation
        you would reach for it - a page that cannot find a reservation. Its presence is
