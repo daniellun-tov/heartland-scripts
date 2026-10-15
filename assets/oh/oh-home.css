@@ -1,9 +1,10 @@
 /* Oak Hills - home page Unit Types (15 Oct 2026)
    State rules that oh-home.js toggles. Everything static lives in Designer classes. */
 
-/* a type with only a flythrough (no interior renders): the video fills the gallery */
-#unit-types-swiper.is-oh-full .swiper-slide.is-unit-flythrough { width: 100%; }
-#unit-types-swiper.is-oh-full .flythrough-video { width: 100%; }
+/* a type with only a flythrough (no interior renders, types B and C): the video fills the
+   gallery at its real 16:9 shape instead of the portrait crop used beside the renders */
+#unit-types-swiper.is-oh-full .swiper-slide.is-unit-flythrough { width: 100%; max-width: none; max-height: none; margin-right: 0 !important; }
+#unit-types-swiper.is-oh-full .flythrough-video { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
 #unit-types-swiper.is-oh-full .swiper-buttons { display: none; }
 
 /* floor plan viewer open: no page scroll behind it */
