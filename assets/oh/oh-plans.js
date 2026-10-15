@@ -6,8 +6,9 @@
    file only adds the behaviour and knows which files belong to which type.
    Loaded on the home page (Unit Types section) and on /unit-selection (unit panel).
 
-   window.ohPlans.open('B')            opens Type B on the 3D view
-   window.ohPlans.open('A', 'plan')    opens Type A on the line drawing
+   window.ohPlans.open('B')            opens Type B on the plan (line drawing)
+   window.ohPlans.open('A', '3d')      opens Type A on the furnished 3D view
+   The viewer sits above everything, the unit side panel included (z-index in the Designer).
    window.ohPlans.close()
    ============================================================ */
 (function () {
@@ -24,7 +25,7 @@
          inside: ['1 bedroom', 'One bathroom', 'Open-plan kitchen and living', 'Covered patio'],
          img3d: CDN + '6ad07ff334cd061e3b235611_fp-3d-type-c.webp', plan: CDN + '6ad07ff498236f8193eecde9_fp-plan-type-c.webp', pdf: CDN + '6ad07ff49479985a2b086b73_fp-plan-type-c.pdf' }
   };
-  var root = null, cur = null, view = '3d', lastFocus = null, scrollY = 0;
+  var root = null, cur = null, view = 'plan', lastFocus = null, scrollY = 0;
 
   function q(s, r) { return (r || root).querySelector(s); }
   function el() {
@@ -39,7 +40,8 @@
       if (t.hasAttribute('data-oh-fpv-view')) return show(t.getAttribute('data-oh-fpv-view'));
       download(t.getAttribute('data-oh-fpv-dl'));
     });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && root.classList.contains('is-open')) close(); });
+    /* capture + stop: Escape closes the viewer only, not the unit panel underneath */
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && root.classList.contains('is-open')) { e.stopImmediatePropagation(); e.preventDefault(); close(); } }, true);
     return root;
   }
   function letter(x) {
@@ -57,13 +59,13 @@
       Array.prototype.forEach.call(grid.children, function (el, i) { el.textContent = items[i] || ''; el.style.display = items[i] ? '' : 'none'; });
     }
     var note = q('[data-oh-fpv="note"]'); if (note) note.textContent = 'Plan as drawn for Type ' + k + '. Measurements are approximate and finishes may differ.';
-    show(which === 'plan' ? 'plan' : '3d');
+    show(which === '3d' ? '3d' : 'plan');
     lastFocus = document.activeElement;
     scrollY = window.pageYOffset || 0;
     root.classList.add('is-open');
     document.documentElement.classList.add('oh-fpv-open');
     root.setAttribute('aria-label', d.title + ' floor plan');
-    var c = q('.oh-fpv_close'); if (c) c.focus({ preventScroll: true });
+    var c = q('.oh-fpv_close'); if (c) c.focus({ preventScroll: true, focusVisible: false });
     return true;
   }
   function show(which) {
@@ -111,7 +113,8 @@
     if (!k) return;
     var cap = (tile.querySelector('.unit-details_fp-caption') || {}).textContent || '';
     var num = document.querySelector('[wized="v2_udNumber"]');
-    var meta = document.querySelector('[wized="v2_udMeta"]');
-    if (open(k, /render/i.test(cap) ? '3d' : 'plan', { title: num ? num.textContent.trim() : null, sub: meta ? meta.textContent.trim() + ' · ' + TYPES[k].sub : null })) { e.preventDefault(); e.stopImmediatePropagation(); }
+    var size = document.querySelector('[wized="v2_udSize"]');
+    var sub = [num ? num.textContent.trim() : '', 'Type ' + k, size ? size.textContent.trim() : ''].filter(Boolean).join(' · ');
+    if (open(k, /render/i.test(cap) ? '3d' : 'plan', { title: 'Floor plan', sub: sub })) { e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
 })();

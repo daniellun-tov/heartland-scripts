@@ -4646,6 +4646,10 @@ window.ohNativeSubmit = async function (form, doneText) {
 /* ---------------------------------------------------------------------------
    Unit panel: the prototype's unit screens (15 Oct 2026).
    Fills the native pieces added to the panel in the Designer:
+     [data-oh-native="topbar"]  back (data-close-detail), [data-oh-ud="title|meta"], share icon
+                                ([data-oh-share] presses the panel's WhatsApp share button)
+     [data-oh-ud="status"]      status badge on the gallery
+     [data-oh-ud="dots"]        gallery dots on phones (cloned from the dot template); the stage swipes
      [data-oh-fpbtn]            floor plan pill on the hero (opens the viewer)
      [data-oh-ud="cap"]         hero caption pill
      [data-oh-ud="sub"]         "75 m2 interior plus an 11 m2 patio · position 06 of 07"
@@ -4702,9 +4706,10 @@ window.ohNativeSubmit = async function (form, doneText) {
     var bay = u.parking_bay_number, kind = u.parking_bay_type;
     txt('[data-oh-hl-t="parking"]', bay ? (kind ? kind + ' parking, bay ' + bay : 'Parking bay ' + bay) : 'Parking');
     txt('[data-oh-hl-s="parking"]', (bay ? 'Included. ' : '') + 'Extra bays from R 200 000.');
-    var levy = u.levy_display ? 'Levy ' + u.levy_display + ' pm' : '';
+    var levy = u.levy_display ? 'Est. levy ' + u.levy_display + ' pm' : '';
     txt('[data-oh-ud="terms"]', [levy, 'Occupation ' + OCCUPATION, 'Section 13sex applies'].filter(Boolean).join(' · '));
     syncPrice();
+    mirror();
     caption();
     expanders();
     estateScreen(false);
@@ -4717,6 +4722,16 @@ window.ohNativeSubmit = async function (form, doneText) {
     txt('[data-oh-ud="price-sub"]', hidden ? '' : 'incl. VAT · no transfer duty');
   }
 
+  /* ---- topbar title / meta and the status badge mirror the Wized-bound header ---- */
+  function mirror() {
+    var num = q('[wized="v2_udNumber"]'), meta = q('[wized="v2_udMeta"]'), st = q('[wized="v2_udStatus"]');
+    var t = (num && num.textContent.trim()) || (cur ? 'Unit ' + cur.unit_number : '');
+    txt('[data-oh-ud="title"]', t);
+    txt('[data-oh-ud="meta"]', (meta && meta.textContent.trim()) || '');
+    var badge = q('[data-oh-ud="status"]');
+    if (badge) { var s = st ? st.textContent.trim() : ''; badge.textContent = s; badge.style.display = s ? '' : 'none'; }
+  }
+
   /* ---- hero caption follows the gallery ---- */
   function caption() {
     var cap = q('[data-oh-ud="cap"]'); if (!cap || !cur) return;
@@ -4727,8 +4742,60 @@ window.ohNativeSubmit = async function (form, doneText) {
     thumbs.forEach(function (t, k) { if (t.classList.contains('is-current')) i = k; });
     var isVideo = media && media.tagName !== 'IMG';
     var label = isVideo ? 'Flythrough · Type ' + cur.type_code : 'Type ' + cur.type_code + ' render';
-    cap.textContent = label + (n > 1 ? ' · ' + (i + 1) + ' of ' + n : '');
+    var phone = window.matchMedia('(max-width: 767px)').matches;
+    cap.textContent = label + (n > 1 && !phone ? ' · ' + (i + 1) + ' of ' + n : '');
+    dots(n, i);
     var btn = q('[data-oh-fpbtn]'); if (btn) btn.style.display = '';
+  }
+
+  /* ---- gallery dots (phones; the thumbs are hidden there) ---- */
+  function dots(n, i) {
+    var box = q('[data-oh-ud="dots"]'); if (!box) return;
+    var tpl = box.querySelector('[data-oh-template="dot"]'); if (!tpl) return;
+    tpl.style.display = 'none';
+    var have = box.querySelectorAll('[data-oh-dot]');
+    if (have.length !== n) {
+      have.forEach(function (d) { d.remove(); });
+      for (var k = 0; k < n; k++) { var d = tpl.cloneNode(true); d.removeAttribute('data-oh-template'); d.setAttribute('data-oh-dot', k); d.style.display = ''; box.appendChild(d); }
+    }
+    box.style.visibility = n > 1 ? '' : 'hidden';
+    box.querySelectorAll('[data-oh-dot]').forEach(function (d, k) { d.classList.toggle('is-current', k === i); });
+  }
+
+  /* ---- swipe the gallery: drag the picture, let go past 50 px to step (the v1 gallery
+     only knows thumb clicks, so a step presses the next thumb) ---- */
+  var swiped = 0;
+  function swipe(stage) {
+    var x0 = null, y0 = 0, dx = 0, lock = null;
+    function media() { return stage.querySelector('.ud-media'); }
+    stage.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1) return;
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; lock = null;
+    }, { passive: true });
+    stage.addEventListener('touchmove', function (e) {
+      if (x0 === null) return;
+      var mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+      if (lock === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) lock = Math.abs(mx) > Math.abs(my) ? 'x' : 'y';
+      if (lock !== 'x') return;
+      dx = mx; stage.classList.add('is-oh-drag');
+      var m = media(); if (m) m.style.transform = 'translateX(' + dx + 'px)';
+    }, { passive: true });
+    function end() {
+      if (x0 === null) return;
+      x0 = null; stage.classList.remove('is-oh-drag');
+      var m = media();
+      var thumbs = document.querySelectorAll('[data-gallery="thumbs"] [data-thumb]');
+      if (lock === 'x' && Math.abs(dx) > 50 && thumbs.length > 1) {
+        var i = 0; thumbs.forEach(function (t, k) { if (t.classList.contains('is-current')) i = k; });
+        var j = (i + (dx < 0 ? 1 : -1) + thumbs.length) % thumbs.length;
+        swiped = Date.now();
+        thumbs[j].click();
+        var n = media(); if (n) { n.style.transition = 'none'; n.style.transform = 'translateX(' + (dx < 0 ? 40 : -40) + 'px)'; n.getBoundingClientRect(); n.style.transition = ''; n.style.transform = ''; }
+      } else if (m) { m.style.transform = ''; if (lock === 'x') swiped = Date.now(); }
+      lock = null;
+    }
+    stage.addEventListener('touchend', end);
+    stage.addEventListener('touchcancel', end);
   }
 
   /* ---- "Where you'll be": expand buttons on the two figures ---- */
@@ -4817,18 +4884,28 @@ window.ohNativeSubmit = async function (form, doneText) {
   document.addEventListener('oh:unit-open', function (e) { fill(e.detail && e.detail.unit); setTimeout(syncPrice, 50); setTimeout(syncPrice, 400); });
   document.addEventListener('oh:unit-close', function () { cur = null; estateScreen(false); });
   document.addEventListener('click', function (e) {
-    var t = e.target.closest && e.target.closest('[data-oh-fpbtn], .ud-block_expand, [data-oh-es-back], [data-oh-es-tab], [data-oh-es-reserve]');
+    /* a swipe ends in a click: do not let it open the lightbox */
+    if (swiped && Date.now() - swiped < 400 && e.target.closest && e.target.closest('[data-gallery="stage"]')) { e.preventDefault(); e.stopImmediatePropagation(); return; }
+    var back = e.target.closest && e.target.closest('a[data-close-detail]');
+    if (back) { e.preventDefault(); return; }   /* the plan module closes the panel */
+    var sh = e.target.closest && e.target.closest('[data-oh-share]');
+    if (sh) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      var w = q('[wized="v2_shareWhatsapp"]'); if (w) w.click();
+      return;
+    }
+    var t = e.target.closest && e.target.closest('[data-oh-fpbtn], .ud-block_expand, .ud-block_fig, [data-oh-es-back], [data-oh-es-tab], [data-oh-es-reserve]');
     if (!t || !cur) return;
     e.preventDefault();
     if (t.hasAttribute('data-oh-fpbtn')) {
       e.stopImmediatePropagation();
-      if (window.ohPlans) window.ohPlans.open(cur.type_code, '3d', {
-        title: 'Unit ' + cur.unit_number, sub: 'Block ' + cur.block_name + ' · ' + (cur.floor_label || '') + ' floor · Type ' + cur.type_code,
+      if (window.ohPlans) window.ohPlans.open(cur.type_code, 'plan', {
+        title: 'Floor plan', sub: ['Unit ' + cur.unit_number, 'Type ' + cur.type_code, cur.unit_size ? Math.round(cur.unit_size) + ' m²' : ''].filter(Boolean).join(' · '),
         cap: ['Type ' + cur.type_code, cur.unit_size ? Math.round(cur.unit_size) + ' m²' : '', ORIENT[(cur.orientation || '').toUpperCase()] ? ORIENT[cur.orientation.toUpperCase()].toLowerCase() + ' facing' : ''].filter(Boolean).join(' · ')
       });
       return;
     }
-    if (t.classList.contains('ud-block_expand')) {
+    if (t.classList.contains('ud-block_expand') || t.classList.contains('ud-block_fig')) {
       e.stopImmediatePropagation();
       var fig = t.closest('.ud-block_fig');
       if (fig.getAttribute('data-block-fig') === 'estate') { estateScreen(true); return; }
@@ -4854,6 +4931,8 @@ window.ohNativeSubmit = async function (form, doneText) {
     var stage = q('[data-gallery="stage"]'); if (!stage) { setTimeout(watch, 300); return; }
     new MutationObserver(function () { if (cur) caption(); }).observe(stage, { childList: true });
     var price = q('[wized="v2_udPrice"]'); if (price) new MutationObserver(syncPrice).observe(price, { childList: true, characterData: true, subtree: true });
+    ['v2_udNumber', 'v2_udMeta', 'v2_udStatus'].forEach(function (k) { var el = q('[wized="' + k + '"]'); if (el) new MutationObserver(mirror).observe(el, { childList: true, characterData: true, subtree: true }); });
+    swipe(stage);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
   window.ohUnitScreens = { estate: estateScreen, amenity: amenity };

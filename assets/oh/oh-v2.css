@@ -725,7 +725,17 @@ html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}
 .unit-details_stage{position:relative}
 
 .site-plan_detail-panel.is-oh-es{overflow:hidden}
-@media (max-width:767px){.unit-details_actionbar{flex-wrap:wrap}.oh-ud_pricebar{flex:1 1 100%;flex-direction:row;align-items:baseline;gap:.5rem}.oh-ud_pricebar-sub{margin-top:0}}
+/* sticky bar (16 Oct): price + tags on the left, Reserve on the right, one row at every size */
+.unit-details_actionbar .oh-ud_pricebar{flex:1 1 auto;min-width:0}
+@media (max-width:767px){.unit-details_actionbar{padding-left:1rem;padding-right:1rem}.unit-details_actionbar .button-text{white-space:nowrap}.unit-details_actionbar .oh-ud_pricebar-price{font-size:1.25rem}}
+/* gallery dots (mobile) and swipe */
+.oh-ud_dot.is-current{background:#fff}
+.unit-details_stage{touch-action:pan-y}
+.unit-details_stage .ud-media{transition:transform .25s ease}
+.unit-details_stage.is-oh-drag .ud-media{transition:none}
+/* "Where you'll be": the whole card opens it */
+.ud-block_fig{cursor:pointer}
+.ud-block_fig:focus-visible{outline:2px solid #af6042;outline-offset:3px}
 
 /* phone: Choose a block under the render */
 .oh-estate.is-pan .oh-estate_choose{display:flex}
@@ -739,7 +749,7 @@ html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}
 /* 3D view: no colour-by (the render is not coloured by status or type) */
 html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){display:none}
 
-/* phones/tablets (Daniel, 15 Oct): Status | Type lives in the header (native .site-plan_colourby.is-header),
+/* phones/tablets (Daniel, 15 Oct): Plan | List | 3D lives in the header, Status | Type in the toolbar row (native .site-plan_colourby.is-header),
    the legend takes the top-left of the plan and the level switch sits under it */
 @media (max-width:991px){
   .unit-filter_map .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){display:none}
@@ -747,6 +757,6 @@ html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){dis
   .unit-filter_map .site-plan_legend-group{justify-content:flex-start}
   .unit-filter_map .site-plan_floor-switch{top:calc(var(--oh-tb-h, 1.9rem) + .9rem)}
   .unit-filter_map .site-plan_viewmark[data-placement="north"]{top:calc(var(--oh-tb-h, 1.9rem) + 3.75rem)}
-  .unit-filter_brand .site-plan_colourby.is-header{padding:.2rem}
-  html.oh-estate-on .unit-filter_brand .site-plan_colourby.is-header,.page_wrap.is-view-list .unit-filter_brand .site-plan_colourby.is-header{visibility:hidden}
+  .site-plan_colourby.is-header{padding:.2rem}
+  html.oh-estate-on .site-plan_colourby.is-header,.page_wrap.is-view-list .site-plan_colourby.is-header{visibility:hidden}
 }
