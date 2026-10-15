@@ -3884,7 +3884,12 @@ window.ohNativeSubmit = async function (form, doneText) {
 /* ============================================================
    Estate 3D view + block view (Variant A: block to plans) - 14 Oct
    Two more ways into the same selection engine, both rendered by this
-   controller from the units the page already holds (no Wized elements):
+   controller from the units the page already holds (no Wized elements).
+   The markup is native Webflow (Designer classes, built on the page after
+   the map container: the view switch in the toolbar, [data-oh-native=
+   "estate"] and [data-oh-native="block"]); this module moves it into the
+   map wrapper, clones the strip / chip / wrap / tag templates per floor
+   and adds the behaviour. Without the native elements it stays off.
 
    - Estate view: the aerial render with the twelve blocks as clickable
      outlines, switchable with the site plan from a "View: Plan | 3D" pill
@@ -3960,16 +3965,19 @@ window.ohNativeSubmit = async function (form, doneText) {
   function buildSwitch() {
     var bar = document.querySelector('.unit-filter_map .site-plan_toolbar');
     if (!bar || viewSwitch) return;
-    viewSwitch = el('div', 'site-plan_colourby oh-viewswitch');
-    viewSwitch.innerHTML = '<span class="site-plan_switch-label">View</span>' +
-      '<button type="button" class="site-plan_colourby-btn oh-viewswitch-btn is-active" data-oh-view="plan">Plan</button>' +
-      '<button type="button" class="site-plan_colourby-btn oh-viewswitch-btn" data-oh-view="estate">3D</button>';
-    bar.insertBefore(viewSwitch, bar.firstChild);
+    viewSwitch = document.querySelector('.oh-viewswitch');
+    if (!haveSwitch()) return;
+    if (viewSwitch.parentNode !== bar || bar.firstElementChild !== viewSwitch) bar.insertBefore(viewSwitch, bar.firstChild);
     viewSwitch.addEventListener('click', function (e) {
       var b = e.target.closest('[data-oh-view]'); if (!b) return;
       setEstate(b.getAttribute('data-oh-view') === 'estate');
     });
+    viewSwitch.addEventListener('keydown', function (e) {
+      var b = e.target.closest('[data-oh-view]'); if (!b) return;
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEstate(b.getAttribute('data-oh-view') === 'estate'); }
+    });
   }
+  function haveSwitch() { if (viewSwitch) return true; console.warn('[block-view] native .oh-viewswitch missing on the page'); return false; }
   function setEstate(on) {
     estateOn = !!on;
     var w = mapWrap(); if (!w) return;
@@ -3988,24 +3996,22 @@ window.ohNativeSubmit = async function (form, doneText) {
   function buildEstate() {
     if (estate) return estate;
     var w = mapWrap(); if (!w) return null;
-    estate = el('div', 'oh-estate');
-    estate.innerHTML =
-      '<div class="oh-estate_frame">' +
-        '<img class="oh-estate_img" alt="Aerial render of Oakhills Estate with all twelve blocks" src="' + ESTATE_IMG + '">' +
-        '<svg class="oh-estate_svg" viewBox="0 0 ' + GEO.estate.frame[0] + ' ' + GEO.estate.frame[1] + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="The twelve blocks, tap one to open it"></svg>' +
-        '<div class="oh-estate_cap" aria-live="polite"></div>' +
-      '</div>';
-    var svg = estate.querySelector('svg');
+    estate = document.querySelector('[data-oh-native="estate"]');
+    if (!estate) { console.warn('[block-view] native estate view missing on the page'); return null; }
+    var svg = estate.querySelector('.oh-estate_svg svg') || estate.querySelector('svg');
+    var img = estate.querySelector('.oh-estate_img');
+    if (img && !img.getAttribute('src')) img.src = ESTATE_IMG;
     Object.keys(GEO.estate.paths).forEach(function (name) {
-      var p = svgEl('path', { d: GEO.estate.paths[name], 'data-block': name, 'class': 'oh-estate_block', role: 'button', tabindex: '0' });
-      svg.appendChild(p);
+      /* the outlines are in the Designer embed; add any that are missing */
+      var p = svg.querySelector('[data-block="' + name + '"]');
+      if (!p) { p = svgEl('path', { d: GEO.estate.paths[name], 'data-block': name, 'class': 'oh-estate_block', role: 'button', tabindex: '0' }); svg.appendChild(p); }
       var open = function () { openBlock(name); };
       p.addEventListener('click', open);
       p.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
       p.addEventListener('mouseenter', function () { caption(name); });
       p.addEventListener('mouseleave', function () { caption(null); });
     });
-    w.appendChild(estate);
+    if (estate.parentNode !== w) w.appendChild(estate);
     return estate;
   }
   function caption(name) {
@@ -4065,38 +4071,35 @@ window.ohNativeSubmit = async function (form, doneText) {
   function build() {
     if (bv) return bv;
     var w = mapWrap(); if (!w) return null;
-    bv = el('div', 'oh-bv');
-    bv.setAttribute('data-lenis-prevent', '');
-    bv.innerHTML =
-      '<div class="oh-bv_head">' +
-        '<button type="button" class="oh-bv_back" aria-label="Back to the estate">' +
-          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"></path></svg>' +
-        '</button>' +
-        '<div class="oh-bv_title"><div class="oh-bv_name"></div><div class="oh-bv_sub"></div></div>' +
-        '<button type="button" class="site-plan_floor-switch oh-bv_mode"><span class="site-plan_floor-btn is-active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"></path><path d="m3 13 9 5 9-5"></path><path d="m3 18 9 5 9-5"></path></svg><span class="oh-bv_mode-label">Floors</span></span></button>' +
-      '</div>' +
-      '<div class="oh-bv_stage">' +
-        '<img class="oh-bv_render" alt="">' +
-        '<svg class="oh-bv_bands" viewBox="0 0 860 640" preserveAspectRatio="none" aria-hidden="true"></svg>' +
-        '<div class="oh-bv_strips"></div>' +
-        '<div class="oh-bv_slices"></div>' +
-        '<div class="oh-bv_hint"><div class="oh-bv_hint-title">Four floors</div><div class="oh-bv_hint-text"></div></div>' +
-        '<button type="button" class="oh-bv_cover" aria-label="Open the block up into its floors"></button>' +
-        '<div class="oh-bv_tags"></div>' +
-      '</div>' +
-      '<div class="oh-bv_legend"></div>';
-    w.appendChild(bv);
-    bv.querySelector('.oh-bv_back').addEventListener('click', closeBlock);
-    bv.querySelector('.oh-bv_mode').addEventListener('click', function () { go(mode === 'block' ? 'stack' : 'block'); });
-    bv.querySelector('.oh-bv_cover').addEventListener('click', function () { go(mode === 'block' ? 'stack' : 'flat'); });
+    bv = document.querySelector('[data-oh-native="block"]');
+    if (!bv) { console.warn('[block-view] native block view missing on the page'); return null; }
+    if (bv.parentNode !== w) w.appendChild(bv);
+    /* templates: one of each is in the Designer; lift them out and clone per floor */
+    T.strip = take(bv, '[data-oh-template="strip"]');
+    T.chip = T.strip && take(T.strip, '.oh-bv_chip');
+    T.wrap = take(bv, '[data-oh-template="wrap"]');
+    T.tag = take(bv, '[data-oh-template="tag"]');
+    if (!T.strip || !T.chip || !T.wrap || !T.tag) { console.warn('[block-view] block view templates missing'); bv = null; return null; }
+    var press = function (sel, fn) {
+      var n = bv.querySelector(sel); if (!n) return;
+      n.addEventListener('click', function (e) { e.preventDefault(); fn(); });
+      n.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } });
+      if (!n.hasAttribute('tabindex') && n.tagName !== 'A') n.setAttribute('tabindex', '0');
+    };
+    press('.oh-bv_back', closeBlock);
+    press('.oh-bv_mode', function () { go(mode === 'block' ? 'stack' : 'block'); });
+    press('.oh-bv_cover', function () { go(mode === 'block' ? 'stack' : 'flat'); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && cur && !document.querySelector('.site-plan_detail-wrap.is-open')) closeBlock(); });
     if (window.ResizeObserver) new ResizeObserver(function () { if (cur) layout(); }).observe(bv);
-    /* legend: the same tokens as the plan's */
-    bv.querySelector('.oh-bv_legend').innerHTML = ['available', 'reserved', 'sold', 'unreleased'].map(function (k) {
-      return '<span class="oh-bv_legend-item"><i class="oh-bv_dot is-' + k + '"></i>' + LABEL[k] + '</span>';
-    }).join('');
     return bv;
   }
+  var T = {};
+  function take(root, sel) {
+    var n = root.querySelector(sel); if (!n) return null;
+    n.parentNode.removeChild(n); n.removeAttribute('data-oh-template'); return n;
+  }
+  function clone(t) { return t.cloneNode(true); }
+  function setText(root, sel, txt) { var n = root.querySelector(sel); if (n) n.textContent = txt; }
 
   /* ---- open / close ---- */
   function openBlock(name, opts) {
@@ -4178,11 +4181,12 @@ window.ohNativeSubmit = async function (form, doneText) {
     head.querySelector('.oh-bv_name').textContent = 'Block ' + cur.name;
     var av = availCount(cur.units);
     head.querySelector('.oh-bv_sub').textContent = salesOpen() ? (av + ' of ' + cur.units.length + ' homes available') : (cur.units.length + ' homes');
-    bv.querySelector('.oh-bv_render').src = R.img;
+    var rimg = bv.querySelector('.oh-bv_render'); rimg.removeAttribute('srcset'); rimg.removeAttribute('sizes'); rimg.src = R.img;
     bv.querySelector('.oh-bv_render').alt = 'Isometric render of Block ' + cur.name;
 
     /* floor bands on the render, in the floor's tone */
-    var bands = bv.querySelector('.oh-bv_bands'); bands.innerHTML = '';
+    var bandsBox = bv.querySelector('.oh-bv_bands');
+    var bands = bandsBox.querySelector('svg') || bandsBox; bands.innerHTML = '';
     floors.forEach(function (f) {
       (R.g.bands[String(f)] || []).forEach(function (d) {
         var p = svgEl('path', { d: d, fill: TONE[f], 'fill-opacity': '0.68', stroke: '#ffffff', 'stroke-width': '2', 'stroke-linejoin': 'round', 'data-floor': f });
@@ -4198,11 +4202,13 @@ window.ohNativeSubmit = async function (form, doneText) {
     var tags = bv.querySelector('.oh-bv_tags'); tags.innerHTML = '';
     floors.forEach(function (f, i) {
       var us = cur.units.filter(function (u) { return u.floor_level === f; });
-      var wrap = el('div', 'oh-bv_wrap'); wrap.setAttribute('data-floor', f); wrap.style.zIndex = 10 - i;
-      var plate = el('div', 'oh-bv_plate'); plate.style.clipPath = 'polygon(' + hull + ')';
-      var img = el('img', 'oh-bv_plan'); img.src = R.plan; img.alt = 'Floor plan of the ' + ORD[f] + ' floor of Block ' + cur.name; img.draggable = false;
-      plate.appendChild(img);
-      var svg = svgEl('svg', { viewBox: '0 0 1104 1093', 'class': 'oh-bv_plots', role: 'img', 'aria-label': 'Plan of the ' + ORD[f] + ' floor, ' + availCount(us) + ' of ' + us.length + ' homes available' });
+      var wrap = clone(T.wrap); wrap.setAttribute('data-floor', f); wrap.style.zIndex = 10 - i;
+      var plate = wrap.querySelector('.oh-bv_plate'); plate.style.clipPath = 'polygon(' + hull + ')';
+      var img = wrap.querySelector('.oh-bv_plan'); img.src = R.plan; img.removeAttribute('srcset'); img.removeAttribute('sizes'); img.alt = 'Floor plan of the ' + ORD[f] + ' floor of Block ' + cur.name; img.draggable = false;
+      var plotsBox = wrap.querySelector('.oh-bv_plots');
+      var svg = plotsBox.querySelector('svg') || plotsBox; svg.innerHTML = '';
+      svg.setAttribute('viewBox', '0 0 1104 1093'); svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label', 'Plan of the ' + ORD[f] + ' floor, ' + availCount(us) + ' of ' + us.length + ' homes available');
       var hp = svgEl('polygon', { points: R.g.hull.map(function (p) { return p.join(','); }).join(' '), fill: 'none', stroke: '#5f4d3f', 'stroke-width': '10', 'stroke-linejoin': 'round', 'class': 'oh-bv_outline' });
       svg.appendChild(hp);
       us.forEach(function (u) {
@@ -4219,34 +4225,35 @@ window.ohNativeSubmit = async function (form, doneText) {
         g.addEventListener('click', function () { if (mode === 'flat') pick(u); else openFloor(f); });
         svg.appendChild(g);
       });
-      plate.appendChild(svg);
-      wrap.appendChild(plate);
       slices.appendChild(wrap);
 
       /* strip: floor summary + chips */
-      var strip = el('div', 'oh-bv_strip'); strip.setAttribute('data-floor', f);
+      var strip = clone(T.strip); strip.setAttribute('data-floor', f);
       var low = lowest(us);
-      strip.innerHTML = '<div class="oh-bv_strip-head"><span class="oh-bv_strip-label">' + ORD[f] + ' floor</span>' +
-        '<span class="oh-bv_strip-count"></span><span class="oh-bv_strip-from">' + (low ? 'from ' + esc(low) : '') + '</span></div>' +
-        '<div class="oh-bv_chips"></div>';
-      var chips = strip.querySelector('.oh-bv_chips');
+      setText(strip, '.oh-bv_strip-label', ORD[f] + ' floor');
+      setText(strip, '.oh-bv_strip-count', '');
+      setText(strip, '.oh-bv_strip-from', low ? 'from ' + low : '');
+      var chips = strip.querySelector('.oh-bv_chips'); chips.innerHTML = '';
       us.filter(function (u) { return u.status_key !== 'unreleased'; }).forEach(function (u) {
-        var btn = el('button', 'oh-bv_chip is-' + u.status_key); btn.type = 'button';
+        var btn = clone(T.chip); btn.classList.add('is-' + u.status_key);
         btn.setAttribute('data-unit', u.plot_id);
         var sub = u.status_key === 'available' ? (price(u) || LABEL.available) : LABEL[u.status_key];
-        btn.innerHTML = '<span class="oh-bv_chip-no">' + esc(shortNo(u)) + '</span><span class="oh-bv_chip-sub">' + esc(sub) + '</span>';
+        setText(btn, '.oh-bv_chip-no', shortNo(u)); setText(btn, '.oh-bv_chip-sub', sub);
         btn.setAttribute('aria-label', 'Unit ' + u.unit_number + ', ' + sub);
-        btn.addEventListener('click', function () { sel = u; paintSelection(); pick(u); });
+        var hit = function (e) { e.preventDefault(); sel = u; paintSelection(); pick(u); };
+        btn.addEventListener('click', hit);
+        btn.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') hit(e); });
         chips.appendChild(btn);
       });
       if (!chips.children.length) chips.innerHTML = '<span class="oh-bv_chips-empty">All homes on this floor are coming soon</span>';
       strips.appendChild(strip);
 
       /* floor button */
-      var tag = el('button', 'oh-bv_tag'); tag.type = 'button'; tag.setAttribute('data-floor', f);
-      tag.innerHTML = '<span class="oh-bv_swatch" style="background:' + TONE[f] + '"></span><span class="oh-bv_tag-text"><span class="oh-bv_tag-label">' + ORD[f] + ' floor</span><span class="oh-bv_tag-sub"></span></span>' +
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7e452f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>';
-      tag.addEventListener('click', function () { openFloor(f); });
+      var tag = clone(T.tag); tag.setAttribute('data-floor', f);
+      var sw = tag.querySelector('.oh-bv_swatch'); if (sw) sw.style.background = TONE[f];
+      setText(tag, '.oh-bv_tag-label', ORD[f] + ' floor'); setText(tag, '.oh-bv_tag-sub', '');
+      tag.addEventListener('click', function (e) { e.preventDefault(); openFloor(f); });
+      tag.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFloor(f); } });
       tags.appendChild(tag);
     });
     paintCounts();
