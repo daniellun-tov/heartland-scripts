@@ -3920,7 +3920,7 @@ window.ohNativeSubmit = async function (form, doneText) {
      greyscale over the site's sand (v4; v3 was dark), so the
      estate sits smaller in its context. The block outlines keep their 1110x706 frame (the old crop
      at 880,28 5441x3459); VIEW is that crop's coordinate system extended to the full picture. */
-  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad0e75f96a53e9181ec9d0a_img-3d-estate-render-v4.webp';
+  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad0f0ee7ea12e5ad0db361c_img-3d-estate-render-v5.webp';
   var VIEW = { x: -179.52, y: -5.72, w: 1704.25, h: 775.62 };
   var SITE_C = { x: 555, y: 353 };   /* the estate's middle, in outline coordinates */
   var TILT = 54.74;
@@ -4060,6 +4060,11 @@ window.ohNativeSubmit = async function (form, doneText) {
     return estate;
   }
   /* phone: the render is blown up past the pane and pans; desktop: it fits */
+  /* 16 Oct: the render (v5) has no baked fade; the fade is a mask per edge, set from the layout */
+  function feather(l, r, t, b) {
+    var img = estate && estate.querySelector('.oh-estate_img'); if (!img) return;
+    [['--oh-fl', l], ['--oh-fr', r], ['--oh-ft', t], ['--oh-fb', b]].forEach(function (p) { img.style.setProperty(p[0], Math.round(p[1]) + 'px'); });
+  }
   function layoutEstate() {
     if (!estate) return;
     var w = mapWrap(); if (!w) return;
@@ -4082,10 +4087,13 @@ window.ohNativeSubmit = async function (form, doneText) {
       var top = ph / 2 - (SITE_C.y - VIEW.y) / VIEW.h * Hd;
       top = Hd > ph ? Math.min(0, Math.max(ph - Hd, top)) : Math.max(0, Math.min(ph - Hd, top));
       frame.style.cssText = 'position:absolute;left:' + left.toFixed(1) + 'px;top:' + top.toFixed(1) + 'px;width:' + Wd.toFixed(1) + 'px;height:' + Hd.toFixed(1) + 'px;right:auto;bottom:auto';
+      /* feather only the edges that stop short of the pane; an edge that runs off it stays sharp */
+      feather(left > 0.5 ? Wd * 0.06 : 0, left + Wd < pw - 0.5 ? Wd * 0.06 : 0, top > 0.5 ? Hd * 0.12 : 0, top + Hd < ph - 0.5 ? Hd * 0.12 : 0);
       scaleMarks(Wd);
       return;
     }
     scaleMarks(0);
+    feather(0, 0, 0, 0);   /* phones: the picture always overfills its viewport */
     var chooser = estate.querySelector('[data-oh-native="choose"]');
     var vp = viewport();
     var fw, fh, vh = ph;

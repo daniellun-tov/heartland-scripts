@@ -179,3 +179,10 @@ html.oh-enq-on,html.oh-enq-on body{overflow:hidden}
 .oh-enq_status.is-error{color:#a3352c}
 .oh-enq_status:empty{display:none}
 @media (max-width:991px){.oh-enq .oh-enq_dialog{padding-bottom:env(safe-area-inset-bottom)}}
+
+/* estate render edge feather (16 Oct): widths come from layoutEstate, 0 = edge runs off the pane */
+.oh-estate_img{--oh-fl:0px;--oh-fr:0px;--oh-ft:0px;--oh-fb:0px;
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 var(--oh-fl)),linear-gradient(to left,transparent,#000 var(--oh-fr)),linear-gradient(to bottom,transparent,#000 var(--oh-ft)),linear-gradient(to top,transparent,#000 var(--oh-fb));
+  -webkit-mask-composite:source-in;
+  mask-image:linear-gradient(to right,transparent,#000 var(--oh-fl)),linear-gradient(to left,transparent,#000 var(--oh-fr)),linear-gradient(to bottom,transparent,#000 var(--oh-ft)),linear-gradient(to top,transparent,#000 var(--oh-fb));
+  mask-composite:intersect}
