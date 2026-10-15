@@ -614,7 +614,11 @@
         return visible(b) && b.floor === key && b.status === SELECTABLE;
       }).length;
       var out = $('.chs_floors_count', tab);
-      if (out) out.textContent = free === 0 ? 'none free' : free + ' free';
+      // Wording lives on the tab in Webflow: data-chs-count-text="{n} available",
+      // data-chs-count-none="None available". These are only the fallbacks.
+      var some = tab.getAttribute('data-chs-count-text') || '{n} available';
+      var none = tab.getAttribute('data-chs-count-none') || 'None available';
+      if (out) out.textContent = free === 0 ? none : some.replace('{n}', String(free));
     });
   }
 
