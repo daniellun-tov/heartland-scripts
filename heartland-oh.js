@@ -4017,7 +4017,8 @@ window.ohNativeSubmit = async function (form, doneText) {
     if (!marks) { marks = svgEl('g', { 'class': 'oh-estate_marks', 'aria-hidden': 'true' }); svg.appendChild(marks); }
     Object.keys(GEO.estate.paths).forEach(function (name) {
       if (marks.querySelector('[data-block="' + name + '"]')) return;
-      var pts = GEO.estate.paths[name].replace(/[MZ]/g, '').trim().split(/\s+/).map(function (t) { return t.split(',').map(Number); });
+      var nums = (GEO.estate.paths[name].match(/-?\d+\.?\d*/g) || []).map(Number), pts = [];
+      for (var k = 0; k + 1 < nums.length; k += 2) pts.push([nums[k], nums[k + 1]]);
       var xs = pts.map(function (q) { return q[0]; }), ys = pts.map(function (q) { return q[1]; });
       var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2, cy = Math.min.apply(null, ys) + (Math.max.apply(null, ys) - Math.min.apply(null, ys)) * 0.42;
       var g = svgEl('g', { 'class': 'oh-estate_mark', 'data-block': name, transform: 'translate(' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' });
@@ -4026,6 +4027,7 @@ window.ohNativeSubmit = async function (form, doneText) {
       g.appendChild(t);
       marks.appendChild(g);
     });
+    buildChooser();
     estate.addEventListener('scroll', function () { estate.setAttribute('data-oh-panned', '1'); }, { passive: true });
     if (estate.parentNode !== w) w.appendChild(estate);
     layoutEstate();
@@ -4040,15 +4042,17 @@ window.ohNativeSubmit = async function (form, doneText) {
     var pw = w.clientWidth || 390, ph = w.clientHeight || 500;
     var pan = pw < 700;
     estate.classList.toggle('is-pan', pan);
+    w.classList.toggle('is-oh-pan', pan);
     /* the caption pill must not pan with the picture: on phones it lives on the map wrapper */
     var cap = (estate.querySelector('.oh-estate_cap') || w.querySelector('.oh-estate_cap'));
     if (cap) { if (pan && cap.parentNode !== w) w.appendChild(cap); else if (!pan && cap.parentNode !== frame) frame.appendChild(cap); }
     if (!pan) { frame.style.cssText = ''; return; }
     var fw = Math.max(pw * 1.9, 760), fh = fw * GEO.estate.frame[1] / GEO.estate.frame[0];
-    frame.style.cssText = 'position:relative;width:' + fw + 'px;height:' + Math.max(fh, ph) + 'px';
+    var chooser = estate.querySelector('[data-oh-native="choose"]');
+    frame.style.cssText = 'position:relative;width:' + fw + 'px;height:' + (chooser ? fh : Math.max(fh, ph)) + 'px';
     if (!estate.getAttribute('data-oh-panned')) {
       estate.scrollLeft = (fw - pw) / 2 + fw * 0.02;
-      estate.scrollTop = Math.max(0, (Math.max(fh, ph) - ph) / 2);
+      estate.scrollTop = chooser ? 0 : Math.max(0, (Math.max(fh, ph) - ph) / 2);
     }
   }
   function caption(name) {
@@ -4087,6 +4091,75 @@ window.ohNativeSubmit = async function (form, doneText) {
       }
     });
     caption(null);
+    paintChooser();
+  }
+
+  /* phone: "Choose a block" under the render (native [data-oh-native="choose"] inside the estate view).
+     Cards are clones of the Designer template, one per block; a tap picks the block
+     (outlined on the render), "Open Block X" opens it. */
+  var chosen = null;
+  function chooser() { return estate && estate.querySelector('[data-oh-native="choose"]'); }
+  function buildChooser() {
+    var ch = chooser(); if (!ch) return;
+    var grid = ch.querySelector('[data-oh-ch="grid"]'), tpl = grid && grid.querySelector('[data-oh-template="card"]');
+    if (!grid || !tpl) return;
+    tpl.remove(); tpl.removeAttribute('data-oh-template');
+    Object.keys(GEO.estate.paths).forEach(function (name) {
+      var card = tpl.cloneNode(true);
+      card.setAttribute('data-oh-card', name); card.setAttribute('href', '#block-' + name.toLowerCase());
+      card.querySelector('.oh-estate_card-l').textContent = name;
+      grid.appendChild(card);
+    });
+    ch.addEventListener('click', function (e) {
+      var card = e.target.closest('[data-oh-card]');
+      if (card) { e.preventDefault(); if (!card.classList.contains('is-muted')) choose(card.getAttribute('data-oh-card'), true); return; }
+      var cta = e.target.closest('[data-oh-ch="cta"]');
+      if (cta) { e.preventDefault(); if (chosen) openBlock(chosen); }
+    });
+  }
+  function choose(name, pan) {
+    chosen = name;
+    var ch = chooser(); if (!ch) return;
+    if (pan && name && estate.classList.contains('is-pan')) {
+      /* bring the picked block into the panned view */
+      var frame = estate.querySelector('.oh-estate_frame'), fw = frame ? frame.offsetWidth : 0;
+      var nums = (GEO.estate.paths[name].match(/-?\d+\.?\d*/g) || []).map(Number), xs = [], ys = [];
+      for (var k = 0; k + 1 < nums.length; k += 2) { xs.push(nums[k]); ys.push(nums[k + 1]); }
+      if (fw && xs.length) {
+        var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 / GEO.estate.frame[0] * fw;
+        var cy = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2 / GEO.estate.frame[1] * frame.offsetHeight;
+        estate.setAttribute('data-oh-panned', '1');
+        try { estate.scrollTo({ left: cx - estate.clientWidth / 2, top: Math.max(0, cy - estate.clientHeight * 0.35), behavior: 'smooth' }); } catch (e2) { estate.scrollLeft = cx - estate.clientWidth / 2; }
+      }
+    }
+    ch.querySelectorAll('[data-oh-card]').forEach(function (c) { c.classList.toggle('is-selected', c.getAttribute('data-oh-card') === name); });
+    estate.querySelectorAll('.oh-estate_block, .oh-estate_mark').forEach(function (p) { p.classList.toggle('is-chosen', p.getAttribute('data-block') === name); });
+    var lab = ch.querySelector('[data-oh-ch="cta-label"]'); if (lab) lab.textContent = 'Open Block ' + name;
+    var cta = ch.querySelector('[data-oh-ch="cta"]'); if (cta) cta.style.display = name ? '' : 'none';
+    caption(name);
+  }
+  function paintChooser() {
+    var ch = chooser(); if (!ch) return;
+    var open = salesOpen(), matching = 0, first = null;
+    ch.querySelectorAll('[data-oh-card]').forEach(function (card) {
+      var b = blockOf(card.getAttribute('data-oh-card')); if (!b) return;
+      var av = availCount(b.units);
+      var soon = b.units.every(function (u) { return u.status_key === 'unreleased'; });
+      var listed = b.units.some(function (u) { return u.status_key === 'available' && !isDimmed(u); });
+      var phase2 = soon && open;
+      var sub = !open ? b.units.length + ' homes' : (phase2 ? 'Coming soon' : (av > 0 ? av + ' available' : 'Sold out'));
+      card.querySelector('.oh-estate_card-s').textContent = sub;
+      var muted = open && (phase2 || av === 0);
+      card.classList.toggle('is-muted', muted);
+      card.classList.toggle('is-dimmed', open && !muted && !listed);
+      card.setAttribute('aria-disabled', muted ? 'true' : 'false');
+      if (open ? listed : true) { matching++; if (!first) first = b.name; }
+    });
+    var n = ch.querySelector('[data-oh-ch="count"]');
+    if (n) n.textContent = open ? matching + ' of ' + Object.keys(GEO.estate.paths).length + ' blocks match' : Object.keys(GEO.estate.paths).length + ' blocks';
+    var cur = chosen && ch.querySelector('[data-oh-card="' + chosen + '"]');
+    if (!cur || cur.classList.contains('is-muted')) choose(first);
+    else choose(chosen);
   }
 
   /* ------------------------------------------------------------

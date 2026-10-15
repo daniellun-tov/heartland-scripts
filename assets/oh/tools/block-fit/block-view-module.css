@@ -84,3 +84,10 @@ html.oh-fpv-open,html.oh-fpv-open body{overflow:hidden}
 
 .site-plan_detail-panel.is-oh-es{overflow:hidden}
 @media (max-width:767px){.unit-details_actionbar{flex-wrap:wrap}.oh-ud_pricebar{flex:1 1 100%;flex-direction:row;align-items:baseline;gap:.5rem}.oh-ud_pricebar-sub{margin-top:0}}
+
+/* phone: Choose a block under the render */
+.oh-estate.is-pan .oh-estate_choose{display:flex}
+.oh-estate_card.is-dimmed{opacity:.55}
+.oh-estate_block.is-chosen{stroke:#af6042;stroke-width:3;fill:#af6042;fill-opacity:.35}
+.oh-estate_mark.is-chosen rect{fill:#af6042}.oh-estate_mark.is-chosen text{fill:#fff}
+.unit-filter_map.is-oh-pan > .oh-estate_cap{display:none}
