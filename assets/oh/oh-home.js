@@ -16,6 +16,16 @@
   t.V2 = 'https://x7aj-untn-pq4t.n7e.xano.io/api:BHoGDH-q/units';
   var OCCUPATION = 'February 2027';
 
+  /* the state CSS (oh-home.css) sits next to this file in the repo: load it from the same
+     pinned commit so the home page has one release pin instead of two */
+  (function () {
+    var me = document.currentScript && document.currentScript.src;
+    if (!me || document.querySelector('link[data-oh-home-css]')) return;
+    var l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = me.replace(/oh-home\.js(\?.*)?$/, 'oh-home.css'); l.setAttribute('data-oh-home-css', '');
+    document.head.appendChild(l);
+  })();
+
   t.q = function (s, r) { return (r || document).querySelector(s); };
   t.qa = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   t.wz = function () { return window.Wized && window.Wized.data ? window.Wized : null; };
