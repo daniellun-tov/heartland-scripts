@@ -330,5 +330,5 @@
     swipe(stage);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
-  window.ohUnitScreens = { estate: estateScreen, amenity: amenity };
+  window.ohUnitScreens = { estate: estateScreen, amenity: amenity, current: function () { return cur; } };
 })();

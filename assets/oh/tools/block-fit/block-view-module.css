@@ -164,3 +164,18 @@ html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){dis
 /* desktop estate (16 Oct): the wider picture fades into the sand pane; the hover tooltip */
 .unit-filter_map.is-oh-estate .oh-estate:not(.is-pan){background:#f2efe6}
 .oh-estate_tip.is-open{display:flex}
+
+/* ---- Enquiry modal (16 Oct): native .oh-enq, state + form details the style panel cannot hold ---- */
+.oh-enq.is-open{display:flex}
+html.oh-enq-on,html.oh-enq-on body{overflow:hidden}
+.oh-enq .oh-fpv_head{position:sticky;top:0;background:#fff;z-index:1}
+.oh-enq .form_main_field_wrap{margin-bottom:0}
+.oh-enq .content-cell{margin-bottom:.75rem}
+.oh-enq textarea.form_main_field_input{resize:vertical}
+.oh-enq .large-submit{margin-top:.5rem;width:100%}
+.oh-enq .w-form-done{padding:1.5rem 1rem;border-radius:.75rem;background:#f2efe6;color:#5f4d3f;text-align:left}
+.oh-enq .w-form-fail{margin-top:.75rem}
+.oh-enq_status{margin:.75rem 0 0;font-size:.875rem;color:#5f4d3f}
+.oh-enq_status.is-error{color:#a3352c}
+.oh-enq_status:empty{display:none}
+@media (max-width:991px){.oh-enq .oh-enq_dialog{padding-bottom:env(safe-area-inset-bottom)}}
