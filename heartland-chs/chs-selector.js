@@ -55,6 +55,9 @@
     hidden:     'is-chs-hidden',
     open:       'is-chs-open',
     scrolled:   'is-chs-scrolled',
+    openDot:    'is-chs-free',
+    on:         'is-chs-on',
+    listActive: 'is-list-active',
     /* Finsweet's own empty-facet class, styled as a combo on .chs_chip
        (dimmed, pointer-events none). Finsweet only maintains it while it
        owns the facet counts, and it does not here - paintFacets() took those
@@ -206,17 +209,32 @@
      and the moment it does, a percentage of the stage stops being a
      percentage of the drawing. Measured from the laid-out DOM, so it holds
      whatever else is in there and whatever the breakpoint does.            */
-  function planBox(floor) {
+  /* The plan image may carry padding and a background (each floor is drawn
+     as a card in the Designer), so the drawing itself is the image's CONTENT
+     box. `outer` asks for the whole card instead - the floor captions sit in
+     its top padding.                                                         */
+  function planBox(floor, outer) {
     var img   = $('[data-chs-plan="' + floor + '"]');
     var stage = $('[data-chs="plan-stage"]');
     if (!img || !stage) return null;
     var sw = stage.offsetWidth, sh = stage.offsetHeight;
     if (!sw || !sh || !img.offsetWidth || !img.offsetHeight) return null;
+    var l = 0, t = 0, r = 0, b = 0;
+    if (!outer && window.getComputedStyle) {
+      var cs = getComputedStyle(img);
+      var px = function (k) { return parseFloat(cs[k]) || 0; };
+      l = px('paddingLeft')  + px('borderLeftWidth');
+      t = px('paddingTop')   + px('borderTopWidth');
+      r = px('paddingRight') + px('borderRightWidth');
+      b = px('paddingBottom') + px('borderBottomWidth');
+    }
+    var w = img.offsetWidth - l - r, h = img.offsetHeight - t - b;
+    if (w <= 0 || h <= 0) return null;
     return {
-      left:   img.offsetLeft / sw * 100,
-      top:    img.offsetTop  / sh * 100,
-      wScale: img.offsetWidth  / sw,   // one % of the image, in % of the stage
-      hScale: img.offsetHeight / sh
+      left:   (img.offsetLeft + l) / sw * 100,
+      top:    (img.offsetTop  + t) / sh * 100,
+      wScale: w / sw,   // one % of the drawing, in % of the stage
+      hScale: h / sh
     };
   }
 
@@ -285,14 +303,16 @@
     paint();
     paintOverlays(name);
 
-    var cap  = $('[data-chs-field="floor-label"]');
-    var note = $('[data-chs-field="floor-note"]');
     // Fall back to the inventory: with a gender filter on a mismatched
     // apartment the list is empty, and the labels must still read.
     var one  = state.beds.filter(function (b) { return b.apartment === name; })[0] ||
                inventory().filter(function (b) { return b.apartment === name; })[0];
-    if (cap)  cap.textContent  = name || '';
-    if (note) note.textContent = one ? [one.gender && one.gender + ' apartment', one.phase].filter(Boolean).join(' \u00b7 ') : '';
+    // Several places name the apartment (detail card, 3D view) - fill them all.
+    $$('[data-chs-field="floor-label"]').forEach(function (el) { el.textContent = name || ''; });
+    $$('[data-chs-field="apt-gender"]').forEach(function (el) { el.textContent = (one && one.gender) || ''; });
+    $$('[data-chs-field="floor-note"]').forEach(function (el) {
+      el.textContent = one ? [one.gender && one.gender + ' apartment', one.phase].filter(Boolean).join(' \u00b7 ') : '';
+    });
     document.dispatchEvent(new CustomEvent('chs:apartmentChanged', { detail: name }));
   }
 
@@ -495,6 +515,52 @@
       var text = coming ? '' : String(n);
       if (out.textContent.trim() !== text) out.textContent = text;
     });
+    paintApartmentTiles(inv, active);
+  }
+
+  /* ---------- apartment tiles ---------------------------------------------
+     Each apartment chip holds one dot per bed (data-chs-apt-dot, placed in
+     the Designer). A dot is "open" while a bed in that apartment can be
+     booked; reserved, occupied and Phase 2 beds stay hollow. Order is by
+     count (taken first) - the tile shows how full the apartment is, the plan
+     shows which bed. Dots in the checked tile also get is-chs-on so the
+     Designer can colour them for the dark tile.
+     With a gender chosen, the other gender's apartments are hidden - except
+     the checked one, which the mismatch overlay explains.                   */
+  function paintApartmentTiles(inv, active) {
+    $$('[fs-list-field="' + DISABLE_FIELD + '"]').forEach(function (input) {
+      var chip = input.closest ? input.closest('label') || input.parentElement : input.parentElement;
+      if (!chip) return;
+      var value = input.getAttribute('fs-list-value');
+      var mine  = inv.filter(function (b) { return b.apartment === value; });
+      var open  = mine.filter(function (b) { return b.status === SELECTABLE; }).length;
+      var dots  = $$('[data-chs-apt-dot]', chip);
+      var taken = Math.max(0, dots.length - open);
+      dots.forEach(function (d, i) {
+        d.classList.toggle(STATE_CLASS.openDot, i >= taken);
+        d.classList.toggle(STATE_CLASS.on, !!input.checked);
+      });
+      var g = mine.length ? mine[0].gender : '';
+      $$('[data-chs-apt-gender]', chip).forEach(function (el) {
+        if (g && el.textContent !== g) el.textContent = g;
+      });
+      var hide = !!active.gender && !!g && g !== active.gender && !input.checked;
+      chip.classList.toggle(STATE_CLASS.hidden, hide);
+    });
+    paintGenderAll(active);
+  }
+
+  /* The "All" chip is a plain radio in the Gender group that carries no
+     fs-list-field - its label is a Finsweet clear element for the gender
+     field instead. So Finsweet never marks it active; this does, and keeps
+     it checked whenever no gender is filtered (e.g. after a URL restore).    */
+  function paintGenderAll(active) {
+    $$('[data-chs-gender-all]').forEach(function (input) {
+      var none = !active.gender;
+      if (none && !input.checked) input.checked = true;
+      var chip = input.closest ? input.closest('label') || input.parentElement : input.parentElement;
+      if (chip) chip.classList.toggle(STATE_CLASS.listActive, none);
+    });
   }
 
   /* ---------- gender mismatch --------------------------------------------
@@ -573,8 +639,14 @@
 
       // price on the plot - full on desktop, "R 5,4k" on phones; the
       // stylesheet decides which of the two is visible per breakpoint
+      // A taken plot shows a word instead of its price. The word is set in
+      // the Designer on the hotspot list (data-chs-taken-text); without it the
+      // price stays.
+      var takenText = b.status !== SELECTABLE && b.status !== UNRELEASED
+        ? ((el.closest && el.closest('[data-chs-taken-text]')) || {getAttribute: function () { return ''; }}).getAttribute('data-chs-taken-text')
+        : '';
       $$('[data-chs-bed-rate]', el).forEach(function (r) {
-        var v = r.getAttribute('data-chs-bed-rate') === 'short' ? shortRate(b.rate) : (b.rate || '');
+        var v = takenText || (r.getAttribute('data-chs-bed-rate') === 'short' ? shortRate(b.rate) : (b.rate || ''));
         if (r.textContent !== v) r.textContent = v;
       });
 
@@ -618,7 +690,7 @@
       // Static labels sit in normal flow; clear any inline position so it
       // cannot leak back when the breakpoint changes.
       if (getComputedStyle(el).position !== 'absolute') { el.style.top = ''; el.style.left = ''; return; }
-      var box = planBox(el.getAttribute('data-chs-floorlabel'));
+      var box = planBox(el.getAttribute('data-chs-floorlabel'), true);
       if (!box) return;
       el.style.left = box.left + '%';
       el.style.top  = turned ? '' : box.top + '%';
