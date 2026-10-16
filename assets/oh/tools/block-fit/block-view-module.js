@@ -147,7 +147,7 @@
       var open = function () { if (p.classList.contains('is-phase2') || p.classList.contains('is-sold')) return; openBlock(name); };
       p.addEventListener('click', open);
       p.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
-      p.addEventListener('mouseenter', function (e) { caption(name); tip(name, e); });
+      p.addEventListener('mouseenter', function (e) { caption(name); tip(name, e); warm(name); });
       p.addEventListener('mousemove', function (e) { tip(name, e); });
       p.addEventListener('mouseleave', function () { caption(null); tip(null); });
     });
@@ -261,6 +261,44 @@
     var v = estate && estate.querySelector('[data-oh-estate="viewport"]');
     return v && estate.classList.contains('is-pan') && estate.querySelector('[data-oh-native="choose"]') ? v : estate;
   }
+  /* 16 Oct: fetch a block's render and floor plan as soon as it is hovered or picked, so the
+     block view opens on an image that is already in the cache */
+  var warmed = {};
+  function warm(name) {
+    var b = name && blockOf(name); if (!b || !b.units.length) return;
+    [b.units[0].block_image_url, b.units[0].block_floorplan_url].forEach(function (url) {
+      if (!url || warmed[url]) return; warmed[url] = 1; var im = new Image(); im.decoding = 'async'; im.src = url;
+    });
+  }
+  /* 16 Oct: desktop tooltip over a unit on the floor plans (block view, flat mode). It reuses the
+     estate tooltip's native markup (cloned once into the block view) */
+  function unitTip(u, e) {
+    if (!bv) return;
+    var el = bv.querySelector('[data-oh-native="unit-tip"]');
+    if (!el) {
+      var src = document.querySelector('[data-oh-native="estate-tip"]'); if (!src) return;
+      el = src.cloneNode(true); el.setAttribute('data-oh-native', 'unit-tip'); el.classList.remove('is-open');
+      el.style.position = 'absolute'; el.style.left = '0'; el.style.top = '0'; el.style.pointerEvents = 'none'; el.style.zIndex = '40';
+      bv.appendChild(el);
+    }
+    bv.querySelectorAll('.is-hover[data-unit]').forEach(function (n) { n.classList.remove('is-hover'); });
+    if (!u || !DESK || (mode !== 'flat' && mode !== 'stack')) { el.classList.remove('is-open'); return; }
+    bv.querySelectorAll('[data-unit="' + u.plot_id + '"]').forEach(function (n) { n.classList.add('is-hover'); });
+    var set = function (k, t) { var n = el.querySelector('[data-oh-tip="' + k + '"]'); if (n) { n.textContent = t; n.style.display = t ? '' : 'none'; } };
+    var st = u.status_key, avail = st === 'available', open = salesOpen();
+    var spec = ['Type ' + u.type_code, u.bedrooms ? u.bedrooms + ' bed' : '', u.unit_size ? Math.round(u.unit_size) + ' m²' : '', u.orientation || ''].filter(Boolean).join(' · ');
+    set('title', 'Unit ' + u.unit_number);
+    set('sub', open ? (LABEL[st] || '') + ' · ' + spec : spec);
+    set('price', open && avail ? price(u) : '');
+    set('hint', avail ? (mode === 'flat' ? 'Click to view this home' : 'Click to open this floor') : '');
+    el.classList.add('is-open');
+    if (e) {
+      var r = bv.getBoundingClientRect(), x = e.clientX - r.left + 16, y = e.clientY - r.top + 16;
+      if (x + el.offsetWidth > r.width - 8) x = e.clientX - r.left - el.offsetWidth - 16;
+      if (y + el.offsetHeight > r.height - 8) y = e.clientY - r.top - el.offsetHeight - 16;
+      el.style.transform = 'translate(' + Math.round(x + bv.scrollLeft) + 'px,' + Math.round(y + bv.scrollTop) + 'px)';
+    }
+  }
   /* desktop: a tooltip that follows the pointer over a block */
   function tip(name, e) {
     var el = estate && estate.querySelector('[data-oh-native="estate-tip"]'); if (!el) return;
@@ -349,7 +387,7 @@
     });
   }
   function choose(name, pan) {
-    chosen = name;
+    chosen = name; warm(name);
     var ch = chooser(); if (!ch) return;
     if (pan && name && estate.classList.contains('is-pan')) {
       /* bring the picked block into the panned view */
@@ -577,6 +615,9 @@
         t.textContent = String(u.onfloor_label || shortNo(u).slice(-2));
         g.appendChild(t);
         g.addEventListener('click', function () { if (mode === 'flat') pick(u); else openFloor(f); });
+        g.addEventListener('mouseenter', function (e) { unitTip(u, e); });
+        g.addEventListener('mousemove', function (e) { unitTip(u, e); });
+        g.addEventListener('mouseleave', function () { unitTip(null); });
         svg.appendChild(g);
       });
       slices.appendChild(wrap);
@@ -713,6 +754,7 @@
   function render() {
     if (!cur || !bv) return;
     measure();
+    unitTip(null);
     var flat = mode === 'flat', inCtx = mode === 'block' || mode === 'merge', stack = mode === 'stack';
     var box0 = hullBox(mode === 'stack' ? R.g.k * (RW / 1356) * 1104 / PLATE * (DESK ? 1.15 : 0.78) : R.g.k * (RW / 1356) * 1104 / PLATE);
     var left0 = DESK ? S * 0.06 : (S - RW) / 2, top0 = DESK ? 24 * U : 10 * U;   /* render box in the stage */

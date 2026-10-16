@@ -2501,54 +2501,6 @@ window.ohNativeSubmit = async function (form, doneText) {
   }
   const get = (form, n) => { const el = form.querySelector('[name="' + n + '"]'); return el ? String(el.value || '').trim() : ''; };
 
-  /* 16 Oct 2026: notify-me leads go to Webflow Forms in the home page Register
-     Interest format, so the CRM webhook files them with the other enquiries
-     (they used to arrive as a separate "Notify me" form with unit_id/unit_number,
-     which the webhook did not pick up). Webflow reads the form name and every
-     field's data-name at the moment of submit, so for that one submit the form
-     is renamed, the unit_id/unit_number inputs are taken out, the home form's
-     fields are added (topic Pricing and availability on, as the home page's
-     Register Interest on Type B/C does) and the message carries the unit.
-     Everything is put back straight after; the Xano /interest record above is
-     unchanged. */
-  const RI_NAME = 'Oakhills Register Interest';
-  const RI_TOPICS = ['Pricing and availability', 'Floor plans', 'Investment and rental', 'Book a site visit', 'Call me back', 'Other'];
-  function unitText(u, num) {
-    const bits = [u.block_name ? 'Block ' + u.block_name : '', u.floor_label ? u.floor_label + ' floor' : '', u.type_code ? 'Type ' + u.type_code : ''].filter(Boolean);
-    return 'unit ' + num + (bits.length ? ' (' + bits.join(', ') + ')' : '');
-  }
-  async function sendAsRegisterInterest(form, u, payload, doneText) {
-    const head = 'I would like to register my interest in ' + unitText(u, payload.unit_number) + ', which is not released yet.';
-    const msgEl = form.querySelector('[name="message"]');
-    const own = msgEl ? msgEl.value : '';
-    const prevName = form.getAttribute('data-name');
-    const pulled = [];
-    ['unit_id', 'unit_number'].forEach((n) => {
-      form.querySelectorAll('[name="' + n + '"]').forEach((el) => { pulled.push([el, el.parentNode, el.nextSibling]); el.remove(); });
-    });
-    const added = [];
-    const add = (dataName, type, value) => {
-      const el = document.createElement('input');
-      el.type = type; el.name = dataName.replace(/[^A-Za-z0-9_]+/g, '-'); el.setAttribute('data-name', dataName);
-      if (type === 'checkbox') { el.checked = !!value; el.style.display = 'none'; el.tabIndex = -1; el.setAttribute('aria-hidden', 'true'); }
-      else el.value = value;
-      form.appendChild(el); added.push(el);
-    };
-    RI_TOPICS.forEach((t) => add('Topic: ' + t, 'checkbox', t === 'Pricing and availability'));
-    add('Reply on WhatsApp', 'checkbox', false);
-    add('Enquiry source', 'hidden', ('Unit selection page, unit ' + payload.unit_number + ' (Notify me, not released)').slice(0, 200));
-    form.setAttribute('data-name', RI_NAME);
-    if (msgEl) msgEl.value = own.trim() ? head + ' ' + own.trim() : head; /* single-line input: no line breaks */
-    try {
-      return await window.ohNativeSubmit(form, doneText);
-    } finally {
-      added.forEach((el) => el.remove());
-      pulled.forEach(([el, parent, next]) => { if (parent) parent.insertBefore(el, next && next.parentNode === parent ? next : null); });
-      if (prevName == null) form.removeAttribute('data-name'); else form.setAttribute('data-name', prevName);
-      if (msgEl) msgEl.value = own;
-    }
-  }
-
   function bind() {
     const form = document.getElementById(FORM_ID);
     if (!form || form.__ohNotify) return;
@@ -2580,9 +2532,8 @@ window.ohNativeSubmit = async function (form, doneText) {
         let data = null; try { data = await res.json(); } catch (_) {}
         if (!res.ok) throw new Error((data && data.message) || 'We could not save that. Please try again.');
         const doneText = 'Thank you, you are on the list for unit ' + payload.unit_number + '. We will be in touch the moment it is released.';
-        /* Webflow Forms copy, sent as the home page Register Interest lead (same form
-           name and fields) so it reaches the same webhook / CRM; Webflow then shows its success block */
-        const native = await sendAsRegisterInterest(form, u, payload, doneText);
+        /* Webflow Forms copy (feeds LeadConnector, unit_number/unit_id included); Webflow then shows its success block */
+        const native = await window.ohNativeSubmit(form, doneText);
         form.querySelectorAll('[data-notify="fields"]').forEach((el) => { el.style.display = 'none'; });
         const done = form.querySelector('[data-notify="done"]');
         if (done && !native) { done.style.display = 'block'; const n = done.querySelector('[data-notify="done-unit"]'); if (n) n.textContent = payload.unit_number; }
@@ -4078,7 +4029,7 @@ window.ohNativeSubmit = async function (form, doneText) {
       var open = function () { if (p.classList.contains('is-phase2') || p.classList.contains('is-sold')) return; openBlock(name); };
       p.addEventListener('click', open);
       p.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
-      p.addEventListener('mouseenter', function (e) { caption(name); tip(name, e); });
+      p.addEventListener('mouseenter', function (e) { caption(name); tip(name, e); warm(name); });
       p.addEventListener('mousemove', function (e) { tip(name, e); });
       p.addEventListener('mouseleave', function () { caption(null); tip(null); });
     });
@@ -4192,6 +4143,44 @@ window.ohNativeSubmit = async function (form, doneText) {
     var v = estate && estate.querySelector('[data-oh-estate="viewport"]');
     return v && estate.classList.contains('is-pan') && estate.querySelector('[data-oh-native="choose"]') ? v : estate;
   }
+  /* 16 Oct: fetch a block's render and floor plan as soon as it is hovered or picked, so the
+     block view opens on an image that is already in the cache */
+  var warmed = {};
+  function warm(name) {
+    var b = name && blockOf(name); if (!b || !b.units.length) return;
+    [b.units[0].block_image_url, b.units[0].block_floorplan_url].forEach(function (url) {
+      if (!url || warmed[url]) return; warmed[url] = 1; var im = new Image(); im.decoding = 'async'; im.src = url;
+    });
+  }
+  /* 16 Oct: desktop tooltip over a unit on the floor plans (block view, flat mode). It reuses the
+     estate tooltip's native markup (cloned once into the block view) */
+  function unitTip(u, e) {
+    if (!bv) return;
+    var el = bv.querySelector('[data-oh-native="unit-tip"]');
+    if (!el) {
+      var src = document.querySelector('[data-oh-native="estate-tip"]'); if (!src) return;
+      el = src.cloneNode(true); el.setAttribute('data-oh-native', 'unit-tip'); el.classList.remove('is-open');
+      el.style.position = 'absolute'; el.style.left = '0'; el.style.top = '0'; el.style.pointerEvents = 'none'; el.style.zIndex = '40';
+      bv.appendChild(el);
+    }
+    bv.querySelectorAll('.is-hover[data-unit]').forEach(function (n) { n.classList.remove('is-hover'); });
+    if (!u || !DESK || (mode !== 'flat' && mode !== 'stack')) { el.classList.remove('is-open'); return; }
+    bv.querySelectorAll('[data-unit="' + u.plot_id + '"]').forEach(function (n) { n.classList.add('is-hover'); });
+    var set = function (k, t) { var n = el.querySelector('[data-oh-tip="' + k + '"]'); if (n) { n.textContent = t; n.style.display = t ? '' : 'none'; } };
+    var st = u.status_key, avail = st === 'available', open = salesOpen();
+    var spec = ['Type ' + u.type_code, u.bedrooms ? u.bedrooms + ' bed' : '', u.unit_size ? Math.round(u.unit_size) + ' m²' : '', u.orientation || ''].filter(Boolean).join(' · ');
+    set('title', 'Unit ' + u.unit_number);
+    set('sub', open ? (LABEL[st] || '') + ' · ' + spec : spec);
+    set('price', open && avail ? price(u) : '');
+    set('hint', avail ? (mode === 'flat' ? 'Click to view this home' : 'Click to open this floor') : '');
+    el.classList.add('is-open');
+    if (e) {
+      var r = bv.getBoundingClientRect(), x = e.clientX - r.left + 16, y = e.clientY - r.top + 16;
+      if (x + el.offsetWidth > r.width - 8) x = e.clientX - r.left - el.offsetWidth - 16;
+      if (y + el.offsetHeight > r.height - 8) y = e.clientY - r.top - el.offsetHeight - 16;
+      el.style.transform = 'translate(' + Math.round(x + bv.scrollLeft) + 'px,' + Math.round(y + bv.scrollTop) + 'px)';
+    }
+  }
   /* desktop: a tooltip that follows the pointer over a block */
   function tip(name, e) {
     var el = estate && estate.querySelector('[data-oh-native="estate-tip"]'); if (!el) return;
@@ -4280,7 +4269,7 @@ window.ohNativeSubmit = async function (form, doneText) {
     });
   }
   function choose(name, pan) {
-    chosen = name;
+    chosen = name; warm(name);
     var ch = chooser(); if (!ch) return;
     if (pan && name && estate.classList.contains('is-pan')) {
       /* bring the picked block into the panned view */
@@ -4508,6 +4497,9 @@ window.ohNativeSubmit = async function (form, doneText) {
         t.textContent = String(u.onfloor_label || shortNo(u).slice(-2));
         g.appendChild(t);
         g.addEventListener('click', function () { if (mode === 'flat') pick(u); else openFloor(f); });
+        g.addEventListener('mouseenter', function (e) { unitTip(u, e); });
+        g.addEventListener('mousemove', function (e) { unitTip(u, e); });
+        g.addEventListener('mouseleave', function () { unitTip(null); });
         svg.appendChild(g);
       });
       slices.appendChild(wrap);
@@ -4644,6 +4636,7 @@ window.ohNativeSubmit = async function (form, doneText) {
   function render() {
     if (!cur || !bv) return;
     measure();
+    unitTip(null);
     var flat = mode === 'flat', inCtx = mode === 'block' || mode === 'merge', stack = mode === 'stack';
     var box0 = hullBox(mode === 'stack' ? R.g.k * (RW / 1356) * 1104 / PLATE * (DESK ? 1.15 : 0.78) : R.g.k * (RW / 1356) * 1104 / PLATE);
     var left0 = DESK ? S * 0.06 : (S - RW) / 2, top0 = DESK ? 24 * U : 10 * U;   /* render box in the stage */

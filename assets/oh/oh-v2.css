@@ -838,3 +838,8 @@ html.oh-enq-on,html.oh-enq-on body{overflow:hidden}
 .ud-lightbox .ud-lb-prev,.ud-lightbox .ud-lb-next{background:#fff;color:#5f4d3f;box-shadow:0 2px 12px rgba(21,23,20,.3)}
 .ud-lightbox .ud-lb-prev:hover,.ud-lightbox .ud-lb-next:hover{background:#f2efe6}
 @media (max-width:767px){.ud-lightbox .ud-lb-prev{left:.5rem}.ud-lightbox .ud-lb-next{right:.5rem}}
+
+/* 16 Oct: unit hover on the floor plans (desktop) - the plot and its button light up together */
+.oh-bv_plot.is-hover polygon{stroke:var(--oh-ink);stroke-width:14}
+.oh-bv_chip.is-hover{border-color:var(--oh-ink)}
+.oh-bv [data-oh-native="unit-tip"].is-open{display:flex}
