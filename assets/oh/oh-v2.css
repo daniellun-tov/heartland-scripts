@@ -774,7 +774,8 @@ html.oh-estate-on .site-plan_toolbar .site-plan_colourby:not(.oh-viewswitch){dis
      sort toggles (list) on the left, the count on the right */
   .unit-filter_brand{gap:.5rem}
   .unit-filter_brand .unit-filter_mobile-view-switch{margin-left:auto}
-  .unit-filter_brand .unit-filter_drawer-btn{position:relative;flex:0 0 auto;width:2.75rem;height:2.75rem;padding:0;justify-content:center}
+  /* 16 Oct: the same height as the 3D | Plan | List switch beside it (2.55rem = its .25rem padding x2 + a 2.05rem tab) */
+  .unit-filter_brand .unit-filter_drawer-btn{position:relative;flex:0 0 auto;width:2.55rem;height:2.55rem;padding:0;justify-content:center}
   .unit-filter_brand .unit-filter_active-count{position:absolute;top:-.3rem;right:-.3rem;height:1.125rem;min-width:1.125rem;padding:0 .25rem;font-size:.625rem}
   .unit-filter_mobile-match{margin:0 0 0 auto}
   .unit-filter_mobile-toolbar .site-plan_sort{display:none;gap:.125rem;margin:0}
