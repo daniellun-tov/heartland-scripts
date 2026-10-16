@@ -201,3 +201,7 @@ html.oh-enq-on,html.oh-enq-on body{overflow:hidden}
 .oh-bv_plot.is-hover polygon{stroke:var(--oh-ink);stroke-width:14}
 .oh-bv_chip.is-hover{border-color:var(--oh-ink)}
 .oh-bv [data-oh-native="unit-tip"].is-open{display:flex}
+
+/* estate screen (16 Oct): the unit panel's sticky price + Reserve bar sits above it, its own footer goes */
+.site-plan_detail-panel.is-oh-es .unit-details_actionbar{z-index:10}
+.oh-es.has-oh-bar .oh-es_foot{display:none}

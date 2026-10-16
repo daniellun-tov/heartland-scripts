@@ -174,7 +174,8 @@
     else estate.addEventListener('scroll', panned, { passive: true });
     if (estate.parentNode !== w) w.appendChild(estate);
     layoutEstate();
-    if (window.ResizeObserver) new ResizeObserver(layoutEstate).observe(w);
+    /* perf (16 Oct): one layout per frame, and none while the estate is hidden (setEstate re-measures) */
+    if (window.ResizeObserver) { var roF = 0; new ResizeObserver(function () { if (!estateOn || roF) return; roF = requestAnimationFrame(function () { roF = 0; layoutEstate(); }); }).observe(w); }
     return estate;
   }
   /* phone: the render is blown up past the pane and pans; desktop: it fits */
@@ -334,6 +335,7 @@
     cap.textContent = 'Block ' + b.name + ' · ' + (!salesOpen() ? b.units.length + ' homes' : (av2 ? av2 + ' of ' + b.units.length + ' available' : (b.units.every(function (u) { return u.status_key === 'unreleased'; }) ? 'coming soon' : 'sold out')));
   }
   function paintEstate() {
+    var pills = [];
     if (!estate) return;
     var sel = (window.ohSitePlan.active('block') || []).map(function (v) { return String(v).toLowerCase(); });
     estate.querySelectorAll('.oh-estate_block').forEach(function (p) {
@@ -353,12 +355,13 @@
       if (mk) {
         var label = !salesOpen() ? b.name : (phase2 ? b.name : (av > 0 ? b.name + ' · ' + av + ' available' : b.name + ' · Sold out'));
         var t = mk.querySelector('text'); t.textContent = label;
-        var tw = 0; try { tw = t.getComputedTextLength(); } catch (e3) {}
-        var wdt = Math.max(60, (tw || label.length * 8.6) + 28); mk.querySelector('rect').setAttribute('x', -wdt / 2); mk.querySelector('rect').setAttribute('width', wdt);
+        pills.push([mk, t, label]);   /* measured after the loop: one layout, not one per block */
         mk.classList.toggle('is-phase2', phase2); mk.classList.toggle('is-open', !phase2 && av > 0); mk.classList.toggle('is-soldout', !phase2 && salesOpen() && av === 0);
         mk.classList.toggle('is-dimmed', salesOpen() && !listed && !soon);
       }
     });
+    pills.forEach(function (x) { var tw = 0; try { tw = x[1].getComputedTextLength(); } catch (e3) {} x.push(tw); });
+    pills.forEach(function (x) { var wdt = Math.max(60, (x[3] || x[2].length * 8.6) + 28), r = x[0].querySelector('rect'); r.setAttribute('x', -wdt / 2); r.setAttribute('width', wdt); });
     caption(null);
     paintChooser();
   }
@@ -893,8 +896,12 @@
       if (v === 'estate') { e.preventDefault(); if (cur) closeBlock(); setEstate(true); }
       else if (estateOn || cur) { if (cur) closeBlock(); setEstate(false); }
     });
-    window.ohSitePlan.onChange(function () { if (estate) paintEstate(); paintCounts(); });
-    document.addEventListener('oh:sales-phase', function () { if (estate) paintEstate(); paintCounts(); });
+    /* perf (16 Oct): filter and phase changes arrive in bursts at boot; repaint once per frame,
+       and leave a hidden estate alone (setEstate paints it when it is turned on) */
+    var rpF = 0;
+    var repaint = function () { if (rpF) return; rpF = requestAnimationFrame(function () { rpF = 0; if (estate && estateOn) paintEstate(); paintCounts(); }); };
+    window.ohSitePlan.onChange(repaint);
+    document.addEventListener('oh:sales-phase', repaint);
     var q = new URLSearchParams(location.search);
     var b = q.get('block');
     if (b && blockOf(b.toUpperCase())) {

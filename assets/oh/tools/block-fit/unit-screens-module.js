@@ -221,10 +221,15 @@
       var aside = s.closest('.site-plan_detail-panel');
       if (aside && !s.classList.contains('is-open')) { s._scroll = aside.scrollTop; aside.scrollTop = 0; aside.classList.add('is-oh-es'); }
       s.classList.add('is-open'); s.style.display = 'flex'; s.scrollTop = 0;
+      /* 16 Oct (Daniel): the panel's price + Reserve bar stays on screen; the screen stops above it */
+      var bar = aside && aside.querySelector('.unit-details_actionbar');
+      var bh = bar && bar.offsetParent ? bar.offsetHeight : 0;
+      s.classList.toggle('has-oh-bar', !!bh);
+      if (bh) { s.style.height = 'auto'; s.style.bottom = bh + 'px'; }
       var b = s.querySelector('[data-oh-es-back]'); if (b) b.focus({ preventScroll: true });
     } else {
       var wasOpen = s.classList.contains('is-open');
-      s.classList.remove('is-open'); s.style.display = '';
+      s.classList.remove('is-open', 'has-oh-bar'); s.style.display = ''; s.style.height = ''; s.style.bottom = '';
       var host = s.closest('.site-plan_detail-panel');
       if (host) { host.classList.remove('is-oh-es'); if (wasOpen && s._scroll) host.scrollTop = s._scroll; }
     }
