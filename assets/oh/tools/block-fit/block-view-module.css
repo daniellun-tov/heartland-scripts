@@ -186,3 +186,8 @@ html.oh-enq-on,html.oh-enq-on body{overflow:hidden}
   -webkit-mask-composite:source-in;
   mask-image:linear-gradient(to right,transparent,#000 var(--oh-fl)),linear-gradient(to left,transparent,#000 var(--oh-fr)),linear-gradient(to bottom,transparent,#000 var(--oh-ft)),linear-gradient(to top,transparent,#000 var(--oh-fb));
   mask-composite:intersect}
+
+/* 16 Oct: the block view header stays above the floors and plans scrolling under it */
+.oh-bv_head{z-index:30}
+.oh-bv:not(.is-desk) .oh-bv_tag{box-sizing:border-box;padding-top:0;padding-bottom:0;align-items:center}
+.oh-bv:not(.is-desk).is-ctx .oh-bv_stage{overflow:hidden}

@@ -4521,6 +4521,7 @@ window.ohNativeSubmit = async function (form, doneText) {
 
   /* ---- layout + mode ---- */
   var U = 1, S = 390, RW = 420, RH = 420 * 1026 / 1356, PLATE = 124, STRIP = 168, STACK = 88, DESK = false, H = 700;
+  var TAGROW = 56, HINTH = 66;   /* phones: floor button row height, hint block height */
   function measure() {
     var w = bv.clientWidth || 390;
     DESK = w >= 700;
@@ -4534,6 +4535,15 @@ window.ohNativeSubmit = async function (form, doneText) {
     } else {
       S = Math.min(w, 520); U = S / 390;
       RW = 420 * U; RH = RW * 1026 / 1356; PLATE = 124 * U; STRIP = 168 * U; STACK = 88 * U;
+      /* 16 Oct (Daniel): the block, its four floor buttons and the hint fit the pane without
+         scrolling. Rows shrink a little first, then the render takes what is left. */
+      var hd1 = bv.querySelector('.oh-bv_head'), lg1 = bv.querySelector('.oh-bv_legend');
+      var room1 = H - (hd1 ? hd1.offsetHeight : 56) - (lg1 ? lg1.offsetHeight : 28);
+      var FIX = 10 * U + 14 * U + HINTH * U;
+      TAGROW = 56 * U;
+      if (room1 - FIX - 4 * TAGROW < RH) TAGROW = Math.max(48, Math.min(56 * U, (room1 - FIX - RH) / 4));
+      var rh = room1 - FIX - 4 * TAGROW;
+      if (rh < RH) { RH = Math.max(150, rh); RW = RH * 1356 / 1026; }
     }
   }
   /* bbox of a floor's bands (860x640 render frame) in stage px */
@@ -4600,8 +4610,7 @@ window.ohNativeSubmit = async function (form, doneText) {
     var tagsTop = top0 + RH + 14 * U;
     /* desktop flat: a 2x2 grid of floor strips */
     var CW = S / 2, CH = DESK ? Math.max(STRIP * 1.6, (H - 90) / 2) : STRIP, FW = DESK ? Math.min(CW * 0.5, 300) : PLATE;
-    var TAGROW = 56 * U;   /* phones: one floor button per row */
-    var stageH = flat ? (DESK ? 2 * CH : 4 * STRIP) : (stack ? (DESK ? Math.max(4 * STACK + 150 * U, H - 90) : 4 * STACK + 130 * U + 80 * U) : (DESK ? top0 + RH + 110 * U : tagsTop + 4 * TAGROW + 80 * U));
+    var stageH = flat ? (DESK ? 2 * CH : 4 * STRIP) : (stack ? (DESK ? Math.max(4 * STACK + 150 * U, H - 90) : 4 * STACK + 130 * U + 80 * U) : (DESK ? top0 + RH + 110 * U : tagsTop + 4 * TAGROW + HINTH * U));
     var stackCx = DESK ? S * 0.36 : S * 0.34, stackTop = DESK ? 70 * U : 70 * U;
     var tagX = DESK ? (stack ? S * 0.68 : left0 + RW + 20 * U) : S * 0.6, tagW = DESK ? Math.min(230, S - tagX - 14 * U) : S * 0.36;
     /* desktop tag rows beside the floors, spaced at least a tag apart */
@@ -4684,7 +4693,7 @@ window.ohNativeSubmit = async function (form, doneText) {
       } else if (stack) {
         tag.style.cssText = 'left:' + tagX + 'px;top:' + (stackTop + i * STACK + (box.y1 - box.y0) / 2 - 24 * U) + 'px;width:' + tagW + 'px;opacity:1';
       } else {
-        tag.style.cssText = 'left:' + (16 * U) + 'px;top:' + (tagsTop + i * TAGROW) + 'px;width:' + (S - 32 * U) + 'px;opacity:' + (flat ? 0 : 1) + (flat ? ';pointer-events:none' : '');
+        tag.style.cssText = 'left:' + (16 * U) + 'px;top:' + (tagsTop + i * TAGROW) + 'px;width:' + (S - 32 * U) + 'px;height:' + Math.round(TAGROW - 8 * U) + 'px;opacity:' + (flat ? 0 : 1) + (flat ? ';pointer-events:none' : '');
       }
     });
     /* bands keep their tone for the plan of the same floor: tint the plate's outline */
