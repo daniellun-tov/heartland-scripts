@@ -84,7 +84,15 @@
   // page: one ease-out curve (the hero and Webflow Interactions use the same)
   // and UI-speed durations. Opacity and transform only, so it stays on the
   // compositor. Skipped entirely under prefers-reduced-motion.
-  var MOTION = { ease: 'cubic-bezier(.22, 1, .36, 1)', out: 170, inn: 380, move: 380, stagger: 45 };
+  // Two curves: a soft ease-in-out for fades (a crossfade reads smoothest
+  // when it eases at both ends) and a long ease-out for things that move.
+  var MOTION = {
+    fade: 'cubic-bezier(.45, 0, .2, 1)',   // crossfades in and out
+    glide: 'cubic-bezier(.16, 1, .3, 1)',  // tiles sliding to new places
+    bedOut: 320, bedIn: 520, bedStagger: 35, bedScale: '.97',
+    tileOut: 260, tileMove: 620, tileIn: 520, tileStagger: 70, tileScale: '.97',
+    note: 340
+  };
 
   // bands: each floor's vertical slice of the stacked stage, 0-1 of stage height.
   // Measured from the plan images themselves - no hardcoded dimensions.
@@ -92,6 +100,10 @@
                 shown: null, ready: false };
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
+  // Write text only when it differs. Several of these nodes sit inside the
+  // observed plan stage, where even an identical write is a mutation that
+  // would trigger another refresh.
+  var setText = function (el, t) { if (el && el.textContent !== t) el.textContent = t; };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
   /* ---------- read the Collection List ----------------------------------
@@ -321,10 +333,10 @@
     var one  = state.beds.filter(function (b) { return b.apartment === name; })[0] ||
                inventory().filter(function (b) { return b.apartment === name; })[0];
     // Several places name the apartment (detail card, 3D view) - fill them all.
-    $$('[data-chs-field="floor-label"]').forEach(function (el) { el.textContent = name || ''; });
-    $$('[data-chs-field="apt-gender"]').forEach(function (el) { el.textContent = (one && one.gender) || ''; });
+    $$('[data-chs-field="floor-label"]').forEach(function (el) { setText(el, name || ''); });
+    $$('[data-chs-field="apt-gender"]').forEach(function (el) { setText(el, (one && one.gender) || ''); });
     $$('[data-chs-field="floor-note"]').forEach(function (el) {
-      el.textContent = one ? [one.gender && one.gender + ' apartment', one.phase].filter(Boolean).join(' \u00b7 ') : '';
+      setText(el, one ? [one.gender && one.gender + ' apartment', one.phase].filter(Boolean).join(' \u00b7 ') : '');
     });
     document.dispatchEvent(new CustomEvent('chs:apartmentChanged', { detail: name }));
   }
@@ -595,8 +607,11 @@
     if (clash) {
       var note = $('[data-chs-field="block-note"]', box);
       if (note) {
-        note.textContent = 'This apartment is a ' + has + ' Apartment. ' +
-                           'You\u2019re filtering for ' + wanted + ' Apartments.';
+        var msg = 'This apartment is a ' + has + ' Apartment. ' +
+                  'You\u2019re filtering for ' + wanted + ' Apartments.';
+        // Only on change: the note sits inside the observed stage, and an
+        // identical write is still a DOM mutation that would re-run refresh.
+        if (note.textContent !== msg) note.textContent = msg;
       }
     }
     toggleBlock(box, clash);
@@ -640,11 +655,22 @@
   }
 
   function paint() {
+    // A bed that has just come into view (new apartment, or Finsweet's fresh
+    // copy) must not run its Designer transitions from the default state to
+    // its real one - that colour/position slide is what flickered on taken
+    // beds. Transitions are off for the first frame, then handed back.
+    var was = (state.shown || []).map(function (x) { return x.id; });
+    var fresh = [];
     state.beds.forEach(function (b) {
       var el = b.el;
       var on = visible(b);
       el.style.display = on ? '' : 'none';
       if (!on) return;
+      if (was.indexOf(b.id) === -1 && !el.__chsQuiet) {
+        el.__chsQuiet = true;
+        el.style.transition = 'none';
+        fresh.push(el);
+      }
 
       var pos = place(b);
       if (!pos) return;                        // plans not measured yet
@@ -687,6 +713,13 @@
     });
 
     swapBeds();
+    if (fresh.length) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          fresh.forEach(function (el) { el.style.transition = ''; el.__chsQuiet = false; });
+        });
+      });
+    }
     positionFloorLabels();
     paintPanelState(!!state.selectedId);
     paintRooms();
@@ -745,7 +778,7 @@
       // data-chs-count-none="None available". These are only the fallbacks.
       var some = tab.getAttribute('data-chs-count-text') || '{n} available';
       var none = tab.getAttribute('data-chs-count-none') || 'None available';
-      if (out) out.textContent = free === 0 ? none : some.replace('{n}', String(free));
+      if (out) setText(out, free === 0 ? none : some.replace('{n}', String(free)));
     });
   }
 
@@ -1216,18 +1249,25 @@
     var come = now.filter(function (x) { return was.indexOf(x.id) === -1; });
     if (!gone.length && !come.length) return;
 
+    // All apartments share the same plots, so this is a crossfade in place:
+    // the old bed fades out on its clone while the new one fades in on the
+    // same spot, a few ms apart per bed. Opacity targets are read from the
+    // computed style - a taken bed is not fully opaque, and animating it to 1
+    // made it jump back at the end.
     var layer = gone.length ? ghostLayer() : null;
-    gone.forEach(function (x) {
+    gone.forEach(function (x, i) {
       if (!layer || !x.el.style.left) return;       // never placed, nothing to see
       var g = ghost(x.el, layer);
-      var a = g.animate([{ opacity: 1, scale: '1' }, { opacity: 0, scale: '.9' }],
-                        { duration: MOTION.out, easing: MOTION.ease, fill: 'forwards' });
+      g.style.transition = 'none';
+      var from = getComputedStyle(g).opacity;
+      var a = g.animate([{ opacity: from }, { opacity: 0 }],
+                        { duration: MOTION.bedOut, delay: i * MOTION.bedStagger, easing: MOTION.fade, fill: 'both' });
       a.onfinish = a.oncancel = function () { if (g.parentNode) g.parentNode.removeChild(g); };
     });
-    var lead = gone.length ? MOTION.out * 0.6 : 0;
     come.forEach(function (x, i) {
-      x.el.animate([{ opacity: 0, scale: '.86' }, { opacity: 1, scale: '1' }],
-                   { duration: MOTION.inn, delay: lead + i * MOTION.stagger, easing: MOTION.ease, fill: 'backwards' });
+      var to = getComputedStyle(x.el).opacity;
+      x.el.animate([{ opacity: 0, scale: MOTION.bedScale }, { opacity: to, scale: '1' }],
+                   { duration: MOTION.bedIn, delay: 40 + i * MOTION.bedStagger, easing: MOTION.fade, fill: 'backwards' });
     });
   }
 
@@ -1254,8 +1294,9 @@
 
     var outs = leaving.map(function (c) {
       c.__chsLeaving = true;
-      return (c.__chsOut = c.animate([{ opacity: 1, scale: '1' }, { opacity: 0, scale: '.94' }],
-                                     { duration: MOTION.out, easing: MOTION.ease, fill: 'forwards' }));
+      var from = getComputedStyle(c).opacity;
+      return (c.__chsOut = c.animate([{ opacity: from, scale: '1' }, { opacity: 0, scale: MOTION.tileScale }],
+                                     { duration: MOTION.tileOut, easing: MOTION.fade, fill: 'forwards' }));
     });
 
     var reveal = function () {
@@ -1273,11 +1314,12 @@
         var dx = first[i].left - r.left, dy = first[i].top - r.top;
         if (Math.abs(dx) + Math.abs(dy) < 0.5) return;
         c.animate([{ translate: dx + 'px ' + dy + 'px' }, { translate: '0 0' }],
-                  { duration: MOTION.move, easing: MOTION.ease });
+                  { duration: MOTION.tileMove, easing: MOTION.glide });
       });
       entering.forEach(function (c, i) {
-        c.animate([{ opacity: 0, scale: '.94' }, { opacity: 1, scale: '1' }],
-                  { duration: MOTION.inn, delay: 60 + i * MOTION.stagger, easing: MOTION.ease, fill: 'backwards' });
+        var to = getComputedStyle(c).opacity;
+        c.animate([{ opacity: 0, scale: MOTION.tileScale }, { opacity: to, scale: '1' }],
+                  { duration: MOTION.tileIn, delay: 120 + i * MOTION.tileStagger, easing: MOTION.fade, fill: 'backwards' });
       });
     };
     if (!outs.length) { reveal(); return; }
@@ -1293,17 +1335,17 @@
     if (on) {
       box.classList.add(S);
       if (!motionOK()) return;
-      box.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: MOTION.ease });
+      box.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.note, easing: MOTION.fade });
       $$(':scope > *', box).forEach(function (el) {
-        el.animate([{ opacity: 0, translate: '0 8px' }, { opacity: 1, translate: '0 0' }],
-                   { duration: MOTION.inn, delay: 60, easing: MOTION.ease, fill: 'backwards' });
+        el.animate([{ opacity: 0, translate: '0 6px' }, { opacity: 1, translate: '0 0' }],
+                   { duration: MOTION.tileIn, delay: 80, easing: MOTION.glide, fill: 'backwards' });
       });
       return;
     }
     if (!motionOK()) { box.classList.remove(S); return; }
     box.__chsLeaving = true;
     var a = box.__chsOut = box.animate([{ opacity: 1 }, { opacity: 0 }],
-                                       { duration: MOTION.out, easing: MOTION.ease, fill: 'forwards' });
+                                       { duration: MOTION.note, easing: MOTION.fade, fill: 'forwards' });
     a.onfinish = function () {
       if (box.__chsLeaving) box.classList.remove(S);
       box.__chsLeaving = false; box.__chsOut = null;
@@ -1314,7 +1356,7 @@
 
   function fadeIn(el) {
     if (!motionOK()) return;
-    el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 420, easing: MOTION.ease });
+    el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 480, easing: MOTION.fade });
   }
 
   /* ---------- nav shrink ------------------------------------------------
@@ -1462,14 +1504,23 @@
 
     var host = $('[data-chs="plan-stage"]');
     if (host && window.MutationObserver) {
-      var t;
+      var t, burst = 0;
       new MutationObserver(function (list) {
         // The exit clones come and go on their own; they are not a re-render.
         var real = list.some(function (m) {
           return !(m.target.closest && m.target.closest('[data-chs-ghosts]')) &&
                  !Array.prototype.some.call(m.addedNodes, function (n) { return n.hasAttribute && n.hasAttribute('data-chs-ghosts'); });
         });
-        if (real) { clearTimeout(t); t = setTimeout(refresh, 60); }
+        if (!real) return;
+        // Safety valve: should anything ever write the same DOM over and over,
+        // fall back to the debounced pass instead of looping within a frame.
+        if (++burst > 8) { clearTimeout(t); t = setTimeout(refresh, 60); return; }
+        if (burst === 1) requestAnimationFrame(function () { burst = 0; });
+        // Position and class Finsweet's fresh items before the browser paints
+        // them (this callback runs ahead of the next frame), so they never
+        // show unplaced. The trailing pass catches a render split over frames.
+        refresh();
+        clearTimeout(t); t = setTimeout(refresh, 60);
       }).observe(host, { childList: true, subtree: true });
     }
 
