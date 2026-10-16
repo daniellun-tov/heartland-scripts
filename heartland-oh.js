@@ -2501,6 +2501,54 @@ window.ohNativeSubmit = async function (form, doneText) {
   }
   const get = (form, n) => { const el = form.querySelector('[name="' + n + '"]'); return el ? String(el.value || '').trim() : ''; };
 
+  /* 16 Oct 2026: notify-me leads go to Webflow Forms in the home page Register
+     Interest format, so the CRM webhook files them with the other enquiries
+     (they used to arrive as a separate "Notify me" form with unit_id/unit_number,
+     which the webhook did not pick up). Webflow reads the form name and every
+     field's data-name at the moment of submit, so for that one submit the form
+     is renamed, the unit_id/unit_number inputs are taken out, the home form's
+     fields are added (topic Pricing and availability on, as the home page's
+     Register Interest on Type B/C does) and the message carries the unit.
+     Everything is put back straight after; the Xano /interest record above is
+     unchanged. */
+  const RI_NAME = 'Oakhills Register Interest';
+  const RI_TOPICS = ['Pricing and availability', 'Floor plans', 'Investment and rental', 'Book a site visit', 'Call me back', 'Other'];
+  function unitText(u, num) {
+    const bits = [u.block_name ? 'Block ' + u.block_name : '', u.floor_label ? u.floor_label + ' floor' : '', u.type_code ? 'Type ' + u.type_code : ''].filter(Boolean);
+    return 'unit ' + num + (bits.length ? ' (' + bits.join(', ') + ')' : '');
+  }
+  async function sendAsRegisterInterest(form, u, payload, doneText) {
+    const head = 'I would like to register my interest in ' + unitText(u, payload.unit_number) + ', which is not released yet.';
+    const msgEl = form.querySelector('[name="message"]');
+    const own = msgEl ? msgEl.value : '';
+    const prevName = form.getAttribute('data-name');
+    const pulled = [];
+    ['unit_id', 'unit_number'].forEach((n) => {
+      form.querySelectorAll('[name="' + n + '"]').forEach((el) => { pulled.push([el, el.parentNode, el.nextSibling]); el.remove(); });
+    });
+    const added = [];
+    const add = (dataName, type, value) => {
+      const el = document.createElement('input');
+      el.type = type; el.name = dataName.replace(/[^A-Za-z0-9_]+/g, '-'); el.setAttribute('data-name', dataName);
+      if (type === 'checkbox') { el.checked = !!value; el.style.display = 'none'; el.tabIndex = -1; el.setAttribute('aria-hidden', 'true'); }
+      else el.value = value;
+      form.appendChild(el); added.push(el);
+    };
+    RI_TOPICS.forEach((t) => add('Topic: ' + t, 'checkbox', t === 'Pricing and availability'));
+    add('Reply on WhatsApp', 'checkbox', false);
+    add('Enquiry source', 'hidden', ('Unit selection page, unit ' + payload.unit_number + ' (Notify me, not released)').slice(0, 200));
+    form.setAttribute('data-name', RI_NAME);
+    if (msgEl) msgEl.value = own.trim() ? head + ' ' + own.trim() : head; /* single-line input: no line breaks */
+    try {
+      return await window.ohNativeSubmit(form, doneText);
+    } finally {
+      added.forEach((el) => el.remove());
+      pulled.forEach(([el, parent, next]) => { if (parent) parent.insertBefore(el, next && next.parentNode === parent ? next : null); });
+      if (prevName == null) form.removeAttribute('data-name'); else form.setAttribute('data-name', prevName);
+      if (msgEl) msgEl.value = own;
+    }
+  }
+
   function bind() {
     const form = document.getElementById(FORM_ID);
     if (!form || form.__ohNotify) return;
@@ -2532,8 +2580,9 @@ window.ohNativeSubmit = async function (form, doneText) {
         let data = null; try { data = await res.json(); } catch (_) {}
         if (!res.ok) throw new Error((data && data.message) || 'We could not save that. Please try again.');
         const doneText = 'Thank you, you are on the list for unit ' + payload.unit_number + '. We will be in touch the moment it is released.';
-        /* Webflow Forms copy (feeds LeadConnector, unit_number/unit_id included); Webflow then shows its success block */
-        const native = await window.ohNativeSubmit(form, doneText);
+        /* Webflow Forms copy, sent as the home page Register Interest lead (same form
+           name and fields) so it reaches the same webhook / CRM; Webflow then shows its success block */
+        const native = await sendAsRegisterInterest(form, u, payload, doneText);
         form.querySelectorAll('[data-notify="fields"]').forEach((el) => { el.style.display = 'none'; });
         const done = form.querySelector('[data-notify="done"]');
         if (done && !native) { done.style.display = 'block'; const n = done.querySelector('[data-notify="done-unit"]'); if (n) n.textContent = payload.unit_number; }
