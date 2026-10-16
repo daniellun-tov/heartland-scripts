@@ -6,7 +6,9 @@
    - "Floor" -> "Level" in the few Designer labels that are plain blocks.
    ============================================================ */
 (function () {
-  if (window.ohPrepDone) return; window.ohPrepDone = true;
+  /* inline copy already ran: start the reveal's 9s fallback now, from when the bundle runs, as it always did */
+  if (window.ohPrepDone) { if (window.ohMapLoader && window.ohMapLoader.arm) window.ohMapLoader.arm(9000); return; }
+  window.ohPrepDone = true;
   var box = document.querySelector('.unit-filter_map-container');
   if (box && !document.querySelector('.unit-filter_map')) {
     var w = document.createElement('div');
@@ -99,14 +101,18 @@
       host.appendChild(veil);
     }
 
+    function hideVeil(force) {
+      if (!veil || (!force && !(marks.plan && marks.data))) return;
+      var v = veil; veil = null;
+      v.classList.add('is-out');
+      setTimeout(function () { if (v.parentNode) v.parentNode.removeChild(v); }, 520);
+    }
+    setTimeout(function () { hideVeil(true); }, 30000);
     function play() {
       if (played) return;
       played = true;
       root.classList.remove('oh-data-pending');
-      if (veil) {
-        veil.classList.add('is-out');
-        setTimeout(function () { if (veil && veil.parentNode) veil.parentNode.removeChild(veil); }, 520);
-      }
+      hideVeil();
       if (!root.classList.contains('oh-reveal')) return;
       /* two frames: the viewport fits and centres the plan before it shows */
       requestAnimationFrame(function () {
@@ -124,6 +130,7 @@
         if (name in marks) marks[name] = true;
         if (name === 'data') root.classList.remove('oh-data-pending');
         if (marks.plan && marks.data && marks.image) play();
+        if (played) hideVeil();
       },
       play: play,
       finish: play
@@ -139,7 +146,10 @@
       img.addEventListener('load', function () { window.ohMapLoader.mark('image'); });
       img.addEventListener('error', function () { window.ohMapLoader.mark('image'); });
     }
-    setTimeout(play, 9000);
+    var fallback = 0;
+    window.ohMapLoader.arm = function (ms) { clearTimeout(fallback); fallback = setTimeout(play, ms); };
+    var cs = document.currentScript;
+    window.ohMapLoader.arm(cs && cs.src ? 9000 : 20000);
   })();
 
   var pageWrap = document.querySelector('.page_wrap');
