@@ -1380,10 +1380,6 @@
   function liftLoader() {
     var el = $('[data-chs-loader]');
     if (!el) return;
-    // Holds the hero entrance (page CSS) until the loader lifts, so it plays
-    // in view rather than under the loader. Without this script nothing is
-    // held and the CSS fallback still lifts the loader.
-    document.documentElement.classList.add('chs-loading');
     var done = false;
     var lift = function () {
       if (done) return;
