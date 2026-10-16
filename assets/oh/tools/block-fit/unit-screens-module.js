@@ -18,18 +18,18 @@
 --------------------------------------------------------------------------- */
 (function () {
   var q = function (s, r) { return (r || document).querySelector(s); };
-  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad07dd846fd3fd8d358d1ff_img-3d-estate-render-v2.webp';
+  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad07dd846fd3fd8d358d1ff_img-3d-estate-render-v2.avif';
   var CLUB = { x: 405, y: 362 };                 /* the clubhouse on the 1110x706 estate frame */
   var OCCUPATION = 'Feb 2027';
   var ORIENT = { N: 'North', NE: 'North-east', E: 'East', SE: 'South-east', S: 'South', SW: 'South-west', W: 'West', NW: 'North-west' };
   var ORD = { 1: 'First', 2: 'Second', 3: 'Third', 4: 'Fourth', 5: 'Fifth' };
   var CDN = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/';
   var AMENITIES = {
-    deli: { img: CDN + '6ad09a8eb679a54cbe8d1ffa_oh-amenity-deli.webp', alt: 'The deli in the clubhouse', h: 'The deli, in the clubhouse',
+    deli: { img: CDN + '6ad09a8eb679a54cbe8d1ffa_oh-amenity-deli.avif', alt: 'The deli in the clubhouse', h: 'The deli, in the clubhouse',
       p: 'Gourmet treats, fresh locally sourced ingredients and proper coffee, a short walk from your own front door rather than a drive into town.' },
-    gym: { img: CDN + '6ad09a8de4d21b81a7923878_oh-amenity-gym.webp', alt: 'The gym in the clubhouse', h: 'The gym, in the clubhouse',
+    gym: { img: CDN + '6ad09a8de4d21b81a7923878_oh-amenity-gym.avif', alt: 'The gym in the clubhouse', h: 'The gym, in the clubhouse',
       p: 'A fully equipped gym inside the clubhouse: cardio, weights and space to stretch, open to residents every day without a membership or a drive.' },
-    cowork: { img: CDN + '6ad09a8d65681c6e1919a365_oh-amenity-coworking.webp', alt: 'The co-working lounge in the clubhouse', h: 'Co-working, in the clubhouse',
+    cowork: { img: CDN + '6ad09a8d65681c6e1919a365_oh-amenity-coworking.avif', alt: 'The co-working lounge in the clubhouse', h: 'Co-working, in the clubhouse',
       p: 'A quiet, connected lounge with fibre and good coffee next door, for the days you work from the estate instead of commuting into Stellenbosch.' },
     security: { img: CDN + '69d5fe15f421c777840831c4_img-why-oakhills-safety-security.webp', alt: 'The gatehouse at Oakhills', h: 'Secure, from the gate to your door',
       p: 'A manned gatehouse, perimeter security and access control across the estate, so the clubhouse, the lawns and your block are for residents and their guests.' }

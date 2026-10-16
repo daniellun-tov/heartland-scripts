@@ -17,13 +17,13 @@
   var TYPES = {
     A: { title: 'Unit Type A', sub: '2 Bed · 2 Bath · 86 m²', cap: 'Type A · 86 m²',
          inside: ['2 bedrooms, each en-suite', 'Open-plan kitchen and living', 'Covered patio off the living room', '75 m² inside · 11 m² patio'],
-         img3d: CDN + '6ad07ff382ff418bc8a83fb2_fp-3d-type-a.webp', plan: CDN + '6ad07ff391bbc53a819106db_fp-plan-type-a.webp', pdf: CDN + '6ad07ff499389820bad624ce_fp-plan-type-a.pdf' },
+         img3d: CDN + '6ad07ff382ff418bc8a83fb2_fp-3d-type-a.avif', plan: CDN + '6ad07ff391bbc53a819106db_fp-plan-type-a.avif', pdf: CDN + '6ad07ff499389820bad624ce_fp-plan-type-a.pdf' },
     B: { title: 'Unit Type B', sub: '2 Bed · 1 Bath · 48 to 56 m²', cap: 'Type B · 48 to 56 m²',
          inside: ['2 bedrooms', 'One bathroom', 'Open-plan kitchen and living', 'Covered patio'],
-         img3d: CDN + '6ad07ff39e049abd51fb26d5_fp-3d-type-b.webp', plan: CDN + '6ad07ff38da42671bcc98522_fp-plan-type-b.webp', pdf: CDN + '6ad07ff499389820bad624e0_fp-plan-type-b.pdf' },
+         img3d: CDN + '6ad07ff39e049abd51fb26d5_fp-3d-type-b.avif', plan: CDN + '6ad07ff38da42671bcc98522_fp-plan-type-b.avif', pdf: CDN + '6ad07ff499389820bad624e0_fp-plan-type-b.pdf' },
     C: { title: 'Unit Type C', sub: '1 Bed · 1 Bath · 36 to 49 m²', cap: 'Type C · 36 to 49 m²',
          inside: ['1 bedroom', 'One bathroom', 'Open-plan kitchen and living', 'Covered patio'],
-         img3d: CDN + '6ad07ff334cd061e3b235611_fp-3d-type-c.webp', plan: CDN + '6ad07ff498236f8193eecde9_fp-plan-type-c.webp', pdf: CDN + '6ad07ff49479985a2b086b73_fp-plan-type-c.pdf' }
+         img3d: CDN + '6ad07ff334cd061e3b235611_fp-3d-type-c.avif', plan: CDN + '6ad07ff498236f8193eecde9_fp-plan-type-c.avif', pdf: CDN + '6ad07ff49479985a2b086b73_fp-plan-type-c.pdf' }
   };
   var root = null, cur = null, view = 'plan', lastFocus = null, scrollY = 0;
 
@@ -95,7 +95,7 @@
     if (!cur) return;
     if (kind !== 'pdf' && view === 'plan') kind = 'pdf';   /* the single button: plan = PDF */
     var url = kind === 'pdf' ? cur.pdf : (view === 'plan' ? cur.plan : cur.img3d);
-    var name = fileName(kind === 'pdf' ? 'pdf' : 'webp');
+    var name = fileName(kind === 'pdf' ? 'pdf' : 'avif');
     /* the files live on the Webflow CDN (another origin), so a plain download
        attribute would just open them: pull the bytes and save */
     fetch(url, { mode: 'cors' }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); }).then(function (b) {

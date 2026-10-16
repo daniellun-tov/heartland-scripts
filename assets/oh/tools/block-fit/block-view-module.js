@@ -38,7 +38,7 @@
      greyscale over the site's sand (v4; v3 was dark), so the
      estate sits smaller in its context. The block outlines keep their 1110x706 frame (the old crop
      at 880,28 5441x3459); VIEW is that crop's coordinate system extended to the full picture. */
-  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad0f0ee7ea12e5ad0db361c_img-3d-estate-render-v5.webp';
+  var ESTATE_IMG = 'https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad0f0ee7ea12e5ad0db361c_img-3d-estate-render-v5.avif';
   var VIEW = { x: -179.52, y: -5.72, w: 1704.25, h: 775.62 };
   var SITE_C = { x: 555, y: 353 };   /* the estate's middle, in outline coordinates */
   var TILT = 54.74;
