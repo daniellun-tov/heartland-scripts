@@ -1480,6 +1480,271 @@
     queueSave();
   }
 
+  /* ---- nationality picker (16 Oct 2026).
+
+     A SEARCHABLE LIST OVER THE SAME TEXT INPUT, not a <select>. The input keeps its
+     data-hl-field, so collect(), renderInputs(), the required check and the save all
+     work exactly as before; this only decides what the buyer can leave in it.
+
+     THE VALUE IS THE NATIONALITY ("South African"), not the country. That is what the
+     Offer to Purchase prints and what the existing reservations already hold. The
+     country and the common short forms (UK, USA, Holland) are search terms only, so
+     typing either finds the same row.
+
+     A value the list does not know is LEFT ALONE unless the buyer changed it. An older
+     reservation may hold something typed freehand; quietly wiping it on focus-and-leave
+     would be losing their data for tidiness. Text the buyer typed and did not pick
+     falls back to whatever was there before they started.
+
+     Opt out per page with data-hl-no-picker on the input. */
+  var NATIONALITIES = "South African=South Africa=RSA,SA|Afghan=Afghanistan|Albanian=Albania|Algerian=Algeria|American=United States=USA,US,America,United States of America|Andorran=Andorra|Angolan=Angola|Antiguan=Antigua and Barbuda|Argentine=Argentina=Argentinian|Armenian=Armenia|Australian=Australia|Austrian=Austria|Azerbaijani=Azerbaijan|Bahamian=Bahamas|Bahraini=Bahrain|Bangladeshi=Bangladesh|Barbadian=Barbados|Belarusian=Belarus|Belgian=Belgium|Belizean=Belize|Beninese=Benin|Bhutanese=Bhutan|Bolivian=Bolivia|Bosnian=Bosnia and Herzegovina=Herzegovinian|Motswana=Botswana=Batswana|Brazilian=Brazil|British=United Kingdom=UK,England,Scotland,Wales,Northern Ireland,Great Britain,English,Scottish,Welsh|Bruneian=Brunei|Bulgarian=Bulgaria|Burkinabe=Burkina Faso|Burundian=Burundi|Cambodian=Cambodia|Cameroonian=Cameroon|Canadian=Canada|Cape Verdean=Cabo Verde=Cape Verde|Central African=Central African Republic|Chadian=Chad|Chilean=Chile|Chinese=China|Colombian=Colombia|Comoran=Comoros|Congolese (DRC)=Democratic Republic of the Congo=DRC,Congo|Congolese (Republic)=Republic of the Congo=Congo,Brazzaville|Costa Rican=Costa Rica|Croatian=Croatia|Cuban=Cuba|Cypriot=Cyprus|Czech=Czech Republic=Czechia|Danish=Denmark|Djiboutian=Djibouti|Dominican (Dominica)=Dominica|Dominican=Dominican Republic|Dutch=Netherlands=Holland|East Timorese=Timor-Leste=East Timor|Ecuadorian=Ecuador|Egyptian=Egypt|Emirati=United Arab Emirates=UAE,Dubai|Equatorial Guinean=Equatorial Guinea|Eritrean=Eritrea|Estonian=Estonia|Ethiopian=Ethiopia|Fijian=Fiji|Filipino=Philippines=Filipina|Finnish=Finland|French=France|Gabonese=Gabon|Gambian=Gambia|Georgian=Georgia|German=Germany|Ghanaian=Ghana|Greek=Greece|Grenadian=Grenada|Guatemalan=Guatemala|Guinea-Bissauan=Guinea-Bissau|Guinean=Guinea|Guyanese=Guyana|Haitian=Haiti|Honduran=Honduras|Hungarian=Hungary|Icelandic=Iceland|Indian=India|Indonesian=Indonesia|Iranian=Iran|Iraqi=Iraq|Irish=Ireland|Israeli=Israel|Italian=Italy|Ivorian=Cote d'Ivoire=Ivory Coast|Jamaican=Jamaica|Japanese=Japan|Jordanian=Jordan|Kazakh=Kazakhstan|Kenyan=Kenya|Kiribati=Kiribati|Kosovar=Kosovo|Kuwaiti=Kuwait|Kyrgyz=Kyrgyzstan|Lao=Laos=Laotian|Latvian=Latvia|Lebanese=Lebanon|Mosotho=Lesotho=Basotho|Liberian=Liberia|Libyan=Libya|Liechtensteiner=Liechtenstein|Lithuanian=Lithuania|Luxembourgish=Luxembourg|Malagasy=Madagascar|Malawian=Malawi|Malaysian=Malaysia|Maldivian=Maldives|Malian=Mali|Maltese=Malta|Marshallese=Marshall Islands|Mauritanian=Mauritania|Mauritian=Mauritius|Mexican=Mexico|Micronesian=Micronesia|Moldovan=Moldova|Monegasque=Monaco|Mongolian=Mongolia|Montenegrin=Montenegro|Moroccan=Morocco|Mozambican=Mozambique|Myanmar=Myanmar=Burma,Burmese|Namibian=Namibia|Nauruan=Nauru|Nepalese=Nepal|New Zealander=New Zealand|Nicaraguan=Nicaragua|Nigerian=Nigeria|Nigerien=Niger|North Korean=North Korea|North Macedonian=North Macedonia=Macedonia|Norwegian=Norway|Omani=Oman|Pakistani=Pakistan|Palauan=Palau|Palestinian=Palestine|Panamanian=Panama|Papua New Guinean=Papua New Guinea|Paraguayan=Paraguay|Peruvian=Peru|Polish=Poland|Portuguese=Portugal|Qatari=Qatar|Romanian=Romania|Russian=Russia|Rwandan=Rwanda|Kittitian=Saint Kitts and Nevis=St Kitts|Saint Lucian=Saint Lucia=St Lucia|Vincentian=Saint Vincent and the Grenadines=St Vincent|Samoan=Samoa|Sammarinese=San Marino|Sao Tomean=Sao Tome and Principe|Saudi=Saudi Arabia|Senegalese=Senegal|Serbian=Serbia|Seychellois=Seychelles|Sierra Leonean=Sierra Leone|Singaporean=Singapore|Slovak=Slovakia|Slovenian=Slovenia|Solomon Islander=Solomon Islands|Somali=Somalia|South Korean=South Korea=Korea|South Sudanese=South Sudan|Spanish=Spain|Sri Lankan=Sri Lanka|Sudanese=Sudan|Surinamese=Suriname|Swazi=Eswatini=Swaziland|Swedish=Sweden|Swiss=Switzerland|Syrian=Syria|Taiwanese=Taiwan|Tajik=Tajikistan|Tanzanian=Tanzania|Thai=Thailand|Togolese=Togo|Tongan=Tonga|Trinidadian=Trinidad and Tobago=Tobagonian|Tunisian=Tunisia|Turkish=Turkey=Turkiye|Turkmen=Turkmenistan|Tuvaluan=Tuvalu|Ugandan=Uganda|Ukrainian=Ukraine|Uruguayan=Uruguay|Uzbek=Uzbekistan|Vanuatuan=Vanuatu|Vatican=Vatican City=Holy See|Venezuelan=Venezuela|Vietnamese=Vietnam|Yemeni=Yemen|Zambian=Zambia|Zimbabwean=Zimbabwe";
+  var natList = null;
+
+  function natRows() {
+    if (natList) { return natList; }
+    natList = [];
+    var rows = NATIONALITIES.split("|");
+    for (var i = 0; i < rows.length; i++) {
+      var p = rows[i].split("=");
+      natList.push({ label: p[0], country: p[1] || "", alias: (p[2] || "").split(",") });
+    }
+    return natList;
+  }
+
+  function natNorm(s) {
+    s = String(s || "");
+    if (s.normalize) { s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  }
+
+  /* Lower is better; -1 is no match. Name first, then country, then any word. */
+  function natScore(row, q) {
+    if (!q) { return 0; }
+    var terms = [row.label, row.country].concat(row.alias);
+    var best = -1;
+    for (var i = 0; i < terms.length; i++) {
+      var t = natNorm(terms[i]);
+      if (!t) { continue; }
+      var s = -1;
+      if (t === q) { s = 0; }
+      else if (t.indexOf(q) === 0) { s = i === 0 ? 1 : 2; }
+      else if ((" " + t).indexOf(" " + q) > -1) { s = 3; }
+      else if (t.indexOf(q) > -1) { s = 4; }
+      if (s > -1 && (best === -1 || s < best)) { best = s; }
+    }
+    return best;
+  }
+
+  function natFilter(q) {
+    q = natNorm(q);
+    var rows = natRows(), out = [];
+    for (var i = 0; i < rows.length; i++) {
+      var s = natScore(rows[i], q);
+      if (s > -1) { out.push({ row: rows[i], s: s, i: i }); }
+    }
+    out.sort(function (a, b) { return (a.s - b.s) || (a.i - b.i); });
+    return out.map(function (o) { return o.row; });
+  }
+
+  /* Exact name, country or short form - "south africa", "UK" - to the row. */
+  function natExact(v) {
+    var q = natNorm(v);
+    if (!q) { return null; }
+    var rows = natRows();
+    for (var i = 0; i < rows.length; i++) {
+      if (natScore(rows[i], q) === 0) { return rows[i]; }
+    }
+    return null;
+  }
+
+  var comboCssDone = false;
+  function comboCss() {
+    if (comboCssDone) { return; }
+    comboCssDone = true;
+    var s = d.createElement("style");
+    s.setAttribute("data-hl-combo-css", "");
+    s.textContent =
+      ".hl-combo-input{padding-right:2.5rem!important;background-repeat:no-repeat;background-position:right .875rem center;background-size:.75rem;" +
+        "background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23656565' stroke-width='1.5'/%3E%3C/svg%3E\")}" +
+      ".hl-combo-list{max-height:16rem;overflow-y:auto!important;margin-top:.25rem;-webkit-overflow-scrolling:touch;box-shadow:0 6px 18px rgba(0,0,0,.08)}" +
+      ".hl-combo-list .hl-suggest-item{display:flex;justify-content:space-between;gap:1rem}" +
+      ".hl-combo-list .hl-suggest-item:last-child{border-bottom:0}" +
+      ".hl-combo-list .hl-suggest-item[aria-selected=\"true\"]{color:#fff;background-color:var(--hl-primary-hover,#aeb6a5)}" +
+      ".hl-combo-country{opacity:.6;text-align:right}" +
+      ".hl-combo-empty{padding:.625rem .75rem;font-size:.875rem;opacity:.7}";
+    (d.head || d.documentElement).appendChild(s);
+  }
+
+  function wireNationalityPicker() {
+    var el = fieldEl("nationality");
+    if (!el || String(el.tagName).toUpperCase() !== "INPUT") { return; }
+    if (el.hasAttribute("data-hl-no-picker") || el.getAttribute("data-hl-picker")) { return; }
+    el.setAttribute("data-hl-picker", "nationality");
+    comboCss();
+
+    var listId = (el.id || "hl-nationality") + "-list";
+    var box = d.createElement("div");
+    box.className = "hl-suggest hl-combo-list";
+    box.id = listId;
+    box.setAttribute("role", "listbox");
+    box.style.display = "none";
+    el.parentNode.insertBefore(box, el.nextSibling);
+
+    el.setAttribute("role", "combobox");
+    el.setAttribute("aria-autocomplete", "list");
+    el.setAttribute("aria-expanded", "false");
+    el.setAttribute("aria-controls", listId);
+    /* The browser's own autofill list would open on top of this one. */
+    el.setAttribute("autocomplete", "off");
+    if (!el.getAttribute("placeholder")) { el.setAttribute("placeholder", "Search, e.g. South African"); }
+    el.className += " hl-combo-input";
+
+    var shown = [], active = -1, before = "", isOpen = false;
+
+    function setActive(i) {
+      active = i;
+      var items = box.querySelectorAll("[role=option]");
+      for (var k = 0; k < items.length; k++) {
+        items[k].setAttribute("aria-selected", k === i ? "true" : "false");
+      }
+      if (i > -1 && items[i]) {
+        el.setAttribute("aria-activedescendant", items[i].id);
+        if (items[i].scrollIntoView) { try { items[i].scrollIntoView({ block: "nearest" }); } catch (e) {} }
+      } else {
+        el.removeAttribute("aria-activedescendant");
+      }
+    }
+
+    function draw(q) {
+      shown = natFilter(q);
+      while (box.firstChild) { box.removeChild(box.firstChild); }
+      if (!shown.length) {
+        var none = d.createElement("div");
+        none.className = "hl-combo-empty";
+        none.textContent = "No match - try the country name";
+        box.appendChild(none);
+      }
+      for (var i = 0; i < shown.length; i++) {
+        var it = d.createElement("div");
+        it.className = "hl-suggest-item";
+        it.id = listId + "-" + i;
+        it.setAttribute("role", "option");
+        it.setAttribute("data-hl-combo-value", shown[i].label);
+        var a = d.createElement("span");
+        a.textContent = shown[i].label;
+        it.appendChild(a);
+        if (shown[i].country && shown[i].country !== shown[i].label) {
+          var b = d.createElement("span");
+          b.className = "hl-combo-country";
+          b.textContent = shown[i].country;
+          it.appendChild(b);
+        }
+        box.appendChild(it);
+      }
+      active = -1;
+    }
+
+    function open() {
+      isOpen = true;
+      box.style.display = "block";   // explicit, for the reason in applyBuyerType
+      el.setAttribute("aria-expanded", "true");
+    }
+    function close() {
+      isOpen = false;
+      box.style.display = "none";
+      el.setAttribute("aria-expanded", "false");
+      el.removeAttribute("aria-activedescendant");
+    }
+
+    /* change, not input: the document listener saves on either, and change is what a
+       select would have sent. */
+    function commit(label) {
+      var changed = el.value !== label || label !== before;
+      el.value = label;
+      before = label;
+      close();
+      if (changed) {
+        var ev;
+        try { ev = new w.Event("change", { bubbles: true }); }
+        catch (e) { ev = d.createEvent("Event"); ev.initEvent("change", true, true); }
+        el.dispatchEvent(ev);
+      }
+    }
+
+    el.addEventListener("focus", function () {
+      before = el.value;
+      draw("");
+      open();
+      var cur = natExact(el.value);
+      if (cur) { setActive(shown.indexOf(cur)); }
+      try { el.select(); } catch (e) {}
+    });
+
+    el.addEventListener("input", function () {
+      draw(el.value);
+      open();
+      if (shown.length && natNorm(el.value)) { setActive(0); }
+    });
+
+    el.addEventListener("keydown", function (e) {
+      var k = e.key;
+      if (k === "ArrowDown" || k === "ArrowUp") {
+        e.preventDefault();
+        if (!isOpen) { draw(el.value === before ? "" : el.value); open(); }
+        if (!shown.length) { return; }
+        var n = k === "ArrowDown" ? active + 1 : active - 1;
+        if (n < 0) { n = 0; }
+        if (n > shown.length - 1) { n = shown.length - 1; }
+        setActive(n);
+      } else if (k === "Enter") {
+        /* Never let Enter fall through to the form's submit - here that means "next
+           step", which is not what somebody choosing from a list meant. */
+        if (isOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (active > -1 && shown[active]) { commit(shown[active].label); }
+          else if (shown.length === 1) { commit(shown[0].label); }
+        }
+      } else if (k === "Escape") {
+        if (isOpen) {
+          e.preventDefault();
+          el.value = before;
+          close();
+        }
+      } else if (k === "Tab") {
+        if (isOpen && active > -1 && shown[active] && el.value !== before) {
+          commit(shown[active].label);
+        }
+      }
+    });
+
+    el.addEventListener("blur", function () {
+      if (!isOpen && el.value === before) { return; }
+      close();
+      var v = el.value;
+      if (String(v).trim() === "") { if (before !== "") { commit(""); } return; }
+      var hit = natExact(v);
+      if (hit) { if (hit.label !== v || v !== before) { commit(hit.label); } return; }
+      /* Unknown text. If it is what was there before they focused, it is theirs. */
+      if (v === before) { return; }
+      commit(before);
+    });
+
+    /* mousedown, not click: by click the input has already blurred and run the
+       fallback above. preventDefault keeps the focus where it is. */
+    box.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    box.addEventListener("click", function (e) {
+      var t = e.target;
+      while (t && t !== box) {
+        if (t.getAttribute && t.getAttribute("data-hl-combo-value") !== null) {
+          commit(t.getAttribute("data-hl-combo-value"));
+          return;
+        }
+        t = t.parentNode;
+      }
+    });
+  }
+
   function render() {
     if (!R) { return; }
     renderDisplays();
@@ -1660,6 +1925,7 @@
           form.appendChild(i);
         });
         d.body.appendChild(form);
+        coForm = form;
         log("posting", pairs.length, "fields to", CO.process_url, CO.is_live ? "LIVE" : "sandbox");
         lastNav = CO.process_url;
         store(PAY_KEY, R.uuid + "|" + Date.now());
@@ -1673,6 +1939,65 @@
   }
 
   var lastNav = "";
+  var coForm = null;
+
+  /* ---- coming BACK from Payfast (16 Oct 2026).
+
+     The browser's Back button from the Payfast page must land on the fee step the buyer
+     left, never on "Confirmed". It used to: checkout stamps PAY_KEY before posting, so
+     that a return from Payfast WITHOUT ?payment= on the url still finds the done step -
+     and Back reloads this page with that stamp still set, so justPaid() said yes.
+
+     Back now reads as Back. Two ways it arrives:
+       - a fresh load whose navigation type is "back_forward" (boot handles it), and
+       - the page restored whole from the back/forward cache, where boot never runs
+         again and the pay button is still frozen on "Taking you to Payfast" (pageshow).
+     Either way the stamp is cleared and the SERVER decides: a reservation Xano already
+     calls confirmed still goes to done, because then they really did pay. */
+  function arrivedByBack() {
+    try {
+      var nav = w.performance && w.performance.getEntriesByType &&
+        w.performance.getEntriesByType("navigation");
+      if (nav && nav.length && nav[0].type) { return nav[0].type === "back_forward"; }
+      if (w.performance && w.performance.navigation) { return w.performance.navigation.type === 2; }
+    } catch (e) {}
+    return false;
+  }
+
+  /* After Back, look once more a little later: an ITN can land seconds after the buyer
+     paid and pressed Back on Payfast's own success page, and that buyer must not be
+     left looking at a Pay button for a fee already taken. */
+  var BACK_RECHECK_MS = 5000;
+  var backRecheck = null;
+  function recheckAfterBack() {
+    if (backRecheck) { w.clearTimeout(backRecheck); }
+    backRecheck = w.setTimeout(function () {
+      backRecheck = null;
+      if (!R || step !== "pay") { return; }
+      load(R.uuid).then(function (r) {
+        if (r && String(r.status || "").toLowerCase() === "confirmed" && step === "pay") { go("done"); }
+      });
+    }, BACK_RECHECK_MS);
+  }
+
+  function backFromPayfast(r) {
+    clearPaying();
+    if (String((r && r.status) || "").toLowerCase() === "confirmed") { go("done"); return; }
+    go("pay");
+    status("You left Payfast before paying. Your home is still held - you can pay when you are ready.");
+    recheckAfterBack();
+  }
+
+  w.addEventListener("pageshow", function (e) {
+    if (!e || !e.persisted || !R) { return; }
+    coBusy = false;
+    busy(false);
+    if (coForm && coForm.parentNode) { coForm.parentNode.removeChild(coForm); }
+    coForm = null;
+    if (step === "done") { return; }
+    log("restored from the back/forward cache");
+    load(R.uuid).then(function (r) { if (r) { backFromPayfast(r); } });
+  });
 
   /* --------------------------------------------------------------- steps */
 
@@ -1908,6 +2233,7 @@
        [data-hl-step] gets nothing, so this file is inert everywhere it is not wanted. */
     if (!d.querySelector("[data-hl-step]")) { return; }
     bind();
+    wireNationalityPicker();
     demoBanner();
     /* Exposed BEFORE the uuid check, deliberately. It used to be set only after a
        reservation had loaded, so the debug handle was missing in exactly the situation
@@ -1946,7 +2272,8 @@
        reporting a payment that never cleared. */
     var flag = String(param("payment")).toLowerCase();
     var cancelled = /^(cancel|cancelled)$/.test(flag);
-    var returning = /^(success|cancel|cancelled)$/.test(flag) || justPaid(uuid);
+    var back = !flag && arrivedByBack();
+    var returning = /^(success|cancel|cancelled)$/.test(flag) || (!back && justPaid(uuid));
 
     load(uuid).then(function (r) {
       if (!r) { return; }
@@ -1954,6 +2281,10 @@
         clearPaying();
         go("pay");
         status("Payment cancelled. Your home is still held - you can pay when you are ready.");
+        return;
+      }
+      if (back && justPaid(uuid)) {
+        backFromPayfast(r);
         return;
       }
       if (returning) {

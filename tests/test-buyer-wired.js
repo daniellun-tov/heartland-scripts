@@ -104,6 +104,11 @@ function boot(opts) {
         });
       };
       w.HTMLFormElement.prototype.submit = function () {};
+      /* How the page was reached. "back_forward" is what the browser reports when the
+         buyer presses Back on Payfast and this page loads again. */
+      if (opts.navType) {
+        w.performance.getEntriesByType = t => t === 'navigation' ? [{ type: opts.navType }] : [];
+      }
     }
   });
   const w = dom.window;
@@ -579,6 +584,109 @@ function choose(b, name, value) {
     b.w.localStorage.setItem("hl_v2_paying", "some-other-reservation|" + Date.now());
     await wait(60);
     ok("and a marker for a different reservation is not mine", !stepShown(b, 'done'));
+  }
+
+
+  /* --------------------------------------------- Back from Payfast (16 Oct) */
+  {
+    const b = boot({ search: "?r=" + UUID, navType: "back_forward",
+                     resOver: { status: "awaiting_payment", last_step: "confirm" } });
+    b.w.localStorage.setItem("hl_v2_paying", UUID + "|" + Date.now());
+    await wait(60);
+    ok("Back from Payfast lands on the fee step, not Confirmed",
+       stepShown(b, 'pay') && !stepShown(b, 'done'));
+    ok("and says the home is still held",
+       /still held/.test(b.$('[data-hl-status]').textContent));
+    ok("and forgets the payment it never made, so a reload does not jump to done",
+       !b.w.localStorage.getItem("hl_v2_paying"));
+  }
+  {
+    const b = boot({ search: "?r=" + UUID, navType: "navigate",
+                     resOver: { status: "awaiting_payment", last_step: "confirm" } });
+    b.w.localStorage.setItem("hl_v2_paying", UUID + "|" + Date.now());
+    await wait(60);
+    ok("an ordinary return from Payfast still goes to done (negative half)", stepShown(b, 'done'));
+  }
+  {
+    const b = boot({ search: "?r=" + UUID, navType: "back_forward",
+                     resOver: { status: "confirmed", last_step: "confirm" } });
+    b.w.localStorage.setItem("hl_v2_paying", UUID + "|" + Date.now());
+    await wait(60);
+    ok("Back after a payment Xano has confirmed still shows done", stepShown(b, 'done'));
+  }
+  {
+    const b = boot({ search: "?r=" + UUID, navType: "back_forward",
+                     resOver: { status: "awaiting_payment", last_step: "confirm" },
+                     becomes: { status: "confirmed" }, becomesAfter: 2 });
+    b.w.localStorage.setItem("hl_v2_paying", UUID + "|" + Date.now());
+    await wait(60);
+    ok("an ITN still on its way: the fee step first", stepShown(b, 'pay'));
+    await wait(5300);
+    ok("then done once Xano confirms, so nobody is asked to pay twice", stepShown(b, 'done'));
+  }
+  {
+    /* Restored whole from the back/forward cache: boot does not run again. */
+    const b = boot({ search: "?r=" + UUID,
+                     resOver: { status: "awaiting_payment", last_step: "confirm" } });
+    await wait(60);
+    const btn = b.$('[data-hl-action="checkout"]');
+    b.w.HLBuyer.setBusy(btn, true, "Taking you to Payfast");
+    b.w.localStorage.setItem("hl_v2_paying", UUID + "|" + Date.now());
+    const ev = new b.w.Event('pageshow');
+    Object.defineProperty(ev, 'persisted', { value: true });
+    b.w.dispatchEvent(ev);
+    await wait(60);
+    ok("a page restored from the back cache unfreezes the pay button",
+       !btn.classList.contains('res-busy'));
+    ok("and stays on the fee step", stepShown(b, 'pay') && !stepShown(b, 'done'));
+    ok("and clears the payment marker", !b.w.localStorage.getItem("hl_v2_paying"));
+  }
+
+  /* --------------------------------------------- nationality picker (16 Oct) */
+  const press = (b, el, key) => el.dispatchEvent(new b.w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  const optLabels = b => b.all('.hl-combo-list [role=option]').map(o => o.getAttribute('data-hl-combo-value'));
+  {
+    const b = boot({ resOver: { last_step: "details" } });
+    await wait(60);
+    const el = field(b, 'nationality');
+    ok("nationality becomes a combobox", el.getAttribute('role') === 'combobox' && !!b.$('.hl-combo-list'));
+    el.focus();
+    ok("focus opens the whole list, South African first",
+       b.$('.hl-combo-list').style.display === 'block' && optLabels(b)[0] === 'South African' && optLabels(b).length > 150);
+    type(b, 'nationality', 'neth');
+    ok("searching by country finds the nationality", optLabels(b)[0] === 'Dutch');
+    type(b, 'nationality', 'uk');
+    ok("and by short form", optLabels(b)[0] === 'British');
+    type(b, 'nationality', 'nige');
+    ok("two rows to choose from, so Enter has to pick", optLabels(b).length === 2);
+    press(b, el, 'ArrowDown');
+    press(b, el, 'Enter');
+    ok("arrow then Enter picks the highlighted row", el.value === 'Nigerien');
+    ok("Enter in the list does not move the step on", stepShown(b, 'details'));
+    await wait(1000);
+    ok("and the pick is saved", b.calls.some(c => c.method === 'PATCH' && c.body && c.body.nationality === 'Nigerien'));
+    el.focus();
+    type(b, 'nationality', 'qqqq');
+    el.blur();
+    ok("text that matches nothing falls back to what was there", el.value === 'Nigerien');
+    el.focus();
+    type(b, 'nationality', 'south africa');
+    el.blur();
+    ok("an exact country name settles on the nationality", el.value === 'South African');
+    el.focus();
+    type(b, 'nationality', 'ken');
+    const opt = b.$('.hl-combo-list [role=option]');
+    opt.dispatchEvent(new b.w.MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    opt.dispatchEvent(new b.w.MouseEvent('click', { bubbles: true }));
+    ok("clicking a row picks it", el.value === 'Kenyan' && b.$('.hl-combo-list').style.display === 'none');
+    ok("a click on a row does not count as an address suggestion", field(b, 'address').value !== 'Kenyan');
+  }
+  {
+    const b = boot({ resOver: { last_step: "details", nationality: "Freehand Value" } });
+    await wait(60);
+    const el = field(b, 'nationality');
+    el.focus(); el.blur();
+    ok("an older freehand value survives focus-and-leave", el.value === 'Freehand Value');
   }
 
   /* --------------------------------------------- and still inert elsewhere */
