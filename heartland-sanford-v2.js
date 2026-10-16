@@ -2479,16 +2479,63 @@
       return cf;
     }
 
+    /* ---------------- CRM: Property Funnels (LeadConnector inbound webhook), 16 Oct 2026
+       Every sign-up and every change to a member's homes is POSTed straight to the sales
+       team's CRM, in BOTH phases: before launch the list is the waitlist, after launch the
+       same list is the buyer's favourites (the bar's heart, the pins). The Webflow form can't
+       carry this after launch - section 09 is the reservation then - so it goes direct.
+       Memberstack stays the store; this is a notification and never blocks the visitor.
+       The URL can be overridden (or set to "off") on .sd2_page with data-sd2-crm-hook.
+       Only real changes are sent: a page load, a sign-in or a save that changed nothing
+       sends nothing. Staging posts too, marked environment "staging" so the CRM can drop it. */
+    var CRM_HOOK = (PAGE.getAttribute("data-sd2-crm-hook") ||
+      "https://services.leadconnectorhq.com/hooks/QWZfk9PoAASowAZLLdv3/webhook-trigger/c35720c6-9624-4db1-8456-b398fdf6e91a").trim();
+    function crmSnap() {
+      var cf = ST.member && ST.member.customFields ? ST.member.customFields : {};
+      return { onList: ST.onList, homes: ST.homes.slice(), phone: cf["mobile-number"] || "",
+               first: cf["first-name"] || "", last: cf["last-name"] || "" };
+    }
+    function crmPush(before) {
+      if (!CRM_HOOK || /^off$/i.test(CRM_HOOK) || !ST.member || !ST.onList || !w.fetch) { return; }
+      var now = crmSnap(), m = ST.member, cf = m.customFields || {};
+      var added = now.homes.filter(function (n) { return before.homes.indexOf(n) < 0; });
+      var removed = before.homes.filter(function (n) { return now.homes.indexOf(n) < 0; });
+      var signup = !before.onList;
+      var contact = before.phone !== now.phone || before.first !== now.first || before.last !== now.last;
+      if (!signup && !added.length && !removed.length && !contact) { return; }
+      var body = {
+        event: signup ? "signup" : (added.length || removed.length ? "homes_updated" : "contact_updated"),
+        development: "Sanford Heart",
+        list: LIVE ? "favourites" : "waitlist",
+        phase: LIVE ? "live" : "prelaunch",
+        email: (m.auth && m.auth.email) || ST.email || "",
+        phone: now.phone, first_name: now.first, last_name: now.last,
+        homes: homesLabel(now.homes),
+        homes_added: homesLabel(added),
+        homes_removed: homesLabel(removed),
+        joined: cf["waitlist-joined"] || "",
+        member_id: m.id || "",
+        page_url: String(w.location.href || "").split("#")[0],
+        environment: STAGING ? "staging" : "production",
+        sent_at: new Date().toISOString()
+      };
+      try {
+        w.fetch(CRM_HOOK, { method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(body), keepalive: true, mode: "cors" })
+          .then(function (r) { log("crm", body.event, r && r.status); }, function (e) { log("crm failed", e && e.message); });
+      } catch (e) { log("crm failed", e && e.message); }
+    }
+
     // Signed-in member: make sure they're on the plan, then write the fields.
     function saveMember(extra) {
-      var ms = ST.ms, chain = Promise.resolve();
+      var ms = ST.ms, chain = Promise.resolve(), before = crmSnap();
       if (!onPlan(ST.member) && MS_PLAN) {
         chain = chain.then(function () { return ms.addPlan({ planId: MS_PLAN }); })
           .catch(function (e) { log("addPlan", e && e.message); });
       }
       return chain.then(function () { return ms.updateMember({ customFields: memberFields(extra) }); })
         .then(function () { return ms.getCurrentMember(); })
-        .then(function (r) { setMember(r && r.data); return r && r.data; });
+        .then(function (r) { setMember(r && r.data); crmPush(before); return r && r.data; });
     }
 
     /* ---------------- the sign-up dialog */
@@ -2561,12 +2608,13 @@
     function verify(code) {
       var ms = ST.ms, extra = { homes: ST.pendingHomes, phone: ST.phone, first: ST.first, last: ST.last };
       if (ST.mode === "signup") {
+        var before = crmSnap();
         return ms.signupMemberPasswordless({
           email: ST.email, passwordlessToken: code,
           plans: MS_PLAN ? [{ planId: MS_PLAN }] : [],
           customFields: memberFields(extra)
         }).then(function (r) { setMember(r && r.data && (r.data.member || r.data)); return ms.getCurrentMember(); })
-          .then(function (r) { setMember(r && r.data); });
+          .then(function (r) { setMember(r && r.data); crmPush(before); });
       }
       return ms.loginMemberPasswordless({ email: ST.email, passwordlessToken: code })
         .then(function (r) { setMember(r && r.data && (r.data.member || r.data)); return saveMember(extra); });
@@ -2848,7 +2896,8 @@
     // A join from outside section 09 still reaches the team: fill the form and send it.
     // force: send again even if this visit already notified (a home added or removed later).
     function notifyTeam(force) {
-      // After launch section 09 is the reservation form - sign-ups live in Memberstack only.
+      // After launch section 09 is the reservation form - sign-ups and favourites live in
+      // Memberstack, and reach the team through crmPush() (Property Funnels) instead.
       if (LIVE) { return; }
       if (!form || (!force && form.getAttribute("data-notified"))) { return; }
       form.setAttribute("data-notified", "1");
