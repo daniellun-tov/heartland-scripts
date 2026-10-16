@@ -14,4 +14,9 @@
     setTimeout(function () { if (!window.ohMapLoader) h.classList.remove('oh-reveal'); }, 8000);
   })();
 </script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@628dfac5812ebd31581ebba9cc246ee0c84ce16a/assets/oh/oh-v2.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@85fe8fecf55eef895dc2d7e3f67271511e6064e7/assets/oh/oh-v2.css">
+<!-- 16 Oct 2026 (page speed): fetch the first-view image at high priority before the scripts run.
+     Desktop lands on the site plan, phones and tablets on the 3D estate render. Keep these URLs in
+     step with the Designer images (site plan asset 6aa950769e0d0127641d0594, render 6ad0f0ee7ea12e5ad0db361c). -->
+<link rel="preload" as="image" media="(min-width: 992px)" fetchpriority="high" imagesizes="100vw" imagesrcset="https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6aa950769e0d0127641d0594_oh-site-plan-bg-v8-p-500.avif 500w, https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6aa950769e0d0127641d0594_oh-site-plan-bg-v8-p-800.avif 800w, https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6aa950769e0d0127641d0594_oh-site-plan-bg-v8-p-1080.avif 1080w, https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6aa950769e0d0127641d0594_oh-site-plan-bg-v8-p-1600.avif 1600w, https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6aa950769e0d0127641d0594_oh-site-plan-bg-v8-p-2000.avif 2000w, https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6aa950769e0d0127641d0594_oh-site-plan-bg-v8-p-2600.avif 2600w, https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6aa950769e0d0127641d0594_oh-site-plan-bg-v8-p-3200.avif 3200w, https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6aa950769e0d0127641d0594_oh-site-plan-bg-v8.avif 3380w">
+<link rel="preload" as="image" media="(max-width: 991px)" fetchpriority="high" href="https://cdn.prod.website-files.com/6970cf094bb784f13005382e/6ad0f0ee7ea12e5ad0db361c_img-3d-estate-render-v5.avif">
