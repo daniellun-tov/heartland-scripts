@@ -1369,6 +1369,37 @@
     el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 480, easing: MOTION.fade });
   }
 
+  /* ---------- page loader -----------------------------------------------
+     The loader is a Designer element ([data-chs-loader], "CHS Page loader")
+     shown by the page CSS from first paint. It lifts once the hero render has
+     loaded, but never sooner than LOADER.min after navigation (so it reads as
+     intentional, not a flash) and never later than LOADER.max. The page CSS
+     also fades it out on its own after a few seconds, so a script failure
+     can never leave the page covered.                                      */
+  var LOADER = { min: 700, max: 1800, fade: 600 };
+  function liftLoader() {
+    var el = $('[data-chs-loader]');
+    if (!el) return;
+    var done = false;
+    var lift = function () {
+      if (done) return;
+      done = true;
+      var now = (window.performance && performance.now) ? performance.now() : LOADER.min;
+      setTimeout(function () {
+        el.classList.add('is-chs-done');
+        document.documentElement.classList.add('chs-loaded');
+        setTimeout(function () { el.style.display = 'none'; }, LOADER.fade);
+      }, Math.max(0, LOADER.min - now));
+    };
+    var hero = $('.chs-gh_hero-main img');
+    if (!hero || (hero.complete && hero.naturalWidth)) lift();
+    else {
+      hero.addEventListener('load', lift, { once: true });
+      hero.addEventListener('error', lift, { once: true });
+    }
+    setTimeout(lift, LOADER.max);
+  }
+
   /* ---------- nav shrink ------------------------------------------------
      The CHS logo sits large in the nav at the top of the page and shrinks
      once the page scrolls. Every element marked data-chs-shrink gets
@@ -1420,6 +1451,7 @@
   }
 
   function init() {
+    liftLoader();
     // Both floors are on screen at once, so the tabs are now jump links.
     $$('[data-chs-floor-tab]').forEach(function (tab) {
       tab.addEventListener('click', function (e) {
