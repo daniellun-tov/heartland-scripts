@@ -21,6 +21,8 @@
      7. publishes the plan's width and ratio so the page CSS can turn the
         plan 90 degrees on phones (the turn itself is CSS, in Page Settings)
      8. shrinks the nav and logo on scroll (is-chs-scrolled on data-chs-shrink)
+     9. animates the plan and the apartment tiles in and out as the student
+        filters or picks an apartment (see "motion" below)
 
    Styling lives in these Webflow classes — edit them in the Designer:
      chs_selector_wrap  chs_floors_switch  chs_floors_tab (+ is-chs-active)
@@ -78,9 +80,16 @@
   var INK = { gold: '#FF6B2C', navy: '#1E1230', wash: 'rgba(255,246,234,.55)',
               muted: 'rgba(30,18,48,.28)', mutedInk: 'rgba(255,255,255,.85)' };
 
+  // Motion for filtering / choosing an apartment. Like INK, these mirror the
+  // page: one ease-out curve (the hero and Webflow Interactions use the same)
+  // and UI-speed durations. Opacity and transform only, so it stays on the
+  // compositor. Skipped entirely under prefers-reduced-motion.
+  var MOTION = { ease: 'cubic-bezier(.22, 1, .36, 1)', out: 170, inn: 380, move: 380, stagger: 45 };
+
   // bands: each floor's vertical slice of the stacked stage, 0-1 of stage height.
   // Measured from the plan images themselves - no hardcoded dimensions.
-  var state = { apartment: null, selectedId: null, beds: [], bands: null, sig: '', all: {}, mode: 'reserve' };
+  var state = { apartment: null, selectedId: null, beds: [], bands: null, sig: '', all: {}, mode: 'reserve',
+                shown: null, ready: false };
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
@@ -98,7 +107,9 @@
   function num(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
 
   function readBeds() {
-    return $$('[data-chs="bed-item"]').map(function (el) {
+    return $$('[data-chs="bed-item"]').filter(function (el) {
+      return !(el.closest && el.closest('[data-chs-ghosts]'));   // exit clones, see motion
+    }).map(function (el) {
       var b = {
         el: el,
         id:        val(el, 'id'),
@@ -290,7 +301,9 @@
         var pic = el.tagName === 'IMG' ? el : el.querySelector('img');
         if (pic) pic.setAttribute('loading', 'eager');
       }
+      var was = el.classList.contains(STATE_CLASS.shown);
       el.classList.toggle(STATE_CLASS.shown, on);
+      if (on && !was) fadeIn(el);
     });
     // Legacy static overlays, kept working if any are still on the page.
     $$('[data-chs-overlay]').forEach(function (img) {
@@ -528,6 +541,7 @@
      With a gender chosen, the other gender's apartments are hidden - except
      the checked one, which the mismatch overlay explains.                   */
   function paintApartmentTiles(inv, active) {
+    var tiles = [];
     $$('[fs-list-field="' + DISABLE_FIELD + '"]').forEach(function (input) {
       var chip = input.closest ? input.closest('label') || input.parentElement : input.parentElement;
       if (!chip) return;
@@ -545,8 +559,9 @@
         if (g && el.textContent !== g) el.textContent = g;
       });
       var hide = !!active.gender && !!g && g !== active.gender && !input.checked;
-      chip.classList.toggle(STATE_CLASS.hidden, hide);
+      tiles.push({ chip: chip, hide: hide });
     });
+    swapTiles(tiles);
     paintGenderAll(active);
   }
 
@@ -584,7 +599,7 @@
                            'You\u2019re filtering for ' + wanted + ' Apartments.';
       }
     }
-    box.classList.toggle(STATE_CLASS.shown, clash);
+    toggleBlock(box, clash);
   }
 
   // Until the first booking, "0 Reserved" only says the place is empty, so
@@ -671,6 +686,7 @@
       }
     });
 
+    swapBeds();
     positionFloorLabels();
     paintPanelState(!!state.selectedId);
     paintRooms();
@@ -1145,6 +1161,162 @@
     c.closePath();
   }
 
+  /* ---------- motion ------------------------------------------------------
+     Filtering and choosing an apartment, in and out:
+       · plan   - the outgoing apartment's beds fade and shrink away while the
+                  new apartment's beds pop in one after another. Finsweet has
+                  already removed the old items from the DOM by the time we
+                  hear about it, so the exit plays on clones (data-chs-ghosts),
+                  which are inert and are removed when they finish.
+       · tiles  - apartments hidden by the gender filter fade out first, the
+                  rest glide to their new places (FLIP), then the returning
+                  ones fade in.
+       · notice - the gender-mismatch overlay fades in and out.
+     Nothing animates until the student first touches the page, so the
+     initial render and a deep link land without movement.                  */
+  function motionOK() {
+    if (!state.ready || !Element.prototype.animate) return false;
+    return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  function ghostLayer() {
+    var host = $('[data-chs="hotspot-list"]');        // the beds' containing block
+    if (!host) return null;
+    var layer = $('[data-chs-ghosts]', host);
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.setAttribute('data-chs-ghosts', '');
+      layer.setAttribute('aria-hidden', 'true');
+      layer.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:2';
+      host.appendChild(layer);
+    }
+    return layer;
+  }
+
+  function ghost(el, layer) {
+    var g = el.cloneNode(true);
+    [g].concat($$('*', g)).forEach(function (n) {
+      Array.prototype.slice.call(n.attributes).forEach(function (a) {
+        if (/^(fs-|id$|tabindex$|role$|aria-)/.test(a.name)) n.removeAttribute(a.name);
+      });
+    });
+    g.style.display = '';
+    layer.appendChild(g);
+    return g;
+  }
+
+  function swapBeds() {
+    var now = state.beds.filter(visible).map(function (b) { return { id: b.id, el: b.el }; });
+    var before = state.shown;
+    state.shown = now;
+    if (!before || !motionOK()) return;
+    var ids = function (list) { return list.map(function (x) { return x.id; }); };
+    var was = ids(before), is = ids(now);
+    var gone = before.filter(function (x) { return is.indexOf(x.id) === -1; });
+    var come = now.filter(function (x) { return was.indexOf(x.id) === -1; });
+    if (!gone.length && !come.length) return;
+
+    var layer = gone.length ? ghostLayer() : null;
+    gone.forEach(function (x) {
+      if (!layer || !x.el.style.left) return;       // never placed, nothing to see
+      var g = ghost(x.el, layer);
+      var a = g.animate([{ opacity: 1, scale: '1' }, { opacity: 0, scale: '.9' }],
+                        { duration: MOTION.out, easing: MOTION.ease, fill: 'forwards' });
+      a.onfinish = a.oncancel = function () { if (g.parentNode) g.parentNode.removeChild(g); };
+    });
+    var lead = gone.length ? MOTION.out * 0.6 : 0;
+    come.forEach(function (x, i) {
+      x.el.animate([{ opacity: 0, scale: '.86' }, { opacity: 1, scale: '1' }],
+                   { duration: MOTION.inn, delay: lead + i * MOTION.stagger, easing: MOTION.ease, fill: 'backwards' });
+    });
+  }
+
+  function swapTiles(list) {
+    if (!list.length) return;
+    var H = STATE_CLASS.hidden;
+    var off = function (c) { return c.classList.contains(H) || !!c.__chsLeaving; };
+    var leaving = [], entering = [];
+    list.forEach(function (x) {
+      if (x.hide && !off(x.chip)) leaving.push(x.chip);
+      else if (!x.hide && off(x.chip)) entering.push(x.chip);
+    });
+    if (!leaving.length && !entering.length) return;
+
+    var settle = function (c) {                       // stop a running exit
+      if (c.__chsOut) { c.__chsOut.cancel(); c.__chsOut = null; }
+      c.__chsLeaving = false;
+    };
+    if (!motionOK()) {
+      leaving.forEach(function (c) { settle(c); c.classList.add(H); });
+      entering.forEach(function (c) { settle(c); c.classList.remove(H); });
+      return;
+    }
+
+    var outs = leaving.map(function (c) {
+      c.__chsLeaving = true;
+      return (c.__chsOut = c.animate([{ opacity: 1, scale: '1' }, { opacity: 0, scale: '.94' }],
+                                     { duration: MOTION.out, easing: MOTION.ease, fill: 'forwards' }));
+    });
+
+    var reveal = function () {
+      var stay = list.map(function (x) { return x.chip; }).filter(function (c) {
+        return !off(c) && entering.indexOf(c) === -1;
+      });
+      var first = stay.map(function (c) { return c.getBoundingClientRect(); });
+      leaving.forEach(function (c) {
+        if (c.__chsLeaving) c.classList.add(H);        // unless it was called back meanwhile
+        settle(c);
+      });
+      entering.forEach(function (c) { settle(c); c.classList.remove(H); });
+      stay.forEach(function (c, i) {
+        var r = c.getBoundingClientRect();
+        var dx = first[i].left - r.left, dy = first[i].top - r.top;
+        if (Math.abs(dx) + Math.abs(dy) < 0.5) return;
+        c.animate([{ translate: dx + 'px ' + dy + 'px' }, { translate: '0 0' }],
+                  { duration: MOTION.move, easing: MOTION.ease });
+      });
+      entering.forEach(function (c, i) {
+        c.animate([{ opacity: 0, scale: '.94' }, { opacity: 1, scale: '1' }],
+                  { duration: MOTION.inn, delay: 60 + i * MOTION.stagger, easing: MOTION.ease, fill: 'backwards' });
+      });
+    };
+    if (!outs.length) { reveal(); return; }
+    Promise.all(outs.map(function (a) { return a.finished.catch(function () {}); })).then(reveal);
+  }
+
+  function toggleBlock(box, on) {
+    var S = STATE_CLASS.shown;
+    var showing = box.classList.contains(S) && !box.__chsLeaving;
+    if (on === showing) return;
+    if (box.__chsOut) { box.__chsOut.cancel(); box.__chsOut = null; }
+    box.__chsLeaving = false;
+    if (on) {
+      box.classList.add(S);
+      if (!motionOK()) return;
+      box.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: MOTION.ease });
+      $$(':scope > *', box).forEach(function (el) {
+        el.animate([{ opacity: 0, translate: '0 8px' }, { opacity: 1, translate: '0 0' }],
+                   { duration: MOTION.inn, delay: 60, easing: MOTION.ease, fill: 'backwards' });
+      });
+      return;
+    }
+    if (!motionOK()) { box.classList.remove(S); return; }
+    box.__chsLeaving = true;
+    var a = box.__chsOut = box.animate([{ opacity: 1 }, { opacity: 0 }],
+                                       { duration: MOTION.out, easing: MOTION.ease, fill: 'forwards' });
+    a.onfinish = function () {
+      if (box.__chsLeaving) box.classList.remove(S);
+      box.__chsLeaving = false; box.__chsOut = null;
+      a.cancel();
+      paintEmpty();                                   // the empty state waited for this
+    };
+  }
+
+  function fadeIn(el) {
+    if (!motionOK()) return;
+    el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 420, easing: MOTION.ease });
+  }
+
   /* ---------- nav shrink ------------------------------------------------
      The CHS logo sits large in the nav at the top of the page and shrinks
      once the page scrolls. Every element marked data-chs-shrink gets
@@ -1291,9 +1463,20 @@
     var host = $('[data-chs="plan-stage"]');
     if (host && window.MutationObserver) {
       var t;
-      new MutationObserver(function () { clearTimeout(t); t = setTimeout(refresh, 60); })
-        .observe(host, { childList: true, subtree: true });
+      new MutationObserver(function (list) {
+        // The exit clones come and go on their own; they are not a re-render.
+        var real = list.some(function (m) {
+          return !(m.target.closest && m.target.closest('[data-chs-ghosts]')) &&
+                 !Array.prototype.some.call(m.addedNodes, function (n) { return n.hasAttribute && n.hasAttribute('data-chs-ghosts'); });
+        });
+        if (real) { clearTimeout(t); t = setTimeout(refresh, 60); }
+      }).observe(host, { childList: true, subtree: true });
     }
+
+    // Motion starts with the student's first touch, not with the page load.
+    ['pointerdown', 'keydown'].forEach(function (type) {
+      document.addEventListener(type, function () { state.ready = true; }, { capture: true, once: true, passive: true });
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
