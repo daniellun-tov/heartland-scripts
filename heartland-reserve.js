@@ -2210,7 +2210,8 @@
   /* STAGING IS A REHEARSAL, AND SAYS SO (15 Oct). On a *.webflow.io host every reservation
      is a test - Xano decides that from origin_host (resolve_reservation_mode), not from this
      banner: Payfast sandbox whatever the property's live switch says, no home held, the CMS
-     reserved/sold switches untouched, no live portal member, reference RES-TEST-. The banner
+     reserved/sold switches untouched, the portal member created in Memberstack SANDBOX (never
+     live), reference RES-TEST-. The banner
      only makes it impossible to mistake a demo for a sale. Nothing on www changes. */
   function demoBanner() {
     if (!/\.webflow\.io$/i.test(String(w.location.hostname || ""))) { return; }
@@ -2224,7 +2225,7 @@
     b.textContent = "Demo";
     b.setAttribute("style", "color:#C79A6E;margin-right:.5em");
     bar.appendChild(b);
-    bar.appendChild(d.createTextNode("Test payment only (Payfast sandbox, no real money). No home is reserved and no portal account is created."));
+    bar.appendChild(d.createTextNode("Test payment only (Payfast sandbox, no real money). No home is reserved; the portal account is a test account."));
     if (d.body) { d.body.insertBefore(bar, d.body.firstChild); }
   }
 
