@@ -812,62 +812,54 @@
     paintPanelState(true);
   }
 
-  /* ---------- reserve or enquire only ------------------------------------
-     One form, two modes. "Reserve" is the original flow: Make flips the bed
-     to Reserved and the student goes on to the lease application. "Enquire
-     only" posts the same form with nothing reserved and no hand-off - the
-     student sees Webflow's thank-you block instead. Works with or without a
-     bed chosen.
-
-     Everything that differs lives on the Webflow elements:
-       data-chs="enquire-cta"       any element that opens the form to enquire
-       data-chs-enquire="…"         text (or input value) used in enquire mode;
-                                    the reserve-mode original is stashed in
-                                    data-chs-reserve on first swap. On the
-                                    `automation` input this is what keeps Make's
-                                    router from reserving the bed.
+  /* ---------- reserve or enquire: two forms --------------------------------
+     Two separate Webflow forms, so each posts under its own form name and
+     reaches its own webhook:
+       [data-chs="reserve-form"]  "CHS Reserve Bed" - Make flips the bed to
+                                  Reserved, then the lease hand-off.
+       [data-chs="enquiry-form"]  "CHS Enquiry" - no bed-item-id, no hand-off;
+                                  Webflow shows its thank-you block.
+     Only one is on screen at a time. state.mode says which:
+       data-chs="enquire-cta"     opens the enquiry form
+       data-chs="reserve-cta"     opens the reserve form (needs a bed)
        data-chs-mode="reserve|enquire"   shown only in that mode
-       data-chs-mode-needs-bed      ...and only while a bed is chosen
-     The form carries data-chs-form-mode so the hand-off can read it.      */
+       data-chs-mode-needs-bed    ...and only while a bed is chosen
+     The enquiry form carries the chosen bed's details (never its item id) so
+     the team knows what the student was looking at; blank with no bed.    */
   var MODE = { reserve: 'reserve', enquire: 'enquire' };
 
-  // The hidden inputs fillForm() writes. Cleared when no bed is chosen so an
-  // enquiry never carries a stale bed.
+  // The hidden inputs fillForm() writes. Cleared when no bed is chosen so a
+  // form never carries a stale bed.
   var BED_FIELDS = ['bed-item-id', 'bed-name', 'bed-number', 'unit-number', 'room',
                     'room-type', 'floor', 'gender', 'rate', 'bed-link'];
 
-  function swapModeText(el, enquire) {
-    var isInput = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA';
-    if (!el.hasAttribute('data-chs-reserve')) {
-      el.setAttribute('data-chs-reserve', isInput ? el.value : el.textContent);
-    }
-    var v = el.getAttribute(enquire ? 'data-chs-enquire' : 'data-chs-reserve') || '';
-    if (isInput) { if (el.value !== v) el.value = v; }
-    else if (el.textContent !== v) el.textContent = v;
+  function forms() {
+    return { reserve: $('[data-chs="reserve-form"]'), enquire: $('[data-chs="enquiry-form"]') };
   }
 
   function paintMode() {
     var enquire = state.mode === MODE.enquire;
     var picked  = !!state.selectedId;
-    var form = $('[data-chs="reserve-form"]');
+    var f = forms();
 
-    $$('[data-chs-enquire]').forEach(function (el) { swapModeText(el, enquire); });
     $$('[data-chs-mode]').forEach(function (el) {
       var show = el.getAttribute('data-chs-mode') === state.mode &&
                  (picked || !el.hasAttribute('data-chs-mode-needs-bed'));
       el.classList.toggle(STATE_CLASS.hidden, !show);
     });
 
-    if (!form) return;
-    form.setAttribute('data-chs-form-mode', state.mode);
     if (!picked) {
-      BED_FIELDS.forEach(function (n) {
-        var i = form.querySelector('[name="' + n + '"]');
-        if (i) i.value = '';
+      [f.reserve, f.enquire].forEach(function (form) {
+        if (!form) return;
+        BED_FIELDS.forEach(function (n) {
+          var i = form.querySelector('[name="' + n + '"]');
+          if (i) i.value = '';
+        });
       });
-      // A reservation needs a bed; an enquiry does not.
-      if (!enquire) form.classList.remove(STATE_CLASS.shown);
     }
+    // A reservation needs a bed; an enquiry does not.
+    if (f.reserve) f.reserve.classList.toggle(STATE_CLASS.shown, !enquire && picked);
+    if (f.enquire && !enquire) f.enquire.classList.remove(STATE_CLASS.shown);
   }
 
   function setMode(mode) {
@@ -901,11 +893,11 @@
   }
 
   function goToForm() {
-    var form = $('[data-chs="reserve-form"]');
+    var form = forms()[state.mode === MODE.enquire ? 'enquire' : 'reserve'];
     if (!form) return;
-    // After an enquiry Webflow hides the form and shows its thank-you block.
-    // Bring the form back so the student can go on to reserve (or enquire
-    // again) without reloading - their name/email/phone stay filled.
+    // After a submit Webflow hides the form and shows its thank-you block.
+    // Bring the form back so the student can go on (enquire again, or
+    // reserve) without reloading - their name/email/phone stay filled.
     var wrap = form.closest ? form.closest('.w-form') : null;
     if (form.style.display === 'none') {
       form.style.display = '';
@@ -1033,18 +1025,7 @@
       window.location.assign(url);
     }
 
-    var ownRedirect = form.getAttribute('data-redirect');
-
     form.addEventListener('submit', function () {
-      // Enquire only: no lease hand-off - let Webflow show its thank-you.
-      if (form.getAttribute('data-chs-form-mode') === MODE.enquire) {
-        target = '';
-        release();
-        if (ownRedirect) form.setAttribute('data-redirect', ownRedirect);
-        else form.removeAttribute('data-redirect');
-        try { var wfe = window.jQuery && window.jQuery.data(form, 'w-form'); if (wfe) wfe.redirect = ownRedirect || ''; } catch (e) {}
-        return;
-      }
       var url = leaseUrl(form);
       if (!url) return;
       // Webflow reads the redirect it cached at init, not the attribute -
@@ -1074,9 +1055,7 @@
 
   /* ---------- form prefill ----------------------------------------------- */
   function fillForm(bed) {
-    var form = $('[data-chs="reserve-form"]');
-    if (!form) return;
-    form.classList.add(STATE_CLASS.shown);       // hidden until a bed is chosen
+    var f = forms();
     var vals = {
       'bed-item-id': bed.id,               // Make finds the CMS record on this
       'bed-name':    bed.name,
@@ -1089,10 +1068,16 @@
       'rate':        bed.rate,
       'bed-link':    window.location.origin + window.location.pathname + '?bed=' + bed.slug
     };
-    Object.keys(vals).forEach(function (n) {
-      var i = form.querySelector('[name="' + n + '"]');
-      if (i) i.value = vals[n] || '';
+    // Both forms: the enquiry form simply has no bed-item-id input.
+    [f.reserve, f.enquire].forEach(function (form) {
+      if (!form) return;
+      Object.keys(vals).forEach(function (n) {
+        var i = form.querySelector('[name="' + n + '"]');
+        if (i) i.value = vals[n] || '';
+      });
     });
+    // The reserve form appears once a bed is chosen (unless enquiring).
+    if (f.reserve && state.mode !== MODE.enquire) f.reserve.classList.add(STATE_CLASS.shown);
   }
 
   /* ---------- snapshot ---------------------------------------------------
