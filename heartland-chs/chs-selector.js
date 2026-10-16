@@ -536,6 +536,11 @@
       // starts maintaining this class again.
       var dead = field === DISABLE_FIELD && !coming && n === 0 && !input.checked;
       chip.classList.toggle(STATE_CLASS.emptyFacet, dead);
+      // Disabled for keyboards and screen readers too, not just dimmed for
+      // the mouse (pointer-events none). This also tells contrast checkers
+      // the dimmed text is a disabled control.
+      if (input.disabled !== dead) input.disabled = dead;
+      if (dead) chip.setAttribute('aria-disabled', 'true'); else chip.removeAttribute('aria-disabled');
 
       var text = coming ? '' : String(n);
       if (out.textContent.trim() !== text) out.textContent = text;
@@ -757,11 +762,16 @@
     return 'R ' + k + 'k';
   }
 
+  // The accessible name starts with what the plot visibly says ("2 R 5 400",
+  // "1 Taken"), so voice-control users can say what they see, then adds the
+  // context the plot leaves out.
   function label(b) {
-    var where = 'Apartment ' + apt(b.apartment) + ', ' + b.room + ', bed ' + b.num;
-    if (b.status === UNRELEASED)  return where + ' \u2014 releasing in Phase 2, not yet available';
-    if (b.status !== SELECTABLE)  return where + ' \u2014 already taken';
-    return where + ', ' + b.rate + ' per month. Choose this bed.';
+    var shown = (b.el.innerText || b.el.textContent || '').replace(/\s+/g, ' ').trim();
+    var where = 'bed ' + b.num + ', ' + b.room + ', Apartment ' + apt(b.apartment);
+    var lead = shown ? shown + ' \u2013 ' : '';
+    if (b.status === UNRELEASED)  return lead + where + ', releasing in Phase 2, not yet available';
+    if (b.status !== SELECTABLE)  return lead + where + ', already taken';
+    return lead + where + ', ' + b.rate + ' per month. Choose this bed.';
   }
 
   function apt(a) { return (a || '').replace(/^Apartment\s*/i, ''); }
