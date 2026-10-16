@@ -204,20 +204,27 @@
     } else if (n < 50) setTimeout(function () { wait(n + 1); }, 200);
   })(0);
 
-  /* 16 Oct: flythrough thumbnails. The video (wized unit_type_flythrough) shipped with preload=none,
-     so the slide stayed black until played. Ask for metadata and seek to 0.1s so the first frame
-     paints (iOS Safari needs the #t fragment), every time Wized sets a new src. */
+  /* 16 Oct: flythrough thumbnails. The video (wized unit_type_flythrough) ships with preload=none,
+     so the slide stayed black until played. Once it is near the viewport, ask for metadata and seek
+     to 0.1s so the first frame paints (iOS Safari needs the #t fragment). Nothing loads before
+     that, so the 4.5 MB file never competes with the page load. */
   (function () {
+    var SEL = 'video.flythrough-video, video[wized="unit_type_flythrough"]';
+    var near = window.IntersectionObserver ? new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { e.target.__ohNear = true; near.unobserve(e.target); fix(e.target); } });
+    }, { rootMargin: '400px 0px' }) : null;
     function fix(v) {
-      if (v.getAttribute('preload') !== 'metadata') v.setAttribute('preload', 'metadata');
+      if (!v.__ohWatch) { v.__ohWatch = true; if (near) near.observe(v); else v.__ohNear = true; }
+      if (!v.__ohNear) return;
       var src = v.getAttribute('src') || '';
       if (src && src.indexOf('#') === -1) v.setAttribute('src', src + '#t=0.1');
+      if (v.getAttribute('preload') !== 'metadata') v.setAttribute('preload', 'metadata');
     }
-    function all() { t.qa('video.flythrough-video, video[wized="unit_type_flythrough"]').forEach(fix); }
+    function all() { t.qa(SEL).forEach(fix); }
     new MutationObserver(function (ms) {
       for (var i = 0; i < ms.length; i++) {
         var m = ms[i];
-        if (m.type === 'attributes' && m.target.tagName === 'VIDEO' && m.target.matches('.flythrough-video, [wized="unit_type_flythrough"]')) fix(m.target);
+        if (m.type === 'attributes' && m.target.tagName === 'VIDEO' && m.target.matches(SEL)) fix(m.target);
         else if (m.type === 'childList' && m.addedNodes.length) { all(); break; }
       }
     }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['src'] });

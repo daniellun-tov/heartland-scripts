@@ -10,3 +10,16 @@
 /* floor plan viewer open: no page scroll behind it */
 html.oh-fpv-open, html.oh-fpv-open body { overflow: hidden; }
 .oh-fpv.is-open { display: flex; }
+
+/* 16 Oct: unit type lightbox arrows. The home page head hid them below 992px and they were a thin
+   outline on the blurred backdrop elsewhere: a solid white circle with a shadow, beside the picture
+   at mid-height on every screen size. (Higher specificity than the head's !important hide rule.) */
+.oh-lightbox .oh-lightbox__media-wrap .oh-lightbox__nav{display:flex !important;width:2.75rem;height:2.75rem;padding:.8rem;border:0;border-radius:999px;background:#fff;box-shadow:0 2px 12px rgba(21,23,20,.28)}
+.oh-lightbox .oh-lightbox__media-wrap .oh-lightbox__nav:hover{background:#f2efe6}
+@media screen and (max-width:991px){
+  .oh-lightbox .oh-lightbox__media-wrap .oh-lightbox__nav{top:50% !important;bottom:auto !important;transform:translateY(-50%) !important}
+  .oh-lightbox .oh-lightbox__media-wrap .oh-lightbox__prev{left:.5rem !important;right:auto !important}
+  .oh-lightbox .oh-lightbox__media-wrap .oh-lightbox__next{right:.5rem !important;left:auto !important}
+}
+/* the chat bubble sat on the lightbox thumbnails: hide it while the lightbox is open */
+html:has(.oh-lightbox.is-open) chat-widget{display:none !important}

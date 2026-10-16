@@ -833,3 +833,8 @@ html.oh-enq-on,html.oh-enq-on body{overflow:hidden}
 .oh-bv_head{z-index:30}
 .oh-bv:not(.is-desk) .oh-bv_tag{box-sizing:border-box;padding-top:0;padding-bottom:0;align-items:center}
 .oh-bv:not(.is-desk).is-ctx .oh-bv_stage{overflow:hidden}
+
+/* 16 Oct: unit gallery lightbox arrows - a solid white circle with a shadow, readable on light renders */
+.ud-lightbox .ud-lb-prev,.ud-lightbox .ud-lb-next{background:#fff;color:#5f4d3f;box-shadow:0 2px 12px rgba(21,23,20,.3)}
+.ud-lightbox .ud-lb-prev:hover,.ud-lightbox .ud-lb-next:hover{background:#f2efe6}
+@media (max-width:767px){.ud-lightbox .ud-lb-prev{left:.5rem}.ud-lightbox .ud-lb-next{right:.5rem}}
