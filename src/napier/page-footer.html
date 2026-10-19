@@ -1,0 +1,11 @@
+<!-- Napier Heart (/napier-dev) — Page settings › Before </body> tag.
+     Source of truth lives in the repo (src/napier/page-footer.html); paste the whole block.
+     1. heartland-reserve.js: the reservation hand-off (armed by data-hl-entry="napier" beside
+        #reservation-form; parked by the bundle before launch, when the form is the waitlist).
+     2. NH_PLANS: the floorplan PDFs the modal links to.
+     3. The page bundle, pinned by commit + SRI. To ship a change: commit, update the sha and
+        the integrity hash here, paste, publish staging. -->
+<div data-hl-entry="napier" data-hl-target="/reserve-flow" hidden></div>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@b35ac77c2e1359c98459365878a5540592a529d7/heartland-reserve.js"></script>
+<script>window.NH_PLANS={studio:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6ad66f9576d24ed37ac4a704_nh-studio-floorplan.pdf",loft:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6ad66f13f08ff78c37d7fa0e_nh-loft-floorplan.pdf"};</script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@734966af7982b8fedd63ac82ebd44b35d5fd9950/heartland-napier.js" integrity="sha384-Hv7x3ED0LFS16dz8kP4i+tbmWExb65XhSRdYagNzcs5jRWa0p9aGkbfDmA/dGpX1" crossorigin="anonymous"></script>
