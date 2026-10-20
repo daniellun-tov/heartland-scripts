@@ -233,6 +233,43 @@
   var intro = qs("#nh-hero-intro"), veil = qs(".nh_hero_veil"), cap = qs("#nh-hero-cap");
   var copy = qs(".nh_hero_copy"), sides = qsa(".nh_hero_side"), mask = qs("#nh-intro-mask");
   if (mask) { if (reduce) { mask.style.display = "none"; } else { setTimeout(function () { mask.classList.add("in"); }, 60); } }
+  /* The name mask is drawn for a 1440x900 frame and cropped to fill the screen ("slice"). When the screen
+     is too narrow to show the whole word (phones, portrait tablets) it switches to a 1052-wide frame that
+     fits ("meet", anchored bottom) and sets the address on two larger lines. */
+  (function fitMask() {
+    var svg = mask && qs("svg", mask);
+    var word = svg && qs("mask text", svg), addr = svg && qs(".nh_hero_mask_fade text", svg);
+    if (!svg || !addr) { return; }
+    var ADDR = text(addr), cur = "";
+    function apply() {
+      var W = w.innerWidth || 1440, H = w.innerHeight || 900;
+      var visible = W / Math.max(W / 1440, H / 900);          // viewBox units visible across the screen when sliced
+      var mode = visible < 1052 ? "narrow" : "wide";
+      if (mode === cur) { return; }
+      cur = mode;
+      while (addr.firstChild) { addr.removeChild(addr.firstChild); }
+      if (mode === "narrow") {
+        svg.setAttribute("viewBox", "0 0 1052 900");
+        svg.setAttribute("preserveAspectRatio", "xMidYMax meet");
+        addr.setAttribute("font-size", "34"); addr.setAttribute("letter-spacing", "9");
+        addr.setAttribute("x", "50"); addr.setAttribute("y", "500");
+        var parts = ADDR.split(/\s*·\s*/);
+        [parts[0], parts.slice(1).join(" · ")].forEach(function (line, i) {
+          var t = d.createElementNS("http://www.w3.org/2000/svg", "tspan");
+          t.setAttribute("x", "50"); t.setAttribute("dy", i ? "52" : "0"); t.textContent = line;
+          addr.appendChild(t);
+        });
+      } else {
+        svg.setAttribute("viewBox", "0 0 1440 900");
+        svg.setAttribute("preserveAspectRatio", "xMinYMax slice");
+        addr.setAttribute("font-size", "15"); addr.setAttribute("letter-spacing", "4.5");
+        addr.setAttribute("x", "50"); addr.setAttribute("y", "560");
+        addr.textContent = ADDR;
+      }
+    }
+    apply();
+    on(w, "resize", apply);
+  })();
   var heroCur = 0, heroOn = false;
   var movers = qsa("[data-nh-drift], [data-nh-par]").map(function (el) {
     var par = el.hasAttribute("data-nh-par");
