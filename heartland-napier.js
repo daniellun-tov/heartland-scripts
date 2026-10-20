@@ -664,8 +664,10 @@
     function measureR() { var b = map.getBoundingClientRect(); R = b.height ? (b.width * 1104 / 1600) / b.height : 1; }
     function zMin() { return Math.max(1, 1 / R); }
     function zMax() { return Math.max(2.5, zMin() + 1.5); }
-    var clampX = function (v, z) { return Math.max(0, Math.min((z - 1) * 100, v)); };
-    var clampY = function (v, z) { return Math.max(0, Math.min((z * R - 1) * 100, v)); };
+    // A little overscroll past the drawing's edges (the frame's paper colour shows) so edge pins can be dragged clear of the frame
+    var PAD = 10;
+    var clampX = function (v, z) { return Math.max(-PAD, Math.min((z - 1) * 100 + PAD, v)); };
+    var clampY = function (v, z) { return Math.max(-PAD, Math.min((z * R - 1) * 100 + PAD, v)); };
     function centreOn(x, y, z) { st.px = clampX(x * z - 50, z); st.py = clampY(y * z * R - 50, z); }
     function paintMap() {
       if (!pan) { return; }
