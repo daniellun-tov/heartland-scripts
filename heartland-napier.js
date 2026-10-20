@@ -689,8 +689,9 @@
           // Keep the label inside the frame: open it rightwards near the left edge, leftwards near the right edge
           var mw = map.clientWidth || 1, px = sx / 100 * mw, half = (tag.offsetWidth || 120) / 2 + 8;
           var lft = px - half < 0, rgt = px + half > mw;
+          // centred with a margin, not a transform: the tag's entrance animation owns transform
           tag.style.left = lft ? "4px" : (rgt ? "auto" : "50%"); tag.style.right = rgt ? "4px" : "auto";
-          tag.style.transform = lft || rgt ? "none" : "translateX(-50%)";
+          tag.style.transform = ""; tag.style.marginLeft = lft || rgt ? "0px" : (-(tag.offsetWidth || 120) / 2) + "px";
           tag.style.bottom = sy < 16 ? "auto" : "100%"; tag.style.top = sy < 16 ? "100%" : "auto";
           tag.style.marginTop = sy < 16 ? "4px" : "0"; tag.style.marginBottom = sy < 16 ? "0" : "4px";
         }
