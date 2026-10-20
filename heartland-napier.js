@@ -392,12 +392,12 @@
       mask.style.transform = "translate3d(0," + (-m * 102).toFixed(3) + "%,0)";
       mask.style.visibility = m >= 0.999 ? "hidden" : "visible";
     }
-    var p = reduce ? 1 : eio(clamp((raw - 0.4) / 0.5));
+    var p = reduce ? 1 : eio(clamp((raw - 0.56) / 0.4));   // frame condenses after the intro has held
     var pr = pin.getBoundingClientRect(), sr = slot.getBoundingClientRect();
     var t = (sr.top - pr.top) * p, l = (sr.left - pr.left) * p, r = (pr.right - sr.right) * p, b = (pr.bottom - sr.bottom) * p;
     var R = Math.min(sr.width / 2, 340) * p, r2 = 4 * p;
     frame.style.clipPath = "inset(" + t.toFixed(1) + "px " + r.toFixed(1) + "px " + b.toFixed(1) + "px " + l.toFixed(1) + "px round " + R.toFixed(1) + "px " + R.toFixed(1) + "px " + r2.toFixed(2) + "px " + r2.toFixed(2) + "px)";
-    var fin = eio(clamp((raw - 0.16) / 0.12)), fout = eio(clamp((raw - 0.34) / 0.1));
+    var fin = eio(clamp((raw - 0.16) / 0.12)), fout = eio(clamp((raw - 0.5) / 0.1));   // intro holds from 0.28 to 0.5
     if (intro) { intro.style.opacity = String(reduce ? 0 : fin * (1 - fout)); intro.style.transform = "translate3d(0," + ((1 - fin) * 28 - fout * 28).toFixed(2) + "px,0)"; }
     if (veil) { veil.style.opacity = String(1 - p); }
     if (cap) {
