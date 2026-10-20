@@ -232,7 +232,8 @@
   var track = qs(".nh_hero"), pin = qs(".nh_hero_pin"), frame = qs("#nh-hero-frame"), slot = qs("#nh-hero-slot");
   var intro = qs("#nh-hero-intro"), veil = qs(".nh_hero_veil"), cap = qs("#nh-hero-cap");
   var copy = qs(".nh_hero_copy"), sides = qsa(".nh_hero_side"), mask = qs("#nh-intro-mask");
-  if (mask) { if (reduce) { mask.style.display = "none"; } else { setTimeout(function () { mask.classList.add("in"); }, 60); } }
+  var LD = d.documentElement.classList.contains("nh-loading");   // the loader (2b) adds .in itself when the word lands
+  if (mask) { if (reduce) { mask.style.display = "none"; } else if (!LD) { setTimeout(function () { mask.classList.add("in"); }, 60); } }
   /* The name mask is drawn for a 1440x900 frame and cropped to fill the screen ("slice"). When the screen
      is too narrow to show the whole word (phones, portrait tablets) it switches to a 1052-wide frame that
      fits ("meet"), centred vertically, and sets the address on two larger lines. */
@@ -270,6 +271,91 @@
     }
     apply();
     on(w, "resize", apply);
+  })();
+
+  /* ----------------------------------------------------------- 2b. loader: "Through the arch"
+     Ink screen with an arch window on the hero photo (#nh-loader). The arch grows with the real load
+     (poster image, fonts, window load), opens to the full frame, then the frame turns out to be the inside
+     of the N: the name mask starts scaled so the N's stroke covers the screen and pulls back to rest.
+     Above the browser's glyph-size ceiling the N is drawn from its outline path (#nh-intro-n, traced from
+     Orpheus Pro, with the deepest point of the stroke in data-px/py/r); below it the real text takes over. */
+  (function loader() {
+    var root = d.documentElement;
+    if (!LD) { return; }
+    w.NH_LD = true;
+    try { sessionStorage.setItem("nh-ld", "1"); } catch (e) {}
+    var L = qs("#nh-loader"), arch = L && qs(".nh_ld_arch", L), count = L && qs(".nh_loader_count", L);
+    var svg = mask && qs("svg", mask), G = svg && qs("#nh-intro-word", svg), NP = svg && qs("#nh-intro-n", svg), TX = G && qs("text", G);
+    var fade = function () { root.classList.remove("nh-loading", "nh-ld-arch"); if (mask) { mask.classList.add("in"); } };
+    if (!L || !arch || !svg || !G || !NP || !TX) { fade(); return; }
+    var P = { x: +NP.getAttribute("data-px"), y: +NP.getAttribute("data-py"), r: +NP.getAttribute("data-r") };
+    var bez = function (x1, y1, x2, y2) { return function (t) { if (t <= 0) { return 0; } if (t >= 1) { return 1; } var u = t; for (var i = 0; i < 8; i++) { var x = 3 * (1 - u) * (1 - u) * u * x1 + 3 * (1 - u) * u * u * x2 + u * u * u - t, dx = 3 * (1 - u) * (1 - u) * x1 + 6 * (1 - u) * u * (x2 - x1) + 3 * u * u * (1 - x2); if (Math.abs(dx) < 1e-6) { break; } u = Math.min(1, Math.max(0, u - x / dx)); } return 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u; }; };
+    var EOUT = bez(.22, 1, .36, 1), EIO = bez(.65, 0, .35, 1), EZ = bez(.5, 0, .15, 1);
+    var cl = function (v) { return v < 0 ? 0 : v > 1 ? 1 : v; };
+    // Real progress: poster 35%, fonts 35%, window load 20%, a 10% head start
+    var got = { poster: 0, fonts: 0, load: 0 };
+    var poster = qs(".nh_hero_poster");
+    if (!poster || (poster.complete && poster.naturalWidth)) { got.poster = 1; } else { on(poster, "load", function () { got.poster = 1; }); on(poster, "error", function () { got.poster = 1; }); }
+    if (d.fonts && d.fonts.load) { Promise.all([d.fonts.load("352px orpheuspro"), d.fonts.load("400 12px halyard-text")]).then(function () { got.fonts = 1; }, function () { got.fonts = 1; }); } else { got.fonts = 1; }
+    if (d.readyState === "complete") { got.load = 1; } else { on(w, "load", function () { got.load = 1; }); }
+    var t0 = performance.now(), p = 0, T1 = 0, EXP = 720, HOLD = 220, ZOOM = 1800, swapped = false, revealed = false, geo = null;
+    function target(now) { return now - t0 > 6000 ? 1 : .1 + .35 * got.poster + .35 * got.fonts + .2 * got.load; }
+    function viewport() { return { W: w.innerWidth, H: w.innerHeight }; }
+    // Word geometry in the mask's own units (follows fitMask's frame and the screen's pixel density)
+    function measure() {
+      var m = svg.getScreenCTM(), v = viewport(); if (!m) { return null; }
+      var x0 = (0 - m.e) / m.a, y0 = (0 - m.f) / m.d, x1 = (v.W - m.e) / m.a, y1 = (v.H - m.f) / m.d;
+      var hd = Math.hypot(x1 - x0, y1 - y0) / 2;
+      return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, S: 1.4 * hd / P.r, safe: 3000 / (352 * Math.abs(m.a) * (w.devicePixelRatio || 1)) };
+    }
+    function word(z) {
+      var sc = Math.exp((1 - z) * Math.log(geo.S)), qx = geo.cx + (P.x - geo.cx) * z, qy = geo.cy + (P.y - geo.cy) * z;
+      var big = sc > geo.safe;
+      NP.setAttribute("visibility", big ? "visible" : "hidden"); TX.setAttribute("visibility", big ? "hidden" : "visible");
+      G.setAttribute("transform", z >= 1 ? "" : "translate(" + qx.toFixed(2) + " " + qy.toFixed(2) + ") scale(" + sc.toFixed(5) + ") translate(" + (-P.x) + " " + (-P.y) + ")");
+    }
+    function setArch(k) {
+      var v = viewport();
+      arch.style.transform = "translate(" + (v.W / 2) + "px," + (v.H / 2) + "px) scale(" + k.toFixed(4) + ")";
+      if (count) { count.style.top = (v.H / 2 + 67 * Math.min(k, 2.2) + 22) + "px"; }
+    }
+    function frame(now) {
+      var v = viewport(), base = Math.min(150, v.W * .36), k1 = (base + 70) / 100, k;
+      if (!T1) {
+        // 1 · the arch window grows with the load
+        var tg = target(now), el = now - t0;
+        p = Math.min(tg, el / 1500, p + Math.max((tg - p) * .07, tg > p ? .004 : 0));
+        k = (base + p * 70) / 100 * (.94 + .06 * EOUT(cl(el / 400)));
+        setArch(k);
+        if (count) { var n = Math.round(p * 100); count.textContent = (n < 10 ? "00" : n < 100 ? "0" : "") + n; }
+        if (p >= .999) { T1 = now + 140; }
+        return w.requestAnimationFrame(frame);
+      }
+      var t = now - T1;
+      if (t < EXP) {
+        // 2 · the arch opens to the full frame (log scale reads as even growth)
+        var e = EIO(cl(t / EXP)), kc = 3.2 * Math.hypot(v.W, v.H) / 2 / 50;
+        setArch(k1 * Math.exp(e * Math.log(kc / k1)));
+        if (count) { count.style.opacity = String(1 - EOUT(cl(t / 240))); }
+        return w.requestAnimationFrame(frame);
+      }
+      if (!swapped) {
+        // 3 · hand over to the name mask, scaled so the N's stroke fills the screen
+        swapped = true; geo = measure();
+        if (!geo) { L.style.display = "none"; fade(); return; }
+        word(0); L.style.display = "none"; root.classList.remove("nh-ld-arch");
+      }
+      var z = EZ(cl((t - EXP - HOLD) / ZOOM));
+      word(z);
+      if (!revealed && t - EXP - HOLD > 1000) {
+        revealed = true; mask.classList.add("in");
+        root.classList.remove("nh-loading"); root.classList.add("nh-ld-reveal");
+        setTimeout(function () { root.classList.remove("nh-ld-reveal"); }, 1400);
+      }
+      if (z < 1) { return w.requestAnimationFrame(frame); }
+      w.NH_LD = false;
+    }
+    w.requestAnimationFrame(frame);
   })();
   var heroCur = 0, heroOn = false;
   var movers = qsa("[data-nh-drift], [data-nh-par]").map(function (el) {
@@ -572,8 +658,15 @@
       var dot = qs(".nh_pin_dot", p); if (dot) { dot.style.backgroundColor = COL[r.getAttribute("data-nh-place-cat")] || "#2B2622"; }
     });
     rows.forEach(function (r) { var dot = qs(".nh_prow_dot", r); if (dot) { dot.style.backgroundColor = COL[r.getAttribute("data-nh-place-cat")] || "#2B2622"; } });
+    // The map frame can be taller than the drawing (phones use 4:5): R = drawing height / frame height at zoom 1.
+    // x stays in % of frame width; y in % of frame height, so the drawing is z*R frames tall.
+    var R = 1;
+    function measureR() { var b = map.getBoundingClientRect(); R = b.height ? (b.width * 1104 / 1600) / b.height : 1; }
+    function zMin() { return Math.max(1, 1 / R); }
+    function zMax() { return Math.max(2.5, zMin() + 1.5); }
     var clampX = function (v, z) { return Math.max(0, Math.min((z - 1) * 100, v)); };
-    function centreOn(x, y, z) { st.px = clampX(x * z - 50, z); st.py = clampX(y * z - 50, z); }
+    var clampY = function (v, z) { return Math.max(0, Math.min((z * R - 1) * 100, v)); };
+    function centreOn(x, y, z) { st.px = clampX(x * z - 50, z); st.py = clampY(y * z * R - 50, z); }
     function paintMap() {
       if (!pan) { return; }
       pan.style.transition = st.dragging ? "none" : "";
@@ -588,7 +681,7 @@
         p.classList.toggle("is-on", onIt); p.classList.toggle("is-hover", hov && !onIt);
         p.style.zIndex = onIt ? 4 : (hov ? 5 : 1);
         var rr = byId[p.getAttribute("data-nh-pin")];
-        var sx = num(rr.getAttribute("data-nh-place-x")) * st.z - st.px, sy = num(rr.getAttribute("data-nh-place-y")) * st.z - st.py;
+        var sx = num(rr.getAttribute("data-nh-place-x")) * st.z - st.px, sy = num(rr.getAttribute("data-nh-place-y")) * st.z * R - st.py;
         var tag = qs(".nh_pin_tag", p);
         if (tag) {
           tag.style.left = sx < 26 ? "4px" : (sx > 74 ? "auto" : "50%"); tag.style.right = sx > 74 ? "4px" : "auto";
@@ -649,26 +742,32 @@
       var g = st.drag; if (!g) { return; }
       var dx = e.clientX - g.x, dy = e.clientY - g.y;
       if (!g.moved) { if (Math.hypot(dx, dy) < 5) { return; } g.moved = true; try { map.setPointerCapture(g.id); } catch (err) {} st.dragging = true; }
-      st.px = clampX(g.px - dx / g.w * 100, st.z); st.py = clampX(g.py - dy / g.h * 100, st.z);
+      st.px = clampX(g.px - dx / g.w * 100, st.z); st.py = clampY(g.py - dy / g.h * 100, st.z);
       paintMap();
     });
     var up = function () { st.drag = null; if (st.dragging) { setTimeout(function () { st.dragging = false; paintMap(); paintSel(); }, 0); } };
     on(map, "pointerup", up); on(map, "pointercancel", up);
     function zoomTo(nz) {
-      var z = st.z; nz = Math.max(1, Math.min(2.5, nz));
-      var cx = (st.px + 50) / z, cy = (st.py + 50) / z;
+      var z = st.z; nz = Math.max(zMin(), Math.min(zMax(), nz));
+      var cx = (st.px + 50) / z, cy = (st.py + 50) / (z * R);
       st.z = nz; centreOn(cx, cy, nz); paintMap(); paintSel();
     }
     qsa("[data-nh-map-zoom]", map).forEach(function (b) {
       on(b, "click", function (e) {
         stop(e); e.stopPropagation();
         var k = b.getAttribute("data-nh-map-zoom");
-        if (k === "in") { zoomTo(st.z + 0.5); } else if (k === "out") { zoomTo(st.z - 0.5); } else { st.z = 1.5; centreOn(HX, HY, 1.5); paintMap(); paintSel(); }
+        if (k === "in") { zoomTo(st.z + 0.5); } else if (k === "out") { zoomTo(st.z - 0.5); } else { st.z = zHome(); centreOn(HX, HY, st.z); paintMap(); paintSel(); }
       });
       on(b, "pointerdown", function (e) { e.stopPropagation(); });
     });
-    centreOn(HX, HY, 1.5);
+    function zHome() { return Math.max(1.5, zMin() * 1.1); }
+    measureR(); st.z = zHome(); centreOn(HX, HY, st.z);
     paintMap();
+    // Breakpoint changes the frame's shape: keep the same centre, re-clamp
+    var rzT; on(w, "resize", function () { clearTimeout(rzT); rzT = setTimeout(function () {
+      var cx = (st.px + 50) / st.z, cy = (st.py + 50) / (st.z * R);
+      measureR(); st.z = Math.max(zMin(), Math.min(zMax(), st.z)); centreOn(cx, cy, st.z); paintMap(); paintSel();
+    }, 150); });
     applyCat();
   })();
 

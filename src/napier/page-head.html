@@ -12,21 +12,16 @@
      plan. Deferred; the bundle waits for window.$memberstackDom. webflow.io runs in SANDBOX. -->
 <script data-memberstack-app="app_cmmoyq2ln006j0ssyfcttbd9q" src="https://static.memberstack.com/scripts/v2/memberstack.js" type="text/javascript" defer></script>
 <script>
+  /* Loader "Through the arch": ink screen with an arch window on the hero photo that grows with the load,
+     opens to the full frame, then pulls back out of the N into the hero's name mask (bundle module 2b).
+     Shown once per tab session, from the top of the page; skipped for reduced motion and #links. */
   (function (h) {
     h.classList.add('nh-js');
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
-    h.classList.add('nh-loading');
-    var start = Date.now(), done = false;
-    function lift() {
-      if (done) { return; }
-      done = true;
-      setTimeout(function () {
-        h.classList.add('nh-loaded');
-        setTimeout(function () { h.classList.remove('nh-loading', 'nh-loaded'); }, 700);
-      }, Math.max(0, 620 - (Date.now() - start)));
-    }
-    addEventListener('load', lift);
-    setTimeout(lift, 2600);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || location.hash) { return; }
+    try { if (sessionStorage.getItem('nh-ld')) { return; } } catch (e) {}
+    if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
+    h.classList.add('nh-loading', 'nh-ld-arch');
+    setTimeout(function () { if (!window.NH_LD) { h.classList.remove('nh-loading', 'nh-ld-arch'); } }, 9000);
   })(document.documentElement);
 </script>
 <style>
@@ -35,11 +30,15 @@
   .nh_page{--nh-ease:cubic-bezier(.22,1,.36,1)}
   .nh_page *{box-sizing:border-box}
   .nh_page img{max-width:100%}
-  /* loader: two pseudo-elements on <html> */
+  /* loader: #nh-loader (native div + SVG arch mask) over everything until the bundle hands over */
+  .nh_loader{display:none}
   html.nh-loading{overflow:hidden}
-  html.nh-loading::before{content:"";position:fixed;inset:0;z-index:9999;background:#F3EBE2;transition:opacity .6s var(--nh-ease,cubic-bezier(.22,1,.36,1)),visibility 0s linear .6s}
-  html.nh-loading::after{content:"Napier";position:fixed;left:50%;top:50%;z-index:10000;transform:translate(-50%,-50%);font:400 clamp(40px,6vw,72px)/1 orpheuspro,serif;letter-spacing:-.02em;color:#2B2622;animation:nh-fade-in .7s var(--nh-ease,cubic-bezier(.22,1,.36,1)) both;transition:opacity .4s}
-  html.nh-loaded::before,html.nh-loaded::after{opacity:0;visibility:hidden}
+  html.nh-loading .nh_loader{display:block}
+  .nh_ld_arch{transform:translate(50vw,50svh) scale(1.5)}
+  html.nh-ld-arch .nh_hero_mask{opacity:0}
+  html.nh-loading [data-nh-nav],html.nh-loading .nh_hero_cue{opacity:0;pointer-events:none}
+  html.nh-loading .nh_hero_mask svg{transform:none;transition:none}
+  html.nh-ld-reveal [data-nh-nav],html.nh-ld-reveal .nh_hero_cue{animation:nh-fade-in 1s var(--nh-ease,cubic-bezier(.22,1,.36,1)) both}
   @keyframes nh-fade-in{from{opacity:0}to{opacity:1}}
   @keyframes nh-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   @keyframes nh-swap{from{opacity:0;transform:scale(1.06)}to{opacity:1;transform:none}}
