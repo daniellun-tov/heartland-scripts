@@ -805,7 +805,26 @@
       else { dr -= 1; paint(true); }
     }
     dpins.forEach(function (p, i) { on(p, "click", function (e) { stop(e); go(i); }); });
-    cards.forEach(function (c, i) { on(c, "click", function (e) { stop(e); go(i % N); }); });
+    var swiped = false;
+    cards.forEach(function (c, i) { on(c, "click", function (e) { stop(e); if (swiped) { return; } go(i % N); }); });
+    // Touch: the track follows the finger sideways (vertical scrolling stays with the page: touch-action pan-y),
+    // then settles one card on, or back if the flick was short
+    var wrap = trackEl && trackEl.parentNode, t0x = 0, t0y = 0, dx = 0, axis = null, touching = false;
+    on(wrap, "touchstart", function (e) { var t = e.touches[0]; t0x = t.clientX; t0y = t.clientY; dx = 0; axis = null; touching = true; paused = true; }, { passive: true });
+    on(wrap, "touchmove", function (e) {
+      if (!touching) { return; }
+      var t = e.touches[0], mx = t.clientX - t0x, my = t.clientY - t0y;
+      if (!axis) { if (Math.abs(mx) < 6 && Math.abs(my) < 6) { return; } axis = Math.abs(mx) > Math.abs(my) ? "x" : "y"; }
+      if (axis !== "x") { return; }
+      dx = mx; trackEl.style.transition = "none"; trackEl.style.transform = "translateX(" + (-dr * cardW() + dx) + "px)";
+    }, { passive: true });
+    var endTouch = function () {
+      if (!touching) { return; } touching = false; paused = false;
+      if (axis !== "x") { return; }
+      swiped = true; setTimeout(function () { swiped = false; }, 350);
+      if (Math.abs(dx) > 40) { if (dx < 0) { next(); } else { prev(); } } else { paint(true); }
+    };
+    on(wrap, "touchend", endTouch, { passive: true }); on(wrap, "touchcancel", endTouch, { passive: true });
     on(qs("[data-nh-drive-prev]", slider), "click", function (e) { stop(e); prev(); });
     on(qs("[data-nh-drive-next]", slider), "click", function (e) { stop(e); next(); });
     on(slider, "mouseenter", function () { paused = true; }); on(slider, "mouseleave", function () { paused = false; });
