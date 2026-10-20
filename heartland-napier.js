@@ -664,8 +664,8 @@
     function measureR() { var b = map.getBoundingClientRect(); R = b.height ? (b.width * 1104 / 1600) / b.height : 1; }
     function zMin() { return Math.max(1, 1 / R); }
     function zMax() { return Math.max(2.5, zMin() + 1.5); }
-    // A little overscroll past the drawing's edges (the frame's paper colour shows) so edge pins can be dragged clear of the frame
-    var PAD = 10;
+    // Panning stops at the drawing's edges so it always fills the frame (the place card no longer covers the map on phones)
+    var PAD = 0;
     var clampX = function (v, z) { return Math.max(-PAD, Math.min((z - 1) * 100 + PAD, v)); };
     var clampY = function (v, z) { return Math.max(-PAD, Math.min((z * R - 1) * 100 + PAD, v)); };
     function centreOn(x, y, z) { st.px = clampX(x * z - 50, z); st.py = clampY(y * z * R - 50, z); }
@@ -686,16 +686,20 @@
         var sx = num(rr.getAttribute("data-nh-place-x")) * st.z - st.px, sy = num(rr.getAttribute("data-nh-place-y")) * st.z * R - st.py;
         var tag = qs(".nh_pin_tag", p);
         if (tag) {
-          tag.style.left = sx < 26 ? "4px" : (sx > 74 ? "auto" : "50%"); tag.style.right = sx > 74 ? "4px" : "auto";
-          tag.style.transform = sx < 26 || sx > 74 ? "none" : "translateX(-50%)";
+          // Keep the label inside the frame: open it rightwards near the left edge, leftwards near the right edge
+          var mw = map.clientWidth || 1, px = sx / 100 * mw, half = (tag.offsetWidth || 120) / 2 + 8;
+          var lft = px - half < 0, rgt = px + half > mw;
+          tag.style.left = lft ? "4px" : (rgt ? "auto" : "50%"); tag.style.right = rgt ? "4px" : "auto";
+          tag.style.transform = lft || rgt ? "none" : "translateX(-50%)";
           tag.style.bottom = sy < 16 ? "auto" : "100%"; tag.style.top = sy < 16 ? "100%" : "auto";
           tag.style.marginTop = sy < 16 ? "4px" : "0"; tag.style.marginBottom = sy < 16 ? "0" : "4px";
         }
       });
       if (card) {
-        var im = qs("[data-nh-pcard-img]", card), ini = qs("[data-nh-pcard-initial]", card), media = qs("[data-nh-pcard-media]", card);
+        var media = qs("[data-nh-pcard-media]", card), ini = qs("[data-nh-pcard-initial]", card);
+        var im = qs("[data-nh-pcard-img]", card) || (media && qs("img", media));
         var src = r.getAttribute("data-nh-place-img") || "", cat = r.getAttribute("data-nh-place-cat");
-        if (im) { im.style.display = src ? "" : "none"; if (src && im.src !== src) { im.src = src; } im.alt = text(qs(".nh_prow_name", r)); im.classList.remove("is-swap"); void im.offsetWidth; im.classList.add("is-swap"); }
+        if (im) { im.style.display = src ? "" : "none"; if (src && im.src !== src) { im.removeAttribute("srcset"); im.removeAttribute("sizes"); im.src = src; } im.alt = text(qs(".nh_prow_name", r)); im.classList.remove("is-swap"); void im.offsetWidth; im.classList.add("is-swap"); }
         if (ini) { ini.style.display = src ? "none" : "flex"; ini.textContent = text(qs(".nh_prow_name", r)).charAt(0); }
         if (media) { media.style.backgroundColor = src ? "" : (COL[cat] || "#2B2622"); }
         var c = qs("[data-nh-pcard-cat]", card); if (c) { c.textContent = (CATL[cat] || "") + " · " + text(qs(".nh_prow_t", r)); c.style.color = COL[cat] || ""; }
@@ -763,12 +767,30 @@
       on(b, "pointerdown", function (e) { e.stopPropagation(); });
     });
     function zHome() { return Math.max(1.5, zMin() * 1.1); }
+    // Tablet/phone: the card sits above the map at its natural height. Size it to the tallest place once,
+    // so choosing a pin never shifts the map under the finger.
+    function sizeCard() {
+      if (!card) { return; }
+      card.style.minHeight = "";
+      if (getComputedStyle(card).position === "absolute") { return; }
+      var n = qs("[data-nh-pcard-name]", card), bl = qs("[data-nh-pcard-blurb]", card), c = qs("[data-nh-pcard-cat]", card), max = 0;
+      rows.forEach(function (r) {
+        if (n) { n.textContent = text(qs(".nh_prow_name", r)); }
+        if (bl) { bl.textContent = r.getAttribute("data-nh-place-blurb") || ""; }
+        if (c) { c.textContent = "X · " + text(qs(".nh_prow_t", r)); }
+        max = Math.max(max, card.offsetHeight);
+      });
+      card.style.minHeight = max + "px";
+      paintSel();
+    }
+    sizeCard();
+    if (d.fonts && d.fonts.ready) { d.fonts.ready.then(sizeCard); }
     measureR(); st.z = zHome(); centreOn(HX, HY, st.z);
     paintMap();
     // Breakpoint changes the frame's shape: keep the same centre, re-clamp
     var rzT; on(w, "resize", function () { clearTimeout(rzT); rzT = setTimeout(function () {
       var cx = (st.px + 50) / st.z, cy = (st.py + 50) / (st.z * R);
-      measureR(); st.z = Math.max(zMin(), Math.min(zMax(), st.z)); centreOn(cx, cy, st.z); paintMap(); paintSel();
+      measureR(); st.z = Math.max(zMin(), Math.min(zMax(), st.z)); centreOn(cx, cy, st.z); paintMap(); sizeCard();
     }, 150); });
     applyCat();
   })();
