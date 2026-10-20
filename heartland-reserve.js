@@ -2329,6 +2329,9 @@
      [data-hl-theme]                   where the property's colours are written
      [data-hl-portal-loading]          while fetching
      [data-hl-portal-empty]            member has no reservations
+     [data-hl-interests]               inside it: where the "see available homes" links go
+                                       (falls back to beside the Log in link)
+     [data-hl-login-link]              hidden when a SIGNED-IN member has nothing yet
      [data-hl-portal-body]             once one is selected
      [data-hl-switcher]                shown only when there is more than one
      [data-hl-switcher-list]           where the choices are drawn
@@ -4976,6 +4979,86 @@
     w.location.replace(loginPath());
   }
 
+  /* ------------------------------------------------------------- no reservation yet
+
+     A SIGNED-IN MEMBER WITH NOTHING TO SHOW. This is the waitlist: somebody signed up on a
+     development's page before launch, which made them a Memberstack member on that
+     development's plan, and after launch they log in before reserving. "Log in" is the
+     wrong button to offer someone who just did - so it is hidden, and in its place is a
+     link to the availability section of THEIR development.
+
+     WHICH DEVELOPMENT IS XANO'S ANSWER, NOT THIS FILE'S. auth/memberstack returns
+     interests[] - every development whose Memberstack plan this member holds, with its
+     name, its availability_url (res_properties, set per development) and its theme. So a
+     new development needs a plan id and a url in Xano, and no change here. None at all,
+     or an older Xano that sends no interests, falls back to /properties rather than to
+     nothing.
+
+     ONE DEVELOPMENT ALSO LENDS THE PAGE ITS COLOURS, so the empty state looks like the
+     site they signed up on. Two or more stay on the neutral palette - neither is theirs
+     more than the other. */
+  var EMPTY_FALLBACK_URL = "/properties";
+
+  function interestsFrom(res) {
+    var list = (res && Object.prototype.toString.call(res.interests) === "[object Array]")
+      ? res.interests : [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i] || {};
+      var name = String(it.name || it.slug || "").trim();
+      if (!name) { continue; }
+      out.push({ name: name, url: String(it.url || "").trim() || EMPTY_FALLBACK_URL,
+                 theme: it.theme || null });
+    }
+    return out;
+  }
+
+  function showNoReservations(res) {
+    var interests = interestsFrom(res);
+    log("no reservations; member is on", interests.length, "development plan(s)");
+
+    show("[data-hl-portal-loading]", false);
+    show("[data-hl-portal-body]", false);
+    show("[data-hl-portal-index]", false);
+    show("[data-hl-portal-empty]", true);
+
+    var msgs = d.querySelectorAll("[data-hl-portal-message]");
+    for (var m = 0; m < msgs.length; m++) {
+      msgs[m].textContent = "You have no reservations yet.";
+    }
+
+    if (interests.length === 1 && interests[0].theme) { applyTheme(interests[0].theme); }
+
+    var logins = d.querySelectorAll("[data-hl-login-link]");
+    var hosts = d.querySelectorAll("[data-hl-interests]");
+    var where = [];
+    for (var h = 0; h < hosts.length; h++) { where.push(hosts[h]); }
+    /* No host in the Designer: put the links where the Log in button was, so the page
+       still offers a way forward. */
+    if (!where.length && logins.length && logins[0].parentNode) { where.push(logins[0].parentNode); }
+    for (var l = 0; l < logins.length; l++) { logins[l].style.display = "none"; }
+
+    var links = interests.length ? interests
+      : [{ name: "", url: EMPTY_FALLBACK_URL }];
+    for (var w2 = 0; w2 < where.length; w2++) {
+      var host = where[w2];
+      var old = host.querySelectorAll("[data-hl-interest-link]");
+      for (var o = 0; o < old.length; o++) { old[o].parentNode.removeChild(old[o]); }
+      for (var k = 0; k < links.length; k++) {
+        var a = d.createElement("a");
+        a.className = "hl-btn";
+        a.setAttribute("data-hl-interest-link", "");
+        a.setAttribute("href", links[k].url);
+        a.textContent = links[k].name
+          ? "See available homes at " + links[k].name
+          : "See our developments";
+        host.appendChild(a);
+      }
+      reveal(host);
+    }
+    return links.length;
+  }
+
   function fail(msg) {
     show("[data-hl-portal-loading]", false);
     show("[data-hl-portal-body]", false);
@@ -5378,8 +5461,7 @@
         log("member holds", ALL.length, "reservation(s); clock offset", clockOffset, "ms");
 
         if (!ALL.length) {
-          show("[data-hl-portal-loading]", false);
-          show("[data-hl-portal-empty]", true);
+          showNoReservations(res);
           return;
         }
 

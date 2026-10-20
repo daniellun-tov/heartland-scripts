@@ -96,6 +96,7 @@ function boot(opts) {
              reproduces the shape that does not, which the bundle must still handle. */
           if (!opts.oldXano) {
             body.reservations = opts.list === undefined ? [res()] : opts.list;
+            if (opts.interests !== undefined) { body.interests = opts.interests; }
             body.count = body.reservations.length;
             body.server_time = opts.serverTime === undefined ? Date.now() : opts.serverTime;
           }
@@ -2201,6 +2202,63 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
        !b.shown('[data-hl-portal-loading]') && b.shown('[data-hl-portal-empty]'));
     ok("and says something a person can act on",
        /refresh|log in/i.test(b.$('[data-hl-portal-message]').textContent));
+  }
+
+  /* ---------------------------------------------------- signed in, nothing reserved (20 Oct)
+     The waitlist member who logs in after launch. "Log in" is the wrong offer to someone who
+     just did; the way forward is THEIR development's availability, which Xano names. */
+  {
+    const SAN = { slug: "sanford", name: "Sanford Heart", url: "/sanford#sd2-select",
+                  theme: { primary: "#8a9380" } };
+    const b = boot({ list: [], interests: [SAN] });
+    await wait(80);
+    const links = b.all('[data-hl-interest-link]');
+    ok("no reservations: the empty state is shown", b.shown('[data-hl-portal-empty]'));
+    ok("and it says so", /no reservations yet/i.test(b.$('[data-hl-portal-message]').textContent));
+    ok("one link, to that development's availability",
+       links.length === 1 && links[0].getAttribute('href') === '/sanford#sd2-select');
+    ok("named for the development", links[0] && /Sanford Heart/.test(links[0].textContent));
+    ok("Log in is not offered to someone signed in", !b.shown('[data-hl-login-link]'));
+    ok("the development lends the page its colours",
+       (b.d.querySelector('[data-hl-theme]') || b.d.documentElement).style.getPropertyValue('--hl-primary') === '#8a9380');
+    ok("the link stays in this tab (it is our own site)", links[0] && !links[0].getAttribute('target'));
+  }
+  {
+    const b = boot({ list: [], interests: [
+      { slug: "sanford", name: "Sanford Heart", url: "/sanford#sd2-select", theme: { primary: "#8a9380" } },
+      { slug: "polaris", name: "Polaris Heart", url: "/polaris#unit-selector", theme: { primary: "#bf7160" } }] });
+    await wait(80);
+    const hrefs = b.all('[data-hl-interest-link]').map(a => a.getAttribute('href'));
+    ok("two developments: a link each, in Xano's order",
+       hrefs.join(',') === '/sanford#sd2-select,/polaris#unit-selector');
+    ok("and neither one's colours are imposed",
+       !(b.d.querySelector('[data-hl-theme]') || b.d.documentElement).style.getPropertyValue('--hl-primary'));
+  }
+  {
+    const b = boot({ list: [], interests: [] });
+    await wait(80);
+    const links = b.all('[data-hl-interest-link]');
+    ok("on no plan at all: falls back to the developments page",
+       links.length === 1 && links[0].getAttribute('href') === '/properties');
+  }
+  {
+    const b = boot({ list: [], interests: [{ slug: "outeniqua", name: "Outeniqua Heart", url: null }] });
+    await wait(80);
+    const links = b.all('[data-hl-interest-link]');
+    ok("a development with no url set still gets a link that goes somewhere",
+       links.length === 1 && links[0].getAttribute('href') === '/properties' && /Outeniqua/.test(links[0].textContent));
+  }
+  {
+    const b = boot({ list: [], oldXano: true });
+    await wait(80);
+    ok("an older Xano with no interests field: the fallback link, not a dead end",
+       b.all('[data-hl-interest-link]').length === 1);
+  }
+  {
+    const b = boot({ authFails: true, interests: [] });
+    await wait(80);
+    ok("a refused token still offers Log in", b.shown('[data-hl-login-link]'));
+    ok("and no availability link", b.all('[data-hl-interest-link]').length === 0);
   }
 
   /* ---------------------------------------------------- inert elsewhere */
