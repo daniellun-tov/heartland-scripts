@@ -522,7 +522,8 @@
     function go(k) {
       cur = (k + N) % N; el = 0;
       slides.forEach(function (s, i) { s.classList.toggle("is-on", i === cur); s.setAttribute("aria-hidden", i === cur ? "false" : "true"); });
-      caps.forEach(function (c, i) { c.classList.toggle("is-on", i === cur); if (i === cur) { c.classList.remove("is-swap"); void c.offsetWidth; c.classList.add("is-swap"); } });
+      // is-swap's rise animation fills forwards (opacity 1), so it must come off the outgoing caption or every caption stays visible
+      caps.forEach(function (c, i) { c.classList.toggle("is-on", i === cur); c.classList.remove("is-swap"); if (i === cur) { void c.offsetWidth; c.classList.add("is-swap"); } });
       segsEl.forEach(function (s, i) {
         s.classList.toggle("is-on", i === cur); s.classList.toggle("is-done", i < cur);
         var f = qs("[data-nh-day-fill]", s);
@@ -532,6 +533,15 @@
     segsEl.forEach(function (s, i) { on(s, "click", function (e) { stop(e); go(i); }); });
     on(qs("[data-nh-day-prev]", root), "click", function (e) { stop(e); go(cur - 1); });
     on(qs("[data-nh-day-next]", root), "click", function (e) { stop(e); go(cur + 1); });
+    // Swipe on the photos (touch): horizontal flick of 40px or more changes the slide; vertical scrolling is left alone
+    var stage = qs(".nh_day_stage", root) || root, sx = 0, sy = 0, tracking = false;
+    on(stage, "touchstart", function (e) { var t = e.touches[0]; sx = t.clientX; sy = t.clientY; tracking = true; }, { passive: true });
+    on(stage, "touchend", function (e) {
+      if (!tracking) { return; } tracking = false;
+      var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) { go(cur + (dx < 0 ? 1 : -1)); }
+    }, { passive: true });
+    on(stage, "touchcancel", function () { tracking = false; }, { passive: true });
     on(root, "mouseenter", function () { paused = true; root.classList.add("is-paused"); });
     on(root, "mouseleave", function () { paused = false; root.classList.remove("is-paused"); });
     var vis = true;
