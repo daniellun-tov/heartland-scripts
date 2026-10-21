@@ -12,7 +12,7 @@
   const rm=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const G=!!window.gsap;
   const $=(s,c=document)=>c.querySelector(s), $$=(s,c=document)=>[...c.querySelectorAll(s)];
-  if(G){ gsap.registerPlugin(ScrollTrigger, CustomEase); CustomEase.create('out','.25,1,.5,1'); CustomEase.create('io','.75,0,.25,1'); CustomEase.create('in','.5,0,.75,0'); }
+  if(G){ gsap.registerPlugin(ScrollTrigger, CustomEase); ScrollTrigger.config({ignoreMobileResize:true}); CustomEase.create('out','.25,1,.5,1'); CustomEase.create('io','.75,0,.25,1'); CustomEase.create('in','.5,0,.75,0'); }
 
   /* ===== line splitter: groups words into lines and wraps each line in a mask ===== */
   function splitLines(el){
@@ -177,10 +177,11 @@
   if(G&&!rm){
     /* hero parallax: the picture drifts down and zooms gently while the name rises faster */
     gsap.fromTo('#heroScene img',{scale:1},{scale:1.16,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}});
-    gsap.to('.hero .homev2-hero_title',{yPercent:-70,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}});
+    const touch=matchMedia('(hover:none),(pointer:coarse)').matches;
+    if(!touch) gsap.to('.hero .homev2-hero_title',{yPercent:-70,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}});
     gsap.to('.hero .homev2-hero_title, .hero .homev2-hero_cta, .hero .homev2-hero_split',{opacity:0,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'55% top',scrub:true}});
     gsap.to('.hero .homev2_veil',{opacity:.55,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}});
-    gsap.to('.hero .homev2_sticky',{yPercent:100,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}});
+    if(!touch) gsap.to('.hero .homev2_sticky',{yPercent:100,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}});
     $$('.homev2_photo:not(.hero .homev2_photo):not(.homev2-vitality_component .homev2_photo):not(.homev2-types_component .homev2_photo):not(#planPh):not(#openPh) img').forEach(img=>{
       gsap.fromTo(img,{yPercent:-8},{yPercent:8,ease:'none',scrollTrigger:{trigger:img.parentElement,start:'top bottom',end:'bottom top',scrub:.5}});
       gsap.to(img,{scale:1.02,duration:1.8,ease:'out',scrollTrigger:{trigger:img.parentElement,start:'top 90%',once:true}});
@@ -431,7 +432,7 @@
 /* Webflow publishes every image loading="lazy". Re-measure the scroll triggers when a picture lands, so pinned
    sections stay in step, and fetch the rest once the page has loaded so they are ready before the visitor arrives. */
 (function(){
-  let t; const refresh=()=>{ clearTimeout(t); t=setTimeout(()=>{ if(window.ScrollTrigger) ScrollTrigger.refresh(); },200); };
+  let t; const refresh=()=>{ clearTimeout(t); t=setTimeout(()=>{ if(window.ScrollTrigger) ScrollTrigger.refresh(true); },200); };
   const lazy=[...document.querySelectorAll('img[loading="lazy"]')];
   lazy.forEach(i=>{ if(!i.complete) i.addEventListener('load',refresh,{once:true}); });
   const warm=()=>lazy.forEach((i,k)=>setTimeout(()=>{ i.loading='eager'; },k*120));
