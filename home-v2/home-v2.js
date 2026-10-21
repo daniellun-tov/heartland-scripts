@@ -35,9 +35,9 @@
     return lines.map(ln=>{ const m=document.createElement('span'); m.className='lmask'; const i=document.createElement('span'); i.className='lin'; ln.forEach(p=>i.appendChild(p)); m.appendChild(i); el.appendChild(m); return i; });
   }
   window.__splitLines=splitLines;
-  const LINE_SEL='p:is(.homev2_body,.body), .feat li > span, .slide > p:not(.homev2_eyebrow), .homev2-reasons_grid .homev2-reasons_small, .homev2-types_component .homev2-types_text, .stature-p, .lead, .homev2-rarity_quote-text, .pm p, .homev2-location_paragraph, .homev2-register_paragraph, .homev2-reasons_grid h4, .slide h4, .pm h3, .plan-card h3, .plan-card p, .homev2-homes_closing, p.homev2-care_caption, .price-line, .homev2-stats_grid .homev2-stats_label, .homev2-rarity_quote cite, p.homev2_eyebrow:not(#amEb):not(.homev2-village_overlay .homev2_eyebrow):not(.homev2-features_slide:not(.on) .homev2_eyebrow), .homev2-features_slide.on .homev2-features_title, .homev2-features_slide.on .homev2-features_body';
-  const lineEls=$$(LINE_SEL).filter(el=>!el.closest('.homev2-features_slide:not(.on)') && !el.closest('.homev2-menu_sheet,.homev2-loader_component,.homev2-vitality_footer,#peace'));
-  lineEls.forEach(el=>{ el.classList.remove('rev'); el.style.removeProperty('opacity'); el.style.removeProperty('transform'); });
+  const LINE_SEL='p:is(.homev2_body,.is-body), .feat li > span, .slide > p:not(.homev2_eyebrow), .homev2-reasons_grid .homev2-reasons_small, .homev2-types_component .homev2-types_text, .stature-p, .lead, .homev2-rarity_quote-text, .pm p, .homev2-location_paragraph, .homev2-register_paragraph, .homev2-reasons_grid h4, .slide h4, .pm h3, .plan-card h3, .plan-card p, .homev2-homes_closing, p.homev2-care_caption, .price-line, .homev2-stats_grid .homev2-stats_label, .homev2-rarity_quote cite, p.homev2_eyebrow:not(#amEb):not(.homev2-village_overlay .homev2_eyebrow):not(.homev2-features_slide:not(.is-on) .homev2_eyebrow), .homev2-features_slide.is-on .homev2-features_title, .homev2-features_slide.is-on .homev2-features_body';
+  const lineEls=$$(LINE_SEL).filter(el=>!el.closest('.homev2-features_slide:not(.is-on)') && !el.closest('.homev2-menu_sheet,.homev2-loader_component,.homev2-vitality_footer,#peace'));
+  lineEls.forEach(el=>{ el.classList.remove('is-rev'); el.style.removeProperty('opacity'); el.style.removeProperty('transform'); });
   function revealLines(el,delay){
     const ls=splitLines(el); el._done=false;
     gsap.fromTo(ls,{yPercent:110},{yPercent:0,duration:1.15,ease:'out',stagger:.09,delay:delay||0,onComplete(){ el.innerHTML=el._orig; el._done=true; }});
@@ -54,7 +54,7 @@
   /* ===== FAQ: eased height; the answer rises line by line ===== */
   function faqSet(li,open){
     const a=$('.homev2-faq_answer',li), p=$('p',a), b=$('[data-button]',li);
-    li.classList.toggle('open',open); b.setAttribute('aria-expanded',open);
+    li.classList.toggle('is-open',open); b.setAttribute('aria-expanded',open);
     if(!G||rm){ a.style.height=open?'auto':'0px'; return; }
     gsap.killTweensOf(a);
     if(open){
@@ -62,7 +62,7 @@
       const ls=splitLines(p); gsap.fromTo(ls,{yPercent:110},{yPercent:0,duration:1,ease:'out',stagger:.08,delay:.18,onComplete(){ p.innerHTML=p._orig; }});
     } else gsap.to(a,{height:0,duration:.65,ease:'io',onComplete(){ ScrollTrigger.refresh(); }});
   }
-  $$('.homev2-faq_list li').forEach(li=>{ const b=$('[data-button]',li); if(!b) return; b.addEventListener('click',()=>{ const o=!li.classList.contains('open'); $$('.homev2-faq_list li.open').forEach(x=>{ if(x!==li) faqSet(x,false); }); faqSet(li,o); }); });
+  $$('.homev2-faq_list li').forEach(li=>{ const b=$('[data-button]',li); if(!b) return; b.addEventListener('click',()=>{ const o=!li.classList.contains('is-open'); $$('.homev2-faq_list li.is-open').forEach(x=>{ if(x!==li) faqSet(x,false); }); faqSet(li,o); }); });
 
   /* ===== features slider: slat wipe, callouts pop in, copy rises line by line ===== */
   $$('.homev2-features_component').forEach(fs=>{
@@ -72,7 +72,7 @@
       imgs.forEach(box=>{ const im=$('img',box); if(!im.naturalWidth) return;
         const W=box.clientWidth,H=box.clientHeight,nw=im.naturalWidth,nh=im.naturalHeight,s=Math.max(W/nw,H/nh),dw=nw*s,dh=nh*s;
         const ox=(W-dw)*(+box.dataset.ox/100), oy=(H-dh)*(+box.dataset.oy/100);
-        $$('.homev2-homes_marker',box).forEach(m=>{ const x=ox+dw*m.dataset.x/100, y=oy+dh*m.dataset.y/100; const out=x<0||x>W||y<0||y>H; m.style.left=Math.min(Math.max(x,22),W-22)+'px'; m.style.top=Math.min(Math.max(y,22),H-22)+'px'; m.classList.toggle('off', out); });
+        $$('.homev2-homes_marker',box).forEach(m=>{ const x=ox+dw*m.dataset.x/100, y=oy+dh*m.dataset.y/100; const out=x<0||x>W||y<0||y>H; m.style.left=Math.min(Math.max(x,22),W-22)+'px'; m.style.top=Math.min(Math.max(y,22),H-22)+'px'; m.classList.toggle('is-off', out); });
       });
     }
     imgs.forEach(b=>{ const im=$('img',b); if(im.complete) place(); else im.addEventListener('load',place); });
@@ -80,7 +80,7 @@
     function pop(box,d){ const m=$$('.homev2-homes_marker',box); if(!G||rm){ m.forEach(x=>x.style.transform='scale(1)'); return; } gsap.fromTo(m,{scale:0},{scale:1,duration:.7,ease:'back.out(2)',stagger:.12,delay:d||0}); }
     function link(c,box){
       const items=$$('.homev2-features_callouts li',c), mks=$$('.homev2-homes_marker',box);
-      const hl=k=>{ items.forEach(li=>li.classList.toggle('on',li.dataset.n==k)); mks.forEach(m=>m.classList.toggle('on',m.dataset.n==k)); };
+      const hl=k=>{ items.forEach(li=>li.classList.toggle('is-on',li.dataset.n==k)); mks.forEach(m=>m.classList.toggle('is-on',m.dataset.n==k)); };
       items.forEach(li=>{ li.addEventListener('mouseenter',()=>hl(li.dataset.n)); li.addEventListener('mouseleave',()=>hl(0)); li.addEventListener('click',()=>hl(li.dataset.n)); });
       mks.forEach(m=>{ m.style.pointerEvents='auto'; m.style.cursor='pointer'; m.addEventListener('mouseenter',()=>hl(m.dataset.n)); m.addEventListener('mouseleave',()=>hl(0)); m.addEventListener('click',()=>hl(m.dataset.n)); });
     }
@@ -91,7 +91,7 @@
       if(busy||k===i) return; const from=i; i=(k+n)%n; ui();
       const nb=imgs[i], ob=imgs[from], nc=cs[i], oc=cs[from];
       imgs.forEach((b,j)=>b.setAttribute('aria-hidden',j!==i));
-      if(!G||rm){ imgs.forEach((b,j)=>{ b.classList.toggle('in',j===i); b.style.zIndex=j===i?2:1; }); cs.forEach((c,j)=>c.classList.toggle('on',j===i)); pop(nb); return; }
+      if(!G||rm){ imgs.forEach((b,j)=>{ b.classList.toggle('is-in',j===i); b.style.zIndex=j===i?2:1; }); cs.forEach((c,j)=>c.classList.toggle('is-on',j===i)); pop(nb); return; }
       busy=true;
       const outEls=$$('.homev2_eyebrow, .homev2-features_title, .homev2-features_body, .homev2-features_callouts li',oc);
       gsap.timeline({onComplete(){ busy=false; }})
@@ -102,7 +102,7 @@
         .fromTo($('img',nb),{scale:1.12},{scale:1,duration:1.5,ease:'out'},.12)
         .add(()=>{ gsap.set(ob,{'--homev2-sh':'0%'}); },1.15)
         .add(()=>{
-          oc.classList.remove('on'); gsap.set(outEls,{clearProps:'all'}); nc.classList.add('on');
+          oc.classList.remove('is-on'); gsap.set(outEls,{clearProps:'all'}); nc.classList.add('is-on');
           const body=$('.homev2-features_body',nc), t=$('.homev2-features_title',nc);
           const lt=splitLines(t), lb=splitLines(body);
           gsap.fromTo($('.homev2_eyebrow',nc),{opacity:0,y:10},{opacity:.8,y:0,duration:.6,ease:'out'});
@@ -135,41 +135,41 @@
 
   /* loader → hero */
   const loader=$('#loader'), num=$('#ldN');
-  const heroLines=$$('.hero .homev2_line > span');
+  const heroLines=$$('.is-hero .homev2_line > span');
   function hero(){
-    if(!G||rm){ heroLines.forEach(s=>s.style.transform='none'); $('.hero .homev2-hero_cta').style.cssText='opacity:1;transform:none'; $$('.hero .homev2-hero_split span').forEach(e=>e.style.cssText='opacity:1;transform:none'); return; }
+    if(!G||rm){ heroLines.forEach(s=>s.style.transform='none'); $('.is-hero .homev2-hero_cta').style.cssText='opacity:1;transform:none'; $$('.is-hero .homev2-hero_split span').forEach(e=>e.style.cssText='opacity:1;transform:none'); return; }
     gsap.timeline()
       .to(heroLines,{y:'0%',duration:1.6,ease:'out',stagger:.12},0)
-      .to('.hero .homev2-hero_cta',{opacity:1,y:0,duration:1,ease:'out'},.8)
-      .to('.hero .homev2-hero_split span',{opacity:1,y:0,duration:.9,ease:'out',stagger:.1},.9);
+      .to('.is-hero .homev2-hero_cta',{opacity:1,y:0,duration:1,ease:'out'},.8)
+      .to('.is-hero .homev2-hero_split span',{opacity:1,y:0,duration:.9,ease:'out',stagger:.1},.9);
   }
   if(!G||rm){ loader.remove(); hero(); }
   else{
     const narrow=matchMedia('(max-width:760px)').matches;
     /* window insets: [top/bottom %, left/right %] */
     const A=narrow?[33,42]:[30,47.2], B=narrow?[20,31]:[17,41.5];
-    const sc=$('#heroScene'), veil=$('.hero .homev2_veil'), o={p:0};
+    const sc=$('#heroScene'), veil=$('.is-hero .homev2_veil'), o={p:0};
     const setWin=(v,h)=>{ sc.style.clipPath=`inset(${v}% ${h}% ${v}% ${h}%)`; num.style.top=`calc(${100-v}% + 18px)`; };
-    setWin(A[0],A[1]); gsap.set(['.homev2-nav_component','.hero .homev2-hero_split'],{opacity:0}); gsap.set(veil,{opacity:0}); gsap.set(sc,{scale:1.18});
+    setWin(A[0],A[1]); gsap.set(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:0}); gsap.set(veil,{opacity:0}); gsap.set(sc,{scale:1.18});
     gsap.timeline({onComplete(){ loader.remove(); sc.style.clipPath=''; }})
       .to(o,{p:1,duration:2.4,ease:'io',onUpdate(){ const v=A[0]+(B[0]-A[0])*o.p, h=A[1]+(B[1]-A[1])*o.p; setWin(v,h); num.textContent=String(Math.round(o.p*100)).padStart(2,'0'); }},.15)
       .to(num,{opacity:0,y:8,duration:.4,ease:'io'},2.65)
       .add(()=>{ const w={v:B[0],h:B[1]}; gsap.to(w,{v:0,h:0,duration:1.3,ease:'io',onUpdate(){ sc.style.clipPath=`inset(${w.v}% ${w.h}% ${w.v}% ${w.h}%)`; }}); },2.75)
       .to(sc,{scale:1.12,duration:2,ease:'out'},2.75)
       .to(veil,{opacity:1,duration:1.2,ease:'out'},3.2)
-      .to(['.homev2-nav_component','.hero .homev2-hero_split'],{opacity:1,duration:.8,ease:'out'},3.5)
+      .to(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:1,duration:.8,ease:'out'},3.5)
       .add(hero,3.4);
   }
 
   /* amenities data */
   const AM=[...document.querySelectorAll('#amList li')].map(li=>[li.dataset.key,li.dataset.title,li.dataset.text]);
   const amImgs=$$('.homev2-vitality_image'), amItems=$$('#amList li'), amList=$('#amList'), amEb=$('#amEb'), amSt=$('#amSt'); let amI=0;
-  function amMark(i){ const li=amItems[i]; amList.style.setProperty('--homev2-y',li.offsetTop+'px'); amList.style.setProperty('--homev2-h',li.offsetHeight+'px'); amItems.forEach((l,k)=>{ l.classList.toggle('on',k===i); l.firstElementChild.setAttribute('aria-selected',k===i); }); }
+  function amMark(i){ const li=amItems[i]; amList.style.setProperty('--homev2-y',li.offsetTop+'px'); amList.style.setProperty('--homev2-h',li.offsetHeight+'px'); amItems.forEach((l,k)=>{ l.classList.toggle('is-on',k===i); l.firstElementChild.setAttribute('aria-selected',k===i); }); }
   amMark(0);
   function amGo(i){
     const from=amI; amI=i; amMark(i);
     const nxt=amImgs[i], prv=amImgs[from];
-    if(!G||rm){ amImgs.forEach((im,k)=>im.classList.toggle('in',k===i)); amEb.textContent=AM[i][1]; amSt.textContent=AM[i][2]; return; }
+    if(!G||rm){ amImgs.forEach((im,k)=>im.classList.toggle('is-in',k===i)); amEb.textContent=AM[i][1]; amSt.textContent=AM[i][2]; return; }
     gsap.killTweensOf([nxt,prv,amEb,amSt]);
     gsap.set(nxt,{zIndex:2}); gsap.set(prv,{zIndex:1});
     gsap.fromTo(nxt,{'--homev2-sh':'0%'},{'--homev2-sh':'5.5555%',duration:.9,ease:'io',onComplete(){ amImgs.forEach((im,k)=>{ if(k!==i) gsap.set(im,{'--homev2-sh':'0%'}); }); }});
@@ -180,31 +180,31 @@
 
   if(G&&!rm){
     /* hero parallax: the picture drifts down and zooms gently while the name rises faster */
-    gsap.fromTo('#heroScene img',{scale:1},{scale:1.16,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}});
+    gsap.fromTo('#heroScene img',{scale:1},{scale:1.16,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'bottom top',scrub:true}});
     const touch=matchMedia('(hover:none),(pointer:coarse)').matches;
-    if(!touch) gsap.to('.hero .homev2-hero_title',{yPercent:-70,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}});
-    gsap.to('.hero .homev2-hero_title, .hero .homev2-hero_cta, .hero .homev2-hero_split',{opacity:0,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'55% top',scrub:true}});
-    gsap.to('.hero .homev2_veil',{opacity:.55,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}});
-    if(!touch) gsap.to('.hero .homev2_sticky',{yPercent:100,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}});
-    $$('.homev2_photo:not(.hero .homev2_photo):not(.homev2-vitality_component .homev2_photo):not(.homev2-types_component .homev2_photo):not(#planPh):not(#openPh) img').forEach(img=>{
+    if(!touch) gsap.to('.is-hero .homev2-hero_title',{yPercent:-70,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'bottom top',scrub:true}});
+    gsap.to('.is-hero .homev2-hero_title, .is-hero .homev2-hero_cta, .is-hero .homev2-hero_split',{opacity:0,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'55% top',scrub:true}});
+    gsap.to('.is-hero .homev2_veil',{opacity:.55,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'bottom top',scrub:true}});
+    if(!touch) gsap.to('.is-hero .homev2_sticky',{yPercent:100,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'bottom top',scrub:true}});
+    $$('.homev2_photo:not(.is-hero .homev2_photo):not(.homev2-vitality_component .homev2_photo):not(.homev2-types_component .homev2_photo):not(#planPh):not(#openPh) img').forEach(img=>{
       gsap.fromTo(img,{yPercent:-8},{yPercent:8,ease:'none',scrollTrigger:{trigger:img.parentElement,start:'top bottom',end:'bottom top',scrub:.5}});
       gsap.to(img,{scale:1.02,duration:1.8,ease:'out',scrollTrigger:{trigger:img.parentElement,start:'top 90%',once:true}});
     });
     /* the sky scene fills the width: scale the 1440 stage to the viewport */
     const setS=()=>{ const sc=$('#scene'); if(sc) sc.style.setProperty('--homev2-s',((innerWidth<=760?innerWidth*2.6:innerWidth)/1440).toFixed(4)); }; setS(); addEventListener('resize',setS);
     $$('#scene [data-par]').forEach(el=>{ const d=+el.dataset.par; gsap.fromTo(el,{yPercent:-d},{yPercent:d,ease:'none',scrollTrigger:{trigger:'#scene',start:'top bottom',end:'bottom top',scrub:.4}}); });
-    gsap.fromTo('#scene :is(.homev2-setting_copy,.copy)',{y:60},{y:-160,ease:'none',scrollTrigger:{trigger:'#scene',start:'top bottom',end:'bottom top',scrub:.4}});
+    gsap.fromTo('#scene :is(.homev2-setting_copy,.is-copy)',{y:60},{y:-160,ease:'none',scrollTrigger:{trigger:'#scene',start:'top bottom',end:'bottom top',scrub:.4}});
     /* the rarity picture floats slower than the words */
     gsap.fromTo('.rar .inset',{y:80},{y:-120,ease:'none',scrollTrigger:{trigger:'#rarity',start:'top bottom',end:'bottom top',scrub:.5}});
     /* four cards rise in turn */
     gsap.from('.homev2-reasons_grid .homev2-reasons_card',{y:120,opacity:0,duration:1.4,ease:'out',stagger:.12,scrollTrigger:{trigger:'.homev2-reasons_grid',start:'top 85%',once:true}});
     /* the slats open as the picture passes the middle of the screen */
-    $$('.shape').forEach(el=>{ gsap.fromTo(el,{'--homev2-top':'58%'},{'--homev2-top':'74%',ease:'none',scrollTrigger:{trigger:el,start:'top 95%',end:'center 40%',scrub:.3}}); });
+    $$('.is-shape').forEach(el=>{ gsap.fromTo(el,{'--homev2-top':'58%'},{'--homev2-top':'74%',ease:'none',scrollTrigger:{trigger:el,start:'top 95%',end:'center 40%',scrub:.3}}); });
     $$('[data-zoom]').forEach(h=>{
       gsap.to($$('.homev2_line > span',h),{y:'0%',duration:1.4,ease:'out',stagger:.1,scrollTrigger:{trigger:h,start:'top 85%',once:true}});
       gsap.fromTo(h,{scale:.94,opacity:.6},{scale:1,opacity:1,ease:'none',scrollTrigger:{trigger:h,start:'top 95%',end:'top 45%',scrub:.5}});
     });
-    $$('.rev').forEach(el=>{ gsap.to(el,{opacity:1,y:0,duration:1.1,ease:'out',scrollTrigger:{trigger:el,start:'top 90%',once:true}}); });
+    $$('.is-rev').forEach(el=>{ gsap.to(el,{opacity:1,y:0,duration:1.1,ease:'out',scrollTrigger:{trigger:el,start:'top 90%',once:true}}); });
     $$('[data-draw]').forEach(el=>{ gsap.from(el,{scaleY:0,duration:1.3,ease:'out',scrollTrigger:{trigger:el,start:'top 85%',once:true}}); });
     $$('.homev2-vitality_image img').forEach(im=>gsap.fromTo(im,{yPercent:-4},{yPercent:4,ease:'none',scrollTrigger:{trigger:'.homev2-vitality_component',start:'top bottom',end:'bottom top',scrub:.4}}));
     gsap.fromTo('#marq span',{xPercent:0},{xPercent:-12,ease:'none',scrollTrigger:{trigger:'#marq',start:'top bottom',end:'bottom top',scrub:.4}});
@@ -268,9 +268,9 @@
       const go=(i,scroll=true)=>{
         i=(i+cards.length)%cards.length; if(i===cur) return;
         const prev=cards[cur];
-        if(prev){ prev.classList.remove('on'); prev.setAttribute('aria-pressed','false'); gsap.to($('.homev2-location_card-image',prev),{'--homev2-sh':'0%',duration:.35,ease:'in',overwrite:true}); }
-        marks.forEach((m,k)=>{ m.classList.toggle('on',k===i); m.setAttribute('aria-pressed',k===i?'true':'false'); });
-        const c=cards[i]; c.classList.add('on'); c.setAttribute('aria-pressed','true');
+        if(prev){ prev.classList.remove('is-on'); prev.setAttribute('aria-pressed','false'); gsap.to($('.homev2-location_card-image',prev),{'--homev2-sh':'0%',duration:.35,ease:'in',overwrite:true}); }
+        marks.forEach((m,k)=>{ m.classList.toggle('is-on',k===i); m.setAttribute('aria-pressed',k===i?'true':'false'); });
+        const c=cards[i]; c.classList.add('is-on'); c.setAttribute('aria-pressed','true');
         if(nar&&mx){ const mk=marks[i]; gsap.to(mx,{scrollLeft:Math.max(0,mk.offsetLeft-mx.clientWidth/2),duration:scroll?.8:0,ease:'io',overwrite:true}); }
         gsap.fromTo($('.homev2-location_card-image',c),{'--homev2-sh':'0%'},{'--homev2-sh':'5.5555%',duration:1.1,ease:'out',delay:.35,overwrite:true});
         cnt.textContent=String(i+1); const lb=$('#lcBar'); if(lb) lb.style.width=((i+1)/cards.length*100)+'%';
@@ -324,8 +324,8 @@
     /* distance bars draw in turn */
     gsap.to('#prog',{width:'100%',ease:'none',scrollTrigger:{trigger:'.homev2_page',start:'top top',end:'bottom bottom',scrub:true}});
     const nav=$('#nav');
-    $$('section.cream, section.sand').forEach(s=>{ ScrollTrigger.create({trigger:s,start:'top 60px',end:'bottom 60px',onToggle(st){ nav.classList.toggle('on-light',st.isActive); }}); });
-  } else { $$('.rev').forEach(e=>{e.style.opacity=1;e.style.transform='none'}); $$('.homev2_line > span').forEach(s=>s.style.transform='none'); $('#openPh').style.clipPath='none'; }
+    $$('section.is-cream, section.is-sand').forEach(s=>{ ScrollTrigger.create({trigger:s,start:'top 60px',end:'bottom 60px',onToggle(st){ nav.classList.toggle('is-on-light',st.isActive); }}); });
+  } else { $$('.is-rev').forEach(e=>{e.style.opacity=1;e.style.transform='none'}); $$('.homev2_line > span').forEach(s=>s.style.transform='none'); $('#openPh').style.clipPath='none'; }
 
   /* drag gallery */
   const gal=$('#gal'); let dx=0,sx=0,down=false;
@@ -345,7 +345,7 @@
   function goType(dir){
     if(busy) return; busy=true; ti=(ti+dir+TYPES.length)%TYPES.length; const d=TYPES[ti]; const of=frs[fi], nf=frs[fi^1]; fi^=1; const ni=$('img',nf); if(d.img){ ni.src=d.img; ni.alt=d.alt; }
     tsN.textContent=ti+1; tsRun();
-    if(!G||rm){ split(d.t); frs.forEach(f=>f.classList.toggle('in',f===nf)); tsTxt.textContent=d.txt; tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; busy=false; return; }
+    if(!G||rm){ split(d.t); frs.forEach(f=>f.classList.toggle('is-in',f===nf)); tsTxt.textContent=d.txt; tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; busy=false; return; }
     const old=$$('.ch',ttl);
     gsap.timeline({onComplete(){busy=false;}})
       .to(old,{yPercent:-110,duration:.6,ease:'io',stagger:.02},0)
@@ -398,9 +398,9 @@
     if(k===cgI) return; const from=cgI; cgI=k;
     cgLis.forEach((l,j)=>{ $('[data-button]',l).setAttribute('aria-expanded',j===k); });
     const nb=cgImgs[k], ob=cgImgs[from], newD=$('.homev2-care_detail',cgLis[k]), oldD=$('.homev2-care_detail',cgLis[from]);
-    if(!G||rm){ cgLis.forEach((l,j)=>l.classList.toggle('on',j===k)); cgImgs.forEach((im,j)=>im.classList.toggle('in',j===k)); return; }
-    gsap.fromTo(oldD,{height:oldD.offsetHeight},{height:0,duration:.6,ease:'io',onComplete(){ cgLis[from].classList.remove('on'); gsap.set(oldD,{clearProps:'height'}); }});
-    cgLis[k].classList.add('on');
+    if(!G||rm){ cgLis.forEach((l,j)=>l.classList.toggle('is-on',j===k)); cgImgs.forEach((im,j)=>im.classList.toggle('is-in',j===k)); return; }
+    gsap.fromTo(oldD,{height:oldD.offsetHeight},{height:0,duration:.6,ease:'io',onComplete(){ cgLis[from].classList.remove('is-on'); gsap.set(oldD,{clearProps:'height'}); }});
+    cgLis[k].classList.add('is-on');
     gsap.fromTo(newD,{height:0},{height:'auto',duration:.8,ease:'io',onComplete(){ gsap.set(newD,{clearProps:'height'}); ScrollTrigger.refresh(); }});
     const p=$('p',newD), ls=splitLines(p);
     gsap.fromTo(ls,{yPercent:110},{yPercent:0,duration:1,ease:'out',stagger:.08,delay:.2,onComplete(){ p.innerHTML=p._orig; }});
@@ -421,16 +421,16 @@
   let menuTl=null;
   const open=v=>{
     sheet.setAttribute('aria-hidden',!v);
-    if(!G||rm){ sheet.classList.toggle('open',v); sheet.style.setProperty('--homev2-sh',v?'5.5555%':'0%'); return; }
+    if(!G||rm){ sheet.classList.toggle('is-open',v); sheet.style.setProperty('--homev2-sh',v?'5.5555%':'0%'); return; }
     if(menuTl) menuTl.kill();
-    if(v){ sheet.classList.add('open'); if(lenis) lenis.stop();
+    if(v){ sheet.classList.add('is-open'); if(lenis) lenis.stop();
       menuTl=gsap.timeline().fromTo(sheet,{'--homev2-sh':'0%'},{'--homev2-sh':'5.5555%',duration:.9,ease:'io'},0).fromTo(sheetLinks,{yPercent:110},{yPercent:0,duration:.9,ease:'out',stagger:.06},.45).fromTo([sheetFoot,sheetX],{opacity:0},{opacity:1,duration:.6},.7);
     } else { if(lenis) lenis.start();
-      menuTl=gsap.timeline({onComplete(){ sheet.classList.remove('open'); }}).to(sheetLinks,{yPercent:-110,duration:.5,ease:'io',stagger:.03},0).to([sheetFoot,sheetX],{opacity:0,duration:.3},0).to(sheet,{'--homev2-sh':'0%',duration:.8,ease:'io'},.2);
+      menuTl=gsap.timeline({onComplete(){ sheet.classList.remove('is-open'); }}).to(sheetLinks,{yPercent:-110,duration:.5,ease:'io',stagger:.03},0).to([sheetFoot,sheetX],{opacity:0,duration:.3},0).to(sheet,{'--homev2-sh':'0%',duration:.8,ease:'io'},.2);
     }
   };
   $('#menuBtn').addEventListener('click',()=>open(true)); $('#menuX').addEventListener('click',()=>open(false));
-  $$('[data-go]').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); open(false); const t=$(a.getAttribute('href')); if(t) setTimeout(()=>scrollToY(topOf(t)),sheet.classList.contains('open')?500:0); }));
+  $$('[data-go]').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); open(false); const t=$(a.getAttribute('href')); if(t) setTimeout(()=>scrollToY(topOf(t)),sheet.classList.contains('is-open')?500:0); }));
 })();
 
 /* Webflow publishes every image loading="lazy". Re-measure the scroll triggers when a picture lands, so pinned
