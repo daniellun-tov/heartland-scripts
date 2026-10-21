@@ -72,7 +72,7 @@
       imgs.forEach(box=>{ const im=$('img',box); if(!im.naturalWidth) return;
         const W=box.clientWidth,H=box.clientHeight,nw=im.naturalWidth,nh=im.naturalHeight,s=Math.max(W/nw,H/nh),dw=nw*s,dh=nh*s;
         const ox=(W-dw)*(+box.dataset.ox/100), oy=(H-dh)*(+box.dataset.oy/100);
-        $$('.homev2-homes_marker',box).forEach(m=>{ const x=ox+dw*m.dataset.x/100, y=oy+dh*m.dataset.y/100; m.style.left=x+'px'; m.style.top=y+'px'; m.classList.toggle('off', x<20||x>W-20||y<20||y>H-20); });
+        $$('.homev2-homes_marker',box).forEach(m=>{ const x=ox+dw*m.dataset.x/100, y=oy+dh*m.dataset.y/100; const out=x<0||x>W||y<0||y>H; m.style.left=Math.min(Math.max(x,22),W-22)+'px'; m.style.top=Math.min(Math.max(y,22),H-22)+'px'; m.classList.toggle('off', out); });
       });
     }
     imgs.forEach(b=>{ const im=$('img',b); if(im.complete) place(); else im.addEventListener('load',place); });
@@ -110,12 +110,16 @@
           gsap.fromTo(lb,{yPercent:110},{yPercent:0,duration:1.05,ease:'out',stagger:.08,delay:.15,onComplete(){ body.innerHTML=body._orig; }});
           gsap.fromTo($$('.homev2-features_callouts li',nc),{opacity:0,y:16},{opacity:1,y:0,duration:.8,ease:'out',stagger:.1,delay:.35});
           place(); pop(nb,.25);
+          setTimeout(()=>{ [t,body].forEach(el=>{ if(el._orig!=null&&el.querySelector('.w')){ gsap.killTweensOf(el.querySelectorAll('*')); el.innerHTML=el._orig; } }); },2200);
         },.45);
     }
     tabs.forEach(t=>t.addEventListener('click',()=>go(+t.dataset.i)));
     $$('.homev2-features_button',fs).forEach(b=>b.addEventListener('click',()=>go(i+ +b.dataset.d)));
     const st=$('.homev2-features_stage',fs); let sx=null;
-    st.addEventListener('pointerdown',e=>{ sx=e.clientX; });
+    st.addEventListener('pointerdown',e=>{ if(e.pointerType==='mouse') sx=e.clientX; });
+    let tx=null, ty=null;
+    fs.addEventListener('touchstart',e=>{ const t=e.touches[0]; tx=t.clientX; ty=t.clientY; },{passive:true});
+    fs.addEventListener('touchend',e=>{ if(tx===null) return; const t=e.changedTouches[0], dx=t.clientX-tx, dy=t.clientY-ty; tx=null; if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)*1.3) go(i+(dx<0?1:-1)); },{passive:true});
     st.addEventListener('pointerup',e=>{ if(sx===null) return; const dx=e.clientX-sx; sx=null; if(Math.abs(dx)>40) go(i+(dx<0?1:-1)); });
     if(G&&!rm) ScrollTrigger.create({trigger:fs,start:'top 75%',once:true,onEnter(){ place(); pop(imgs[0],.2); }});
     else pop(imgs[0]);

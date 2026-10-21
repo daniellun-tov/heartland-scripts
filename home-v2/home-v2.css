@@ -728,3 +728,7 @@ textarea.homev2-register_input{resize:vertical;min-height:52px}
 /* stat values with a unit (3 ha, 5 min): a block wrapper, since Webflow cannot nest a span inside bold text */
 .homev2-stats_value small{font-size:.42em;margin-left:.12em}
 .homev2-peace_render{aspect-ratio:2000/1125}
+
+/* features slider, phones: edge-to-edge 3:2 picture (was a short 28svh strip that cropped the markers off) */
+@media (max-width:767px){#fs .homev2-features_stage{aspect-ratio:3/2;height:auto;margin-left:calc(var(--homev2-gutter) * -1);margin-right:calc(var(--homev2-gutter) * -1)}}
+.homev2-features_component{touch-action:pan-y}
