@@ -423,8 +423,9 @@
     return { el: el, amt: num(el.getAttribute(par ? "data-nh-par" : "data-nh-drift")), par: par, c: null, vis: true };
   });
   if ("IntersectionObserver" in w) {
-    var vio = new IntersectionObserver(function (es) { es.forEach(function (en) { movers.forEach(function (m) { if (m.el === en.target) { m.vis = en.isIntersecting; } }); }); kick(); }, { rootMargin: "240px 0px" });
-    movers.forEach(function (m) { vio.observe(m.el); });
+    // watch the mover's container, not the mover: a drifted word can sit off-screen and would never wake up again
+    var vio = new IntersectionObserver(function (es) { es.forEach(function (en) { movers.forEach(function (m) { if (m.el.parentNode === en.target) { m.vis = en.isIntersecting; } }); }); kick(); }, { rootMargin: "240px 0px" });
+    movers.forEach(function (m) { vio.observe(m.el.parentNode); });
   }
   var sxRoot = qs("[data-nh-sx]");
   var sx = sxRoot ? {
@@ -496,7 +497,7 @@
       movers.forEach(function (m) {
         if (!m.vis) { return; }
         var rc = m.el.parentNode.getBoundingClientRect();
-        var off = (rc.top + rc.height / 2 - vh / 2) / vh;
+        var off = Math.max(-1.5, Math.min(1.5, (rc.top + rc.height / 2 - vh / 2) / vh));
         var goal = off * m.amt;
         if (m.c === null) { m.c = goal; }
         m.c += (goal - m.c) * 0.075;
