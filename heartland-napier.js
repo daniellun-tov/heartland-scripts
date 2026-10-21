@@ -197,6 +197,50 @@
   }
   qsa(".nh_split_text").forEach(function (el) { if (!reduce) { splitEl(el); } });
 
+  /* ----------------------------------------------------------- 2a. images ready before they are seen
+     Native lazy-loading starts too late for large AVIFs on a fast scroll, so images popped in under
+     their reveal. Every page image is switched to eager and decoded once it is within 1.5 screens;
+     pictures the bundle swaps in later (place cards, home cards) are fetched when their section nears;
+     and a reveal waits (max 1.2s) for its image, so the clip plays over a picture, never a blank box. */
+  function warm(img) {
+    if (!img || img._nhWarm) { return; }
+    img._nhWarm = true;
+    if (img.loading === "lazy") { img.loading = "eager"; }
+    if (img.decode) { img.decode().catch(function () {}); }
+  }
+  function whenImg(el, cb) {
+    var im = el.tagName === "IMG" ? el : qs("img", el), done = false;
+    var go = function () { if (!done) { done = true; cb(); } };
+    if (!im || (im.complete && im.naturalWidth) || getComputedStyle(im).display === "none") { go(); return; }
+    warm(im);
+    if (im.decode) { im.decode().then(go, go); } else { on(im, "load", go); on(im, "error", go); }
+    setTimeout(go, 1200);
+  }
+  (function warmImages() {
+    var imgs = qsa("img").filter(function (i) { return PAGE.contains(i); });
+    var swaps = {};
+    qsa("[data-nh-place-img], [data-nh-img]").forEach(function (el) {
+      var u = el.getAttribute("data-nh-place-img") || el.getAttribute("data-nh-img"), sec = el.closest("section") || PAGE;
+      if (!u) { return; }
+      var k = sec.id || "page"; (swaps[k] = swaps[k] || { sec: sec, urls: [] }).urls.push(u);
+    });
+    var fetchSwaps = function (g) {
+      if (g.done) { return; } g.done = true;
+      g.urls.forEach(function (u, i) { setTimeout(function () { var im = new Image(); im.decoding = "async"; im.src = u; if (im.decode) { im.decode().catch(function () {}); } }, i * 60); });
+    };
+    if (!("IntersectionObserver" in w)) { imgs.forEach(warm); Object.keys(swaps).forEach(function (k) { fetchSwaps(swaps[k]); }); return; }
+    var wio = new IntersectionObserver(function (es) {
+      es.forEach(function (en) {
+        if (!en.isIntersecting) { return; }
+        wio.unobserve(en.target);
+        if (en.target.tagName === "IMG") { warm(en.target); } else { Object.keys(swaps).forEach(function (k) { if (swaps[k].sec === en.target) { fetchSwaps(swaps[k]); } }); }
+      });
+    }, { rootMargin: "150% 0px 150% 0px" });
+    var start = function () { imgs.forEach(function (i) { wio.observe(i); }); Object.keys(swaps).forEach(function (k) { wio.observe(swaps[k].sec); }); };
+    // after load, so warming never competes with the hero poster or holds up the loader
+    if (d.readyState === "complete") { start(); } else { on(w, "load", start); }
+  })();
+
   /* ----------------------------------------------------------- 2. reveals (batched, top to bottom) */
   var io = null;
   function observeReveals() {
@@ -219,7 +263,7 @@
             el.style.setProperty("--d", dl + "ms");
             el.classList.add("in");
             setTimeout(function () { el.classList.remove("nh_rise", "in"); el.style.removeProperty("--d"); }, 1500 + dl);
-          } else { el.classList.add("in"); }
+          } else { whenImg(el, function () { el.classList.add("in"); }); }
         });
       }, { threshold: 0.16, rootMargin: "0px 0px -10% 0px" });
     }
