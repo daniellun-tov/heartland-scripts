@@ -402,6 +402,21 @@
     }
     w.requestAnimationFrame(frame);
   })();
+  /* Heart / Explore: the top copy of the word is clipped to the picture's exact box and corners, measured
+     (a fixed % only matched one layout, so at some widths the light copy fell on plaster and vanished). */
+  var hiSync = function () {
+    qsa("[data-nh-hi]").forEach(function (hi) {
+      var lay = qs(".nh_hi_layer.is-top, .nh_hi_layer.is-extop", hi), med = qs(".nh_hi_media", hi);
+      if (!lay || !med) { return; }
+      var a = lay.getBoundingClientRect(), b = med.getBoundingClientRect(), cs = getComputedStyle(med);
+      if (!a.width || !b.width) { return; }
+      var px = function (v) { return Math.max(0, v).toFixed(1) + "px"; };
+      lay.style.clipPath = "inset(" + px(b.top - a.top) + " " + px(a.right - b.right) + " " + px(a.bottom - b.bottom) + " " + px(b.left - a.left) +
+        " round " + cs.borderTopLeftRadius + " " + cs.borderTopRightRadius + " " + cs.borderBottomRightRadius + " " + cs.borderBottomLeftRadius + ")";
+    });
+  };
+  hiSync(); on(w, "load", hiSync);
+  var hiT = 0; on(w, "resize", function () { clearTimeout(hiT); hiT = setTimeout(hiSync, 120); });
   var heroCur = 0, heroOn = false;
   var movers = qsa("[data-nh-drift], [data-nh-par]").map(function (el) {
     var par = el.hasAttribute("data-nh-par");
