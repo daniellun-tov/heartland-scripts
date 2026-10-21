@@ -720,10 +720,11 @@ textarea.homev2-register_input{resize:vertical;min-height:52px}
 .homev2-register_form input[type=checkbox],.homev2-register_form input[type=radio]{float:none;margin:0;padding:0;width:20px;height:20px;flex:none;accent-color:var(--_home-v2---homev2-amber-soft)}
 .homev2-register_checks .w-form-label{margin:0;font:inherit}
 .homev2-register_radio .homev2-register_radio-label{display:block;font:400 17px/1.4 var(--_home-v2---homev2-sans),system-ui,sans-serif;letter-spacing:0;text-transform:none;opacity:1}
-.homev2-register_submit{justify-self:start;display:inline-flex;align-items:center;gap:10px;font:600 11px/1 var(--_home-v2---homev2-wide),system-ui,sans-serif;letter-spacing:.24em;text-transform:uppercase;padding:20px 30px;border:1px solid var(--_home-v2---homev2-cream);border-radius:0;background:var(--_home-v2---homev2-cream);color:var(--_home-v2---homev2-plum);cursor:pointer;transition:background .3s,color .3s}
-.homev2-register_submit:hover{background:transparent;color:var(--_home-v2---homev2-cream)}
+.homev2-register_form .homev2-register_submit{justify-self:start;display:inline-flex;align-items:center;gap:10px;font:600 11px/1 var(--_home-v2---homev2-wide),system-ui,sans-serif;letter-spacing:.24em;text-transform:uppercase;padding:20px 30px;border:1px solid var(--_home-v2---homev2-cream);border-radius:0;background:var(--_home-v2---homev2-cream);color:var(--_home-v2---homev2-plum);cursor:pointer;transition:background .3s,color .3s}
+.homev2-register_form .homev2-register_submit:hover{background:transparent;color:var(--_home-v2---homev2-cream)}
 .homev2-register_done{background:transparent;padding:0;text-align:left;font-family:var(--_home-v2---homev2-serif),Georgia,serif;font-weight:300;font-size:30px;line-height:1.2;color:inherit}
 .homev2-register_fail{background:transparent;padding:0;margin-top:16px;font:400 16px/1.5 var(--_home-v2---homev2-sans),system-ui,sans-serif;color:var(--_home-v2---homev2-amber-soft)}
 .homev2-register_slot .w-form{margin:0}
 /* stat values with a unit (3 ha, 5 min): a block wrapper, since Webflow cannot nest a span inside bold text */
 .homev2-stats_value small{font-size:.42em;margin-left:.12em}
+.homev2-peace_render{aspect-ratio:2000/1125}

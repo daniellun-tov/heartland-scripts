@@ -427,3 +427,13 @@
   $('#menuBtn').addEventListener('click',()=>open(true)); $('#menuX').addEventListener('click',()=>open(false));
   $$('[data-go]').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); open(false); const t=$(a.getAttribute('href')); if(t) setTimeout(()=>scrollToY(topOf(t)),sheet.classList.contains('open')?500:0); }));
 })();
+
+/* Webflow publishes every image loading="lazy". Re-measure the scroll triggers when a picture lands, so pinned
+   sections stay in step, and fetch the rest once the page has loaded so they are ready before the visitor arrives. */
+(function(){
+  let t; const refresh=()=>{ clearTimeout(t); t=setTimeout(()=>{ if(window.ScrollTrigger) ScrollTrigger.refresh(); },200); };
+  const lazy=[...document.querySelectorAll('img[loading="lazy"]')];
+  lazy.forEach(i=>{ if(!i.complete) i.addEventListener('load',refresh,{once:true}); });
+  const warm=()=>lazy.forEach((i,k)=>setTimeout(()=>{ i.loading='eager'; },k*120));
+  if(document.readyState==='complete') setTimeout(warm,1500); else window.addEventListener('load',()=>setTimeout(warm,1500),{once:true});
+})();
