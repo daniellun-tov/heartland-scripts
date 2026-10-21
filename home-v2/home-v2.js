@@ -327,11 +327,21 @@
     $$('section.is-cream, section.is-sand').forEach(s=>{ ScrollTrigger.create({trigger:s,start:'top 60px',end:'bottom 60px',onToggle(st){ nav.classList.toggle('is-on-light',st.isActive); }}); });
   } else { $$('.is-rev').forEach(e=>{e.style.opacity=1;e.style.transform='none'}); $$('.homev2_line > span').forEach(s=>s.style.transform='none'); $('#openPh').style.clipPath='none'; }
 
-  /* drag gallery */
-  const gal=$('#gal'); let dx=0,sx=0,down=false;
-  gal.addEventListener('pointerdown',e=>{down=true;sx=e.clientX;dx=gal.scrollLeft;gal.setPointerCapture(e.pointerId);gal.style.cursor='grabbing'});
-  gal.addEventListener('pointermove',e=>{ if(down) gal.scrollLeft=dx-(e.clientX-sx); });
-  ['pointerup','pointercancel'].forEach(t=>gal.addEventListener(t,()=>{down=false;gal.style.cursor='grab'}));
+  /* drag gallery: mouse drags the strip (touch keeps native scrolling); snapping is paused while dragging, then the strip settles on the nearest picture in the drag direction */
+  const gal=$('#gal'); let dx=0,sx=0,down=false,moved=0;
+  gal.addEventListener('dragstart',e=>e.preventDefault());
+  gal.style.cursor='grab';
+  gal.addEventListener('pointerdown',e=>{ if(e.pointerType!=='mouse'||e.button!==0) return; down=true; moved=0; sx=e.clientX; dx=gal.scrollLeft; gal.style.scrollSnapType='none'; gal.style.scrollBehavior='auto'; gal.style.userSelect='none'; gal.style.cursor='grabbing'; gal.setPointerCapture(e.pointerId); });
+  gal.addEventListener('pointermove',e=>{ if(!down) return; moved=e.clientX-sx; gal.scrollLeft=dx-moved; });
+  const galEnd=()=>{ if(!down) return; down=false; gal.style.cursor='grab'; gal.style.userSelect='';
+    const kids=[...gal.children], pad=parseFloat(getComputedStyle(gal).scrollPaddingLeft)||0, x=gal.scrollLeft;
+    let i=kids.reduce((b,k,j)=>Math.abs(k.offsetLeft-pad-x)<Math.abs(kids[b].offsetLeft-pad-x)?j:b,0);
+    if(Math.abs(moved)>40){ const cur=kids.findIndex(k=>k.offsetLeft-pad>=dx-2); const base=cur<0?i:cur; i=Math.max(0,Math.min(kids.length-1, moved<0?Math.max(i,base+1):Math.min(i,base-1))); }
+    const to=Math.max(0,Math.min(gal.scrollWidth-gal.clientWidth,kids[i].offsetLeft-pad));
+    if(G&&!rm) gsap.to(gal,{scrollLeft:to,duration:.7,ease:'out',overwrite:true,onComplete(){ gal.style.scrollSnapType=''; gal.style.scrollBehavior=''; }});
+    else { gal.scrollLeft=to; gal.style.scrollSnapType=''; gal.style.scrollBehavior=''; } };
+  ['pointerup','pointercancel','lostpointercapture'].forEach(t=>gal.addEventListener(t,galEnd));
+  gal.addEventListener('click',e=>{ if(Math.abs(moved)>6){ e.preventDefault(); e.stopPropagation(); moved=0; } },true);
 
   /* types slider: letters leave upward, the picture comes in through slats, new letters rise */
   let TYPES=[
@@ -351,10 +361,14 @@
       .to(old,{yPercent:-110,duration:.6,ease:'io',stagger:.02},0)
       .to(tsTxt,{opacity:0,y:-8,duration:.4,ease:'io'},0)
       .to([tsType,tsPos,tsSize],{opacity:0,y:-8,duration:.4,ease:'io',stagger:.05},0)
-      .set(nf,{'--homev2-sh':'0%',zIndex:2},0)
-      .to(nf,{'--homev2-sh':'5.5555%',duration:1,ease:'io'},.15)
-      .fromTo(ni,{scale:1.12},{scale:1,duration:1.4,ease:'out'},.15)
-      .set(of,{zIndex:1,'--homev2-sh':'0%'},1.2)
+      /* the current render closes through the same slats (each slat shrinks from the top) while the next one opens behind it */
+      .to(of,{'--homev2-st':'5.5555%',duration:.8,ease:'io'},0)
+      .to($('img',of),{scale:1.06,duration:.8,ease:'io'},0)
+      .set(nf,{'--homev2-sh':'0%','--homev2-st':'0%',zIndex:2},0)
+      .to(nf,{'--homev2-sh':'5.5555%',duration:1,ease:'io'},.45)
+      .fromTo(ni,{scale:1.12},{scale:1,duration:1.4,ease:'out'},.45)
+      .set(of,{zIndex:1,'--homev2-sh':'0%','--homev2-st':'0%'},1.5)
+      .set($('img',of),{scale:1},1.5)
       .add(()=>{ const ch=split(d.t); gsap.set(ch,{yPercent:110}); gsap.to(ch,{yPercent:0,duration:.9,ease:'out',stagger:.025}); tsTxt.textContent=d.txt; tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; gsap.fromTo([tsType,tsPos,tsSize,tsTxt],{opacity:0,y:10},{opacity:1,y:0,duration:.7,ease:'out',stagger:.06}); },.55);
   }
   $$('[data-ts]').forEach(b=>b.addEventListener('click',()=>goType(+b.dataset.ts)));
@@ -414,7 +428,7 @@
   }
   /* register */
   const regForm=$('#regForm');
-  $('#viewing').addEventListener('click',e=>{ e.preventDefault(); const m=$('textarea[name=message]',regForm); m.value="I'd like to arrange a private viewing"; scrollToY(topOf(regForm)-140); setTimeout(()=>$('input[name="First Name"]',regForm).focus({preventScroll:true}),900); });
+  const viewing=$('#viewing'); if(viewing) viewing.addEventListener('click',e=>{ e.preventDefault(); const m=$('textarea[name=message]',regForm); m.value="I'd like to arrange a private viewing"; scrollToY(topOf(regForm)-140); setTimeout(()=>$('input[name="First Name"]',regForm).focus({preventScroll:true}),900); });
   
   /* menu through slats */
   const sheet=$('#sheet'); const sheetLinks=$$('.homev2-menu_sheet nav a > span'), sheetFoot=$('.homev2-menu_sheet .homev2-menu_footer'), sheetX=$('.homev2-menu_sheet .homev2-menu_close');
