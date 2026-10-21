@@ -2261,6 +2261,28 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     ok("and no availability link", b.all('[data-hl-interest-link]').length === 0);
   }
 
+  /* ---------------------------------------------------- the skin (21 Oct) */
+  {
+    const b = boot({ list: [res({ theme: { primary: "#8a9380", font_body: "Manrope", paper: "#F6F3EE", button_radius: "999px" } })] });
+    await wait(80);
+    const skins = b.d.querySelectorAll('style[data-hl-skin]');
+    ok("the skin is injected once on a themed page", skins.length === 1);
+    ok("and carries the finish rules", /\.hl-flow \.hl-fee\{/.test(skins[0] ? skins[0].textContent : ''));
+    b.w.HLSkin.inject();
+    ok("injecting again adds nothing", b.d.querySelectorAll('style[data-hl-skin]').length === 1);
+    const root = b.d.querySelector('[data-hl-theme]') || b.d.documentElement;
+    ok("a theme's new body-font token reaches the page", root.style.getPropertyValue('--hl-font-body') === 'Manrope');
+    ok("and its paper", root.style.getPropertyValue('--hl-paper') === '#F6F3EE');
+    ok("and its button shape", root.style.getPropertyValue('--hl-button-radius') === '999px');
+  }
+  {
+    const b = boot({ list: [res({ theme: { primary: "#8a9380" } })] });
+    await wait(80);
+    const root = b.d.querySelector('[data-hl-theme]') || b.d.documentElement;
+    ok("a theme without the new tokens leaves them unset (the skin derives them)",
+       root.style.getPropertyValue('--hl-paper') === '' && root.style.getPropertyValue('--hl-primary') === '#8a9380');
+  }
+
   /* ---------------------------------------------------- inert elsewhere */
   {
     const dom = new JSDOM('<!doctype html><html><body><div>nothing</div></body></html>',
@@ -2272,6 +2294,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     await wait(60);
     ok("the portal does nothing on a page that has not asked for it", fetched === 0);
     ok("and does not expose itself either", typeof dom.window.HLPortal === 'undefined');
+    ok("and injects no skin", !dom.window.document.querySelector('style[data-hl-skin]'));
   }
 
   const bad = A.filter(a => !a.pass);
