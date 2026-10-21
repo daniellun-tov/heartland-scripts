@@ -228,6 +228,7 @@
   setTimeout(observeReveals, 50);
 
   /* ----------------------------------------------------------- 3. nav + hero + drift + strips: one smoothed rAF loop */
+  var navOk = false;
   var nav = qs("[data-nh-nav]"), bar = qs("[data-nh-bar]"), reg = qs("#register");
   var track = qs(".nh_hero"), pin = qs(".nh_hero_pin"), frame = qs("#nh-hero-frame"), slot = qs("#nh-hero-slot");
   var intro = qs("#nh-hero-intro"), veil = qs(".nh_hero_veil"), cap = qs("#nh-hero-cap");
@@ -408,6 +409,7 @@
       nav.classList.toggle("is-pre", !reduce && raw < 0.22);
       nav.classList.toggle("is-ink", p > 0.35);
       nav.classList.toggle("is-solid", track.getBoundingClientRect().bottom <= 80);
+      if (!navOk) { navOk = true; d.documentElement.classList.add("nh-nav-ok"); }   // head CSS hides the nav until this first frame
     }
     var onNow = p > 0.6;
     if (onNow !== heroOn) {
