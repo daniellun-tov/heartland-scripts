@@ -2527,10 +2527,33 @@
         environment: STAGING ? "staging" : "production",
         sent_at: new Date().toISOString()
       };
+      /* The launch-day sign-up hook gets the same shape as the Sanford Waitlist form's Webflow
+         webhook (triggerType + payload.data with the form's field names), so the Property
+         Funnels workflow maps it exactly like the waitlist one. */
+      if (hook === CRM_SIGNUP_HOOK) {
+        var path = String(w.location.pathname || "");
+        body = {
+          triggerType: "form_submission",
+          payload: {
+            name: "Sanford Sign Up",
+            siteId: d.documentElement.getAttribute("data-wf-site") || "",
+            pageId: d.documentElement.getAttribute("data-wf-page") || "",
+            publishedPath: path,
+            pageUrl: body.page_url,
+            submittedAt: body.sent_at,
+            environment: body.environment,
+            memberId: body.member_id,
+            data: {
+              "First-Name": now.first, "Last-Name": now.last, "Email": body.email,
+              "Contact-Number": now.phone, "Message": "", "Waitlist Homes": body.homes
+            }
+          }
+        };
+      }
       try {
         w.fetch(hook, { method: "POST", headers: { "Content-Type": "application/json" },
                             body: JSON.stringify(body), keepalive: true, mode: "cors" })
-          .then(function (r) { log("crm", body.event, r && r.status); }, function (e) { log("crm failed", e && e.message); });
+          .then(function (r) { log("crm", body.event || body.triggerType, r && r.status); }, function (e) { log("crm failed", e && e.message); });
       } catch (e) { log("crm failed", e && e.message); }
     }
 
