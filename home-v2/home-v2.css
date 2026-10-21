@@ -100,11 +100,11 @@ p:is(.homev2_body,.body,[data-mod~="body"]){font:400 17px/1.65 var(--_home-v2---
 .homev2-setting_scene-wrapper .homev2-setting_cloud-band{position:absolute;left:0;top:0;height:792px;display:flex;animation:mq linear infinite;will-change:transform}
 .homev2-setting_scene-wrapper .homev2-setting_cloud-band .homev2-setting_track{position:relative;flex:none;height:792px;width:var(--homev2-p)}
 .homev2-setting_scene-wrapper .homev2-setting_cloud-band .homev2-setting_cloud{position:absolute;display:block;background-size:100% 100%;background-repeat:no-repeat}
-.homev2-setting_cloud:is(.fc49,[data-mod~="fc49"]){background-image:url(https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@0eb620ebee8551e4dc691884f6a6855e4728839d/home-v2/img/homev2-fc49.webp)}
-.homev2-setting_cloud:is(.fc50,[data-mod~="fc50"]){background-image:url(https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@0eb620ebee8551e4dc691884f6a6855e4728839d/home-v2/img/homev2-fc50.webp)}
-.homev2-setting_cloud:is(.fc52,[data-mod~="fc52"]){background-image:url(https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@0eb620ebee8551e4dc691884f6a6855e4728839d/home-v2/img/homev2-fc52.webp)}
-.homev2-setting_cloud:is(.fcgem,[data-mod~="fcgem"]){background-image:url(https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@0eb620ebee8551e4dc691884f6a6855e4728839d/home-v2/img/homev2-fcgem.webp)}
-.homev2-setting_cloud:is(.fcs3,[data-mod~="fcs3"]){background-image:url(https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@0eb620ebee8551e4dc691884f6a6855e4728839d/home-v2/img/homev2-fcs3.webp)}
+.homev2-setting_cloud:is(.fc49,[data-mod~="fc49"]){background-image:url(https://cdn.prod.website-files.com/6a577b9d426b177e53c48682/6ad83bdef7a30c4efe01f960_homev2-fc49.avif)}
+.homev2-setting_cloud:is(.fc50,[data-mod~="fc50"]){background-image:url(https://cdn.prod.website-files.com/6a577b9d426b177e53c48682/6ad83bde320ae2c638b06719_homev2-fc50.avif)}
+.homev2-setting_cloud:is(.fc52,[data-mod~="fc52"]){background-image:url(https://cdn.prod.website-files.com/6a577b9d426b177e53c48682/6ad83bde320ae2c638b06732_homev2-fc52.avif)}
+.homev2-setting_cloud:is(.fcgem,[data-mod~="fcgem"]){background-image:url(https://cdn.prod.website-files.com/6a577b9d426b177e53c48682/6ad83bde67354233534d7c64_homev2-fcgem.avif)}
+.homev2-setting_cloud:is(.fcs3,[data-mod~="fcs3"]){background-image:url(https://cdn.prod.website-files.com/6a577b9d426b177e53c48682/6ad83bdfa5d9c58a4c46b253_homev2-fcs3.avif)}
 .homev2-setting_scene-wrapper :is(.mq-back,[data-mod~="mq-back"]){--homev2-p:1600px;animation-duration:260s;left:-1600px}
 .homev2-setting_scene-wrapper :is(.mq-front,[data-mod~="mq-front"]){--homev2-p:1600px;animation-duration:200s;left:-1600px}
 .homev2-setting_scene-wrapper :is(.mq-top,[data-mod~="mq-top"]){--homev2-p:1700px;animation-duration:95s;left:-1700px}
@@ -328,13 +328,13 @@ section:has(+ :is(.gable-top,[data-mod~="gable-top"])){padding-bottom:calc(var(-
 .homev2-arch_picture{inset:0;clip-path:polygon(39% 34%,50% 17%,61% 34%,61% 62%,39% 62%);will-change:clip-path}
 .homev2-arch_picture img{display:block;width:100%;height:100%;object-fit:cover;transform:scale(1.22);transform-origin:50% 40%}
 .homev2-arch_veil{inset:0;background:linear-gradient(to top,rgba(42,35,48,.72),rgba(42,35,48,0) 48%)}
-#location{overflow:hidden}
+:is(#location,.section_homev2-location){overflow:hidden}
 .homev2-location_head .homev2_eyebrow{margin-bottom:30px}
 :is(.loc-h,[data-mod~="loc-h"]){text-align:center;position:relative}
 :is(.loc-h,[data-mod~="loc-h"]) .homev2_line{position:relative;z-index:1}
 :is(.loc-h,[data-mod~="loc-h"]) :is(.loc-it,[data-mod~="loc-it"]){z-index:2;margin:-.46em 0 -.52em;padding:.16em .3em .34em}
 :is(.loc-h,[data-mod~="loc-h"]) :is(.loc-it,[data-mod~="loc-it"]) i{font-size:1.2em}
-#location .homev2-location_paragraph{max-width:52ch;margin:34px auto 0;text-align:center}
+:is(#location,.section_homev2-location) .homev2-location_paragraph{max-width:52ch;margin:34px auto 0;text-align:center}
 .homev2-location_map{margin:clamp(70px,8vw,120px) auto 0}
 .homev2-location_map svg.homev2-location_route{display:block;width:100%;height:auto;overflow:visible}
 .homev2-location_map .homev2-location_road-fill{fill:var(--_home-v2---homev2-plum)}
@@ -725,3 +725,5 @@ textarea.homev2-register_input{resize:vertical;min-height:52px}
 .homev2-register_done{background:transparent;padding:0;text-align:left;font-family:var(--_home-v2---homev2-serif),Georgia,serif;font-weight:300;font-size:30px;line-height:1.2;color:inherit}
 .homev2-register_fail{background:transparent;padding:0;margin-top:16px;font:400 16px/1.5 var(--_home-v2---homev2-sans),system-ui,sans-serif;color:var(--_home-v2---homev2-amber-soft)}
 .homev2-register_slot .w-form{margin:0}
+/* stat values with a unit (3 ha, 5 min): a block wrapper, since Webflow cannot nest a span inside bold text */
+.homev2-stats_value small{font-size:.42em;margin-left:.12em}

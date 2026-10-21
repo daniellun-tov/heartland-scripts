@@ -4,6 +4,7 @@
 (function(){
   document.documentElement.classList.add('homev2');
   document.querySelectorAll('[data-mod]').forEach(el=>{ el.classList.add(...el.getAttribute('data-mod').split(/\s+/).filter(Boolean)); el.removeAttribute('data-mod'); });
+  const ls=document.querySelector('.section_homev2-location'); if(ls&&!ls.id) ls.id='location'; /* Webflow will not store this id */
   document.querySelectorAll('[data-button]').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
 })();
 (function(){
