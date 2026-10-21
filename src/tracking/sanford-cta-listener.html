@@ -1,0 +1,109 @@
+<script>
+/* HEARTLAND - Sanford Heart CTA tracking (GTM Custom HTML tag "HL - Sanford CTA Listener").
+   Source of truth for the tag in GTM-NFC5F5TT. Nothing loads this file; paste changes into GTM.
+
+   Pushes {event:'hl_track', hl_name, property, page_phase, cta_location, cta_text, home, ...}
+   to the dataLayer and sends the same name to Clarity as a custom event. Classifies by the
+   page's own data attributes / anchors, so it keeps working when the copy flips between
+   pre-launch ("Join the Waitlist") and live ("Reserve home N").
+
+   Events
+     /sanford       reserve_click, waitlist_click, view_availability_click, prequalify_click,
+                    loan_application_click, brochure_download, floorplan_download,
+                    explore_more_click, vr_open, vr_tab_click, vr_close, signin_click,
+                    reserve_submit_click (live) / waitlist_submit (pre-launch)
+     /reserve-flow  reserve_submit     the brochure form succeeded: Xano made the draft and
+                                       sent the buyer here with ?r=<uuid> (once per submit)
+                    checkout_click     "Pay" -> Payfast
+                    reservation_complete  the done step became visible (once per page) */
+(function () {
+  var w = window, d = document;
+  var path = String(location.pathname || "").replace(/\/+$/, "").toLowerCase();
+  var PENDING = "hl_reserve_pending", PROP = "hl_track_property";
+
+  function ss(k, v) { try { if (v === undefined) { return sessionStorage.getItem(k); } if (v === null) { sessionStorage.removeItem(k); } else { sessionStorage.setItem(k, v); } } catch (e) {} return null; }
+  function phase() {
+    var h = d.documentElement.classList;
+    return h.contains("sd2-prelaunch") && !h.contains("sd2-launched") ? "prelaunch" : "live";
+  }
+  function label(el) { return String(el.innerText || el.value || el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 60); }
+
+  function send(name, el, extra) {
+    var p = { event: "hl_track", hl_name: name, property: path === "/sanford" ? "sanford_heart" : (ss(PROP) || "unknown"),
+              page_phase: path === "/sanford" ? phase() : "", cta_location: "", cta_text: "", home: "", vr_type: "" };
+    if (el && el.closest) {
+      var s = el.closest('[id^="sd2-"]');
+      p.cta_location = s ? s.id.replace(/^sd2-/, "") : "";
+      p.cta_text = label(el);
+      p.home = el.getAttribute("data-sd2-home") || "";
+    }
+    if (extra) { for (var k in extra) { if (extra.hasOwnProperty(k)) { p[k] = extra[k]; } } }
+    w.dataLayer = w.dataLayer || [];
+    w.dataLayer.push(p);
+    try {
+      if (typeof w.clarity === "function") {
+        w.clarity("event", name);
+        if (p.page_phase) { w.clarity("set", "sanford_phase", p.page_phase); }
+      }
+    } catch (e) {}
+  }
+
+  function classify(a) {
+    var href = a.getAttribute("href") || "", txt = label(a);
+    if (a.hasAttribute("data-sd2-evo") || a.hasAttribute("data-sd2-evo-src") || /qualif/i.test(txt)) {
+      return /application/i.test(txt) ? "loan_application_click" : "prequalify_click";
+    }
+    if (/brochure/i.test(txt)) { return "brochure_download"; }
+    if (a.hasAttribute("data-plan-pdf")) { return "floorplan_download"; }
+    if (a.hasAttribute("data-sd2-explore-open")) { return "explore_more_click"; }
+    if (a.hasAttribute("data-sd2-vr-open")) { return "vr_open"; }
+    if (a.classList.contains("sd2_vr_tab")) { return "vr_tab_click"; }
+    if (a.classList.contains("sd2_vrm_close")) { return "vr_close"; }
+    if (a.hasAttribute("data-sd2-signin")) { return "signin_click"; }
+    if (a.hasAttribute("data-sd2-waitlist") || href === "#sd2-reserve" || /\breserve\b|waitlist/i.test(txt)) {
+      return phase() === "prelaunch" ? "waitlist_click" : "reserve_click";
+    }
+    if (href === "#sd2-select" && /availab/i.test(txt)) { return "view_availability_click"; }
+    return null;
+  }
+
+  if (path === "/sanford") {
+    ss(PROP, "sanford_heart");
+    d.addEventListener("click", function (e) {
+      var t = e.target;
+      if (!t || !t.closest) { return; }
+      var a = t.closest('a, button, [role="button"], [role="tab"]');
+      if (!a || a.closest("#reservation-form")) { return; }   // the form is tracked on submit
+      var name = classify(a);
+      if (!name) { return; }
+      send(name, a, name === "vr_tab_click" ? { vr_type: a.getAttribute("data-type-slug") || label(a) } : null);
+    }, true);
+
+    d.addEventListener("submit", function (e) {
+      var f = e.target;
+      if (!f || f.id !== "reservation-form") { return; }
+      var live = phase() === "live";
+      send(live ? "reserve_submit_click" : "waitlist_submit", f.querySelector('[type="submit"]') || f, null);
+      if (live) { ss(PENDING, String(Date.now())); }
+    }, true);
+  }
+
+  if (path === "/reserve-flow") {
+    if (/[?&]r=/.test(location.search)) {
+      var t0 = +(ss(PENDING) || 0);
+      ss(PENDING, null);
+      if (t0 && Date.now() - t0 < 5 * 60 * 1000) { send("reserve_submit", null, null); }
+    }
+    d.addEventListener("click", function (e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-hl-action="checkout"]');
+      if (b) { send("checkout_click", b, null); }
+    }, true);
+    var sentDone = false, tries = 0;
+    var iv = setInterval(function () {
+      var done = d.querySelector('[data-hl-step="done"]');
+      if (!sentDone && done && done.style.display === "block") { sentDone = true; send("reservation_complete", null, null); }
+      if (sentDone || ++tries > 120) { clearInterval(iv); }
+    }, 1000);
+  }
+})();
+</script>

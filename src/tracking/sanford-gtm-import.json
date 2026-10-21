@@ -1,0 +1,403 @@
+{
+ "exportFormatVersion": 2,
+ "exportTime": "2026-10-21 11:45:00",
+ "containerVersion": {
+  "path": "accounts/6259814175/containers/201109308/versions/0",
+  "accountId": "6259814175",
+  "containerId": "201109308",
+  "containerVersionId": "0",
+  "container": {
+   "path": "accounts/6259814175/containers/201109308",
+   "accountId": "6259814175",
+   "containerId": "201109308",
+   "name": "Heartland.co.za",
+   "publicId": "GTM-NFC5F5TT",
+   "usageContext": [
+    "WEB"
+   ]
+  },
+  "tag": [
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "tagId": "901",
+    "name": "HL - Sanford CTA Listener",
+    "type": "html",
+    "parameter": [
+     {
+      "type": "TEMPLATE",
+      "key": "html",
+      "value": "<script>\n/* HEARTLAND - Sanford Heart CTA tracking (GTM Custom HTML tag \"HL - Sanford CTA Listener\").\n   Source of truth for the tag in GTM-NFC5F5TT. Nothing loads this file; paste changes into GTM.\n\n   Pushes {event:'hl_track', hl_name, property, page_phase, cta_location, cta_text, home, ...}\n   to the dataLayer and sends the same name to Clarity as a custom event. Classifies by the\n   page's own data attributes / anchors, so it keeps working when the copy flips between\n   pre-launch (\"Join the Waitlist\") and live (\"Reserve home N\").\n\n   Events\n     /sanford       reserve_click, waitlist_click, view_availability_click, prequalify_click,\n                    loan_application_click, brochure_download, floorplan_download,\n                    explore_more_click, vr_open, vr_tab_click, vr_close, signin_click,\n                    reserve_submit_click (live) / waitlist_submit (pre-launch)\n     /reserve-flow  reserve_submit     the brochure form succeeded: Xano made the draft and\n                                       sent the buyer here with ?r=<uuid> (once per submit)\n                    checkout_click     \"Pay\" -> Payfast\n                    reservation_complete  the done step became visible (once per page) */\n(function () {\n  var w = window, d = document;\n  var path = String(location.pathname || \"\").replace(/\\/+$/, \"\").toLowerCase();\n  var PENDING = \"hl_reserve_pending\", PROP = \"hl_track_property\";\n\n  function ss(k, v) { try { if (v === undefined) { return sessionStorage.getItem(k); } if (v === null) { sessionStorage.removeItem(k); } else { sessionStorage.setItem(k, v); } } catch (e) {} return null; }\n  function phase() {\n    var h = d.documentElement.classList;\n    return h.contains(\"sd2-prelaunch\") && !h.contains(\"sd2-launched\") ? \"prelaunch\" : \"live\";\n  }\n  function label(el) { return String(el.innerText || el.value || el.textContent || \"\").replace(/\\s+/g, \" \").trim().slice(0, 60); }\n\n  function send(name, el, extra) {\n    var p = { event: \"hl_track\", hl_name: name, property: path === \"/sanford\" ? \"sanford_heart\" : (ss(PROP) || \"unknown\"),\n              page_phase: path === \"/sanford\" ? phase() : \"\", cta_location: \"\", cta_text: \"\", home: \"\", vr_type: \"\" };\n    if (el && el.closest) {\n      var s = el.closest('[id^=\"sd2-\"]');\n      p.cta_location = s ? s.id.replace(/^sd2-/, \"\") : \"\";\n      p.cta_text = label(el);\n      p.home = el.getAttribute(\"data-sd2-home\") || \"\";\n    }\n    if (extra) { for (var k in extra) { if (extra.hasOwnProperty(k)) { p[k] = extra[k]; } } }\n    w.dataLayer = w.dataLayer || [];\n    w.dataLayer.push(p);\n    try {\n      if (typeof w.clarity === \"function\") {\n        w.clarity(\"event\", name);\n        if (p.page_phase) { w.clarity(\"set\", \"sanford_phase\", p.page_phase); }\n      }\n    } catch (e) {}\n  }\n\n  function classify(a) {\n    var href = a.getAttribute(\"href\") || \"\", txt = label(a);\n    if (a.hasAttribute(\"data-sd2-evo\") || a.hasAttribute(\"data-sd2-evo-src\") || /qualif/i.test(txt)) {\n      return /application/i.test(txt) ? \"loan_application_click\" : \"prequalify_click\";\n    }\n    if (/brochure/i.test(txt)) { return \"brochure_download\"; }\n    if (a.hasAttribute(\"data-plan-pdf\")) { return \"floorplan_download\"; }\n    if (a.hasAttribute(\"data-sd2-explore-open\")) { return \"explore_more_click\"; }\n    if (a.hasAttribute(\"data-sd2-vr-open\")) { return \"vr_open\"; }\n    if (a.classList.contains(\"sd2_vr_tab\")) { return \"vr_tab_click\"; }\n    if (a.classList.contains(\"sd2_vrm_close\")) { return \"vr_close\"; }\n    if (a.hasAttribute(\"data-sd2-signin\")) { return \"signin_click\"; }\n    if (a.hasAttribute(\"data-sd2-waitlist\") || href === \"#sd2-reserve\" || /\\breserve\\b|waitlist/i.test(txt)) {\n      return phase() === \"prelaunch\" ? \"waitlist_click\" : \"reserve_click\";\n    }\n    if (href === \"#sd2-select\" && /availab/i.test(txt)) { return \"view_availability_click\"; }\n    return null;\n  }\n\n  if (path === \"/sanford\") {\n    ss(PROP, \"sanford_heart\");\n    d.addEventListener(\"click\", function (e) {\n      var t = e.target;\n      if (!t || !t.closest) { return; }\n      var a = t.closest('a, button, [role=\"button\"], [role=\"tab\"]');\n      if (!a || a.closest(\"#reservation-form\")) { return; }   // the form is tracked on submit\n      var name = classify(a);\n      if (!name) { return; }\n      send(name, a, name === \"vr_tab_click\" ? { vr_type: a.getAttribute(\"data-type-slug\") || label(a) } : null);\n    }, true);\n\n    d.addEventListener(\"submit\", function (e) {\n      var f = e.target;\n      if (!f || f.id !== \"reservation-form\") { return; }\n      var live = phase() === \"live\";\n      send(live ? \"reserve_submit_click\" : \"waitlist_submit\", f.querySelector('[type=\"submit\"]') || f, null);\n      if (live) { ss(PENDING, String(Date.now())); }\n    }, true);\n  }\n\n  if (path === \"/reserve-flow\") {\n    if (/[?&]r=/.test(location.search)) {\n      var t0 = +(ss(PENDING) || 0);\n      ss(PENDING, null);\n      if (t0 && Date.now() - t0 < 5 * 60 * 1000) { send(\"reserve_submit\", null, null); }\n    }\n    d.addEventListener(\"click\", function (e) {\n      var b = e.target && e.target.closest && e.target.closest('[data-hl-action=\"checkout\"]');\n      if (b) { send(\"checkout_click\", b, null); }\n    }, true);\n    var sentDone = false, tries = 0;\n    var iv = setInterval(function () {\n      var done = d.querySelector('[data-hl-step=\"done\"]');\n      if (!sentDone && done && done.style.display === \"block\") { sentDone = true; send(\"reservation_complete\", null, null); }\n      if (sentDone || ++tries > 120) { clearInterval(iv); }\n    }, 1000);\n  }\n})();\n</script>\n"
+     },
+     {
+      "type": "BOOLEAN",
+      "key": "supportDocumentWrite",
+      "value": "false"
+     }
+    ],
+    "firingTriggerId": [
+     "901"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT"
+   },
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "tagId": "902",
+    "name": "HL - GA4 - Sanford CTA Event",
+    "type": "gaawe",
+    "parameter": [
+     {
+      "type": "TEMPLATE",
+      "key": "eventName",
+      "value": "{{DLV - hl_name}}"
+     },
+     {
+      "type": "TEMPLATE",
+      "key": "measurementIdOverride",
+      "value": "G-YGHLTQLMV3"
+     },
+     {
+      "type": "BOOLEAN",
+      "key": "sendEcommerceData",
+      "value": "false"
+     },
+     {
+      "type": "LIST",
+      "key": "eventSettingsTable",
+      "list": [
+       {
+        "type": "MAP",
+        "map": [
+         {
+          "type": "TEMPLATE",
+          "key": "parameter",
+          "value": "property"
+         },
+         {
+          "type": "TEMPLATE",
+          "key": "parameterValue",
+          "value": "{{DLV - property}}"
+         }
+        ]
+       },
+       {
+        "type": "MAP",
+        "map": [
+         {
+          "type": "TEMPLATE",
+          "key": "parameter",
+          "value": "page_phase"
+         },
+         {
+          "type": "TEMPLATE",
+          "key": "parameterValue",
+          "value": "{{DLV - page_phase}}"
+         }
+        ]
+       },
+       {
+        "type": "MAP",
+        "map": [
+         {
+          "type": "TEMPLATE",
+          "key": "parameter",
+          "value": "cta_location"
+         },
+         {
+          "type": "TEMPLATE",
+          "key": "parameterValue",
+          "value": "{{DLV - cta_location}}"
+         }
+        ]
+       },
+       {
+        "type": "MAP",
+        "map": [
+         {
+          "type": "TEMPLATE",
+          "key": "parameter",
+          "value": "cta_text"
+         },
+         {
+          "type": "TEMPLATE",
+          "key": "parameterValue",
+          "value": "{{DLV - cta_text}}"
+         }
+        ]
+       },
+       {
+        "type": "MAP",
+        "map": [
+         {
+          "type": "TEMPLATE",
+          "key": "parameter",
+          "value": "home"
+         },
+         {
+          "type": "TEMPLATE",
+          "key": "parameterValue",
+          "value": "{{DLV - home}}"
+         }
+        ]
+       },
+       {
+        "type": "MAP",
+        "map": [
+         {
+          "type": "TEMPLATE",
+          "key": "parameter",
+          "value": "vr_type"
+         },
+         {
+          "type": "TEMPLATE",
+          "key": "parameterValue",
+          "value": "{{DLV - vr_type}}"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "firingTriggerId": [
+     "902"
+    ],
+    "tagFiringOption": "ONCE_PER_EVENT"
+   }
+  ],
+  "trigger": [
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "triggerId": "901",
+    "name": "HL - DOM Ready - Sanford + Reserve Flow",
+    "type": "DOM_READY",
+    "filter": [
+     {
+      "type": "MATCH_REGEX",
+      "parameter": [
+       {
+        "type": "TEMPLATE",
+        "key": "arg0",
+        "value": "{{Page Path}}"
+       },
+       {
+        "type": "TEMPLATE",
+        "key": "arg1",
+        "value": "^/(sanford|reserve-flow)/?$"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "triggerId": "902",
+    "name": "HL - CE - hl_track",
+    "type": "CUSTOM_EVENT",
+    "customEventFilter": [
+     {
+      "type": "EQUALS",
+      "parameter": [
+       {
+        "type": "TEMPLATE",
+        "key": "arg0",
+        "value": "{{_event}}"
+       },
+       {
+        "type": "TEMPLATE",
+        "key": "arg1",
+        "value": "hl_track"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "variable": [
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "variableId": "900",
+    "name": "DLV - hl_name",
+    "type": "v",
+    "parameter": [
+     {
+      "type": "INTEGER",
+      "key": "dataLayerVersion",
+      "value": "2"
+     },
+     {
+      "type": "BOOLEAN",
+      "key": "setDefaultValue",
+      "value": "false"
+     },
+     {
+      "type": "TEMPLATE",
+      "key": "name",
+      "value": "hl_name"
+     }
+    ]
+   },
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "variableId": "901",
+    "name": "DLV - property",
+    "type": "v",
+    "parameter": [
+     {
+      "type": "INTEGER",
+      "key": "dataLayerVersion",
+      "value": "2"
+     },
+     {
+      "type": "BOOLEAN",
+      "key": "setDefaultValue",
+      "value": "false"
+     },
+     {
+      "type": "TEMPLATE",
+      "key": "name",
+      "value": "property"
+     }
+    ]
+   },
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "variableId": "902",
+    "name": "DLV - page_phase",
+    "type": "v",
+    "parameter": [
+     {
+      "type": "INTEGER",
+      "key": "dataLayerVersion",
+      "value": "2"
+     },
+     {
+      "type": "BOOLEAN",
+      "key": "setDefaultValue",
+      "value": "false"
+     },
+     {
+      "type": "TEMPLATE",
+      "key": "name",
+      "value": "page_phase"
+     }
+    ]
+   },
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "variableId": "903",
+    "name": "DLV - cta_location",
+    "type": "v",
+    "parameter": [
+     {
+      "type": "INTEGER",
+      "key": "dataLayerVersion",
+      "value": "2"
+     },
+     {
+      "type": "BOOLEAN",
+      "key": "setDefaultValue",
+      "value": "false"
+     },
+     {
+      "type": "TEMPLATE",
+      "key": "name",
+      "value": "cta_location"
+     }
+    ]
+   },
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "variableId": "904",
+    "name": "DLV - cta_text",
+    "type": "v",
+    "parameter": [
+     {
+      "type": "INTEGER",
+      "key": "dataLayerVersion",
+      "value": "2"
+     },
+     {
+      "type": "BOOLEAN",
+      "key": "setDefaultValue",
+      "value": "false"
+     },
+     {
+      "type": "TEMPLATE",
+      "key": "name",
+      "value": "cta_text"
+     }
+    ]
+   },
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "variableId": "905",
+    "name": "DLV - home",
+    "type": "v",
+    "parameter": [
+     {
+      "type": "INTEGER",
+      "key": "dataLayerVersion",
+      "value": "2"
+     },
+     {
+      "type": "BOOLEAN",
+      "key": "setDefaultValue",
+      "value": "false"
+     },
+     {
+      "type": "TEMPLATE",
+      "key": "name",
+      "value": "home"
+     }
+    ]
+   },
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "variableId": "906",
+    "name": "DLV - vr_type",
+    "type": "v",
+    "parameter": [
+     {
+      "type": "INTEGER",
+      "key": "dataLayerVersion",
+      "value": "2"
+     },
+     {
+      "type": "BOOLEAN",
+      "key": "setDefaultValue",
+      "value": "false"
+     },
+     {
+      "type": "TEMPLATE",
+      "key": "name",
+      "value": "vr_type"
+     }
+    ]
+   }
+  ],
+  "builtInVariable": [
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "type": "PAGE_PATH",
+    "name": "Page Path"
+   },
+   {
+    "accountId": "6259814175",
+    "containerId": "201109308",
+    "type": "EVENT",
+    "name": "Event"
+   }
+  ]
+ }
+}
