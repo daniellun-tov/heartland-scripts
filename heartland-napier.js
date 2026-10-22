@@ -447,7 +447,12 @@
     var tr = track.getBoundingClientRect(), vh = w.innerHeight || 900;
     return clamp(-tr.top / Math.max(1, tr.height - vh));
   }
+  /* HERO_END: the whole sequence (mask, intro, condense) runs over the first 80% of the track; the last 20%
+     is a hold so the arch frame sits still before the page scrolls on. Track heights (nh_hero) were raised
+     to keep the motion's scroll distance unchanged: 550vh desktop, 475vh phone. */
+  var HERO_END = 0.8;
   function renderHero(raw) {
+    raw = Math.min(1, raw / HERO_END);
     if (mask && !reduce) {
       var m = eio(clamp(raw / 0.27));
       mask.style.transform = "translate3d(0," + (-m * 102).toFixed(3) + "%,0)";
