@@ -219,7 +219,8 @@
     gsap.fromTo('#heroScene img',{scale:1},{scale:1.16,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'bottom top',scrub:true}});
     const touch=matchMedia('(hover:none),(pointer:coarse)').matches;
     if(!touch) gsap.to('.is-hero .homev2-hero_title',{yPercent:-70,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'bottom top',scrub:true}});
-    gsap.to('.is-hero .homev2-hero_title, .is-hero .homev2-hero_cta, .is-hero .homev2-hero_split',{opacity:0,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'55% top',scrub:true}});
+    /* explicit from-value: the loader holds these at opacity 0 when the trigger is created, so a plain .to() would record 0 as the start and never bring them back on the way up */
+    gsap.fromTo('.is-hero .homev2-hero_title, .is-hero .homev2-hero_cta, .is-hero .homev2-hero_split',{opacity:1},{opacity:0,ease:'none',immediateRender:false,scrollTrigger:{trigger:'.is-hero',start:'top top',end:'55% top',scrub:true}});
     gsap.to('.is-hero .homev2_veil',{opacity:.55,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'bottom top',scrub:true}});
     if(!touch) gsap.to('.is-hero .homev2_sticky',{yPercent:100,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'bottom top',scrub:true}});
     $$('.homev2_photo:not(.is-hero .homev2_photo):not(.homev2-vitality_component .homev2_photo):not(.homev2-types_component .homev2_photo):not(#planPh):not(#openPh) img').forEach(img=>{
