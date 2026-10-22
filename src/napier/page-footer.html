@@ -11,6 +11,8 @@
      fold, so a rule at the end of the body never shows a flash. Opacity only, no translate. */
   html.nh-js .nh_more:not(.is-open){display:none}
   .nh_more.is-open{animation:nh-fade-in .7s ease both}
+  /* one-way, like Sanford: once the sections are open the button goes (no Show Less) */
+  .nh_more_btn.is-open{display:none}
 </style>
 <div data-hl-entry="napier" data-hl-target="/reserve-flow" hidden></div>
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@b35ac77c2e1359c98459365878a5540592a529d7/heartland-reserve.js"></script>
