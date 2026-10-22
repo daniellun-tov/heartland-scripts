@@ -14,12 +14,15 @@
 <script>
   /* Loader "Through the arch": ink screen with an arch window on the hero photo that grows with the load,
      opens to the full frame, then pulls back out of the N into the hero's name mask (bundle module 2b).
-     Shown once per tab session, from the top of the page; skipped for reduced motion and #links. */
+     Shown once per tab session and on every reload, from the top of the page (the bundle then glides back
+     to where the visitor was); skipped for reduced motion and for #links that are not a reload. */
   (function (h) {
     h.classList.add('nh-js');
     setTimeout(function () { h.classList.add('nh-nav-ok'); }, 9000);   /* failsafe if the bundle never runs */
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches || location.hash) { return; }
-    try { if (sessionStorage.getItem('nh-ld')) { return; } } catch (e) {}
+    var rl = false;
+    try { var nv = performance.getEntriesByType('navigation')[0]; rl = !!nv && nv.type === 'reload'; } catch (e) {}
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || (location.hash && !rl)) { return; }
+    try { if (sessionStorage.getItem('nh-ld') && !rl) { return; } } catch (e) {}
     if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
     h.classList.add('nh-loading', 'nh-ld-arch');
     setTimeout(function () { if (!window.NH_LD) { h.classList.remove('nh-loading', 'nh-ld-arch'); } }, 9000);
@@ -54,7 +57,8 @@
   @keyframes nh-mq{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
 
   /* ---------------- grain on every section surface */
-  .nh_section::after,.nh_bleed::after,.nh_mq::after,.nh_footer::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.07;mix-blend-mode:soft-light;background-image:repeating-radial-gradient(circle at 3px 7px,#000 0 1px,transparent 1px 9px),repeating-radial-gradient(circle at 11px 2px,#000 0 1px,transparent 1px 13px)}
+  /* an SVG noise tile (as Sanford): the old repeating-radial-gradient dots formed moire rings on phones */
+  .nh_section::after,.nh_bleed::after,.nh_mq::after,.nh_footer::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.18;mix-blend-mode:soft-light;background-size:240px 240px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
   .nh_section{position:relative}
   .nh_footer{position:relative}
 
@@ -146,6 +150,7 @@
   .nh_cmp_range:active ~ .nh_cmp_knob,.nh_cmp_range:hover ~ .nh_cmp_knob{transform:translate(-50%,-50%) scale(1.08)}
   .nh_cmp_pair.is-swap img{animation:nh-swap 1s var(--nh-ease) both}
   .nh_finish_p.is-swap{animation:nh-text .6s var(--nh-ease) both}
+  .nh_seg{width:max-content;max-width:100%;align-self:flex-start;justify-self:start}   /* the frame hugs its two buttons */
   .nh_seg_btn.is-on{color:#F3EBE2}
   .nh_seg_btn:active{transform:scale(.97)}
 
@@ -201,9 +206,7 @@
 
   /* ---------------- explore more */
   .nh_more.is-open{display:block}
-  .nh_more_btn svg{transition:transform 500ms var(--nh-ease)}
-  .nh_more_btn:hover svg{transform:translateY(3px)}
-  .nh_more_btn.is-open svg{transform:rotate(180deg)}
+  .nh_more_btn svg{display:none}
 
   /* ---------------- overlays */
   .nh_pm.is-open,.nh_auth.is-open{visibility:visible;pointer-events:auto;transition-delay:0s}

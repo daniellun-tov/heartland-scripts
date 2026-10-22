@@ -318,6 +318,22 @@
     on(w, "resize", apply);
   })();
 
+  /* ----------------------------------------------------------- 2a+. reload: remember where the visitor was
+     On a reload the head script replays the loader from the top (even within the tab session), and module 15
+     glides back to the saved spot once it finishes (opening Explore More first if it was open). */
+  var NAVT = (function () { try { var n = performance.getEntriesByType("navigation")[0]; return n ? n.type : ""; } catch (e) { return ""; } })();
+  var POS = null;
+  if (NAVT === "reload") { try { POS = JSON.parse(sessionStorage.getItem("nh-pos") || "null"); } catch (e) {} }
+  function savePos() {
+    try {
+      // a reload during the replay keeps the original spot, not the top the loader started from
+      var keep = POS && !POS.done, mw = qs("[data-nh-more]");
+      sessionStorage.setItem("nh-pos", JSON.stringify(keep ? { y: POS.y, more: POS.more } : { y: Math.round(w.scrollY || w.pageYOffset || 0), more: !!(mw && mw.classList.contains("is-open")) }));
+    } catch (e) {}
+  }
+  on(w, "pagehide", savePos);
+  on(d, "visibilitychange", function () { if (d.visibilityState === "hidden") { savePos(); } });
+
   /* ----------------------------------------------------------- 2b. loader: "Through the arch"
      Ink screen with an arch window on the hero photo (#nh-loader). The arch grows with the real load
      (poster image, fonts, window load), opens to the full frame, then the frame turns out to be the inside
@@ -328,10 +344,12 @@
     var root = d.documentElement;
     if (!LD) { return; }
     w.NH_LD = true;
+    if (POS) { try { w.scrollTo({ top: 0, behavior: "instant" }); } catch (e) { w.scrollTo(0, 0); } }
     try { sessionStorage.setItem("nh-ld", "1"); } catch (e) {}
     var L = qs("#nh-loader"), arch = L && qs(".nh_ld_arch", L), count = L && qs(".nh_loader_count", L);
     var svg = mask && qs("svg", mask), G = svg && qs("#nh-intro-word", svg), NP = svg && qs("#nh-intro-n", svg), TX = G && qs("text", G);
-    var fade = function () { root.classList.remove("nh-loading", "nh-ld-arch"); if (mask) { mask.classList.add("in"); } };
+    var done = function () { w.NH_LD = false; if (w.NH_afterLoader) { setTimeout(w.NH_afterLoader, 250); } };
+    var fade = function () { root.classList.remove("nh-loading", "nh-ld-arch"); if (mask) { mask.classList.add("in"); } done(); };
     if (!L || !arch || !svg || !G || !NP || !TX) { fade(); return; }
     var P = { x: +NP.getAttribute("data-px"), y: +NP.getAttribute("data-py"), r: +NP.getAttribute("data-r") };
     var bez = function (x1, y1, x2, y2) { return function (t) { if (t <= 0) { return 0; } if (t >= 1) { return 1; } var u = t; for (var i = 0; i < 8; i++) { var x = 3 * (1 - u) * (1 - u) * u * x1 + 3 * (1 - u) * u * u * x2 + u * u * u - t, dx = 3 * (1 - u) * (1 - u) * x1 + 6 * (1 - u) * u * (x2 - x1) + 3 * u * u * (1 - x2); if (Math.abs(dx) < 1e-6) { break; } u = Math.min(1, Math.max(0, u - x / dx)); } return 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u; }; };
@@ -398,7 +416,7 @@
         setTimeout(function () { root.classList.remove("nh-ld-reveal"); }, 1400);
       }
       if (z < 1) { return w.requestAnimationFrame(frame); }
-      w.NH_LD = false;
+      done();
     }
     w.requestAnimationFrame(frame);
   })();
@@ -1043,6 +1061,31 @@
         setTimeout(function () { var el = d.getElementById(id); if (el) { el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }); } }, 120);
       });
     });
+    // Reload: back to where the visitor was. After the loader (2b calls NH_afterLoader) it glides there;
+    // without one (reduced motion) it jumps. Any wheel, touch or key stops the glide.
+    if (POS && POS.y > 0) {
+      if (POS.more) { setOpen(true); }
+      var goBack = function () {
+        var root = d.documentElement, y = Math.max(0, Math.min(POS.y, root.scrollHeight - w.innerHeight));
+        POS.done = true;
+        var sb = root.style.scrollBehavior; root.style.scrollBehavior = "auto";
+        if (reduce || !LD) { w.scrollTo(0, y); root.style.scrollBehavior = sb; return; }
+        var y0 = w.scrollY || 0, dur = Math.min(2600, 1000 + Math.abs(y - y0) / 8), t0 = 0, dead = false;
+        var kill = function () { dead = true; };
+        ["wheel", "touchstart", "keydown"].forEach(function (ev) { on(w, ev, kill, { passive: true, once: true }); });
+        function step(now) {
+          if (dead) { root.style.scrollBehavior = sb; return; }
+          if (!t0) { t0 = now; }
+          var k = Math.min(1, (now - t0) / dur), ez = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+          w.scrollTo(0, y0 + (y - y0) * ez);
+          if (k < 1) { w.requestAnimationFrame(step); } else { root.style.scrollBehavior = sb; }
+        }
+        w.requestAnimationFrame(step);
+      };
+      if (LD && w.NH_LD !== false) { w.NH_afterLoader = goBack; }
+      else if (d.readyState === "complete") { setTimeout(goBack, 0); }
+      else { on(w, "load", function () { setTimeout(goBack, 60); }); }
+    }
     var h = w.location.hash.replace("#", "");
     if (h && wrap && qs("#" + h, wrap)) { setOpen(true); setTimeout(function () { var el = d.getElementById(h); if (el) { el.scrollIntoView({ block: "start" }); } }, 200); }
 
