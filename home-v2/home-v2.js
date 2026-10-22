@@ -154,7 +154,16 @@
   const stopKeys=e=>{ if(root.classList.contains('homev2-is-loading')&&[' ','PageDown','PageUp','ArrowDown','ArrowUp','Home','End'].includes(e.key)) e.preventDefault(); };
   const lockScroll=()=>{ root.classList.add('homev2-is-loading'); addEventListener('wheel',stopEv,{passive:false}); addEventListener('touchmove',stopEv,{passive:false}); addEventListener('keydown',stopKeys); if(lenis) lenis.stop(); else document.addEventListener('sv:lenis-ready',()=>setTimeout(()=>{ if(root.classList.contains('homev2-is-loading')&&window.lenis) window.lenis.stop(); },0),{once:true}); };
   const unlockScroll=()=>{ root.classList.remove('homev2-is-loading'); removeEventListener('wheel',stopEv); removeEventListener('touchmove',stopEv); removeEventListener('keydown',stopKeys); if(lenis) lenis.start(); };
-  if(!G||rm){ loader.remove(); hero(); vidReady.then(()=>SVH&&SVH.play()); }
+  /* reload / back: the page starts at the top with the loader and hero, then glides back to where the visitor was */
+  try{ history.scrollRestoration='manual'; }catch(e){}
+  const posKey='homev2-y:'+location.pathname;
+  const navType=((performance.getEntriesByType&&performance.getEntriesByType('navigation')[0])||{}).type;
+  let returnY=0; try{ if(navType==='reload'||navType==='back_forward') returnY=+sessionStorage.getItem(posKey)||0; }catch(e){}
+  const savePos=()=>{ if(returnY||root.classList.contains('homev2-is-loading')) return; try{ sessionStorage.setItem(posKey,String(Math.round(scrollY))); }catch(e){} };
+  addEventListener('pagehide',savePos); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') savePos(); });
+  const goBack=()=>{ if(!returnY) return; const y=returnY; setTimeout(()=>{ returnY=0; if(G) ScrollTrigger.refresh(); const t=Math.min(y,document.documentElement.scrollHeight-innerHeight);
+      if(rm||!G) scrollTo(0,t); else if(lenis) lenis.scrollTo(t,{duration:Math.min(2.8,1.2+t/8000),easing:k=>1-Math.pow(1-k,4)}); else scrollTo({top:t,behavior:'smooth'}); },rm||!G?0:350); };
+  if(!G||rm){ loader.remove(); hero(); vidReady.then(()=>SVH&&SVH.play()); goBack(); }
   else{
     lockScroll(); if(scrollY>0) scrollTo(0,0);
     const narrow=matchMedia('(max-width:760px)').matches;
@@ -177,7 +186,7 @@
       const s={p:shown};
       gsap.to(s,{p:1,duration:Math.max(.3,(1-shown)*1.4),ease:'out',onUpdate(){ draw(s.p); },onComplete(){
         if(SVH) SVH.play();
-        gsap.timeline({onComplete(){ loader.remove(); sc.style.clipPath=''; unlockScroll(); }})
+        gsap.timeline({onComplete(){ loader.remove(); sc.style.clipPath=''; unlockScroll(); goBack(); }})
           .to(num,{opacity:0,y:8,duration:.4,ease:'io'},0)
           .add(()=>{ const w={v:B[0],h:B[1]}; gsap.to(w,{v:0,h:0,duration:1.3,ease:'io',onUpdate(){ sc.style.clipPath=clipAt(w.v,w.h); }}); },.1)
           .to(sc,{scale:1.12,duration:2,ease:'out'},.1)
