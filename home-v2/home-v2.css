@@ -42,6 +42,15 @@ section{position:relative;padding-top:160px;padding-right:var(--homev2-gutter);p
 @media (hover:hover){a:not(.homev2_button):not(.homev2-nav_menu-button):hover>.homev2_roll>.homev2_roll-text:not(.is-accent){transform:translateY(-100%);opacity:0}a:not(.homev2_button):not(.homev2-nav_menu-button):hover>.homev2_roll>.homev2_roll-text.is-accent{transform:none;opacity:1}}
 .homev2-nav_menu-button.is-open>.homev2_roll>.homev2_roll-text:not(.is-accent){transform:translateY(-100%);opacity:0}
 .homev2-nav_menu-button.is-open>.homev2_roll>.homev2_roll-text.is-accent{transform:none;opacity:1}
+/* button hover through slats (six horizontal slats, like the menu sheet):
+   outlined buttons fill as the slats close; filled buttons empty as their slats open onto the section behind */
+@property --homev2-bf{syntax:'<percentage>';inherits:false;initial-value:0%}
+a.homev2_button.is-nav,a.homev2_button.is-variant-2{--homev2-bf:0%;background-image:repeating-linear-gradient(to bottom,var(--homev2-ink) 0 var(--homev2-bf),transparent var(--homev2-bf) 16.667%)!important}
+a.homev2_button.is-solid,input.homev2-register_submit{--homev2-bf:17%;background-color:transparent!important;background-image:repeating-linear-gradient(to bottom,var(--_home-v2---homev2-cream) 0 var(--homev2-bf),transparent var(--homev2-bf) 16.667%)!important}
+a.homev2_button.is-nav,a.homev2_button.is-variant-2,a.homev2_button.is-solid,input.homev2-register_submit{transition:--homev2-bf .7s cubic-bezier(.65,0,.35,1),color .45s ease .12s!important}
+@media (hover:hover){a.homev2_button.is-nav:hover,a.homev2_button.is-variant-2:hover{--homev2-bf:17%}a.homev2_button.is-solid:hover,input.homev2-register_submit:hover{--homev2-bf:0%}}
+a.homev2_button:focus-visible{--homev2-bf:17%}
+a.homev2_button.is-solid:focus-visible{--homev2-bf:0%}
 /* the three dots fold into an x */
 .homev2-nav_dots-italic{transition:transform .6s cubic-bezier(.25,1,.5,1)}
 .homev2-nav_menu-button.is-open .homev2-nav_dots-italic:nth-child(1){transform:translateY(6px) rotate(45deg) scale(5.5,.6)}
@@ -50,7 +59,7 @@ section{position:relative;padding-top:160px;padding-right:var(--homev2-gutter);p
 .homev2-nav_menu-button.is-open .homev2-nav_dots-italic:nth-child(3){transform:translateY(-6px) rotate(-45deg) scale(5.5,.6)}
 /* no scrolling while the loader runs (doubled class outranks the page head overrides for html.sv-loading and html,body) */
 html.homev2-is-loading.homev2-is-loading,html.homev2-is-loading.homev2-is-loading body{overflow:hidden!important;overscroll-behavior:none}
-@media (prefers-reduced-motion:reduce){.homev2_roll-text,.homev2-nav_dots-italic{transition:none!important}}
+@media (prefers-reduced-motion:reduce){.homev2_roll-text,.homev2-nav_dots-italic,a.homev2_button,input.homev2-register_submit{transition:none!important}}
 .homev2-setting_scene-wrapper{--homev2-s:1;--_home-v2---homev2-sky:#437FBA}
 .homev2-setting_scene-wrapper .homev2-setting_cloud-band{animation:mq linear infinite}
 .homev2-setting_scene-wrapper .is-mq-back{--homev2-p:1600px;animation-duration:260s}
