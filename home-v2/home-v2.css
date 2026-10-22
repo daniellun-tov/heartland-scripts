@@ -161,8 +161,8 @@ footer .homev2-footer_logo{width:260px;height:auto;display:block}
 .dist li i::after{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--homev2-w);background-color:var(--_home-v2---homev2-amber);background-image:none;transform-origin:left;transform:scaleX(var(--homev2-k,1))}
 .homev2-register_form textarea{resize:vertical}
 .homev2-register_form input[type=radio]{accent-color:var(--_home-v2---homev2-amber-soft)}
-@media (max-width:1240px){.homev2-stats_logo-strip:not(.homev2-b0){margin-right:calc(var(--homev2-gutter) * -1);padding-right:var(--homev2-gutter);overflow-x:auto;justify-content:flex-start;scrollbar-width:none}}
-@media (max-width:1240px){.homev2-stats_logo-strip::-webkit-scrollbar{display:none}}
+
+
 @media (max-width:767px){:root{--homev2-gutter:24px;--homev2-gable-height:110px}}
 @media (max-width:767px){section{padding-top:120px;padding-right:var(--homev2-gutter);padding-bottom:96px;padding-left:var(--homev2-gutter)}}
 @media (max-width:767px){.homev2-nav_component .homev2-nav_mark{width:64px}}
@@ -172,8 +172,8 @@ footer .homev2-footer_logo{width:260px;height:auto;display:block}
 @media (max-width:767px){.homev2-reasons_grid{scroll-snap-type:x mandatory;scroll-padding-inline:var(--homev2-gutter);scrollbar-width:none}}
 @media (max-width:767px){.homev2-reasons_grid::-webkit-scrollbar{display:none}}
 @media (max-width:767px){.homev2-reasons_grid .homev2-reasons_card{scroll-snap-align:start}}
-@media (max-width:767px){.homev2-stats_logo-strip{scrollbar-width:none;-webkit-overflow-scrolling:touch}}
-@media (max-width:767px){.homev2-stats_logo-strip::-webkit-scrollbar{display:none}}
+
+
 @media (max-width:767px){footer{grid-template-columns:1fr}}
 [data-style="s42"]{--homev2-s:0.562!important}
 [data-style="s43"]{--homev2-s:0.616!important}
