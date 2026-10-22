@@ -155,7 +155,7 @@
   const lockScroll=()=>{ root.classList.add('homev2-is-loading'); addEventListener('wheel',stopEv,{passive:false}); addEventListener('touchmove',stopEv,{passive:false}); addEventListener('keydown',stopKeys); if(lenis) lenis.stop(); else document.addEventListener('sv:lenis-ready',()=>setTimeout(()=>{ if(root.classList.contains('homev2-is-loading')&&window.lenis) window.lenis.stop(); },0),{once:true}); };
   const unlockScroll=()=>{ root.classList.remove('homev2-is-loading'); removeEventListener('wheel',stopEv); removeEventListener('touchmove',stopEv); removeEventListener('keydown',stopKeys); if(lenis) lenis.start(); };
   /* reload / back: the page starts at the top with the loader and hero, then glides back to where the visitor was */
-  try{ history.scrollRestoration='manual'; }catch(e){}
+  try{ history.scrollRestoration='manual'; }catch(e){} if(G) ScrollTrigger.clearScrollMemory('manual');  /* ScrollTrigger otherwise puts 'auto' back on every refresh */
   const posKey='homev2-y:'+location.pathname;
   const navType=((performance.getEntriesByType&&performance.getEntriesByType('navigation')[0])||{}).type;
   let returnY=0; try{ if(navType==='reload'||navType==='back_forward') returnY=+sessionStorage.getItem(posKey)||0; }catch(e){}
