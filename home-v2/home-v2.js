@@ -380,7 +380,18 @@
     gsap.to('#prog',{width:'100%',ease:'none',scrollTrigger:{trigger:'.homev2_page',start:'top top',end:'bottom bottom',scrub:true}});
     const nav=$('#nav');
     const lit=new Set(); $$('section.is-cream, section.is-sand').forEach(s=>{ ScrollTrigger.create({trigger:s,start:'top 60px',end:'bottom 60px',onToggle(st){ st.isActive?lit.add(s):lit.delete(s); window.__homev2Light=lit.size>0; if(!nav.classList.contains('is-menu-open')) nav.classList.toggle('is-on-light',window.__homev2Light); }}); });
-  } else { $$('.is-rev').forEach(e=>{e.style.opacity=1;e.style.transform='none'}); $$('.homev2_line > span').forEach(s=>s.style.transform='none'); $('#openPh').style.clipPath='none'; }
+  } else { $$('.is-rev').forEach(e=>{e.style.opacity=1;e.style.transform='none'}); $$('.homev2_line > span').forEach(s=>s.style.transform='none'); $('#openPh').style.clipPath='none';
+    /* reduced motion (a laptop with "Reduce motion" on): the Vitality Centre's intro and its amenity list share one sticky frame, so without
+       the scrubbed hand-over both showed on top of each other. Same hand-over here as plain cross-fades: no movement, no slat wipe. */
+    const lv=$('#vitality');
+    if(lv){
+      if(G){ gsap.set(['#lvCopy','#lvFoot'],{opacity:0}); gsap.set('#lvSlats',{opacity:1});
+        gsap.timeline({scrollTrigger:{trigger:lv,start:'top top',end:'bottom bottom',scrub:true}})
+          .to('#lvSlats',{opacity:0,ease:'none',duration:.3},.12).to('#lvIntro',{opacity:0,ease:'none',duration:.2},.16)
+          .to('#lvCopy',{opacity:1,ease:'none',duration:.2},.42).to('#lvFoot',{opacity:1,ease:'none',duration:.2},.5).to({},{duration:.25});
+      } else { const i=$('#lvIntro'), sl=$('#lvSlats'); if(i) i.style.display='none'; if(sl) sl.style.display='none'; }
+    }
+  }
 
   /* drag gallery: mouse drags the strip (touch keeps native scrolling); snapping is paused while dragging, then the strip settles on the nearest picture in the drag direction */
   const gal=$('#gal'); let dx=0,sx=0,down=false,moved=0;
