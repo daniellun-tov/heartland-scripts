@@ -199,10 +199,8 @@
   .nh_fincard.is-swap .nh_finrow_v,.nh_fincard.is-swap .nh_fin_monthly{animation:nh-text .6s var(--nh-ease) both}
   .nh_vr_pane{transition:opacity 800ms var(--nh-ease)}
 
-  /* ---------------- explore more: collapsed until the button is tapped (only when JS runs), like Sanford.
-     Opacity only, no translate, so a jump into an opened section lands where it should. */
-  html.nh-js .nh_more:not(.is-open){display:none}
-  .nh_more.is-open{display:block;animation:nh-fade-in .7s ease both}
+  /* ---------------- explore more */
+  .nh_more.is-open{display:block}
   .nh_more_btn svg{transition:transform 500ms var(--nh-ease)}
   .nh_more_btn:hover svg{transform:translateY(3px)}
   .nh_more_btn.is-open svg{transform:rotate(180deg)}
