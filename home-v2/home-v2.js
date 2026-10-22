@@ -155,7 +155,10 @@
     /* window insets: [top/bottom %, left/right %] */
     const A=narrow?[33,42]:[30,47.2], B=narrow?[20,31]:[17,41.5];
     const sc=$('#heroScene'), veil=$('.is-hero .homev2_veil');
-    const setWin=(v,h)=>{ sc.style.clipPath=`inset(${v}% ${h}% ${v}% ${h}%)`; num.style.top=`calc(${100-v}% + 18px)`; };
+    /* the scene runs one gable height below the hero (it shows behind the next section's gable), so the window is measured on the hero itself, not on the scene */
+    const heroBox=$('.is-hero');
+    const clipAt=(v,h)=>{ const H=heroBox.offsetHeight, ext=Math.max(0,sc.offsetHeight-H), t=v/100*H; return `inset(${t}px ${h}% ${t+ext}px ${h}%)`; };
+    const setWin=(v,h)=>{ sc.style.clipPath=clipAt(v,h); num.style.top=`calc(${100-v}% + 18px)`; };
     const draw=p=>{ setWin(A[0]+(B[0]-A[0])*p, A[1]+(B[1]-A[1])*p); num.textContent=String(Math.round(p*100)).padStart(2,'0'); };
     setWin(A[0],A[1]); gsap.set(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:0}); gsap.set(veil,{opacity:0}); gsap.set(sc,{scale:1.18});
     const clock={p:0}; let shown=0;
@@ -170,7 +173,7 @@
         if(SVH) SVH.play();
         gsap.timeline({onComplete(){ loader.remove(); sc.style.clipPath=''; }})
           .to(num,{opacity:0,y:8,duration:.4,ease:'io'},0)
-          .add(()=>{ const w={v:B[0],h:B[1]}; gsap.to(w,{v:0,h:0,duration:1.3,ease:'io',onUpdate(){ sc.style.clipPath=`inset(${w.v}% ${w.h}% ${w.v}% ${w.h}%)`; }}); },.1)
+          .add(()=>{ const w={v:B[0],h:B[1]}; gsap.to(w,{v:0,h:0,duration:1.3,ease:'io',onUpdate(){ sc.style.clipPath=clipAt(w.v,w.h); }}); },.1)
           .to(sc,{scale:1.12,duration:2,ease:'out'},.1)
           .to(veil,{opacity:1,duration:1.2,ease:'out'},.55)
           .to(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:1,duration:.8,ease:'out'},.85)

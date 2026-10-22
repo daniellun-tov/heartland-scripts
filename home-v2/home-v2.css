@@ -90,7 +90,7 @@ footer .homev2-footer_logo{width:260px;height:auto;display:block}
 .homev2-features_callouts li.is-on b{background-color:var(--_home-v2---homev2-amber);background-image:none;border-top-color:var(--_home-v2---homev2-amber);border-right-color:var(--_home-v2---homev2-amber);border-bottom-color:var(--_home-v2---homev2-amber);border-left-color:var(--_home-v2---homev2-amber);color:#fff}
 @media (prefers-reduced-motion:reduce){.homev2-homes_marker{transform:none}}
 @media (prefers-reduced-motion:reduce){.homev2-homes_marker::after{animation:none}}
-.homev2_lavender.is-flip{-webkit-mask-image:linear-gradient(to top,transparent 0,#000 24%),linear-gradient(to left,transparent 0,#000 30%),linear-gradient(to bottom,transparent 0,#000 16%);mask-image:linear-gradient(to top,transparent 0,#000 24%),linear-gradient(to left,transparent 0,#000 30%),linear-gradient(to bottom,transparent 0,#000 16%)}
+.homev2_lavender.is-flip{-webkit-mask-image:linear-gradient(to left,transparent 0,#000 30%),linear-gradient(to bottom,transparent 0,#000 16%);mask-image:linear-gradient(to left,transparent 0,#000 30%),linear-gradient(to bottom,transparent 0,#000 16%)}
 :root{--homev2-gable-height:180px}
 .is-gable-top::before{height:calc(var(--homev2-gable-height) + 1px)}
 .homev2-hero_status i{animation:blink 2.4s ease-in-out infinite}
