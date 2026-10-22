@@ -7,6 +7,22 @@
   const ls=document.querySelector('.section_homev2-location'); if(ls&&!ls.id) ls.id='location'; /* Webflow will not store this id */
   document.querySelectorAll('[data-button]').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
 })();
+/* responsive images: Webflow generates -p-500/800/1080/... variants for these assets but publishes the images without a srcset,
+   so phones downloaded the 2000-3200px originals. Map = asset id -> [natural w, natural h, variant widths...] (built 22 Oct 2026;
+   an image not in the map keeps its single src). Only lazy images that have not started are touched; object-fit:cover boxes are
+   sized by the width the crop actually needs. */
+(function(){
+  const V={"6ad83bb415ba12c99f1b6a62":[1600,1118,500,800,1080],"6ad83bb42757fe4397395b03":[2400,1350,500,800,1080,1600,2000],"6ad83bb48b60b3105017b15d":[2400,1350,500,800,1080,1600,2000],"6ad83bb4a985a82efbbaf70d":[2000,1125,500,800,1080,1600],"6ad83bb4b6e0db05961d3907":[2000,1125,500,800,1080,1600],"6ad83bddf7a30c4efe01f8d5":[2000,1413,500,800,1080,1600],"6ad83bde2757fe439739771b":[2000,1125,500,800,1080,1600],"6ad83bde4abe85b4fe0b4030":[1500,843,500,800,1080],"6ad83bde4abe85b4fe0b4056":[1500,844,500,800,1080],"6ad83bdea985a82efbbb0aed":[2400,1350,500,800,1080,1600,2000],"6ad83bdeb6e0db05961d4746":[2000,1125,500,800,1080,1600],"6ad83bdf2757fe4397397752":[2000,1329,500,800,1080,1600],"6ad83c0140f8947343351450":[2000,1125,500,800,1080,1600],"6ad83c0167354233534d83ae":[2000,1125,500,800,1080,1600],"6ad83c01e76331597f8043b9":[2000,1125,500,800,1080,1600],"6ad83c021f1705eb4ef50b28":[1600,1080,500,800,1080],"6ad83c024705b3f150e6be92":[1440,720,500,800,1080],"6ad83c02bed10ff88c3b2527":[1600,1103,500,800,1080],"6ad83c031f1705eb4ef50be5":[1600,1063,500,800,1080],"6ad83c034705b3f150e6bfe3":[1600,755,500,800,1080],"6ad83c034abe85b4fe0b4eae":[1500,691,500,800,1080],"6ad83c0358d21eef6f667f30":[1600,720,500,800,1080],"6ad83c038b2b5e60fff75672":[900,1260,500,800],"6ad83c038b2b5e60fff7569f":[1600,983,500,800,1080],"6ad83c03a383a2b58ff0bcdc":[2400,1350,500,800,1080,1600,2000],"6ad83c03a383a2b58ff0bd4d":[1600,747,500,800,1080],"6ad83ca09f36d9747dde982a":[2400,2400,500,800,1080,1600,2000],"6ad83ca09f36d9747dde983f":[2400,2400,500,800,1080,1600,2000],"6ad83ca0a985a82efbbb646d":[1500,843,500,800,1080],"6ad83cc02757fe43973a0a4b":[2000,1125,500,800,1080,1600],"6ad83cc02757fe43973a0a7f":[1920,1080,500,800,1080,1600],"6ad83cc0bed10ff88c3b7fff":[1800,1140,500,800,1080,1600],"6ad8dcdd15736a55c9197cf5":[1400,1050,500,800,1080],"6ad8dcddc239b1e747512db6":[1400,1050,500,800,1080],"6ad8dcdde4314fba11c000bb":[1400,1050,500,800,1080],"6ad8dcde1dffd69d11466b7a":[1024,768,500,800],"6ad8dcde8e352acc36a3fe2f":[1400,1050,500,800,1080],"6ad8fb972649c37acb7da43c":[1000,700,500,800],"6ad8fb97bff1cc06e4791f4a":[1400,1050,500,800,1080],"6ad8fc09de86598761083e73":[1000,750,500,800],"6ad98865b6549c4cc67ed26e":[1920,1080,500,800,1080,1600],"6ad99e18c233d3cf1765ebe5":[2880,1620,500,800,1080,1600,2000,2600],"6ad99e1997b45e003b581a98":[2880,1645,500,800,1080,1600,2000,2600],"6ad99e1ad335edc862f7950a":[2880,1620,500,800,1080,1600,2000,2600],"6ad99e1ad335edc862f7955f":[2880,1620,500,800,1080,1600,2000,2600],"6ad9b15c3e1ea747bd1f32d0":[3200,2400,500,800,1080,1600,2000,2600,3200]};
+  window.homev2Variant=(src,w)=>{ const m=/\/([0-9a-f]{24})_[^/]+\.avif$/.exec(src||''); const v=m&&V[m[1]]; if(!v) return src; const ws=v.slice(2).filter(x=>x>=w); return ws.length?src.replace(/\.avif$/,'-p-'+ws[0]+'.avif'):src; };
+  document.querySelectorAll('img[loading="lazy"]').forEach(im=>{
+    if(im.closest('#tsFrame')) return;                       /* the types slider swaps src itself */
+    const src=im.getAttribute('src')||''; const m=/\/([0-9a-f]{24})_[^/]+\.avif$/.exec(src); const v=m&&V[m[1]]; if(!v) return;
+    const b=im.getBoundingClientRect(), cover=getComputedStyle(im).objectFit==='cover';
+    const need=b.width?Math.max(b.width,cover?b.height*v[0]/v[1]:0)*1.15:0;   /* 1.15: room for the scroll zoom */
+    im.sizes=need?Math.ceil(need)+'px':'100vw';
+    im.srcset=v.slice(2).map(w=>src.replace(/\.avif$/,'-p-'+w+'.avif')+' '+w+'w').concat(src+' '+v[0]+'w').join(', ');
+  });
+})();
 (function(){
   const page=document.querySelector('.homev2_page');
   const rm=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -180,7 +196,9 @@
     const follow=()=>{ const target=Math.min(clock.p,.99,vidP()); if(target>shown){ shown+=Math.max(.002,(target-shown)*.12); if(shown>target) shown=target; draw(shown); } };
     gsap.ticker.add(follow);
     gsap.to(clock,{p:1,duration:2.4,ease:'io',delay:.15});
-    const minTime=new Promise(r=>setTimeout(r,2550)), cap=new Promise(r=>setTimeout(r,20000));  /* a very slow connection still gets the page after 20 s */
+    const cn=navigator.connection||{}, slow=cn.saveData||/(^|-)(2g|3g)$/.test(cn.effectiveType||'');
+    /* phones and slow connections don't hold the page for the whole film: after ~5 s (3 s on slow links) the window opens on the poster and the film fades in once it can play */
+    const minTime=new Promise(r=>setTimeout(r,2550)), cap=new Promise(r=>setTimeout(r,slow?3000:(narrow?5000:20000)));  /* a very slow connection still gets the page after 20 s */
     Promise.all([minTime,Promise.race([vidReady,cap])]).then(()=>{
       gsap.ticker.remove(follow);
       const s={p:shown};
@@ -224,7 +242,7 @@
     gsap.to('.is-hero .homev2_veil',{opacity:.55,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'bottom top',scrub:true}});
     if(!touch) gsap.to('.is-hero .homev2_sticky',{yPercent:100,ease:'none',scrollTrigger:{trigger:'.is-hero',start:'top top',end:'bottom top',scrub:true}});
     $$('.homev2_photo:not(.is-hero .homev2_photo):not(.homev2-vitality_component .homev2_photo):not(.homev2-types_component .homev2_photo):not(#planPh):not(#openPh) img').forEach(img=>{
-      gsap.fromTo(img,{yPercent:-8},{yPercent:8,ease:'none',scrollTrigger:{trigger:img.parentElement,start:'top bottom',end:'bottom top',scrub:.5}});
+      if(!touch) gsap.fromTo(img,{yPercent:-8},{yPercent:8,ease:'none',scrollTrigger:{trigger:img.parentElement,start:'top bottom',end:'bottom top',scrub:.5}});  /* the drift is skipped on phones: dozens of scrubbed images cost the most main-thread time there */
       gsap.to(img,{scale:1.02,duration:1.8,ease:'out',scrollTrigger:{trigger:img.parentElement,start:'top 90%',once:true}});
     });
     /* the sky scene fills the width: scale the 1440 stage to the viewport */
@@ -392,7 +410,7 @@
   function split(text){ ttl.innerHTML=''; const ws=text.split(' '); ws.forEach((w,i)=>{ const s=document.createElement('span'); s.className='w'; [...w].forEach(c=>{ const k=document.createElement('span'); k.className='ch'; k.textContent=c; s.appendChild(k); }); ttl.appendChild(s); if(i<ws.length-1) ttl.appendChild(document.createTextNode(' ')); }); return $$('.ch',ttl); }
   split(TYPES[0].t);
   function goType(dir){
-    if(busy) return; busy=true; ti=(ti+dir+TYPES.length)%TYPES.length; const d=TYPES[ti]; const of=frs[fi], nf=frs[fi^1]; fi^=1; const ni=$('img',nf); if(d.img){ ni.src=d.img; ni.alt=d.alt; }
+    if(busy) return; busy=true; ti=(ti+dir+TYPES.length)%TYPES.length; const d=TYPES[ti]; const of=frs[fi], nf=frs[fi^1]; fi^=1; const ni=$('img',nf); if(d.img){ ni.src=homev2Variant(d.img,Math.ceil(nf.offsetWidth*(devicePixelRatio||1)*1.1)); ni.alt=d.alt; }
     tsN.textContent=ti+1; tsRun();
     if(!G||rm){ split(d.t); frs.forEach(f=>f.classList.toggle('is-in',f===nf)); setTsTxt(d.txt); tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; busy=false; return; }
     const old=$$('.ch',ttl);
@@ -430,8 +448,8 @@
     const map=list=>list.map(u=>{ const im=(u.media||[]).find(m=>m.kind==='image'); return {t:'Type '+u.type_code,beds:String(u.bedrooms),baths:half(+u.bathrooms),size:u.total_area+' m²',txt:u.description||'',img:(im&&im.url)||u.card_image||'',alt:'Type '+u.type_code+", artist's impression"}; });
     const apply=W=>{ const r=W.data&&W.data.r&&W.data.r.getUnitTypes; if(!r||!Array.isArray(r.data)||!r.data.length) return false;
       TYPES=map(r.data); if(tsTot) tsTot.textContent=TYPES.length; ti=0; const d=TYPES[0], f=frs[fi], im=$('img',f);
-      if(d.img){ im.src=d.img; im.alt=d.alt; } split(d.t); setTsTxt(d.txt); tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; tsN.textContent=1;
-      $$('img',$('#tsFrame')).forEach(x=>{ x.loading='eager'; }); TYPES.forEach(t=>{ if(t.img){ const p=new Image(); p.src=t.img; } }); return true; };
+      if(d.img){ im.src=homev2Variant(d.img,Math.ceil(($('#tsFrame').offsetWidth||600)*(devicePixelRatio||1)*1.1)); im.alt=d.alt; } split(d.t); setTsTxt(d.txt); tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; tsN.textContent=1;
+      $$('img',$('#tsFrame')).forEach(x=>{ x.loading='eager'; }); TYPES.forEach(t=>{ if(t.img){ const p=new Image(); p.src=homev2Variant(t.img,Math.ceil(($('#tsFrame').offsetWidth||600)*(devicePixelRatio||1)*1.1)); } }); return true; };
     window.Wized=window.Wized||[]; window.Wized.push(W=>{ if(apply(W)) return; W.on('requestend',res=>{ if(res&&res.name==='getUnitTypes') apply(W); }); });
   })();
   /* swipe the picture to change type */
