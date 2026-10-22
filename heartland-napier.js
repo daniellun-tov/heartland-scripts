@@ -986,7 +986,7 @@
     };
 
     /* Floorplan modal */
-    var pm = qs("[data-nh-plan]");
+    var pm = qs("[role=dialog][data-nh-plan]");   // not the bare attribute: each façade unit also carries data-nh-plan="studio|loft"
     if (!pm) { return; }
     var PLANS = w.NH_PLANS || {};
     var last = null;
