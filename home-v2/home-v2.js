@@ -72,6 +72,7 @@
       imgs.forEach(box=>{ const im=$('img',box); if(!im.naturalWidth) return;
         const W=box.clientWidth,H=box.clientHeight,nw=im.naturalWidth,nh=im.naturalHeight,s=Math.max(W/nw,H/nh),dw=nw*s,dh=nh*s;
         const ox=(W-dw)*(+box.dataset.ox/100), oy=(H-dh)*(+box.dataset.oy/100);
+        im.style.objectPosition=(+box.dataset.ox)+'% '+(+box.dataset.oy)+'%'; /* the crop the markers are placed against */
         $$('.homev2-homes_marker',box).forEach(m=>{ const x=ox+dw*m.dataset.x/100, y=oy+dh*m.dataset.y/100; const out=x<0||x>W||y<0||y>H; m.style.left=Math.min(Math.max(x,22),W-22)+'px'; m.style.top=Math.min(Math.max(y,22),H-22)+'px'; m.classList.toggle('is-off', out); });
       });
     }
@@ -102,8 +103,10 @@
         .fromTo($('img',nb),{scale:1.12},{scale:1,duration:1.5,ease:'out'},.12)
         .add(()=>{ gsap.set(ob,{'--homev2-sh':'0%'}); },1.15)
         .add(()=>{
-          oc.classList.remove('is-on'); gsap.set(outEls,{clearProps:'all'}); nc.classList.add('is-on');
+          /* the fade-out of the last items can still be running here; kill it so it can't leave the copy at opacity 0 */
+          gsap.killTweensOf(outEls); gsap.set(outEls,{clearProps:'opacity,transform'}); oc.classList.remove('is-on'); nc.classList.add('is-on');
           const body=$('.homev2-features_body',nc), t=$('.homev2-features_title',nc);
+          gsap.killTweensOf([body,t,$('.homev2_eyebrow',nc)]); gsap.set([body,t],{clearProps:'opacity,transform'});
           const lt=splitLines(t), lb=splitLines(body);
           gsap.fromTo($('.homev2_eyebrow',nc),{opacity:0,y:10},{opacity:.8,y:0,duration:.6,ease:'out'});
           gsap.fromTo(lt,{yPercent:110},{yPercent:0,duration:1,ease:'out',stagger:.08,onComplete(){ t.innerHTML=t._orig; }});
@@ -143,22 +146,37 @@
       .to('.is-hero .homev2-hero_cta',{opacity:1,y:0,duration:1,ease:'out'},.8)
       .to('.is-hero .homev2-hero_split span',{opacity:1,y:0,duration:.9,ease:'out',stagger:.1},.9);
   }
-  if(!G||rm){ loader.remove(); hero(); }
+  /* the counter shows real progress: it follows the clock but never passes what the hero video has actually buffered (window.svHero, set by the hero embed);
+     at 100 the window opens and the film starts from its first frame */
+  const SVH=window.svHero, vidP=()=>SVH?SVH.progress:1, vidReady=SVH&&SVH.ready?SVH.ready:Promise.resolve();
+  if(!G||rm){ loader.remove(); hero(); vidReady.then(()=>SVH&&SVH.play()); }
   else{
     const narrow=matchMedia('(max-width:760px)').matches;
     /* window insets: [top/bottom %, left/right %] */
     const A=narrow?[33,42]:[30,47.2], B=narrow?[20,31]:[17,41.5];
-    const sc=$('#heroScene'), veil=$('.is-hero .homev2_veil'), o={p:0};
+    const sc=$('#heroScene'), veil=$('.is-hero .homev2_veil');
     const setWin=(v,h)=>{ sc.style.clipPath=`inset(${v}% ${h}% ${v}% ${h}%)`; num.style.top=`calc(${100-v}% + 18px)`; };
+    const draw=p=>{ setWin(A[0]+(B[0]-A[0])*p, A[1]+(B[1]-A[1])*p); num.textContent=String(Math.round(p*100)).padStart(2,'0'); };
     setWin(A[0],A[1]); gsap.set(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:0}); gsap.set(veil,{opacity:0}); gsap.set(sc,{scale:1.18});
-    gsap.timeline({onComplete(){ loader.remove(); sc.style.clipPath=''; }})
-      .to(o,{p:1,duration:2.4,ease:'io',onUpdate(){ const v=A[0]+(B[0]-A[0])*o.p, h=A[1]+(B[1]-A[1])*o.p; setWin(v,h); num.textContent=String(Math.round(o.p*100)).padStart(2,'0'); }},.15)
-      .to(num,{opacity:0,y:8,duration:.4,ease:'io'},2.65)
-      .add(()=>{ const w={v:B[0],h:B[1]}; gsap.to(w,{v:0,h:0,duration:1.3,ease:'io',onUpdate(){ sc.style.clipPath=`inset(${w.v}% ${w.h}% ${w.v}% ${w.h}%)`; }}); },2.75)
-      .to(sc,{scale:1.12,duration:2,ease:'out'},2.75)
-      .to(veil,{opacity:1,duration:1.2,ease:'out'},3.2)
-      .to(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:1,duration:.8,ease:'out'},3.5)
-      .add(hero,3.4);
+    const clock={p:0}; let shown=0;
+    const follow=()=>{ const target=Math.min(clock.p,.99,vidP()); if(target>shown){ shown+=Math.max(.002,(target-shown)*.12); if(shown>target) shown=target; draw(shown); } };
+    gsap.ticker.add(follow);
+    gsap.to(clock,{p:1,duration:2.4,ease:'io',delay:.15});
+    const minTime=new Promise(r=>setTimeout(r,2550)), cap=new Promise(r=>setTimeout(r,20000));  /* a very slow connection still gets the page after 20 s */
+    Promise.all([minTime,Promise.race([vidReady,cap])]).then(()=>{
+      gsap.ticker.remove(follow);
+      const s={p:shown};
+      gsap.to(s,{p:1,duration:Math.max(.3,(1-shown)*1.4),ease:'out',onUpdate(){ draw(s.p); },onComplete(){
+        if(SVH) SVH.play();
+        gsap.timeline({onComplete(){ loader.remove(); sc.style.clipPath=''; }})
+          .to(num,{opacity:0,y:8,duration:.4,ease:'io'},0)
+          .add(()=>{ const w={v:B[0],h:B[1]}; gsap.to(w,{v:0,h:0,duration:1.3,ease:'io',onUpdate(){ sc.style.clipPath=`inset(${w.v}% ${w.h}% ${w.v}% ${w.h}%)`; }}); },.1)
+          .to(sc,{scale:1.12,duration:2,ease:'out'},.1)
+          .to(veil,{opacity:1,duration:1.2,ease:'out'},.55)
+          .to(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:1,duration:.8,ease:'out'},.85)
+          .add(hero,.75);
+      }});
+    });
   }
 
   /* amenities data */
