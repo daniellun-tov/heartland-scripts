@@ -440,6 +440,14 @@
   // A row whose reference is a TEST number, so the tag can be asserted against a real
   // one rather than against a string the test made up.
   window.__FIXTURE.items[0].reference = "RES-TEST-SAN-001";
+  // THE SUITES WRITTEN BEFORE 22 OCT ARE A BROWSER WITH TEST DATA SWITCHED ON. Their counts,
+  // and the RES-TEST tag assertions, were written against every row; the switch did not
+  // exist. So this fixture remembers "show" unless ?freshprefs=1 - a browser that has never
+  // chosen, which is where the hidden-by-default behaviour is graded (test-console-tests.js).
+  try {
+    if (/[?&]freshprefs=1/.test(location.search)) { localStorage.removeItem("hl_console_show_tests"); }
+    else { localStorage.setItem("hl_console_show_tests", "1"); }
+  } catch (e) {}
   // A row with no Payfast payment, so the force checkbox can be asserted absent as well
   // as present - a checkbox that is always there proves nothing.
   window.__FIXTURE.items[1].pf_payment_id = null;
@@ -511,6 +519,18 @@
         res_dead: false, res_unit_name: "", res_deal_stage: "", res_deal_stage_due_at: null, res_days_left: null, res_overdue: false, res_total_cents: 0,
         created_at: Date.now() - 20 * 86400000, assigned_at: null, last_activity_at: Date.now() - 10 * 86400000 }
     ];
+    /* ?testlead=1 adds a rehearsal from the staging site, assigned to the caller, so the
+       hide-tests switch has a lead to hide. Only on request, so the pipeline suite keeps the
+       population its counts were written against. */
+    if (/[?&]testlead=1/.test(location.search) && !window.__LEADS.some(function (l) { return l.id === 709; })) {
+      window.__LEADS.push({ id: 709, reference: "LD-TEST-SAN-001", property_slug: "sanford", property_name: "Sanford Heart", source: "reserve-flow",
+        status: "new", first_name: "Demo", last_name: "Rehearsal", email: "demo@example.com", phone: "",
+        message: "", notes: "", utm_source: "", utm_campaign: "", origin_host: "heartlandpropertydevelopers.webflow.io",
+        assigned_staff_id: 5, assigned_staff_name: "Anneke Grobler", assigned_team_id: 1, assigned_team_name: "Heartland",
+        assignment_method: "rotation", unassigned_reason: "", lost_reason: "", reservation_uuid: "", res_reference: "", res_status: "",
+        res_dead: false, res_unit_name: "", res_deal_stage: "", res_deal_stage_due_at: null, res_days_left: null, res_overdue: false, res_total_cents: 0,
+        created_at: Date.now() - 86400000, assigned_at: Date.now() - 86400000, last_activity_at: Date.now() - 86400000 });
+    }
     /* SINCE 16 SEP THE SERVER SENDS EVERY ACTIVE PERSON HERE, not only the rotation's pool,
        so the fixture carries somebody on NO team: Johan sells nothing, and assigning him a
        lead has to work and land with no team. A list where everyone is on a team would let
@@ -558,11 +578,18 @@
       var wantProp = (/property=([a-z]+)/.exec(u) || [0, ""])[1];
       var wantLost = /include_lost=true/.test(u);
       var sc = LEAD_SCOPE(want);
-      var counts = { total: window.__LEADS.length, visible: 0, mine: 0, unassigned: 0, by_state: {} };
+      var counts = { total: window.__LEADS.length, visible: 0, mine: 0, unassigned: 0, by_state: {}, test_count: 0, test_hidden: 0 };
+      var exLeads = /[?&]exclude_test=true/.test(u);
+      window.__PL_URLS = (window.__PL_URLS || []).concat([u]);
       var items = window.__LEADS.filter(function (l) {
         var vis = sc.all === 1 || (l.assigned_staff_id !== null && sc.staff_ids.indexOf(l.assigned_staff_id) !== -1) ||
                   (l.assigned_staff_id === null && sc.unassigned_on_slugs.indexOf(l.property_slug) !== -1);
         if (!vis) { return false; }
+        /* As list_pipeline: a TEST reference makes a test lead, counted either way and
+           left out of the rows and the counts when exclude_test=true. */
+        l.is_test = String(l.reference || "").toUpperCase().indexOf("LD-TEST-") === 0;
+        if (l.is_test) { counts.test_count++; }
+        if (l.is_test && exLeads) { counts.test_hidden++; return false; }
         var state = LEAD_STATE(l);
         if (!wantLost && state === "lost") { return false; }
         if (wantProp && l.property_slug !== wantProp) { return false; }
@@ -2350,12 +2377,27 @@
                  21 Sep this stub ignored it, which nothing noticed while the Dashboard
                  re-filtered in the browser; the header switcher scopes Deals through it. */
               var ps = (/[?&]property=([^&]*)/.exec(u) || [0, ""])[1];
-              var body = window.__FIXTURE;
-              if (ps) {
-                body = JSON.parse(JSON.stringify(body));
-                body.items = body.items.filter(function (x) { return x.property_slug === ps; });
-                body.matched = body.items.length;
+              window.__RES_URLS = (window.__RES_URLS || []).concat([u]);
+              var body = JSON.parse(JSON.stringify(window.__FIXTURE));
+              /* TEST DATA, as list_reservations does it (22 Oct): is_test from the TEST
+                 reference, test_count counted either way, and exclude_test=true takes the
+                 tests out of the items AND the summary. */
+              var ex = /[?&]exclude_test=true/.test(u);
+              var tc = 0;
+              body.items.forEach(function (x) {
+                x.is_test = String(x.reference || "").toUpperCase().indexOf("RES-TEST-") === 0;
+                if (x.is_test) { tc++; }
+              });
+              if (ex) {
+                body.items = body.items.filter(function (x) { return !x.is_test; });
+                body.summary.total = body.items.length;
               }
+              body.summary.test_count = tc;
+              body.summary.test_hidden = ex ? tc : 0;
+              if (ps) {
+                body.items = body.items.filter(function (x) { return x.property_slug === ps; });
+              }
+              body.matched = body.items.length;
               return Promise.resolve(JSON.stringify(body));
             } };
       return new Promise(function (r) { setTimeout(function () { r(res); }, slow); });

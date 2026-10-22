@@ -223,6 +223,33 @@
     "  }",
     "  .devpick select { font-weight:600; }",
     "  @media (max-width: 900px) { .devpick { margin:0; min-width:0; flex:1 1 200px; } }",
+    "  /* HIDE TEST DATA, 22 Oct. A switch, not a filter in one tab, because rehearsals sit",
+    "     in every screen that counts deals - the dashboard, Today, Pipeline and Deals - and",
+    "     a figure that includes them is a wrong figure. Off (tests hidden) is the default",
+    "     and it is remembered per browser. The count says what is being hidden, so a",
+    "     salesperson never wonders where a row went. */",
+    "  .devwrap { display:flex; flex-direction:column; gap:6px; min-width:0; }",
+    "  @media (max-width: 900px) { .devwrap { flex:1 1 200px; } .devwrap .devpick { flex:none; max-width:none; } }",
+    "  .testswitch {",
+    "    display:inline-flex; align-items:center; gap:8px; background:none; border:0;",
+    "    padding:4px 2px; cursor:pointer; color:var(--ink-2); font:inherit; font-size:.8125rem;",
+    "  }",
+    "  .testswitch .ts-track {",
+    "    position:relative; width:30px; height:18px; border-radius:999px; flex:0 0 auto;",
+    "    background:color-mix(in srgb, var(--ink-muted) 45%, transparent); transition:background .15s;",
+    "  }",
+    "  .testswitch .ts-knob {",
+    "    position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%;",
+    "    background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:transform .15s;",
+    "  }",
+    "  .testswitch[aria-checked=\"true\"] .ts-track { background:var(--brand); }",
+    "  .testswitch[aria-checked=\"true\"] .ts-knob { transform:translateX(12px); }",
+    "  .testswitch .ts-count {",
+    "    min-width:18px; padding:0 6px; border-radius:999px; font-size:.6875rem; font-weight:600;",
+    "    background:var(--surface-2); color:var(--ink-muted); text-align:center;",
+    "  }",
+    "  .testswitch .ts-count:empty { display:none; }",
+    "  .testswitch:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }",
     "",
     "  /* The lockup: mark on the left, the tool's name beside it. The mark is the",
     "     brand and the h1 is what this thing IS, so they sit on one line with room",
@@ -1462,8 +1489,13 @@
     "         console could be showing Polaris stock beside Sanford deals. It is remembered",
     "         per browser. A tab that can only show one development (Inventory, Developments)",
     "         turns All into the first development rather than guessing silently. -->",
+    "    <div class=\"devwrap\">",
     "    <label class=\"devpick\" for=\"devPick\"><span class=\"devpick-label\">Development</span>",
     "      <select id=\"devPick\"><option value=\"\">All developments</option></select></label>",
+    "      <button type=\"button\" class=\"testswitch\" id=\"testSwitch\" role=\"switch\" aria-checked=\"false\">",
+    "        <span class=\"ts-track\" aria-hidden=\"true\"><span class=\"ts-knob\"></span></span>",
+    "        <span class=\"ts-label\">Show test data</span><span class=\"ts-count\" id=\"testCount\"></span></button>",
+    "    </div>",
     "    <div class=\"row\">",
     "      <span class=\"splitbtn\">",
     "        <button class=\"primary\" id=\"newRes\" data-nr-open=\"production\">New reservation</button>",
@@ -1859,6 +1891,11 @@
   var S = { data: null, staff: null, open: null, tab: "today", catalogue: {}, dev: "" };
   /* Per-viewer and disposable; a private window throws on read. */
   try { S.dev = localStorage.getItem("hl_console_dev") || ""; } catch (e) {}
+  /* Tests are HIDDEN unless this browser has asked to see them. Hidden is the default
+     because a rehearsal counted as a sale is the expensive mistake; a hidden test is one
+     click away and the switch says how many there are. */
+  S.showTests = false;
+  try { S.showTests = localStorage.getItem("hl_console_show_tests") === "1"; } catch (e) {}
 
   /* ---------- the deal machine, mirrored for the UI ----------
      The server is the authority; this exists so the console never
@@ -2021,7 +2058,9 @@
     var qs = "?q=" + encodeURIComponent($("q").value) +
              "&status=" + encodeURIComponent($("fstatus").value) +
              "&deal_stage=" + encodeURIComponent($("fstage").value) +
-             "&property=" + encodeURIComponent(S.dev || "");
+             "&property=" + encodeURIComponent(S.dev || "") +
+             /* Sent only when hiding, so an older server simply shows everything. */
+             (S.showTests ? "" : "&exclude_test=true");
     return api("/staff/reservations" + qs)
       .then(function (d) {
         S.data = d;
@@ -2043,6 +2082,7 @@
     /* Identity moved to the avatar on 4 Sep, so this line is the count and the status
        messages that share it - nothing about who is signed in. */
     $("who").textContent = d.matched + " of " + d.summary.total + " shown";
+    paintTestSwitch();
     paintIdentity(d.staff || S.staff);
     fillFilters(d);
     renderDash();
@@ -2120,6 +2160,37 @@
 
   function devRemember() {
     try { localStorage.setItem("hl_console_dev", S.dev || ""); } catch (e) {}
+  }
+
+  /* ---------- show / hide test data ----------
+     The server decides what a test is (list_reservations and list_pipeline put is_test on
+     every row, from the TEST reference sequence) and leaves tests out of the rows AND the
+     counts when asked, so the dashboard's figures describe real deals. This switch only
+     says whether to ask. The count is how many rehearsals exist, read from whichever list
+     has loaded - deals first, because every session loads them. */
+  function testCounts() {
+    var res = (S.data && S.data.summary && S.data.summary.test_count) || 0;
+    var leads = (PL.data && PL.data.counts && PL.data.counts.test_count) || 0;
+    return { res: res, leads: leads };
+  }
+  function paintTestSwitch() {
+    var b = $("testSwitch");
+    if (!b) { return; }
+    var c = testCounts();
+    b.setAttribute("aria-checked", S.showTests ? "true" : "false");
+    var n = Math.max(c.res, c.leads);
+    $("testCount").textContent = n ? String(n) : "";
+    b.title = (S.showTests ? "Showing" : "Hiding") + " test data: " +
+      c.res + " test reservation" + (c.res === 1 ? "" : "s") +
+      (PL.data ? ", " + c.leads + " test lead" + (c.leads === 1 ? "" : "s") : "") +
+      ". Rehearsals carry a TEST reference and never count towards the figures while hidden.";
+  }
+  function setShowTests(on) {
+    S.showTests = !!on;
+    try { localStorage.setItem("hl_console_show_tests", S.showTests ? "1" : "0"); } catch (e) {}
+    paintTestSwitch();
+    load();
+    if (PL.data || S.tab === "leads") { plLoad(true); }
   }
 
   /* The tabs that can only show ONE development. On them All means "the first one", and
@@ -3225,7 +3296,7 @@
            name first. A deal created before generate_reference existed has none - shown
            as a dash rather than blank, so the column reads as empty rather than broken. */
         '<td><span class="mono">' + esc(r.reference || "\u2014") + "</span>" +
-          (isTestRef(r.reference) ? ' <span class="testtag">Test</span>' : "") + "</td>" +
+          ((r.is_test || isTestRef(r.reference)) ? ' <span class="testtag">Test</span>' : "") + "</td>" +
         "<td><div>" + esc(name(r)) + "</div><div class=\"muted\">" + esc(r.email || "") + "</div></td>" +
         "<td>" + esc(r.property_name) + '<div class="muted">' + esc(r.unit_name) + "</div></td>" +
         '<td><span class="pill s-' + esc(r.status) + '"><span class="dot"></span>' + esc(label(r.status)) + "</span></td>" +
@@ -3291,7 +3362,7 @@
       "<header><div><h1>" + esc(name(r)) + "</h1>" +
         '<div class="muted">' + esc(r.property_name) + " · " + esc(r.unit_name) +
           (r.reference ? ' · <span class="mono">' + esc(r.reference) + "</span>" : "") +
-          (isTestRef(r.reference) ? ' <span class="testtag">Test</span>' : "") + "</div></div>" +
+          ((r.is_test || isTestRef(r.reference)) ? ' <span class="testtag">Test</span>' : "") + "</div></div>" +
         '<button id="close">Close</button></header>' +
 
       '<dl class="dl">' +
@@ -8848,7 +8919,8 @@
     renderLeads();
     var qs = "?scope=" + encodeURIComponent(PL.scope) +
       (PL.property ? "&property=" + encodeURIComponent(PL.property) : "") +
-      (PL.includeLost ? "&include_lost=true" : "");
+      (PL.includeLost ? "&include_lost=true" : "") +
+      (S.showTests ? "" : "&exclude_test=true");
     return api("/staff/pipeline" + qs)
       .then(function (d) {
         PL.data = d;
@@ -8856,6 +8928,7 @@
         if (d && d.scope && d.scope.scope_applied) { PL.scope = d.scope.scope_applied; }
         var lc = $("leadsCount");
         if (lc) { lc.textContent = (d && d.counts && d.counts.visible) || 0; }
+        paintTestSwitch();
       })
       .catch(function (e) { PL.err = e.message; })
       .then(function () { PL.loading = false; renderLeads(); });
@@ -9013,6 +9086,7 @@
       '<td class="gpick"><input type="checkbox" data-pl-pick="' + esc(String(l.id)) + '"' + (picked ? " checked" : "") +
         ' aria-label="Select lead ' + esc(l.reference) + '"></td>' +
       '<td class="gnum"><strong>' + esc(l.reference || ("#" + l.id)) + "</strong>" +
+        (l.is_test ? ' <span class="testtag">Test</span>' : "") +
         (l.mine ? ' <span class="pl-mine" title="Assigned to you">you</span>' : "") +
         (!l.assigned_staff_id ? ' <span class="pl-unassigned" title="' + esc(l.unassigned_reason || "Nobody assigned") + '">unassigned</span>' : "") +
         (l.res_dead ? ' <span class="testtag" title="The reservation ended: ' + esc(l.res_status) + '">' + esc(l.res_status) + "</span>" : "") +
@@ -9881,6 +9955,7 @@
   $("signout").addEventListener("click", function () { userMenu(false); signOut(""); });
   $("pwGo").addEventListener("click", changePassword);
   $("refresh").addEventListener("click", refreshCurrent);
+  $("testSwitch").addEventListener("click", function () { setShowTests(!S.showTests); });
   $("csv").addEventListener("click", csv);
   $("scrim").addEventListener("click", closeDrawer);
 

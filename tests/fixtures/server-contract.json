@@ -2,6 +2,7 @@
   "_README": [
     "THE CONSOLE/SERVER CONTRACT. Generated from the LIVE server by the Xano function",
     "emit_console_contract (fn 172) - never edited by hand.",
+    "22 Oct - reservations regenerated after list_reservations gained items[].is_test and summary.test_count / test_hidden (hide test data). Copied from emit_console_contract's output for that endpoint; the other four were unchanged.",
     "10 Sep 03:24 - regenerated after /staff/inventory gained `retired` (+ counts.retired) and",
     "/staff/property-config gained developments[].record, both for the Phase C console UI.",
     "6 Sep 19:41 - regenerated after resolve_development_fields (fn 176) became the one",
@@ -19,7 +20,7 @@
     "parts of tests/fixtures/dash.html now disagree with the server."
   ],
   "generated_from": "stellenbosch",
-  "generated_at": "2026-09-10T03:24Z",
+  "generated_at": 1792672174630,
   "generator": "emit_console_contract (Xano fn 172, workspace 5, branch v1)",
   "endpoints": {
     "inventory": [
@@ -456,6 +457,7 @@
       "$.items[].has_member:scalar",
       "$.items[].hold_expires_at:scalar",
       "$.items[].holds_unit:scalar",
+      "$.items[].is_test:scalar",
       "$.items[].last_name:scalar",
       "$.items[].m_payment_id:scalar",
       "$.items[].needs_attention:scalar",
@@ -511,6 +513,8 @@
       "$.summary.needs_attention:scalar",
       "$.summary.overdue:scalar",
       "$.summary.purchase_deposit_outstanding_cents:scalar",
+      "$.summary.test_count:scalar",
+      "$.summary.test_hidden:scalar",
       "$.summary.total:scalar",
       "$.summary:object",
       "$:object"
