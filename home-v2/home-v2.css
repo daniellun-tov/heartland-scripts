@@ -38,7 +38,19 @@ section{position:relative;padding-top:160px;padding-right:var(--homev2-gutter);p
 .is-slat{--homev2-st:0%;--homev2-sh:0%;--homev2-sp:5.5555%;-webkit-mask-image:repeating-linear-gradient(to bottom,transparent 0 var(--homev2-st),#000 var(--homev2-st) var(--homev2-sh),transparent var(--homev2-sh) var(--homev2-sp));mask-image:repeating-linear-gradient(to bottom,transparent 0 var(--homev2-st),#000 var(--homev2-st) var(--homev2-sh),transparent var(--homev2-sh) var(--homev2-sp))}
 .is-slat.is-in{--homev2-sh:5.5555%}
 .homev2-nav_component .homev2-nav_mark{width:92px;height:auto;display:block}
-.homev2-menu_sheet nav a:hover>span{font-style:italic;text-transform:none}
+/* roll hover (nav, menu, footer): the label slides up out of its line and the italic accent rises in from below; the menu button does the same when open (Menu -> Close) */
+@media (hover:hover){a:hover>.homev2_roll>.homev2_roll-text:not(.is-accent){transform:translateY(-100%);opacity:0}a:hover>.homev2_roll>.homev2_roll-text.is-accent{transform:none;opacity:1}}
+.homev2-nav_menu-button.is-open>.homev2_roll>.homev2_roll-text:not(.is-accent){transform:translateY(-100%);opacity:0}
+.homev2-nav_menu-button.is-open>.homev2_roll>.homev2_roll-text.is-accent{transform:none;opacity:1}
+/* the three dots fold into an x */
+.homev2-nav_dots-italic{transition:transform .6s cubic-bezier(.25,1,.5,1)}
+.homev2-nav_menu-button.is-open .homev2-nav_dots-italic:nth-child(1){transform:translateY(6px) rotate(45deg) scale(5.5,.6)}
+.homev2-nav_menu-button.is-open .homev2-nav_dots-italic{border-radius:1px}
+.homev2-nav_menu-button.is-open .homev2-nav_dots-italic:nth-child(2){transform:scale(0)}
+.homev2-nav_menu-button.is-open .homev2-nav_dots-italic:nth-child(3){transform:translateY(-6px) rotate(-45deg) scale(5.5,.6)}
+/* no scrolling while the loader runs (outranks the head's html,body{overflow-x:clip!important}) */
+html.homev2-is-loading,html.homev2-is-loading body{overflow:hidden!important;overscroll-behavior:none}
+@media (prefers-reduced-motion:reduce){.homev2_roll-text,.homev2-nav_dots-italic{transition:none!important}}
 .homev2-setting_scene-wrapper{--homev2-s:1;--_home-v2---homev2-sky:#437FBA}
 .homev2-setting_scene-wrapper .homev2-setting_cloud-band{animation:mq linear infinite}
 .homev2-setting_scene-wrapper .is-mq-back{--homev2-p:1600px;animation-duration:260s}

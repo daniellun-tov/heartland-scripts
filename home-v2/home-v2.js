@@ -149,8 +149,14 @@
   /* the counter shows real progress: it follows the clock but never passes what the hero video has actually buffered (window.svHero, set by the hero embed);
      at 100 the window opens and the film starts from its first frame */
   const SVH=window.svHero, vidP=()=>SVH?SVH.progress:1, vidReady=SVH&&SVH.ready?SVH.ready:Promise.resolve();
+  /* no scrolling while the loader runs (desktop and touch); released when the loader is removed */
+  const root=document.documentElement, stopEv=e=>{ if(root.classList.contains('homev2-is-loading')) e.preventDefault(); };
+  const stopKeys=e=>{ if(root.classList.contains('homev2-is-loading')&&[' ','PageDown','PageUp','ArrowDown','ArrowUp','Home','End'].includes(e.key)) e.preventDefault(); };
+  const lockScroll=()=>{ root.classList.add('homev2-is-loading'); addEventListener('wheel',stopEv,{passive:false}); addEventListener('touchmove',stopEv,{passive:false}); addEventListener('keydown',stopKeys); if(lenis) lenis.stop(); else document.addEventListener('sv:lenis-ready',()=>setTimeout(()=>{ if(root.classList.contains('homev2-is-loading')&&window.lenis) window.lenis.stop(); },0),{once:true}); };
+  const unlockScroll=()=>{ root.classList.remove('homev2-is-loading'); removeEventListener('wheel',stopEv); removeEventListener('touchmove',stopEv); removeEventListener('keydown',stopKeys); if(lenis) lenis.start(); };
   if(!G||rm){ loader.remove(); hero(); vidReady.then(()=>SVH&&SVH.play()); }
   else{
+    lockScroll(); if(scrollY>0) scrollTo(0,0);
     const narrow=matchMedia('(max-width:760px)').matches;
     /* window insets: [top/bottom %, left/right %] */
     const A=narrow?[33,42]:[30,47.2], B=narrow?[20,31]:[17,41.5];
@@ -171,13 +177,13 @@
       const s={p:shown};
       gsap.to(s,{p:1,duration:Math.max(.3,(1-shown)*1.4),ease:'out',onUpdate(){ draw(s.p); },onComplete(){
         if(SVH) SVH.play();
-        gsap.timeline({onComplete(){ loader.remove(); sc.style.clipPath=''; }})
+        gsap.timeline({onComplete(){ loader.remove(); sc.style.clipPath=''; unlockScroll(); }})
           .to(num,{opacity:0,y:8,duration:.4,ease:'io'},0)
           .add(()=>{ const w={v:B[0],h:B[1]}; gsap.to(w,{v:0,h:0,duration:1.3,ease:'io',onUpdate(){ sc.style.clipPath=clipAt(w.v,w.h); }}); },.1)
           .to(sc,{scale:1.12,duration:2,ease:'out'},.1)
           .to(veil,{opacity:1,duration:1.2,ease:'out'},.55)
           .to(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:1,duration:.8,ease:'out'},.85)
-          .add(hero,.75);
+          .add(hero,.75).add(unlockScroll,.9);
       }});
     });
   }
@@ -345,7 +351,7 @@
     /* distance bars draw in turn */
     gsap.to('#prog',{width:'100%',ease:'none',scrollTrigger:{trigger:'.homev2_page',start:'top top',end:'bottom bottom',scrub:true}});
     const nav=$('#nav');
-    $$('section.is-cream, section.is-sand').forEach(s=>{ ScrollTrigger.create({trigger:s,start:'top 60px',end:'bottom 60px',onToggle(st){ nav.classList.toggle('is-on-light',st.isActive); }}); });
+    const lit=new Set(); $$('section.is-cream, section.is-sand').forEach(s=>{ ScrollTrigger.create({trigger:s,start:'top 60px',end:'bottom 60px',onToggle(st){ st.isActive?lit.add(s):lit.delete(s); window.__homev2Light=lit.size>0; if(!nav.classList.contains('is-menu-open')) nav.classList.toggle('is-on-light',window.__homev2Light); }}); });
   } else { $$('.is-rev').forEach(e=>{e.style.opacity=1;e.style.transform='none'}); $$('.homev2_line > span').forEach(s=>s.style.transform='none'); $('#openPh').style.clipPath='none'; }
 
   /* drag gallery: mouse drags the strip (touch keeps native scrolling); snapping is paused while dragging, then the strip settles on the nearest picture in the drag direction */
@@ -453,29 +459,26 @@
   const regForm=$('#regForm');
   const viewing=$('#viewing'); if(viewing) viewing.addEventListener('click',e=>{ e.preventDefault(); const m=$('textarea[name=message]',regForm); m.value="I'd like to arrange a private viewing"; scrollToY(topOf(regForm)-140); setTimeout(()=>$('input[name="First Name"]',regForm).focus({preventScroll:true}),900); });
   
-  /* menu through slats */
-  const sheet=$('#sheet'); const sheetLinks=$$('.homev2-menu_sheet nav a > span'), sheetFoot=$('.homev2-menu_sheet .homev2-menu_footer'), sheetX=$('.homev2-menu_sheet .homev2-menu_close');
-  let menuTl=null;
+  /* menu through slats; the Menu button rolls to Close and its dots fold into an x (CSS on .is-open) */
+  const sheet=$('#sheet'), menuBtn=$('#menuBtn'), navEl=$('#nav');
+  const sheetLinks=$$('.homev2-menu_sheet nav a > .homev2_roll'), sheetFoot=$('.homev2-menu_sheet .homev2-menu_footer');
+  let menuTl=null, menuOpen=false;
   const open=v=>{
+    if(v===menuOpen) return; menuOpen=v;
     sheet.setAttribute('aria-hidden',!v);
+    if(menuBtn){ menuBtn.classList.toggle('is-open',v); menuBtn.setAttribute('aria-expanded',v); }
+    /* the nav sits over the plum sheet while it is open, so it drops its on-light colours and gets them back on close */
+    if(navEl){ navEl.classList.toggle('is-menu-open',v); if(v) navEl.classList.remove('is-on-light'); else navEl.classList.toggle('is-on-light',!!window.__homev2Light); }
     if(!G||rm){ sheet.classList.toggle('is-open',v); sheet.style.setProperty('--homev2-sh',v?'5.5555%':'0%'); return; }
     if(menuTl) menuTl.kill();
     if(v){ sheet.classList.add('is-open'); if(lenis) lenis.stop();
-      menuTl=gsap.timeline().fromTo(sheet,{'--homev2-sh':'0%'},{'--homev2-sh':'5.5555%',duration:.9,ease:'io'},0).fromTo(sheetLinks,{yPercent:110},{yPercent:0,duration:.9,ease:'out',stagger:.06},.45).fromTo([sheetFoot,sheetX],{opacity:0},{opacity:1,duration:.6},.7);
+      menuTl=gsap.timeline().fromTo(sheet,{'--homev2-sh':'0%'},{'--homev2-sh':'5.5555%',duration:.9,ease:'io'},0).fromTo(sheetLinks,{yPercent:110},{yPercent:0,duration:.9,ease:'out',stagger:.06},.45).fromTo(sheetFoot,{opacity:0},{opacity:1,duration:.6},.7);
     } else { if(lenis) lenis.start();
-      menuTl=gsap.timeline({onComplete(){ sheet.classList.remove('is-open'); }}).to(sheetLinks,{yPercent:-110,duration:.5,ease:'io',stagger:.03},0).to([sheetFoot,sheetX],{opacity:0,duration:.3},0).to(sheet,{'--homev2-sh':'0%',duration:.8,ease:'io'},.2);
+      menuTl=gsap.timeline({onComplete(){ sheet.classList.remove('is-open'); }}).to(sheetLinks,{yPercent:-110,duration:.5,ease:'io',stagger:.03},0).to(sheetFoot,{opacity:0,duration:.3},0).to(sheet,{'--homev2-sh':'0%',duration:.8,ease:'io'},.2);
     }
   };
-  $('#menuBtn').addEventListener('click',()=>open(true)); $('#menuX').addEventListener('click',()=>open(false));
-  $$('[data-go]').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); open(false); const t=$(a.getAttribute('href')); if(t) setTimeout(()=>scrollToY(topOf(t)),sheet.classList.contains('is-open')?500:0); }));
-})();
-
-/* Webflow publishes every image loading="lazy". Re-measure the scroll triggers when a picture lands, so pinned
-   sections stay in step, and fetch the rest once the page has loaded so they are ready before the visitor arrives. */
-(function(){
-  let t; const refresh=()=>{ clearTimeout(t); t=setTimeout(()=>{ if(window.ScrollTrigger) ScrollTrigger.refresh(true); },200); };
-  const lazy=[...document.querySelectorAll('img[loading="lazy"]')];
-  lazy.forEach(i=>{ if(!i.complete) i.addEventListener('load',refresh,{once:true}); });
-  const warm=()=>lazy.forEach((i,k)=>setTimeout(()=>{ i.loading='eager'; },k*120));
-  if(document.readyState==='complete') setTimeout(warm,1500); else window.addEventListener('load',()=>setTimeout(warm,1500),{once:true});
+  if(menuBtn) menuBtn.addEventListener('click',e=>{ e.preventDefault(); open(!menuOpen); });
+  addEventListener('keydown',e=>{ if(e.key==='Escape'&&menuOpen) open(false); });
+  const goLinks=new Set($$('[data-go], #nav a[href^="#"], #sheet a[href^="#"], footer a[href^="#"]'));
+  goLinks.forEach(a=>a.addEventListener('click',e=>{ const h=a.getAttribute('href'); if(!h||h.length<2) return; e.preventDefault(); const was=menuOpen; open(false); const t=h==='#top'?null:$(h); setTimeout(()=>scrollToY(t?topOf(t):0),was?500:0); }));
 })();
