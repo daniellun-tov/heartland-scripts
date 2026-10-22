@@ -368,12 +368,14 @@
   ];
   const ttl=$('#tsTitle'), frs=$$('#tsFrame .homev2-types_frame'), tsN=$('#tsN'), tsBar=$('#tsBar'), tsTxt=$('#tsTxt'), tsType=$('#tsBeds'), tsPos=$('#tsBaths'), tsSize=$('#tsSize');
   let ti=0, busy=false, fi=0; const tsTot=$('#tsTot');
+  /* the copy is split into lines for its reveal; keep the saved original in step so a reveal never puts back the fallback text */
+  const setTsTxt=t=>{ if(window.gsap) gsap.killTweensOf(tsTxt.querySelectorAll('*')); tsTxt._orig=String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;'); tsTxt.textContent=t; };
   function split(text){ ttl.innerHTML=''; const ws=text.split(' '); ws.forEach((w,i)=>{ const s=document.createElement('span'); s.className='w'; [...w].forEach(c=>{ const k=document.createElement('span'); k.className='ch'; k.textContent=c; s.appendChild(k); }); ttl.appendChild(s); if(i<ws.length-1) ttl.appendChild(document.createTextNode(' ')); }); return $$('.ch',ttl); }
   split(TYPES[0].t);
   function goType(dir){
     if(busy) return; busy=true; ti=(ti+dir+TYPES.length)%TYPES.length; const d=TYPES[ti]; const of=frs[fi], nf=frs[fi^1]; fi^=1; const ni=$('img',nf); if(d.img){ ni.src=d.img; ni.alt=d.alt; }
     tsN.textContent=ti+1; tsRun();
-    if(!G||rm){ split(d.t); frs.forEach(f=>f.classList.toggle('is-in',f===nf)); tsTxt.textContent=d.txt; tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; busy=false; return; }
+    if(!G||rm){ split(d.t); frs.forEach(f=>f.classList.toggle('is-in',f===nf)); setTsTxt(d.txt); tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; busy=false; return; }
     const old=$$('.ch',ttl);
     gsap.timeline({onComplete(){busy=false;}})
       .to(old,{yPercent:-110,duration:.6,ease:'io',stagger:.02},0)
@@ -387,7 +389,7 @@
       .fromTo(ni,{scale:1.12},{scale:1,duration:1.4,ease:'out'},.45)
       .set(of,{zIndex:1,'--homev2-sh':'0%','--homev2-st':'0%'},1.5)
       .set($('img',of),{scale:1},1.5)
-      .add(()=>{ const ch=split(d.t); gsap.set(ch,{yPercent:110}); gsap.to(ch,{yPercent:0,duration:.9,ease:'out',stagger:.025}); tsTxt.textContent=d.txt; tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; gsap.fromTo([tsType,tsPos,tsSize,tsTxt],{opacity:0,y:10},{opacity:1,y:0,duration:.7,ease:'out',stagger:.06}); },.55);
+      .add(()=>{ const ch=split(d.t); gsap.set(ch,{yPercent:110}); gsap.to(ch,{yPercent:0,duration:.9,ease:'out',stagger:.025}); setTsTxt(d.txt); tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; gsap.fromTo([tsType,tsPos,tsSize,tsTxt],{opacity:0,y:10},{opacity:1,y:0,duration:.7,ease:'out',stagger:.06}); },.55);
   }
   $$('[data-ts]').forEach(b=>b.addEventListener('click',()=>goType(+b.dataset.ts)));
   /* autoplay: the line between the numbers fills, then the next type comes in; pauses on hover/focus and off screen */
@@ -409,7 +411,7 @@
     const map=list=>list.map(u=>{ const im=(u.media||[]).find(m=>m.kind==='image'); return {t:'Type '+u.type_code,beds:String(u.bedrooms),baths:half(+u.bathrooms),size:u.total_area+' m²',txt:u.description||'',img:(im&&im.url)||u.card_image||'',alt:'Type '+u.type_code+", artist's impression"}; });
     const apply=W=>{ const r=W.data&&W.data.r&&W.data.r.getUnitTypes; if(!r||!Array.isArray(r.data)||!r.data.length) return false;
       TYPES=map(r.data); if(tsTot) tsTot.textContent=TYPES.length; ti=0; const d=TYPES[0], f=frs[fi], im=$('img',f);
-      if(d.img){ im.src=d.img; im.alt=d.alt; } split(d.t); tsTxt.textContent=d.txt; tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; tsN.textContent=1;
+      if(d.img){ im.src=d.img; im.alt=d.alt; } split(d.t); setTsTxt(d.txt); tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; tsN.textContent=1;
       $$('img',$('#tsFrame')).forEach(x=>{ x.loading='eager'; }); TYPES.forEach(t=>{ if(t.img){ const p=new Image(); p.src=t.img; } }); return true; };
     window.Wized=window.Wized||[]; window.Wized.push(W=>{ if(apply(W)) return; W.on('requestend',res=>{ if(res&&res.name==='getUnitTypes') apply(W); }); });
   })();
