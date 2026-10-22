@@ -38,8 +38,8 @@ section{position:relative;padding-top:160px;padding-right:var(--homev2-gutter);p
 .is-slat{--homev2-st:0%;--homev2-sh:0%;--homev2-sp:5.5555%;-webkit-mask-image:repeating-linear-gradient(to bottom,transparent 0 var(--homev2-st),#000 var(--homev2-st) var(--homev2-sh),transparent var(--homev2-sh) var(--homev2-sp));mask-image:repeating-linear-gradient(to bottom,transparent 0 var(--homev2-st),#000 var(--homev2-st) var(--homev2-sh),transparent var(--homev2-sh) var(--homev2-sp))}
 .is-slat.is-in{--homev2-sh:5.5555%}
 .homev2-nav_component .homev2-nav_mark{width:92px;height:auto;display:block}
-/* roll hover (nav, menu, footer): the label slides up out of its line and the italic accent rises in from below; the menu button does the same when open (Menu -> Close) */
-@media (hover:hover){a:hover>.homev2_roll>.homev2_roll-text:not(.is-accent){transform:translateY(-100%);opacity:0}a:hover>.homev2_roll>.homev2_roll-text.is-accent{transform:none;opacity:1}}
+/* roll hover (text links only, not buttons: nav, menu, footer): the label slides up out of its line and the italic accent rises in from below; the menu button does the same when open (Menu -> Close) */
+@media (hover:hover){a:not([data-button]):hover>.homev2_roll>.homev2_roll-text:not(.is-accent){transform:translateY(-100%);opacity:0}a:not([data-button]):hover>.homev2_roll>.homev2_roll-text.is-accent{transform:none;opacity:1}}
 .homev2-nav_menu-button.is-open>.homev2_roll>.homev2_roll-text:not(.is-accent){transform:translateY(-100%);opacity:0}
 .homev2-nav_menu-button.is-open>.homev2_roll>.homev2_roll-text.is-accent{transform:none;opacity:1}
 /* the three dots fold into an x */
