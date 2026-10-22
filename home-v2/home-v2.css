@@ -48,8 +48,8 @@ section{position:relative;padding-top:160px;padding-right:var(--homev2-gutter);p
 .homev2-nav_menu-button.is-open .homev2-nav_dots-italic{border-radius:1px}
 .homev2-nav_menu-button.is-open .homev2-nav_dots-italic:nth-child(2){transform:scale(0)}
 .homev2-nav_menu-button.is-open .homev2-nav_dots-italic:nth-child(3){transform:translateY(-6px) rotate(-45deg) scale(5.5,.6)}
-/* no scrolling while the loader runs (outranks the head's html,body{overflow-x:clip!important}) */
-html.homev2-is-loading,html.homev2-is-loading body{overflow:hidden!important;overscroll-behavior:none}
+/* no scrolling while the loader runs (doubled class outranks the page head overrides for html.sv-loading and html,body) */
+html.homev2-is-loading.homev2-is-loading,html.homev2-is-loading.homev2-is-loading body{overflow:hidden!important;overscroll-behavior:none}
 @media (prefers-reduced-motion:reduce){.homev2_roll-text,.homev2-nav_dots-italic{transition:none!important}}
 .homev2-setting_scene-wrapper{--homev2-s:1;--_home-v2---homev2-sky:#437FBA}
 .homev2-setting_scene-wrapper .homev2-setting_cloud-band{animation:mq linear infinite}
