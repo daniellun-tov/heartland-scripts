@@ -783,7 +783,10 @@
           tag.style.marginTop = sy < 16 ? "4px" : "0"; tag.style.marginBottom = sy < 16 ? "0" : "4px";
         }
       });
-      if (card) {
+      // the card previews whatever is hovered (row or pin) and falls back to the selected place
+      var cr = byId[st.hover] || r, cid = cr.getAttribute("data-nh-place");
+      if (card && cid !== cardId) {
+        cardId = cid; r = cr;
         var media = qs("[data-nh-pcard-media]", card), ini = qs("[data-nh-pcard-initial]", card);
         var im = qs("[data-nh-pcard-img]", card) || (media && qs("img", media));
         var src = r.getAttribute("data-nh-place-img") || "", cat = r.getAttribute("data-nh-place-cat");
@@ -796,7 +799,12 @@
         card.classList.remove("is-swap"); void card.offsetWidth; card.classList.add("is-swap");
       }
     }
+    var cardId = "", hovT = 0;
+    // a short grace on leave, so gliding from one row or pin to the next does not flash the selected card in between
+    function hoverOn(id) { clearTimeout(hovT); if (st.hover !== id) { st.hover = id; paintSel(); } }
+    function hoverOff() { clearTimeout(hovT); hovT = setTimeout(function () { st.hover = ""; paintSel(); }, 140); }
     function select(id, centre) {
+      clearTimeout(hovT); st.hover = "";
       st.sel = id;
       var r = byId[id];
       if (centre !== false && r) { centreOn(num(r.getAttribute("data-nh-place-x")), num(r.getAttribute("data-nh-place-y")), st.z); paintMap(); }
@@ -818,12 +826,12 @@
     rows.forEach(function (r) {
       var id = r.getAttribute("data-nh-place");
       on(r, "click", function (e) { stop(e); select(id); });
-      on(r, "mouseenter", function () { st.hover = id; paintSel(); }); on(r, "mouseleave", function () { st.hover = ""; paintSel(); });
+      on(r, "mouseenter", function () { hoverOn(id); }); on(r, "mouseleave", hoverOff);
     });
     pins.forEach(function (p) {
       var id = p.getAttribute("data-nh-pin");
       on(qs(".nh_pin", p), "click", function (e) { stop(e); if (!st.dragging) { select(id); } });
-      on(p, "mouseenter", function () { st.hover = id; paintSel(); }); on(p, "mouseleave", function () { st.hover = ""; paintSel(); });
+      on(p, "mouseenter", function () { hoverOn(id); }); on(p, "mouseleave", hoverOff);
     });
     // Drag to pan, buttons to zoom
     on(map, "pointerdown", function (e) {
