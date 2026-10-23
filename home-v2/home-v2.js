@@ -494,6 +494,34 @@
   if(G&&!rm&&cgLis.length){
     gsap.from('#cg .homev2-care_list li',{y:24,opacity:0,duration:1,ease:'out',stagger:.08,scrollTrigger:{trigger:'#cg',start:'top 80%',once:true}});
   }
+  /* every chapter (concept H, 23 Oct 2026, Likova-style layered scroll): pinned; four renders wipe up over each other while
+     the card's text drifts, the counter rolls and the small photo window scrolls through its photos faster than the render.
+     Scroll holds on each chapter (H0 at the ends, HM between). Reduced motion: the same steps, switched without movement. */
+  (()=>{ const sec=$('#chapters'); if(!sec) return;
+    const track=$('#chTrack'), win=$('.homev2-chapters_window',sec), num=$('#chNum'), bar=$('#chBar'),
+          bgs=$$('.homev2-chapters_bg',sec), stages=$$('.homev2-chapters_stage',sec), wins=$$('.homev2-chapters_photo',sec);
+    if(!track||bgs.length<2) return;
+    const N=bgs.length, bimg=bgs.map(b=>$('img',b)), pimg=wins.map(w=>$('img',w));
+    const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2, cl=x=>Math.max(0,Math.min(1,x));
+    const H0=.35, HM=.7, TOT=2*H0+(N-2)*HM+(N-1);
+    const toT=p=>{ let u=p*TOT-H0; if(u<=0) return 0; for(let k=0;k<N-1;k++){ if(u<1) return k+u; u-=1; if(k<N-2){ if(u<HM) return k+1; u-=HM; } } return N-1; };
+    let last=0;
+    const draw=p=>{ last=p; let T=toT(p); const still=rm||!G; if(still) T=Math.round(T);
+      const wh=win?win.offsetHeight:0, nh=num&&num.firstElementChild?num.firstElementChild.offsetHeight:16;
+      bgs.forEach((b,k)=>{ const ein=k===0?1:ease(cl(T-k+1)), eout=k===N-1?0:ease(cl(T-k));
+        b.style.zIndex=k+1; b.style.clipPath='inset('+((1-ein)*100).toFixed(2)+'% 0 0 0)';
+        if(bimg[k]) bimg[k].style.transform=still?'none':'translate3d(0,'+((1-ein)*180-eout*90).toFixed(1)+'px,0) scale('+(1.1-.1*ein).toFixed(3)+')'; });
+      stages.forEach((s,k)=>{ const dd=T-k, ad=Math.abs(dd); s.style.opacity=cl(1-ad*2.4).toFixed(3);
+        s.style.transform=still?'none':'translate3d(0,'+(-dd*40).toFixed(1)+'px,0)'; s.setAttribute('aria-hidden',ad>.5?'true':'false'); });
+      wins.forEach((w,k)=>{ const ad=Math.abs(T-k); w.style.transform='translate3d(0,'+((k-T)*wh).toFixed(1)+'px,0)';
+        if(pimg[k]) pimg[k].style.transform=still?'none':'scale('+(1+.12*Math.min(1,ad)).toFixed(3)+')'; });
+      if(num) num.style.transform='translate3d(0,'+(-T*nh).toFixed(1)+'px,0)';
+      if(bar) bar.style.width=(T/(N-1)*100).toFixed(1)+'%';
+    };
+    draw(0); addEventListener('resize',()=>draw(last));
+    if(G) ScrollTrigger.create({trigger:track,start:'top top',end:'bottom bottom',scrub:rm?false:.6,onUpdate:s=>draw(s.progress),onRefresh:s=>draw(s.progress)});
+    else { const f=()=>{ const r=track.getBoundingClientRect(); draw(cl(-r.top/Math.max(1,r.height-innerHeight))); }; addEventListener('scroll',f,{passive:true}); f(); }
+  })();
   /* care centre (concept I, 23 Oct 2026): the entrance render seen through two gable-half masks (one picture, two clip-paths).
      Scrolling lines the halves up, closes them into one gable, then opens the gable to the full width (like the Cape vernacular
      section); "Built into the village" lands at the top of the gable and the copy rises over a shade. The slider section follows. */
