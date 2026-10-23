@@ -213,3 +213,9 @@ textarea.homev2-register_input{resize:vertical}
 .homev2-register_checks .w-checkbox::after{content:none}
 .homev2-register_form input[type=checkbox]{float:none;accent-color:var(--_home-v2---homev2-amber-soft)}
 .homev2-register_form input[type=radio]{float:none;accent-color:var(--_home-v2---homev2-amber-soft)}
+
+/* care centre (concept I): the slide picture eases back to size as it becomes the current slide (descendant of a state class) */
+.homev2-centre_slide.is-on{opacity:1}
+.homev2-centre_slide.is-on .homev2-centre_slide-img{transform:scale(1)}
+.homev2-centre_half,.homev2-centre_shade{will-change:clip-path}
+@media (prefers-reduced-motion:reduce){.homev2-centre_slide,.homev2-centre_slide-img,.homev2-centre_bar-fill{transition:none}}

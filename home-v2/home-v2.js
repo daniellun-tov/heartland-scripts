@@ -367,8 +367,8 @@
       gsap.to('#archH .homev2_line > span',{y:'0%',duration:1.4,ease:'out',stagger:.1,scrollTrigger:{trigger:'#arch',start:'top 55%',once:true}});
     })();
     /* numbers count up */
-    $$('.homev2-stats_grid [data-to]').forEach(el=>{ const to=+el.dataset.to, o={v:0}; el.textContent='0';
-      ScrollTrigger.create({trigger:'.homev2-stats_grid',start:'top 85%',once:true,onEnter(){ gsap.to(o,{v:to,duration:to>9?2:1.4,ease:'out',onUpdate(){ el.textContent=Math.round(o.v); }}); }}); });
+    $$('.homev2-stats_grid [data-to]').forEach(el=>{ const to=+el.dataset.to, dec=(el.dataset.to.split('.')[1]||'').length, o={v:0}; el.textContent=(0).toFixed(dec);
+      ScrollTrigger.create({trigger:'.homev2-stats_grid',start:'top 85%',once:true,onEnter(){ gsap.to(o,{v:to,duration:to>9?2:1.4,ease:'out',onUpdate(){ el.textContent=o.v.toFixed(dec); }}); }}); });
     gsap.from('.homev2-stats_grid>div',{y:40,opacity:0,duration:1.2,ease:'out',stagger:.1,scrollTrigger:{trigger:'.homev2-stats_grid',start:'top 85%',once:true}});
     /* quote mark */
     gsap.from('.homev2-rarity_quote-mark',{scale:.4,opacity:0,duration:1.4,ease:'out',scrollTrigger:{trigger:'.homev2-rarity_quote',start:'top 85%',once:true}});
@@ -491,9 +491,60 @@
     gsap.fromTo($('img',nb),{scale:1.12},{scale:1,duration:1.5,ease:'out'});
   }
   cgLis.forEach((li,k)=>$('[data-button]',li).addEventListener('click',()=>cgGo(k)));
-  if(G&&!rm){
+  if(G&&!rm&&cgLis.length){
     gsap.from('#cg .homev2-care_list li',{y:24,opacity:0,duration:1,ease:'out',stagger:.08,scrollTrigger:{trigger:'#cg',start:'top 80%',once:true}});
   }
+  /* care centre (concept I, 23 Oct 2026): the entrance render seen through two gable-half masks (one picture, two clip-paths).
+     Scrolling lines the halves up, closes them into one gable, then opens the gable to the full width (like the Cape vernacular
+     section); "Built into the village" lands at the top of the gable and the copy rises over a shade. The slider section follows. */
+  (()=>{ const sec=$('#centre'); if(!sec) return;
+    const track=$('#ceTrack'), st=$('#ceSticky'), L=$('#ceL'), R=$('#ceR'), S=$('#ceShade'), sTop=$('#ceShadeTop'), sBot=$('#ceShadeBot'),
+          H=$('#ceTitle'), C=$('#ceCopy'), imgs=$$('#ceL img, #ceR img');
+    if(!track||!st||!L||!R) return;
+    const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2, cl=x=>Math.max(0,Math.min(1,x)), lerp=(a,b,e)=>a+(b-a)*e;
+    const P=a=>'polygon('+a.map(q=>q[0].toFixed(1)+'px '+q[1].toFixed(1)+'px').join(',')+')';
+    let last=0;
+    const draw=t=>{ last=t;
+      const W=st.clientWidth, Hh=st.clientHeight, narrow=W<768;
+      const pa=ease(cl(t/.13)), p1=ease(cl((t-.1)/.16)), pe=ease(cl((t-.3)/.32)), ph=ease(cl((t-.52)/.18)), pc=ease(cl((t-.72)/.2));
+      const gw=narrow?W*.77:Math.min(W*.445,Hh*.72), gh=gw*(narrow?1:.875), cx=W/2, top0=(Hh-gh)/2;
+      const g0={x0:cx-gw/2,x1:cx+gw/2,top:top0,eave:top0+gh*.3,bot:top0+gh}, g1={x0:0,x1:W,top:Hh*.02,eave:Hh*(narrow?.2:.24),bot:Hh+2};
+      const g={}; for(const k in g0) g[k]=lerp(g0[k],g1[k],pe);
+      const gap=gw/2*.031*(1-p1), ly=gh*.125*(1-pa), ry=-gh*.09*(1-pa);
+      L.style.clipPath=P([[g.x0,g.eave+ly],[cx-gap,g.top+ly],[cx-gap,g.bot+ly],[g.x0,g.bot+ly]]);
+      R.style.clipPath=P([[cx+gap,g.top+ry],[g.x1,g.eave+ry],[g.x1,g.bot+ry],[cx+gap,g.bot+ry]]);
+      if(S) S.style.clipPath=P([[g.x0,g.eave],[cx,g.top],[g.x1,g.eave],[g.x1,g.bot],[g.x0,g.bot]]);
+      if(sTop) sTop.style.opacity=(.6*ph).toFixed(3); if(sBot) sBot.style.opacity=(.86*pc).toFixed(3);
+      const sc='scale('+(1.15-.15*pe).toFixed(4)+')'; imgs.forEach(im=>{ im.style.transform=sc; });
+      if(H){ H.style.opacity=ph.toFixed(3); H.style.transform='translate3d(0,'+(40*(1-ph)-(narrow?24:40)*pc).toFixed(1)+'px,0)'; }
+      if(C){ C.style.opacity=pc.toFixed(3); C.style.transform='translate3d(0,'+(160*(1-pc)).toFixed(1)+'px,0)'; }
+    };
+    if(!G||rm){ track.style.height='100vh'; draw(1); addEventListener('resize',()=>draw(1)); return; }
+    draw(0);
+    ScrollTrigger.create({trigger:track,start:'top top',end:'bottom bottom',scrub:.6,onUpdate:s=>draw(s.progress),onRefresh:s=>draw(s.progress)});
+    addEventListener('resize',()=>draw(last));
+    /* the slider section: heading rises, the slider slides in from the right edge */
+    const ins=$('#ceInside');
+    if(ins){ gsap.fromTo('#ceHead',{y:80,opacity:0},{y:0,opacity:1,ease:'none',scrollTrigger:{trigger:ins,start:'top 95%',end:'top 45%',scrub:.6}});
+      gsap.fromTo('#ceSlider',{xPercent:40},{xPercent:0,ease:'none',scrollTrigger:{trigger:ins,start:'top 100%',end:'top 30%',scrub:.6}}); }
+  })();
+  /* care centre slider: arrows, counter, progress line, caption; advances on its own while in view until someone uses it */
+  (()=>{ const sl=$('#ceSlider'); if(!sl) return;
+    const slides=$$('.homev2-centre_slide',sl), n=slides.length; if(!n) return;
+    const cur=$('#ceCur'), nxt=$('#ceNum2'), bar=$('#ceBar'), cap=$('#ceCap'); let i=0, timer=null, seen=false, used=false;
+    const show=k=>{ i=(k+n)%n; slides.forEach((s,j)=>s.classList.toggle('is-on',j===i));
+      if(cur) cur.textContent=String(i+1).padStart(2,'0'); if(nxt) nxt.textContent=String((i+1)%n+1).padStart(2,'0');
+      if(bar) bar.style.width=((i+1)/n*100)+'%'; if(cap) cap.textContent=slides[i].getAttribute('data-cap')||''; };
+    const stop=()=>{ used=true; clearInterval(timer); timer=null; };
+    const run=()=>{ if(used||rm||timer) return; timer=setInterval(()=>show(i+1),5000); };
+    const prev=$('#cePrev'), next=$('#ceNextBtn');
+    if(prev) prev.addEventListener('click',e=>{ e.preventDefault(); stop(); show(i-1); });
+    if(next) next.addEventListener('click',e=>{ e.preventDefault(); stop(); show(i+1); });
+    let x0=null; sl.addEventListener('pointerdown',e=>{ x0=e.clientX; });
+    sl.addEventListener('pointerup',e=>{ if(x0==null) return; const dx=e.clientX-x0; x0=null; if(Math.abs(dx)>40){ stop(); show(i+(dx<0?1:-1)); } });
+    new IntersectionObserver(es=>es.forEach(en=>{ if(en.isIntersecting){ seen=true; run(); } else { clearInterval(timer); timer=null; } }),{threshold:.35}).observe(sl);
+    show(0);
+  })();
   /* register */
   const regForm=$('#regForm');
   const viewing=$('#viewing'); if(viewing) viewing.addEventListener('click',e=>{ e.preventDefault(); const m=$('textarea[name=message]',regForm); m.value="I'd like to arrange a private viewing"; scrollToY(topOf(regForm)-140); setTimeout(()=>$('input[name="First Name"]',regForm).focus({preventScroll:true}),900); });
