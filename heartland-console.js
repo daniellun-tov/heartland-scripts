@@ -3491,6 +3491,20 @@
         '<div id="upBox"><div class="spin">Loading upgrades\u2026</div></div>' +
       '</div>' +
 
+      /* NOTE FOR THE BUYER. Shown on the buyer's portal order page, word for word -
+         NOT the internal Note in the Deal tab, which never leaves the console. Added
+         23 Oct for upgrades agreed before a price exists. Saved through
+         /staff/reservations/{uuid}/buyer-note, which logs who changed it and the before
+         and after. An empty box clears it. */
+      '<div class="sect"><h2>Note for the buyer</h2>' +
+        '<div class="muted" style="font-size:.8125rem;margin-bottom:10px">' +
+          'The buyer reads this on their portal, under their upgrades. Write it for them &mdash; e.g. &ldquo;Garage and pool upgrades agreed; pricing to follow.&rdquo; Leave it empty to remove it.' +
+        '</div>' +
+        '<textarea id="bnText" rows="3" maxlength="1000" placeholder="Loading\u2026" disabled></textarea>' +
+        '<div style="margin-top:10px"><button id="bnGo" disabled>Save note</button></div>' +
+        '<div class="err" id="bnErr" style="margin-top:10px"></div><div class="ok" id="bnOk"></div>' +
+      '</div>' +
+
       '<div class="sect"><h2>Documents</h2>' +
         '<div class="muted" style="font-size:.8125rem;margin-bottom:10px">' +
           'Signed copies the buyer can download from their portal. Links must be https.' +
@@ -3644,6 +3658,7 @@
 
     loadCatalogue(r);
     loadUpgrades(r);
+    loadBuyerNote(r);
     loadDocuments(r);
   }
 
@@ -4086,6 +4101,40 @@
      The vocabulary comes from the server, per property, so a development with its own
      document set needs nothing here. Adding a type the deal already has REPLACES it,
      and the panel says so before the save rather than after. */
+  /* ---------- note for the buyer ---------- */
+  function loadBuyerNote(r) {
+    var box = $("bnText"), go = $("bnGo");
+    if (!box) { return; }
+    api("/staff/reservations/" + encodeURIComponent(r.uuid) + "/buyer-note")
+      .then(function (res) {
+        if (S.open !== r.uuid) { return; }
+        box.value = (res && res.buyer_note) || "";
+        box.placeholder = "e.g. Garage and pool upgrades agreed; pricing to follow.";
+        box.disabled = false;
+        go.disabled = false;
+      })
+      .catch(function (e) {
+        if (S.open === r.uuid) { $("bnErr").textContent = "Could not load the note \u2014 " + e.message; }
+      });
+    go.addEventListener("click", function () { saveBuyerNote(r); });
+  }
+
+  function saveBuyerNote(r) {
+    var box = $("bnText"), go = $("bnGo");
+    var note = box.value.trim();
+    go.disabled = true;
+    $("bnErr").textContent = "";
+    $("bnOk").textContent = "Saving\u2026";
+    api("/staff/reservations/" + encodeURIComponent(r.uuid) + "/buyer-note",
+        { method: "POST", body: JSON.stringify({ note: note }) })
+      .then(function (res) {
+        box.value = (res && res.buyer_note) || "";
+        $("bnOk").textContent = note ? "Saved. The buyer sees this on their portal." : "Note removed.";
+      })
+      .catch(function (e) { $("bnOk").textContent = ""; $("bnErr").textContent = e.message; })
+      .then(function () { go.disabled = false; });
+  }
+
   function loadDocuments(r) {
     var box = $("docBox");
     if (!box) { return; }
@@ -4242,7 +4291,7 @@
   var DRAWER_TAB_OF = {
     "What the buyer sees": "overview", "Offer to Purchase": "overview", "Money": "overview",
     "Deal stage": "deal", "Note": "deal", "Deadline": "deal",
-    "Add-ons": "extras", "Upgrades": "extras",
+    "Add-ons": "extras", "Upgrades": "extras", "Note for the buyer": "extras",
     "Documents": "docs",
     "End this deal": "manage", "Cancelled": "manage", "Delete this reservation": "manage",
     "Not editable here yet": "manage"
