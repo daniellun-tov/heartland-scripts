@@ -13,8 +13,11 @@
   .nh_more.is-open{animation:nh-fade-in .7s ease both}
   /* one-way, like Sanford: once the sections are open the button goes (no Show Less) */
   .nh_more_btn.is-open{display:none}
+  /* centred toggles (Base or furnished): the Designer centres them with the combo .nh_seg.nh_rise.is-centre,
+     which stops matching once the reveal drops .nh_rise, and the head's .nh_seg{align-self:flex-start} took over */
+  .nh_seg.is-centre{align-self:center;justify-self:center}
 </style>
 <div data-hl-entry="napier" data-hl-target="/reserve-flow" hidden></div>
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@b35ac77c2e1359c98459365878a5540592a529d7/heartland-reserve.js"></script>
 <script>window.NH_PLANS={studio:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6ad66f9576d24ed37ac4a704_nh-studio-floorplan.pdf",loft:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6ad66f13f08ff78c37d7fa0e_nh-loft-floorplan.pdf"};</script>
-<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@f798fe9fb8cd36cb13f32180a0b22268908bcf6e/heartland-napier.js" integrity="sha384-aRLnma3CNKAnpF3wL5XF0Ws6CCF+5stlCiC1ro9WbJD3M2wQAKnm6M4G5FhAJoLy" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a0ee6c1e18fb5afcc52338bb13c72d8ed5706d73/heartland-napier.js" integrity="sha384-uye/lMCC4ssO5BQD+D8coRCyXsACvH+9GhTrvzcAON/E+S4Hg2S9vX6tnTlZruSu" crossorigin="anonymous"></script>
