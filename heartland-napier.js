@@ -730,7 +730,9 @@
     var COL = {}; chips.forEach(function (c) { COL[c.getAttribute("data-nh-cat")] = c.getAttribute("data-nh-cat-color"); });
     var CATL = {}; chips.forEach(function (c) { CATL[c.getAttribute("data-nh-cat")] = text(c); });
     var HX = 49.5, HY = 65.87;
-    var st = { cat: "all", sel: rows[0] ? rows[0].getAttribute("data-nh-place") : "", z: 1.5, px: 24.25, py: 48.8, drag: null, dragging: false, hover: "" };
+    // the row marked .is-on in the Designer opens first (Cape Quarter), even when nearer places sit above it in the list
+    var firstRow = qs("[data-nh-place].is-on", list) || rows[0];
+    var st = { cat: "all", sel: firstRow ? firstRow.getAttribute("data-nh-place") : "", z: 1.5, px: 24.25, py: 48.8, drag: null, dragging: false, hover: "" };
     var byId = {}; rows.forEach(function (r) { byId[r.getAttribute("data-nh-place")] = r; });
     var pinById = {}; pins.forEach(function (p) { pinById[p.getAttribute("data-nh-pin")] = p; });
     // Geometry that was inline in the design: rings, labels, names, pins.
