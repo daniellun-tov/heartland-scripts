@@ -1014,9 +1014,9 @@
       stop(e);
       var u = SEL || UNITS[0], loft = u.plan === "loft";
       qsa("[data-nh-plan-fig]", pm).forEach(function (f) { f.classList.toggle("is-on", f.getAttribute("data-nh-plan-fig") === u.plan); });
-      var ey = qs("[data-nh-plan-eyebrow]", pm); if (ey) { ey.textContent = loft ? "Loft · Homes 16 and 17" : "Studio · Homes 1 to 15"; }
+      var ey = qs("[data-nh-plan-eyebrow]", pm); if (ey) { ey.textContent = loft ? "Penthouse · Homes 16 and 17" : "Studio · Homes 1 to 15"; }
       var ti = qs("[data-nh-plan-title]", pm); if (ti) { ti.textContent = "Home " + u.n + " floorplan"; }
-      var no = qs("[data-nh-plan-note]", pm); if (no) { no.textContent = loft ? "Indicative layout, base and furnished, not to scale. The PDF is the loft general layout drawing." : "Indicative layout, not to scale. The PDF is the full studio drawing set."; }
+      var no = qs("[data-nh-plan-note]", pm); if (no) { no.textContent = loft ? "Indicative layout, base and furnished, not to scale. The PDF is the penthouse general layout drawing." : "Indicative layout, not to scale. The PDF is the full studio drawing set."; }
       var pdf = qs("[data-nh-plan-pdf]", pm); if (pdf && PLANS[u.plan]) { pdf.setAttribute("href", PLANS[u.plan]); }
       last = d.activeElement; planOpen = true;
       pm.classList.add("is-open"); html.classList.add("nh-modal-open");
@@ -1096,7 +1096,7 @@
     if (vrSeg) {
       segInit(vrSeg, function (v) {
         qsa("[data-nh-vr-pane]").forEach(function (p) { p.classList.toggle("is-on", p.getAttribute("data-nh-vr-pane") === v); });
-        var l = qs("[data-nh-vr-label]"); if (l) { l.textContent = v === "loft" ? "Loft tour" : "Studio tour"; }
+        var l = qs("[data-nh-vr-label]"); if (l) { l.textContent = v === "loft" ? "Penthouse tour" : "Studio tour"; }
       });
     }
     on(qs("[data-nh-vr-play]"), "click", function (e) { stop(e); note("VR tours open to the waitlist at launch"); });
@@ -1108,7 +1108,7 @@
       var LEVY = { studio: ["R2,176", "R1,511"], loft: ["R4,736", "R3,353"] };
       var setFin = function (k, v) { qsa("[data-nh-fin=\"" + k + "\"]", fin).forEach(function (el) { el.textContent = v; }); };
       var paintFin = function (v) {
-        var type = v === "loft" ? "Loft" : "Studio";
+        var type = v === "loft" ? "Penthouse" : "Studio";
         var price = typePrice(type) || (v === "loft" ? 7295000 : 3195000);
         var dep = price * depPct / 100, bond = price - dep, r = rate / 100 / 12, n = years * 12;
         var monthly = bond * r / (1 - Math.pow(1 + r, -n));
