@@ -456,9 +456,10 @@
 
   /* unit types: Xano via Wized (getUnitTypes) replaces the two fallback types */
   (()=>{ const half=b=>{ const w=Math.floor(b); return (b-w)>=.5?(w?w+'½':'½'):String(w); };
-    /* 26 Oct 2026 (Scopepin #6): the frame shows the type's axo floor-plan render (unit-types.render_image); the exterior render stays the fallback.
-       The frame images carry Webflow's srcset, which beats src - it is removed before the swap. */
-    const map=list=>list.map(u=>{ const im=(u.media||[]).find(m=>m.kind==='image'); return {t:'Type '+u.type_code,beds:String(u.bedrooms),baths:half(+u.bathrooms),size:u.total_area+' m²',txt:u.short_description||u.description||'',img:u.render_image||(im&&im.url)||u.card_image||'',alt:'Type '+u.type_code+(u.render_image?', 3D floor plan':", artist's impression")}; });
+    /* 26 Oct 2026 (Scopepin #6/#28): the frame shows the type's axo render = the first unit_media image (the isometric house on a
+       transparent background); render_image (the 3D floor plan) is only a last resort. The frame images carry Webflow's srcset,
+       which beats src - it is removed before the swap (that srcset was why the exterior render kept showing). */
+    const map=list=>list.map(u=>{ const im=(u.media||[]).find(m=>m.kind==='image'); return {t:'Type '+u.type_code,beds:String(u.bedrooms),baths:half(+u.bathrooms),size:u.total_area+' m²',txt:u.short_description||u.description||'',img:(im&&im.url)||u.card_image||u.render_image||'',alt:'Type '+u.type_code+", artist's impression"}; });
     const apply=W=>{ const r=W.data&&W.data.r&&W.data.r.getUnitTypes; if(!r||!Array.isArray(r.data)||!r.data.length) return false;
       TYPES=map(r.data); if(tsTot) tsTot.textContent=TYPES.length; ti=0; const d=TYPES[0], f=frs[fi], im=$('img',f);
       if(d.img){ im.removeAttribute('srcset'); im.removeAttribute('sizes'); im.src=homev2Variant(d.img,Math.ceil(($('#tsFrame').offsetWidth||600)*(devicePixelRatio||1)*1.1)); im.alt=d.alt; } split(d.t); setTsTxt(d.txt); tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; tsN.textContent=1;
@@ -553,10 +554,13 @@
     draw(0);
     ScrollTrigger.create({trigger:track,start:'top top',end:'bottom bottom',scrub:.6,onUpdate:s=>draw(s.progress),onRefresh:s=>draw(s.progress)});
     addEventListener('resize',()=>draw(last));
-    /* the slider section: heading rises, the slider slides in from the right edge */
+    /* the slider section: heading rises, the slider opens from the right edge (clip + settle, as the site plan does) */
     const ins=$('#ceInside');
     if(ins){ gsap.fromTo('#ceHead',{y:80,opacity:0},{y:0,opacity:1,ease:'none',scrollTrigger:{trigger:ins,start:'top 95%',end:'top 45%',scrub:.6}});
-      gsap.fromTo('#ceSlider',{xPercent:40},{xPercent:0,ease:'none',scrollTrigger:{trigger:ins,start:'top 100%',end:'top 30%',scrub:.6}}); }
+      /* 26 Oct 2026 (Scopepin #27): the slider opens from the right edge like the site plan (#planPh) */
+      gsap.timeline({scrollTrigger:{trigger:ins,start:'top 85%',end:'center 50%',scrub:.6}})
+        .fromTo('#ceSlider .homev2-centre_slides',{clipPath:'inset(10% 0% 10% 42%)'},{clipPath:'inset(0% 0% 0% 0%)',ease:'none'},0)
+        .fromTo('#ceSlider .homev2-centre_slides',{scale:1.15,transformOrigin:'100% 50%'},{scale:1,ease:'none'},0); }
   })();
   /* care centre slider: arrows, counter, progress line, caption; advances on its own while in view until someone uses it */
   (()=>{ const sl=$('#ceSlider'); if(!sl) return;

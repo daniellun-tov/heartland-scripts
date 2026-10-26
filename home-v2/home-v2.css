@@ -223,3 +223,5 @@ textarea.homev2-register_input{resize:vertical}
    is cut out of the sticky picture itself (the previous section shows through the cut-out) instead of being drawn as a plum shape. */
 .section_homev2-chapters.is-gable-top::before{display:none}
 .section_homev2-chapters{clip-path:polygon(0 calc(var(--homev2-gable-height)*.6167),50% calc(var(--homev2-gable-height)*.0667),100% calc(var(--homev2-gable-height)*.6167),100% 100%,0 100%)}
+/* 26 Oct 2026 (Scopepin #27): the care slider runs to the right edge of the screen, like the site plan picture */
+.homev2-centre_slider{margin-right:calc(var(--homev2-gutter) * -1)}
