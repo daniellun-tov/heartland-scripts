@@ -282,7 +282,7 @@ window.Wized = window.Wized || [];
        without an address. Written into the overlay SVG so they pan and zoom
        with the plan; dark on the type colours, light on the deep ones. */
     function labelPlots() {
-      const svg = document.querySelector('.site-plan_map-svg svg');
+      const svg = document.querySelector('.siteplan_page .site-plan_map-svg svg');   /* the standalone page only */
       if (!svg || svg.querySelector('.site-plan_plot-nos')) return;
       const NS = 'http://www.w3.org/2000/svg';
       const g = document.createElementNS(NS, 'g');
