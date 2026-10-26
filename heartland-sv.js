@@ -63,6 +63,14 @@
    tooltip no longer shows view chips, and the detail panel no longer appends
    position_detail / view_summary prose (position_detail carries view claims
    too). Keep the data in Xano for when views are confirmed.
+
+   2026-10-26: standalone /unit-selection page. Units are labelled by street
+   address (unit.label from /units, falling back to "Unit N"); shareholder
+   plots (status "shareholder") stay on the map and open a minimal panel but
+   are kept out of the list, counts and filters; sort gained "street" and it
+   is the default while prices are hidden. Plan base is sv-map-base-v2 (SDP
+   I-101, Oct 2026) with unit-01 and the proposed erven unit-69..77 as
+   non-clickable "unreleased" paths.
    ============================================================================ */
 
 
@@ -124,7 +132,7 @@ window.Wized = window.Wized || [];
     let units = [];
     let booted = false;
 
-    const state = { colourBy: 'type', sort: 'price' };
+    const state = { colourBy: 'type', sort: 'street' };
     Object.keys(FACETS).forEach((f) => (state[f] = new Set()));
     Object.keys(RANGES).forEach((f) => (state[f] = new Set()));
 
@@ -172,7 +180,10 @@ window.Wized = window.Wized || [];
       );
     }
 
-    const LIST_HIDE = new Set(['unreleased']);
+    /* out of the list, the counts and the chips - but shareholder plots stay
+       clickable so the map can say "Reserved by shareholders" */
+    const LIST_HIDE = new Set(['unreleased', 'shareholder']);
+    const NO_CLICK = new Set(['unreleased']);
 
     /* Declared up here, not below matches(): boot() runs the moment this
        callback is entered when getUnits has already resolved, and a `const`
@@ -180,7 +191,13 @@ window.Wized = window.Wized || [];
        that point - apply() threw ReferenceError and took the whole controller
        (map, list, filters) with it. Only ever hit on that fast path, which is
        why it looked like an intermittent empty section. */
+    const label = (u) => (u && (u.label || u.address)) || ('Unit ' + (u && u.unit_number != null ? u.unit_number : ''));
+    const streetKey = (u) => {
+      const m = String(u.address || '').match(/^(\d+)\s+(.+)$/);
+      return m ? m[2] + ' ' + m[1].padStart(3, '0') : 'zzz ' + String(u.unit_number || '').padStart(3, '0');
+    };
     const sortFn = {
+      street: (a, b) => (streetKey(a) < streetKey(b) ? -1 : streetKey(a) > streetKey(b) ? 1 : 0),
       price: (a, b) => a.price - b.price,
       size: (a, b) => b.total_area - a.total_area,
       newest: (a, b) => new Date(b.created_at) - new Date(a.created_at),
@@ -283,7 +300,7 @@ window.Wized = window.Wized || [];
         path.setAttribute('data-status', u.status);
         path.setAttribute('data-type', u.type_code);
         path.classList.add('site-plan_plot');
-        if (!LIST_HIDE.has(u.status)) {
+        if (!NO_CLICK.has(u.status)) {
           path.addEventListener('click', () => openUnit(u));
         }
       });
@@ -381,7 +398,7 @@ window.Wized = window.Wized || [];
     }
 
     function apply() {
-      const sorter = sortFn[state.sort] || sortFn.price;
+      const sorter = sortFn[state.sort] || sortFn.street;
       /* (u) => matches(u), not `matches` - filter passes the index as 2nd arg,
          which the matcher reads as `skip` */
       const visible = units.filter((u) => matches(u)).sort(sorter);
@@ -414,6 +431,7 @@ window.Wized = window.Wized || [];
       document.getElementById(u.plot_id)?.classList.add('is-selected');
 
       Wized.data.v.selectedUnit = u;
+      detailWrap()?.classList.toggle('is-shareholder', u.status === 'shareholder');
 
       const s = panelScroll();
       if (s) s.scrollTop = 0;
@@ -478,7 +496,7 @@ window.Wized = window.Wized || [];
         if (!link.hasAttribute('data-prelaunch-ui')) return;
         const msg = document.querySelector('#contact textarea');
         if (u && msg && !msg.value.trim()) {
-          msg.value = 'I am interested in Unit ' + u.unit_number + ' (Type ' + u.type_code + '). Please let me know when sales open.';
+          msg.value = 'I am interested in ' + label(u) + (u.type_code ? ' (Type ' + u.type_code + ')' : '') + '. Please let me know when sales open.';
         }
       });
 
@@ -580,7 +598,8 @@ window.Wized = window.Wized || [];
       price: tip.querySelector('[data-tooltip="price"]'),
     };
 
-    const PILL_CLASSES = ['is-available', 'is-reserved', 'is-sold'];
+    const PILL_CLASSES = ['is-available', 'is-reserved', 'is-sold', 'is-shareholder'];
+    const STATUS_LABEL = { shareholder: 'Reserved by shareholders' };
     const OFFSET = 14;
     const EDGE = 8;
     const money = new Intl.NumberFormat('en-ZA', {
@@ -608,11 +627,17 @@ window.Wized = window.Wized || [];
     indexUnits();
 
     function fill(u) {
-      field.id.textContent = 'Unit ' + u.unit_number;
-      field.status.textContent = u.status;
+      field.id.textContent = u.label || u.address || ('Unit ' + u.unit_number);
+      field.status.textContent = STATUS_LABEL[u.status] || u.status;
       field.status.classList.remove(...PILL_CLASSES);
       field.status.classList.add('is-' + String(u.status).toLowerCase());
 
+      if (u.status === 'shareholder') {
+        field.type.textContent = 'Custom home';
+        field.specs.textContent = 'Erf ' + (u.erf_number || '') + ' · details n/a';
+        field.price.textContent = 'n/a';
+        return;
+      }
       field.type.textContent = 'Type ' + u.type_code + (u.levels === 'single' ? ' · Single level' : '');
 
       field.specs.textContent = [u.bedrooms + ' bed', u.bathrooms + ' bath', Math.round(u.total_area) + ' m²'].join(' · ');
@@ -1705,7 +1730,7 @@ let audioContext;
         url.hash = '';
         if (key) url.searchParams.set(UNIT, key);
         var what = u
-          ? 'Unit ' + (u.unit_number != null ? u.unit_number : '') + (u.type_code ? ' (Type ' + u.type_code + ')' : '')
+          ? (u.label || u.address || ('Unit ' + (u.unit_number != null ? u.unit_number : ''))) + (u.type_code ? ' (Type ' + u.type_code + ')' : '')
           : 'this home';
         return 'Take a look at ' + what + ' at ' + ESTATE + ': ';
       },
