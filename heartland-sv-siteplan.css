@@ -1451,3 +1451,34 @@ html.sv-map-go .siteplan_page .site-plan_context { transition: opacity .6s var(-
 }
 .siteplan_page .site-plan_detail-wrap { transition: visibility 0s linear .8s; }
 .siteplan_page .site-plan_detail-wrap.is-open { transition-delay: 0s; }
+/* ---- polish after review (26 Oct, 15:00) ---- */
+/* Btn/Main: the wrap is the button, the inner layout is just text */
+.siteplan_page .btn_main_wrap { border: 1px solid var(--sp-ink); background: var(--sp-ink); color: var(--sp-cream); border-radius: 0; padding: 0; overflow: hidden; transition: background .3s, color .3s, border-color .3s; }
+.siteplan_page .btn_main_layout { border: 0; background: none; color: inherit; padding: .8125rem 1.125rem; min-height: 0; justify-content: center; }
+.siteplan_page .btn_main_text { font-size: .5625rem; letter-spacing: .2em; white-space: nowrap; }
+.siteplan_page .btn_main_wrap:hover { background: transparent; color: var(--sp-ink); }
+.siteplan_page .btn_main_wrap:hover .btn_main_layout { background: none; color: inherit; }
+.siteplan_page .btn_main_wrap[data-wf--btn-main--style="secondary"],
+.siteplan_page .unit-details_reserve-wrapper .btn_main_wrap.w-variant-e85564cd-af30-a478-692b-71732aefb3ab { background: transparent; color: var(--sp-ink); }
+.siteplan_page .btn_main_wrap[data-wf--btn-main--style="secondary"]:hover,
+.siteplan_page .unit-details_reserve-wrapper .btn_main_wrap.w-variant-e85564cd-af30-a478-692b-71732aefb3ab:hover { background: var(--sp-ink); color: var(--sp-cream); }
+.siteplan_page .btn_main_wrap[data-wf--btn-main--style="secondary"] .btn_main_layout,
+.siteplan_page .unit-details_reserve-wrapper .btn_main_wrap.w-variant-e85564cd-af30-a478-692b-71732aefb3ab .btn_main_layout { background: none; color: inherit; }
+.siteplan_page .unit-filter_more-button .btn_main_wrap { border: 0; background: none; color: var(--sp-ink-3); }
+.siteplan_page .unit-filter_more-button .btn_main_wrap:hover { background: none; color: var(--sp-ink); }
+.siteplan_page .siteplan_header .btn_main_wrap { flex: none; }
+.siteplan_page .siteplan_header .btn_main_layout { padding: .6875rem 1.125rem; }
+.siteplan_page .unit-details_reserve-wrapper .btn_main_wrap { flex: 1 1 auto; }
+.siteplan_page .unit-details_reserve-wrapper .btn_main_wrap[wized="shareWhatsapp"] { flex: 0 0 auto; }
+.siteplan_page .unit-details_reserve-wrapper .btn_main_layout { padding: .8125rem .875rem; }
+.siteplan_page .unit-details_reserve-wrapper .btn_main_icon { display: flex; }
+/* tabs + stats fit the 26rem panel */
+.siteplan_page .unit-details_scroll-link { font-size: .5rem; letter-spacing: .12em; padding: .75rem 0; }
+.siteplan_page .unit-details_metric .unit-details_text-wrapper > div:last-child,
+.siteplan_page .unit-details_metric .unit-details_text-unit-wrapper > div:last-child { font-size: .5rem; letter-spacing: .12em; }
+.siteplan_page .unit-details_metrics { gap: .5rem .25rem; }
+/* results header */
+.siteplan_page .unit-filter_results-header .text-style-label { white-space: nowrap; }
+.siteplan_page .unit-filter_results-header .unit-filter_radio-group { flex-wrap: wrap; }
+/* cards: a little more of the plan */
+.siteplan_page .unit-filter_card-image { aspect-ratio: 5 / 4; }
