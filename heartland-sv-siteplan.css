@@ -969,8 +969,9 @@ html, .unit-filter_list, .unit-filter_filters, .unit-filter_map-container, .unit
   background: var(--sp-cream);
   border-bottom: 0;
 }
-.siteplan_page .unit-filter_component { height: calc(100dvh - 3.5rem) !important; max-height: calc(100dvh - 3.5rem) !important; }
-@media (max-width: 991px) { .siteplan_page .unit-filter_component { height: calc(100dvh - 3.25rem) !important; max-height: calc(100dvh - 3.25rem) !important; } }
+/* header 3.5rem + footer 2rem (26 Oct 2026, Scopepin #22) */
+.siteplan_page .unit-filter_component { height: calc(100dvh - 5.5rem) !important; max-height: calc(100dvh - 5.5rem) !important; }
+@media (max-width: 991px) { .siteplan_page .unit-filter_component { height: calc(100dvh - 5.25rem) !important; max-height: calc(100dvh - 5.25rem) !important; } }
 @media (min-width: 1280px) { .siteplan_page .unit-filter_component { grid-template-columns: 16rem 1fr 18.5rem; } }
 
 /* ---- filters -------------------------------------------------------- */
@@ -1579,3 +1580,14 @@ html .siteplan_page .unit-filter_map .unit-filter_toolbar { top: auto; bottom: .
 .siteplan_page .site-plan_street { font-family: var(--sp-body); font-size: 44px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; fill: rgba(44, 43, 39, .8); text-anchor: middle; dominant-baseline: central; }
 /* #20 the wetland strip pans like the plan (the native image drag is blocked in the zoom module) */
 .siteplan_page .site-plan_map-extension-image { -webkit-user-drag: none; user-select: none; }
+
+/* ============================================================
+   26 Oct 2026 - Scopepin batch 6 (/unit-selection)
+   ============================================================ */
+/* #21 the map runs to the bottom of its column: the zoom module's measured px cap (--sv-map-box) is for Home,
+   where the container could grow; here the flex column already bounds it, and a stale measurement left a band */
+.siteplan_page .unit-filter_map-container.is-zoomed { max-height: none; }
+/* #22 thin page-wide footer (native elements: footer.siteplan_footer) */
+.siteplan_page .siteplan_footer { font-family: var(--sp-body); flex: none; }
+.siteplan_page .siteplan_footer-text { font-family: var(--sp-body); letter-spacing: 0; text-transform: none; }
+@media (max-width: 479px) { .siteplan_page .siteplan_footer { padding: 0 .875rem; } .siteplan_page .siteplan_footer-text { font-size: .625rem; } }
