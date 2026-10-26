@@ -96,6 +96,8 @@ window.Wized = window.Wized || [];
       baths: { key: 'bathrooms', cast: Number },
       position: { keys: ['aspect', 'position'] },
       garage: { keys: ['garage_type', 'garageType'] },
+      street: { key: 'street' },            /* derived from address in boot() */
+      phase: { key: 'phase', cast: Number },
     };
 
     const RANGES = {
@@ -201,6 +203,10 @@ window.Wized = window.Wized || [];
       price: (a, b) => a.price - b.price,
       size: (a, b) => b.total_area - a.total_area,
       newest: (a, b) => new Date(b.created_at) - new Date(a.created_at),
+      type: (a, b) => {
+        const ka = String(a.type_code || 'zz') + ' ' + streetKey(a), kb = String(b.type_code || 'zz') + ' ' + streetKey(b);
+        return ka < kb ? -1 : ka > kb ? 1 : 0;
+      },
     };
 
     /* one comparable value, from either side of the comparison */
@@ -249,6 +255,9 @@ window.Wized = window.Wized || [];
         // every card and in the detail panel, which is exactly what the switch
         // exists to prevent. Only reformat when prices are actually on.
         if (!flat.prices_hidden) flat.price_display = formatPrice(flat.price);
+        const m = String(flat.address || '').match(/^(\d+)\s+(.+)$/);
+        flat.street = m ? m[2] : '';
+        flat.house_no = m ? m[1] : '';
         return flat;
       });
 
@@ -259,9 +268,46 @@ window.Wized = window.Wized || [];
       });
 
       initMap();
+      labelPlots();
       bindControls();
       updateLegend();
       apply();
+      /* the standalone page's loader waits for this (see "Site plan loader") */
+      document.dispatchEvent(new CustomEvent('sv:units-ready', { detail: { count: units.length } }));
+    }
+
+    /* House numbers on the plots (the standalone page keeps them on by default):
+       one <text> per plot at the centre of its box, the address's number for a
+       unit, "P1".."P9" for a proposed erf, nothing for a shareholder plot
+       without an address. Written into the overlay SVG so they pan and zoom
+       with the plan; dark on the type colours, light on the deep ones. */
+    function labelPlots() {
+      const svg = document.querySelector('.site-plan_map-svg svg');
+      if (!svg || svg.querySelector('.site-plan_plot-nos')) return;
+      const NS = 'http://www.w3.org/2000/svg';
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('class', 'site-plan_plot-nos');
+      g.setAttribute('aria-hidden', 'true');
+      const byId = {};
+      units.forEach((u) => { byId[u.plot_id] = u; });
+      svg.querySelectorAll('path[data-plot]').forEach((path) => {
+        const u = byId[path.id];
+        let txt = '';
+        if (u) txt = u.house_no || '';
+        else if (path.getAttribute('data-status') === 'unreleased') txt = 'P' + String(path.getAttribute('data-erf') || '').replace(/\D/g, '');
+        if (!txt) return;
+        let box;
+        try { box = path.getBBox(); } catch (e) { return; }
+        if (!box || !box.width) return;
+        const t = document.createElementNS(NS, 'text');
+        t.setAttribute('x', box.x + box.width / 2);
+        t.setAttribute('y', box.y + box.height / 2);
+        t.setAttribute('data-plot-no', path.id);
+        t.setAttribute('class', 'site-plan_plot-no' + (u && /^(C|H)$/.test(u.type_code || '') ? ' is-light' : ''));
+        t.textContent = txt;
+        g.appendChild(t);
+      });
+      svg.appendChild(g);
     }
 
     console.log('[site-plan] controller loaded');
@@ -410,6 +456,8 @@ window.Wized = window.Wized || [];
       units.forEach((u) => {
         const path = document.getElementById(u.plot_id);
         if (path) path.classList.toggle('is-dimmed', !ids.has(u.plot_id));
+        const no = document.querySelector('[data-plot-no="' + u.plot_id + '"]');
+        if (no) no.classList.toggle('is-dimmed', !ids.has(u.plot_id));
       });
 
       document.querySelectorAll('[data-count="results"]').forEach((el) => {
@@ -2579,6 +2627,8 @@ let audioContext;
   function arm() {
     var comp = document.querySelector(SEL.comp), canvas = document.querySelector(SEL.canvas);
     if (!comp || !canvas) return false;
+    /* the standalone page has its own loader (next module) instead of the satellite descent */
+    if (document.querySelector('.siteplan_page')) { abandon(false); return true; }
     if (deepLink() || reduced() || CFG.disabled || (seen() && !forced())) { abandon(false); return true; }
     root.classList.add(CLASS);                    /* idempotent with the head snippet */
     css();
@@ -2615,6 +2665,88 @@ let audioContext;
   function boot() {
     if (arm()) return;
     var n = 0, iv = setInterval(function () { if (arm() || ++n > 40) { clearInterval(iv); if (n > 40) abandon(false); } }, 250);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+
+/* ============================================================
+   Site plan loader — the standalone /unit-selection page (26 Oct 2026)
+   The Oakhills pattern instead of the satellite descent. The page head stamps
+   html.sv-map-loading (and sv-data-pending) before first paint: the plan is
+   hidden and slightly scaled up, the filters and the list sit off their own
+   sides, the floating pills are transparent, and a blurred veil with a small
+   looping bar sits over the map. Three milestones say when the map is real —
+   the overlay SVG, the unit data (sv:units-ready from the controller) and the
+   base image — then everything settles in, staggered from the plan outwards
+   (transitions live under html.sv-map-go so nothing later animates). A 9 s
+   fallback plays it regardless; the head snippet clears the class on its own
+   if this file never arrives.
+   ============================================================ */
+(function () {
+  if (window.__svMapLoader) return;
+  if (!document.querySelector('.siteplan_page')) return;
+  window.__svMapLoader = true;
+  var root = document.documentElement;
+  var marks = { plan: false, data: false, image: false };
+  var played = false, veil = null, fallback = 0;
+
+  function reduced() { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+
+  function hideVeil(force) {
+    if (!veil || (!force && !(marks.plan && marks.data))) return;
+    var v = veil; veil = null;
+    v.classList.add('is-out');
+    setTimeout(function () { if (v.parentNode) v.parentNode.removeChild(v); }, 520);
+  }
+  function play() {
+    if (played) return;
+    played = true;
+    clearTimeout(fallback);
+    root.classList.remove('sv-data-pending');
+    hideVeil(true);
+    if (!root.classList.contains('sv-map-loading')) return;
+    if (reduced()) { root.classList.remove('sv-map-loading'); return; }
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        root.classList.add('sv-map-go');
+        root.classList.remove('sv-map-loading');
+        setTimeout(function () { root.classList.remove('sv-map-go'); }, 1600);
+        document.dispatchEvent(new CustomEvent('sv:map-revealed'));
+      });
+    });
+  }
+  function mark(name) {
+    if (name in marks) marks[name] = true;
+    if (name === 'data') root.classList.remove('sv-data-pending');
+    if (marks.plan && marks.data && marks.image) play();
+    if (played) hideVeil(true);
+  }
+  window.svMapLoader = { mark: mark, play: play };
+
+  function boot() {
+    var host = document.querySelector('.unit-filter_map');
+    if (host && root.classList.contains('sv-map-loading') && !host.querySelector('.site-plan_loader')) {
+      veil = document.createElement('div');
+      veil.className = 'site-plan_loader';
+      veil.setAttribute('role', 'status');
+      veil.setAttribute('aria-label', 'Loading the site plan');
+      veil.innerHTML = '<div class="site-plan_loader-bar"><span></span></div>';
+      host.appendChild(veil);
+    }
+    root.classList.add('sv-data-pending');
+    if (document.querySelector('.site-plan_map-svg svg')) mark('plan'); else mark('plan');
+    var img = document.querySelector('.site-plan_map-image');
+    if (!img || (img.complete && img.naturalWidth)) mark('image');
+    else {
+      img.addEventListener('load', function () { mark('image'); });
+      img.addEventListener('error', function () { mark('image'); });
+    }
+    document.addEventListener('sv:units-ready', function () { mark('data'); });
+    if (document.querySelector('.site-plan_plot-nos')) mark('data');   /* the controller got there first */
+    fallback = setTimeout(play, 9000);
+    setTimeout(function () { hideVeil(true); }, 30000);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
