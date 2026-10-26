@@ -1563,7 +1563,7 @@ let audioContext;
       }
     }
 
-    /* Scopepin #18: is-open on the button turns its arrow (CSS); aria-expanded for screen readers */
+    /* Scopepin #18: the button carries is-open and aria-expanded (the arrow turns via the page embed CSS) */
     function setState(isOpen) {
       setLabel(isOpen);
       wrap.classList.toggle('is-open', isOpen);
@@ -2179,7 +2179,7 @@ let audioContext;
       var fr = document.querySelector('.siteplan_page') && u.unit_variant && u.unit_variant.render_image && u.unit_variant.render_image.url;
       if (fr) {
         out = out.filter(function (m) { return m.url !== fr; });
-        var sheet = out.findIndex(function (m) { return /floor-?plan/i.test(decodeURIComponent(m.url || '')); });
+        var sheet = out.findIndex(function (m) { return /floor[-_ ]?plan/i.test(decodeURIComponent(m.url || '')); });
         var item = { kind: 'image', url: fr, caption: 'Floor plan \u00b7 3D', poster: '', youtube_id: '' };
         if (sheet < 0) out.push(item); else out.splice(sheet, 0, item);
       }
