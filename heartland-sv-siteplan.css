@@ -1265,3 +1265,14 @@ html.prices-hidden .siteplan_page .unit-filter_card-copy > h4 { display: none; }
 .siteplan_page .unit-details_reserve-wrapper .btn_main_layout { padding: .5625rem .75rem; }
 .siteplan_page .unit-details_reserve-wrapper .btn_main_text { white-space: nowrap; }
 .siteplan_page .unit-filter_desktop-legend { font-size: .72rem; gap: .375rem .75rem; max-width: calc(100% - 11rem); }
+/* ---- mobile polish (26 Oct) ---- */
+@media (max-width: 991px) {
+  html .siteplan_page .unit-filter_map .unit-filter_legend.unit-filter_desktop-legend { display: none !important; }
+  .siteplan_page .unit-filter_mobile-results-header { display: none !important; }
+  .siteplan_page .unit-filter_results-header { padding: .75rem 1rem .5rem; }
+  .siteplan_page .siteplan_header .btn_main_layout { padding: .4rem .7rem; }
+  .siteplan_page .siteplan_header .btn_main_text { font-size: .75rem; white-space: nowrap; }
+  .siteplan_page .unit-filter_mobile-filter-button,
+  .siteplan_page .unit-filter_mobile-view-link { border-radius: 999px; }
+  .siteplan_page .unit-filter_mobile-view-switch { border-radius: 999px; }
+}
