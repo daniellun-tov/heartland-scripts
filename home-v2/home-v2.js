@@ -421,7 +421,7 @@
   function split(text){ ttl.innerHTML=''; const ws=text.split(' '); ws.forEach((w,i)=>{ const s=document.createElement('span'); s.className='w'; [...w].forEach(c=>{ const k=document.createElement('span'); k.className='ch'; k.textContent=c; s.appendChild(k); }); ttl.appendChild(s); if(i<ws.length-1) ttl.appendChild(document.createTextNode(' ')); }); return $$('.ch',ttl); }
   split(TYPES[0].t);
   function goType(dir){
-    if(busy) return; busy=true; ti=(ti+dir+TYPES.length)%TYPES.length; const d=TYPES[ti]; const of=frs[fi], nf=frs[fi^1]; fi^=1; const ni=$('img',nf); if(d.img){ ni.src=homev2Variant(d.img,Math.ceil(nf.offsetWidth*(devicePixelRatio||1)*1.1)); ni.alt=d.alt; }
+    if(busy) return; busy=true; ti=(ti+dir+TYPES.length)%TYPES.length; const d=TYPES[ti]; const of=frs[fi], nf=frs[fi^1]; fi^=1; const ni=$('img',nf); if(d.img){ ni.removeAttribute('srcset'); ni.removeAttribute('sizes'); ni.src=homev2Variant(d.img,Math.ceil(nf.offsetWidth*(devicePixelRatio||1)*1.1)); ni.alt=d.alt; }
     tsN.textContent=ti+1; tsRun();
     if(!G||rm){ split(d.t); frs.forEach(f=>f.classList.toggle('is-in',f===nf)); setTsTxt(d.txt); tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; busy=false; return; }
     const old=$$('.ch',ttl);
@@ -456,11 +456,12 @@
 
   /* unit types: Xano via Wized (getUnitTypes) replaces the two fallback types */
   (()=>{ const half=b=>{ const w=Math.floor(b); return (b-w)>=.5?(w?w+'½':'½'):String(w); };
-    /* 26 Oct 2026 (Scopepin #6): the frame shows the type's axo floor-plan render (unit-types.render_image); the exterior render stays the fallback */
+    /* 26 Oct 2026 (Scopepin #6): the frame shows the type's axo floor-plan render (unit-types.render_image); the exterior render stays the fallback.
+       The frame images carry Webflow's srcset, which beats src - it is removed before the swap. */
     const map=list=>list.map(u=>{ const im=(u.media||[]).find(m=>m.kind==='image'); return {t:'Type '+u.type_code,beds:String(u.bedrooms),baths:half(+u.bathrooms),size:u.total_area+' m²',txt:u.short_description||u.description||'',img:u.render_image||(im&&im.url)||u.card_image||'',alt:'Type '+u.type_code+(u.render_image?', 3D floor plan':", artist's impression")}; });
     const apply=W=>{ const r=W.data&&W.data.r&&W.data.r.getUnitTypes; if(!r||!Array.isArray(r.data)||!r.data.length) return false;
       TYPES=map(r.data); if(tsTot) tsTot.textContent=TYPES.length; ti=0; const d=TYPES[0], f=frs[fi], im=$('img',f);
-      if(d.img){ im.src=homev2Variant(d.img,Math.ceil(($('#tsFrame').offsetWidth||600)*(devicePixelRatio||1)*1.1)); im.alt=d.alt; } split(d.t); setTsTxt(d.txt); tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; tsN.textContent=1;
+      if(d.img){ im.removeAttribute('srcset'); im.removeAttribute('sizes'); im.src=homev2Variant(d.img,Math.ceil(($('#tsFrame').offsetWidth||600)*(devicePixelRatio||1)*1.1)); im.alt=d.alt; } split(d.t); setTsTxt(d.txt); tsType.textContent=d.beds; tsPos.textContent=d.baths; tsSize.textContent=d.size; tsN.textContent=1;
       $$('img',$('#tsFrame')).forEach(x=>{ x.loading='eager'; }); TYPES.forEach(t=>{ if(t.img){ const p=new Image(); p.src=homev2Variant(t.img,Math.ceil(($('#tsFrame').offsetWidth||600)*(devicePixelRatio||1)*1.1)); } }); return true; };
     window.Wized=window.Wized||[]; window.Wized.push(W=>{ if(apply(W)) return; W.on('requestend',res=>{ if(res&&res.name==='getUnitTypes') apply(W); }); });
   })();
