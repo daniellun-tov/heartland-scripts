@@ -1,0 +1,979 @@
+/* Stellenbosch Village — site plan / unit selection stylesheet.
+   Loaded by /unit-selection page head via jsDelivr (pinned to a commit).
+   Source of truth for the site-plan CSS that previously lived inline in the
+   Home page head (sections 2-10, feature-teaser block excluded). 2026-10-26. */
+html { background: #fbf7ef; color-scheme: light only; }
+html, .unit-filter_list, .unit-filter_filters, .unit-filter_map-container, .unit-details_body { scrollbar-color: #cdbfa6 #f3eee4; scrollbar-width: thin; }
+.unit-filter_list::-webkit-scrollbar, .unit-filter_filters::-webkit-scrollbar, .unit-details_body::-webkit-scrollbar { width: 10px; height: 10px; }
+.unit-filter_list::-webkit-scrollbar-track, .unit-filter_filters::-webkit-scrollbar-track, .unit-details_body::-webkit-scrollbar-track { background: #f3eee4; }
+.unit-filter_list::-webkit-scrollbar-thumb, .unit-filter_filters::-webkit-scrollbar-thumb, .unit-details_body::-webkit-scrollbar-thumb { background: #cdbfa6; border-radius: 8px; border: 2px solid #f3eee4; }
+
+  /* base plot styling */
+  .site-plan_plot {
+    cursor: pointer;
+    fill: #c9c3b4;
+    fill-opacity: 0.65;
+    stroke: #2c2b27;
+    stroke-width: 1;
+    transition:
+      fill-opacity 0.15s,
+      stroke-width 0.1s;
+  }
+  .site-plan_plot:hover {
+    stroke: var(--_colors---color-charcoal);
+    stroke-width: 3;
+    fill-opacity: 0.85;
+  }
+
+  /* colour-by TYPE (default) */
+  .site-plan_map-canvas.is-colour-type [data-type='A'] {
+    fill: var(--_colors---unit-type--a);
+  }
+  .site-plan_map-canvas.is-colour-type [data-type='B'] {
+    fill: var(--_colors---unit-type--b);
+  }
+  .site-plan_map-canvas.is-colour-type [data-type='C'] {
+    fill: var(--_colors---unit-type--c);
+  }
+  .site-plan_map-canvas.is-colour-type [data-type='E'] {
+    fill: var(--_colors---unit-type--e);
+  }
+  .site-plan_map-canvas.is-colour-type [data-type='F'] {
+    fill: var(--_colors---unit-type--f);
+  }
+  .site-plan_map-canvas.is-colour-type [data-type='G'] {
+    fill: var(--_colors---unit-type--g);
+  }
+  .site-plan_map-canvas.is-colour-type [data-type='H'] {
+    fill: var(--_colors---unit-type--h);
+  }
+  .site-plan_map-canvas.is-colour-type {
+    opacity: 0.75;
+  }
+
+  /* colour-by STATUS */
+  .site-plan_map-canvas.is-colour-status {
+    opacity: 0.75;
+  }
+  .site-plan_map-canvas.is-colour-status [data-status='available'] {
+    fill: var(--_colors---color-olive);
+  }
+  .site-plan_map-canvas.is-colour-status [data-status='reserved'] {
+    fill: var(--_colors---color-bronze);
+  }
+  .site-plan_map-canvas.is-colour-status [data-status='sold'] {
+    fill: var(--_colors---color-burgundy);
+  }
+
+  /* filter dim — map keeps its shape, doesn't lose plots */
+  .site-plan_plot.is-dimmed {
+    fill-opacity: 0.15;
+    pointer-events: none;
+  }
+
+  /* selection */
+  .site-plan_plot.is-selected {
+    stroke: #be9560;
+    stroke-width: 2;
+  }
+
+  /* wrapper: hidden but still animatable */
+  .site-plan_detail-wrap {
+    position: fixed;
+    inset: 0;
+    z-index: 9997;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .site-plan_detail-wrap.is-open {
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* overlay fades */
+  .site-plan_detail-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(44, 43, 39, 0.45);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .site-plan_detail-wrap.is-open .site-plan_detail-overlay {
+    opacity: 1;
+  }
+
+  /* panel slides */
+  .site-plan_detail-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain; /* stops chaining to the page at the ends */
+    -webkit-overflow-scrolling: touch; /* iPad momentum */
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+  .site-plan_detail-wrap.is-open .site-plan_detail-panel {
+    transform: translateX(0);
+  }
+
+  [data-status='available'] {
+    background: var(--_colors---color-olive);
+    color: #fff;
+  }
+  [data-status='reserved'] {
+    background: var(--_colors---color-bronze);
+    color: #fff;
+  }
+  [data-status='sold'] {
+    background: var(--_colors---color-burgundy);
+    color: #fff;
+  }
+
+  .swiper-pagination-bullet {
+    background-color: #cbbfba;
+    opacity: 100%;
+    height: 6px;
+    width: 6px;
+    transition: 300ms width;
+    border-radius: 16rem;
+  }
+
+  .swiper-pagination-bullet-active {
+    background-color: #502c1e;
+    width: 6px !important;
+    opacity: 100%;
+    height: 6px;
+    border-radius: 16rem;
+  }
+
+  .swiper-button-disabled {
+    opacity: 40%;
+  }
+
+  /* Make sure nav is never hidden behind overlays */
+  .swiper-buttons,
+  .swiper-navigation {
+    position: relative;
+    z-index: 50;
+  }
+
+  /* If your CSS hides disabled arrows, override it */
+  .swiper-arrow.swiper-button-disabled {
+    display: flex !important;
+    opacity: 0.35 !important;
+    pointer-events: none !important;
+  }
+
+  /* Legend swap ---------------------------------------------------- */
+
+  /* Pre-JS / no-JS: status legend only. Removed once the controller boots. */
+  html:not(.legends-ready) [data-legend-group='type'] {
+    display: none;
+  }
+
+  /* Once JS owns it, this is the only thing that hides a legend —
+   so Webflow's own responsive display rules still govern the shown one. */
+  [data-legend-group].is-legend-hidden {
+    display: none !important;
+  }
+
+  /* Lock the height so swapping 3 items for 7 can't move anything below it. */
+  .unit-filter_legend[data-legend-group] {
+    height: 3.5rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .unit-filter_legend[data-legend-group]::-webkit-scrollbar {
+    display: none;
+  }
+  .unit-filter_legend[data-legend-group='type'] {
+    column-gap: 1rem;
+  }
+
+  /*
+   NOT IN THIS FILE — now native Webflow styles on classes that ARE applied to
+   real elements, so "Clean Up Unused Styles" cannot remove them:
+     · .unit-filter_filters          transform / transition   (tablet)
+     · .unit-filter_mobile-legend    wrap + row-gap           (tablet)
+     · .modal-content.reserve-unit   full-screen sheet        (mobile)
+     · .buttons-wrapper…is-reserve   fixed close position     (mobile)
+     · .icon-button.is-reserve-close cream bg + shadow        (mobile)
+
+   STILL HERE ON PURPOSE — .is-open lives on no element in the Designer (the
+   script adds it at runtime), so its native combo classes would be deleted by
+   a cleanup. These two rules are the safety net.
+   ============================================================================= */
+
+  /* -----------------------------------------------------------------------------
+   1. MOBILE VIEW SWITCH — map vs list (≤991px)
+   The active pane fills the workspace down to the section bottom.
+   -------------------------------------------------------------------------- */
+  @media (max-width: 991px) {
+    /* Map view (default) */
+    .unit-filter_component:not(.is-view-list) .unit-filter_list {
+      display: none;
+    }
+
+    .unit-filter_component:not(.is-view-list) .unit-filter_map {
+      display: flex !important;
+      flex-direction: column !important;
+      flex: 1 1 auto !important;
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: hidden !important;
+    }
+
+    .unit-filter_map .unit-filter_map-container {
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+      overflow: auto !important;
+    }
+
+    /* List view */
+    .unit-filter_component.is-view-list .unit-filter_map {
+      display: none;
+    }
+
+    .unit-filter_component.is-view-list .unit-filter_list {
+      display: flex !important;
+      flex-direction: column !important;
+      flex: 1 1 auto !important;
+      height: auto !important;
+      min-height: 0 !important;
+      overflow-y: auto !important;
+      overscroll-behavior: contain;
+    }
+  }
+
+  /* -----------------------------------------------------------------------------
+   2. FILTERS DRAWER (≤991px)
+   Full-screen off-canvas drawer that scrolls on its own.
+   The closed-state transform + transition are native Webflow styles (tablet).
+   -------------------------------------------------------------------------- */
+  @media (max-width: 991px) {
+    .unit-filter_filters {
+      display: flex;
+      flex-direction: column;
+      width: 100vw !important;
+      max-width: 100vw !important;
+      height: 100dvh !important;
+      max-height: 100dvh !important;
+      padding-bottom: 2rem !important;
+      border-right: 0 !important;
+      overflow-y: auto !important;
+      overscroll-behavior: contain;
+    }
+
+    /* Cleanup safety net — combo applied to no element in the Designer */
+    .unit-filter_filters.is-open {
+      transform: translateX(0);
+    }
+
+    /* Cleanup safety net — combo applied to no element in the Designer */
+    .unit-filter_backdrop.is-open {
+      display: block;
+    }
+
+    /* Reset stays reachable at the bottom while the drawer scrolls */
+    .unit-filter_reset {
+      position: sticky;
+      bottom: 0;
+      z-index: 4;
+      margin-top: 0.5rem;
+      padding: 0.75rem 0;
+      background-color: var(--_colors---color-cream, #f7f1e6);
+      box-shadow: 0 -10px 16px -10px rgba(44, 43, 39, 0.3);
+    }
+  }
+
+  /* -----------------------------------------------------------------------------
+   3. DRAWER CLOSE BUTTON
+   Hidden on desktop; sticky top-right of the drawer on ≤991px so it stays put
+   while the drawer scrolls.
+   -------------------------------------------------------------------------- */
+  .unit-filter_mobile-close {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border: 1px solid rgba(140, 107, 52, 0.4);
+    border-radius: 0.75rem;
+    background-color: var(--_colors---color-cream, #f7f1e6);
+    box-shadow: 0 6px 18px rgba(44, 43, 39, 0.28);
+    color: #2c2b27;
+    font-size: 1.35rem;
+    line-height: 1;
+    text-decoration: none;
+  }
+
+  @media (max-width: 991px) {
+    .unit-filter_mobile-close {
+      display: flex;
+      position: sticky !important;
+      top: 0.75rem !important;
+      right: auto !important;
+      bottom: auto !important;
+      z-index: 30 !important;
+      flex: 0 0 auto !important;
+      align-self: flex-end !important;
+      margin-right: 0.25rem !important;
+      margin-bottom: -3.25rem !important;
+    }
+  }
+
+  /* -----------------------------------------------------------------------------
+   4. "MORE FILTERS" DISCLOSURE
+   State is owned by the script, not by Webflow interactions.
+   -------------------------------------------------------------------------- */
+  .unit-filter_more-list.svx-more-collapsed {
+    display: none !important;
+  }
+
+  .unit-filter_more-list.svx-more-open {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+  }
+
+  /* -----------------------------------------------------------------------------
+   5. DETAIL PANEL SUB-NAVBAR
+   Larger pills on the segmented control.
+   -------------------------------------------------------------------------- */
+  .unit-details_scroll-nav {
+    gap: 0.2rem !important;
+    margin: 0.25rem 0 1rem !important;
+    padding: 0.3rem !important;
+  }
+
+  .unit-details_scroll-link {
+    min-height: 2.4rem !important;
+    padding: 0.55rem 1rem !important;
+    font-size: 0.95rem !important;
+    line-height: 1.25 !important;
+  }
+
+  @media (max-width: 767px) {
+    .unit-details_scroll-link {
+      min-height: 2.25rem !important;
+      padding: 0.5rem 0.85rem !important;
+      font-size: 0.9rem !important;
+    }
+  }
+
+  /* -----------------------------------------------------------------------------
+   6. FLOOR PLAN VIEWERS — lightbox (unit details) + modal (unit types)
+   Both wrap the plan in .fp-zoom: "Floor plan viewer" module in heartland-sv.js.
+   Resting: the plan fills the viewer, letterboxed. Zoomed (.is-zoomed): the
+   wrapper is a scroll container and the plan is laid out at the zoomed size,
+   so panning is native touch scrolling.
+   -------------------------------------------------------------------------- */
+  .unit-details_floorplan-image {
+    cursor: zoom-in;
+  }
+
+  .fp-zoom {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+    touch-action: manipulation; /* no double-tap delay on the tap-to-zoom */
+  }
+  .fp-zoom img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    cursor: zoom-in;
+  }
+  .fp-zoom.is-zoomed {
+    display: block;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    cursor: zoom-out;
+  }
+  .fp-zoom.is-zoomed::-webkit-scrollbar {
+    display: none;
+  }
+  .fp-zoom.is-zoomed img {
+    max-width: none;
+    max-height: none;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 0;
+    cursor: zoom-out;
+  }
+
+  /* lightbox: full screen, dark */
+  .fp-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 100060;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(20, 19, 17, 0.94);
+  }
+
+  .fp-lightbox.is-open {
+    display: flex;
+  }
+
+  .fp-lightbox .fp-zoom {
+    height: 100%;
+  }
+
+  .fp-lightbox img {
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Guard: an older heartland-sv.js (before the .fp-zoom wrapper) puts the
+     plan straight inside the lightbox. Keep it letterboxed to the viewport
+     so a CSS publish never has to wait for the bundle to catch up. */
+  .fp-lightbox > img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    cursor: zoom-out;
+  }
+
+  /* modal: the unit types "View Floor Plan" popup. Desktop keeps the Webflow
+     card (60rem, plan capped at 80vh by .unit-types_floorplan-image); the
+     wrapper takes that cap so a zoomed plan scrolls inside the card. */
+  .popup[custom-modal-element='unit-floorplan'] .modal-content .fp-zoom {
+    flex: 1 1 auto;
+  }
+  @media (min-width: 992px) {
+    .popup[custom-modal-element='unit-floorplan'] .modal-content .fp-zoom {
+      max-height: 80vh;
+    }
+    .popup[custom-modal-element='unit-floorplan'] .modal-content .fp-zoom:not(.is-zoomed) img {
+      max-height: 80vh;
+    }
+  }
+
+  /* below 992px the card becomes a full-screen sheet and the plan gets all of
+     it - the 60rem card was cut off on tablets and a thumbnail on phones */
+  @media (max-width: 991px) {
+    .popup[custom-modal-element='unit-floorplan'] .modal-content {
+      width: 100%;
+      max-width: none;
+      height: 100svh;
+      max-height: 100svh;
+      padding: 4.25rem 0.5rem 0.75rem;
+      border-radius: 0;
+      overflow: hidden;
+    }
+    .popup[custom-modal-element='unit-floorplan'] .modal-content .fp-zoom {
+      height: 100%;
+    }
+    /* the close button floats over the sheet on tablets too (Webflow only
+       pins it at ≤767px) */
+    .popup[custom-modal-element='unit-floorplan'] .buttons-wrapper.is-reserve {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      bottom: auto;
+      left: auto;
+      z-index: 100000;
+      width: auto;
+    }
+    .popup[custom-modal-element='unit-floorplan'] .icon-button {
+      background-color: var(--_colors---color-cream);
+      box-shadow: 0 6px 18px rgba(44, 43, 39, 0.28);
+    }
+  }
+
+  .fp-lightbox_close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .fp-lightbox_close:hover {
+    background: rgba(255, 255, 255, 0.24);
+  }
+
+  @media (max-width: 767px) {
+    .fp-lightbox_close {
+      top: 12px;
+      right: 12px;
+      width: 44px;
+      height: 44px;
+    }
+  }
+
+  /* -----------------------------------------------------------------------------
+   7. MAP TOOLBAR, PRE-LAUNCH (desktop)
+   With the colour-by control hidden (data-sales-ui) the 80px toolbar held one
+   line of hint above a 56px legend. Pre-launch the two share a wrapping row:
+   hint first, legend after it, on one line when the map column is wide enough
+   and on the next line when it isn't. html.sales-open restores the Designer
+   layout untouched.
+   -------------------------------------------------------------------------- */
+  @media (min-width: 992px) {
+    html:not(.sales-open) .site-plan_map-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      column-gap: 1.5rem;
+      row-gap: 0.25rem;
+      min-height: 56px;
+      padding: 0.5rem 16px;
+      border-bottom: 1px solid #e3dacb;
+    }
+    html:not(.sales-open) .unit-filter_toolbar {
+      flex: 0 0 auto;
+      width: auto;
+      min-height: 0;
+      padding: 0;
+    }
+    html:not(.sales-open) .unit-filter_toolbar .unit-filter_hint {
+      color: #6b6862;
+    }
+    html:not(.sales-open) .unit-filter_legend.unit-filter_desktop-legend {
+      flex: 1 1 auto;
+      width: auto;
+      height: auto;
+      min-height: 0;
+      padding: 0;
+      border-bottom: 0;
+      overflow: visible;
+      flex-wrap: wrap;
+      column-gap: 0.625rem;
+    }
+  }
+
+  /* ------------------------------------------------------------
+   1. Sub-navbar — segmented pill, sticky inside the panel
+   The !importants defeat the original Webflow hide, which used
+   more than display (visibility/opacity/height/transform).
+------------------------------------------------------------ */
+  .unit-details_scroll-nav {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    max-height: none !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    position: sticky !important;
+    top: 0.5rem;
+    z-index: 30;
+    align-items: center;
+    gap: 0.15rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    background-color: var(--_colors---color-cream, #f7f1e6);
+    border: 1px solid rgba(44, 43, 39, 0.25);
+    border-radius: 999px;
+    padding: 0.2rem;
+    margin: 0.25rem 0 0.75rem;
+  }
+  .unit-details_scroll-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .unit-details_scroll-link {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    text-decoration: none;
+    color: #2c2b27;
+    font-size: 0.8rem;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+  }
+  .unit-details_scroll-link.is-active {
+    background-color: #2c2b27;
+    color: #fff;
+  }
+
+  /* ------------------------------------------------------------
+   2. Close button — absolute, top of the panel, scrolls with it.
+   NOTE: position:fixed does NOT work here — the panel is
+   transformed and is itself the scroller, so fixed scrolls
+   with the content. Absolute is deliberate.
+------------------------------------------------------------ */
+  .unit-details_return {
+    position: absolute !important;
+    top: 1rem !important;
+    right: 1rem !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: 60;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    background-color: var(--_colors---color-cream, #f7f1e6);
+    border: 1px solid rgba(140, 107, 52, 0.4);
+    border-radius: 0.75rem;
+    box-shadow: 0 6px 18px rgba(44, 43, 39, 0.28);
+    cursor: pointer;
+  }
+
+  /* ------------------------------------------------------------
+   3. Gallery — stage, thumbnails, lightbox
+------------------------------------------------------------ */
+  /* square, like the panel it sits in - only the thumbnails are rounded */
+  .unit-details_main-link[data-gallery='stage'] {
+    position: relative;
+    cursor: zoom-in;
+    overflow: hidden;
+  }
+  .unit-details_main-link[data-gallery='stage'] .ud-media {
+    width: 100%;
+    height: 22rem;
+    object-fit: cover;
+    display: block;
+    background: #e3dacb;
+  }
+  .unit-details_main-link[data-gallery='stage'] .ud-playbtn {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(44, 43, 39, 0.62);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  /* expand icon sits bottom-right of the preview */
+  .unit-details_main-link[data-gallery='stage'] .ud-expand {
+    position: absolute;
+    top: auto;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(44, 43, 39, 0.55);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .unit-details_thumbnail {
+    position: relative;
+    cursor: pointer;
+    opacity: 0.72;
+    overflow: hidden;
+    transition:
+      opacity 0.15s,
+      border-color 0.15s;
+  }
+  .unit-details_thumbnail.is-current {
+    opacity: 1;
+    border-color: #8c6b34;
+  }
+  .unit-details_thumb-badge {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(44, 43, 39, 0.7);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .ud-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 100050;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(20, 19, 17, 0.92);
+  }
+  .ud-lightbox.is-open {
+    display: flex;
+  }
+  .ud-lightbox_stage {
+    max-width: 92vw;
+    max-height: 82vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ud-lightbox_stage img,
+  .ud-lightbox_stage video {
+    max-width: 92vw;
+    max-height: 82vh;
+    width: auto;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+  .ud-lb-btn {
+    position: absolute;
+    border: none;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    transition: background 0.15s;
+  }
+  .ud-lb-btn:hover {
+    background: rgba(255, 255, 255, 0.24);
+  }
+  .ud-lb-close {
+    top: 20px;
+    right: 20px;
+  }
+  .ud-lb-prev {
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .ud-lb-next {
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .ud-lb-counter {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #efe8dc;
+    font:
+      500 14px 'Source Sans 3',
+      sans-serif;
+    letter-spacing: 0.5px;
+  }
+  @media (max-width: 767px) {
+    .ud-lb-prev {
+      left: 8px;
+    }
+    .ud-lb-next {
+      right: 8px;
+    }
+    .ud-lb-btn {
+      width: 44px;
+      height: 44px;
+    }
+  }
+
+  /* ------------------------------------------------------------
+   4. Plot flash fix — initial fill matches the background until
+   the controller stamps data-type / data-status.
+------------------------------------------------------------ */
+  .site-plan_map-svg svg path:not(.site-plan_plot) {
+    fill: var(--_colors---color-cream, #f7f1e6);
+  }
+
+  .site-plan_detail-wrap {
+    position: fixed;
+    inset: 0;
+    z-index: 9997;
+    /*visibility: hidden; 
+    pointer-events: none; */
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  @media (max-width: 991px) {
+    .unit-filter_component:not(.is-view-list) .unit-filter_list {
+      display: none;
+    }
+    .unit-filter_component.is-view-list .unit-filter_map {
+      display: none;
+    }
+    .unit-filter_filters {
+      transform: translateX(-105%);
+      transition: transform 0.25s ease;
+    }
+    .unit-filter_filters.is-open {
+      transform: translateX(0);
+    }
+    .unit-filter_backdrop.is-open {
+      display: block;
+    }
+    /* let the abbreviated type legend wrap instead of being clipped to one row */
+    .unit-filter_mobile-legend[data-legend-group] {
+      height: auto !important;
+      flex-wrap: wrap !important;
+      overflow-x: visible !important;
+      row-gap: 0.5rem;
+    }
+  }
+
+  /* Reserve-unit modal — mobile UX: full-screen, native touch scroll, floating close */
+  @media (max-width: 767px) {
+    #unit-reserve .modal-content.reserve-unit {
+      width: 100%;
+      max-width: none;
+      height: 100svh;
+      max-height: 100svh;
+      border-radius: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      padding: 4.75rem 1rem 2.5rem;
+    }
+    #unit-reserve .buttons-wrapper.is-reserve {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      bottom: auto;
+      left: auto;
+      z-index: 100000;
+      width: auto;
+    }
+    #unit-reserve .icon-button {
+      background-color: var(--_colors---color-cream);
+      box-shadow: 0 6px 18px rgba(44, 43, 39, 0.28);
+    }
+  }
+
+  /* ---------------------------------------------------------------------
+     LIST VIEW SCROLL FIX (mobile/tablet) — added 2026-08-11
+
+     .unit-filter_list was a second, redundant scroll container: overflow-y
+     auto with overscroll-behavior:contain, but never actually scrollable
+     (.site-plan_list inside is flex:1 1 0% and absorbs the height). The
+     section is exactly 100dvh, so that layer sat over the whole screen and
+     swallowed touch gestures — with a short result list there was nothing to
+     scroll and `contain` stopped the gesture chaining to the page, so the
+     list area was completely dead to touch.
+
+     One scroller only: .site-plan_list. It keeps overscroll-behavior:auto so
+     a short list passes the gesture through to the page, and a long list
+     scrolls then hands over at its ends.
+     --------------------------------------------------------------------- */
+  @media (max-width: 991px) {
+    .unit-filter_component.is-view-list .unit-filter_list {
+      overflow-y: visible !important;
+      overscroll-behavior: auto !important;
+    }
+  }
+
+  /* ---------------------------------------------------------------------
+     RESULTS HEADER + LIST SPACING — added 2026-08-11
+     --------------------------------------------------------------------- */
+
+  /* 1. While prices are switched off there is only one thing left to sort by,
+     so the whole sort control goes — not just the price option. The price
+     pill/button already carries data-price-ui and is hidden by the site
+     footer's price switch; this takes the SORT label and the lone remaining
+     option with it. Scoped to the results header so the map's colour-by
+     radio group (same class) is untouched. */
+  html.prices-hidden .unit-filter_mobile-sort,
+  html.prices-hidden .unit-filter_results-header .unit-filter_radio-group {
+    display: none !important;
+  }
+
+  @media (max-width: 991px) {
+    /* 2. The mobile results bar had no side padding, so the unit count sat
+       flush against the screen edge while the cards below were inset 1rem.
+       Match the list. */
+    .unit-filter_mobile-results-header {
+      padding-left: 1rem;
+      padding-right: 1rem;
+      gap: 1rem;
+    }
+
+    /* 3. .site-plan_list is padding: 0 1rem 1.5rem, and gains a top border at
+       ≤767px — so the first card sat directly on that border. */
+    .site-plan_list {
+      padding-top: 1rem;
+    }
+  }
+
+/* ---------------------------------------------------------------------
+   /unit-selection page: header + shareholder / proposed plots — 2026-10-26
+   --------------------------------------------------------------------- */
+.siteplan_page .unit-filter_component {
+  height: calc(100dvh - 4rem) !important;
+  max-height: calc(100dvh - 4rem) !important;
+  min-height: 0 !important;
+  border-top: 0;
+}
+@media (max-width: 991px) {
+  .siteplan_page .unit-filter_component { height: calc(100dvh - 3.5rem) !important; max-height: calc(100dvh - 3.5rem) !important; }
+}
+.site-plan_map-canvas [data-status='shareholder'],
+.site-plan_map-canvas.is-colour-type [data-status='shareholder'],
+.site-plan_map-canvas.is-colour-status [data-status='shareholder'] {
+  fill: url(#sv-hatch) !important;
+  fill-opacity: 0.9;
+}
+.site-plan_plot.is-proposed,
+.site-plan_map-canvas [data-status='unreleased'] {
+  fill: transparent !important;
+  fill-opacity: 1;
+  stroke: #8a8580;
+  stroke-width: 2;
+  stroke-dasharray: 14 10;
+  cursor: default;
+  pointer-events: none;
+}
+.site-plan_detail-wrap.is-shareholder .unit-details_metrics,
+.site-plan_detail-wrap.is-shareholder .unit-details_feature-grid,
+.site-plan_detail-wrap.is-shareholder .unit-details_floorplan,
+.site-plan_detail-wrap.is-shareholder .unit-details_thumbnails,
+.site-plan_detail-wrap.is-shareholder .unit-details_scroll-nav,
+.site-plan_detail-wrap.is-shareholder .unit-details_vr,
+.site-plan_detail-wrap.is-shareholder .unit-details_reserve-wrapper { display: none !important; }
+.unit-filter_tooltip-status.is-shareholder,
+.unit-filter_status.is-shareholder,
+.site-plan_status.is-shareholder { background: #e3dacb; color: #565450; }
