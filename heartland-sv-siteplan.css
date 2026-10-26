@@ -1602,7 +1602,9 @@ html .siteplan_page .unit-filter_map .unit-filter_toolbar { top: auto; bottom: .
    position:fixed so it stays put while the drawer scrolls (the drawer is itself fixed and full-screen here) */
 @media (max-width: 991px) {
   .siteplan_page .unit-filter_filters .unit-filter_mobile-close {
-    position: fixed; top: 1rem; right: 1rem; left: auto; z-index: 30; margin: 0;
+    /* the section-3 drawer rules above pin these with !important, so they are overridden the same way */
+    position: fixed !important; top: 1rem !important; right: 1rem !important; left: auto !important; bottom: auto !important;
+    z-index: 30 !important; margin: 0 !important; align-self: auto !important;
     width: 2rem; height: 2rem; padding: 0; display: grid; place-items: center;
     background: var(--sp-white); border: 1px solid var(--sp-sand); border-radius: 0; box-shadow: none;
     color: var(--sp-ink); font-family: var(--sp-body); font-size: 1.125rem; line-height: 1; font-weight: 400; text-decoration: none;
