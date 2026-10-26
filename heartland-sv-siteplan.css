@@ -944,7 +944,7 @@ html, .unit-filter_list, .unit-filter_filters, .unit-filter_map-container, .unit
    "Three-panel"), 26 Oct 2026. Scoped to .siteplan_page so Home's copy of
    the section is untouched. Tokens mirror the site variables.
    ===================================================================== */
-.siteplan_page {
+.siteplan_page, .unit-filter_tooltip {
   --sp-cream: #fbf7ef; --sp-sand: #efe8dc; --sp-line: #e3dacb; --sp-white: #fff;
   --sp-ink: #2c2b27; --sp-ink-2: #565450; --sp-ink-3: #8a8580; --sp-bronze-dark: #8c6b34;
   --sp-display: "Fraunces", Georgia, serif; --sp-body: "Libre Franklin", system-ui, sans-serif;
@@ -1284,7 +1284,7 @@ html.prices-hidden .siteplan_page .unit-filter_card-copy > h4 { display: none; }
    'io' .75,0,.25,1). Later in the file than the first design block, so it
    wins at equal specificity.
    ===================================================================== */
-.siteplan_page {
+.siteplan_page, .unit-filter_tooltip {
   --sp-cream: #f4ede2; --sp-sand: #e6d2b8; --sp-line: #e6d2b8; --sp-white: #fbfbfa;
   --sp-ink: #2a2330; --sp-ink-2: #4a4150; --sp-ink-3: #8a8088; --sp-bronze-dark: #c8894f; --sp-amber: #c8894f; --sp-amber-soft: #d9a574;
   --sp-display: "Cormorant", Georgia, serif; --sp-body: "Hanken Grotesk", system-ui, sans-serif; --sp-wide: "Archivo", system-ui, sans-serif;
@@ -1513,8 +1513,8 @@ html.sv-map-go .siteplan_page .site-plan_context { transition: opacity .6s var(-
 /* ============================================================
    26 Oct 2026 - Scopepin batch 3 (/unit-selection)
    ============================================================ */
-/* #10 plot tooltips: the controller moves the tooltip onto <body>, so the rules above are unscoped
-   and the visible state (missing since the Home head CSS moved here) is restored */
+/* #10 plot tooltips: the controller moves the tooltip onto <body>, so the rules above are unscoped, the tokens
+   are declared on the tooltip too, and the visible state (missing since the Home head CSS moved here) is restored */
 .unit-filter_tooltip { display: block; }
 .unit-filter_tooltip.is-visible { opacity: 1; transform: none; }
 /* #8 body text instead of the wide accent face wherever it carries information */
