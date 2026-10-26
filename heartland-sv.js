@@ -1109,7 +1109,7 @@ window.Wized = window.Wized || [];
     var fy = h ? (box.scrollTop + ay) / h : 0.5;
     zoom = next;
     setZoomVar(zoom);
-    box.classList.toggle('is-zoomed', zoom !== 1 || box.scrollWidth > box.clientWidth);
+    box.classList.toggle('is-zoomed', zoom !== 1 || box.scrollWidth > box.clientWidth || box.scrollHeight > box.clientHeight);
     label();
     var place = function () {
       box.scrollLeft = fx * canvas.offsetWidth - ax;
@@ -1194,7 +1194,9 @@ window.Wized = window.Wized || [];
   function dock() {
     var host = document.querySelector('[data-view-badges]');
     if (!host || !box || !canvas || !wrap) return;
-    var mobile = window.matchMedia('(max-width: 991px)').matches;
+    /* 26 Oct 2026 (Scopepin #11): on the standalone page the badges stay on the
+       container's edges at every size and zoom, so they dock there too */
+    var mobile = window.matchMedia('(max-width: 991px)').matches || !!document.querySelector('.siteplan_page');
     if (mobile) {
       if (host.parentNode !== wrap) wrap.appendChild(host);
       var wr = wrap.getBoundingClientRect(), br = box.getBoundingClientRect();
@@ -1218,6 +1220,9 @@ window.Wized = window.Wized || [];
     bindPan();
     bindWheel();
     label();
+    /* the plan can be taller than its box at 100% (standalone page: it fills the width
+       and the wetland hangs below), so panning is on from the start */
+    box.classList.toggle('is-zoomed', box.scrollWidth > box.clientWidth || box.scrollHeight > box.clientHeight);
     dock();
     /* the badge host is filled in by the view badges module, which may land
        after this one - keep re-docking while the page settles */

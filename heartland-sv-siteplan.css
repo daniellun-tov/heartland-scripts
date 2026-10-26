@@ -1079,13 +1079,13 @@ html .siteplan_page .unit-filter_map .unit-filter_legend.unit-filter_desktop-leg
 /* street names */
 .siteplan_page .site-plan_street { font-family: var(--sp-body); font-size: 58px; letter-spacing: .14em; text-transform: uppercase; fill: #8a8580; font-weight: 500; pointer-events: none; }
 /* tooltip */
-.siteplan_page .unit-filter_tooltip { background: var(--sp-white); border: 1px solid var(--sp-line); border-radius: var(--sp-r); box-shadow: var(--sp-shadow); padding: .625rem .75rem; min-width: 12.5rem; }
-.siteplan_page .unit-filter_tooltip-id { font-family: var(--sp-display); font-size: 1rem; }
-.siteplan_page .unit-filter_tooltip-type { font-size: .75rem; color: var(--sp-ink-2); margin-top: .1875rem; }
-.siteplan_page .unit-filter_tooltip-specs,
-.siteplan_page .unit-filter_tooltip-position { font-size: .75rem; color: var(--sp-ink-3); margin-top: .25rem; }
-.siteplan_page .unit-filter_tooltip-price { font-size: .75rem; color: var(--sp-ink-2); margin-top: .375rem; border-top: 1px solid var(--sp-line); padding-top: .375rem; }
-.siteplan_page .unit-filter_tooltip-pill { font-size: .625rem; letter-spacing: .08em; text-transform: uppercase; padding: .1875rem .5rem; border-radius: 999px; font-weight: 600; }
+.unit-filter_tooltip { background: var(--sp-white); border: 1px solid var(--sp-line); border-radius: var(--sp-r); box-shadow: var(--sp-shadow); padding: .625rem .75rem; min-width: 12.5rem; }
+.unit-filter_tooltip-id { font-family: var(--sp-display); font-size: 1rem; }
+.unit-filter_tooltip-type { font-size: .75rem; color: var(--sp-ink-2); margin-top: .1875rem; }
+.unit-filter_tooltip-specs,
+.unit-filter_tooltip-position { font-size: .75rem; color: var(--sp-ink-3); margin-top: .25rem; }
+.unit-filter_tooltip-price { font-size: .75rem; color: var(--sp-ink-2); margin-top: .375rem; border-top: 1px solid var(--sp-line); padding-top: .375rem; }
+.unit-filter_tooltip-pill { font-size: .625rem; letter-spacing: .08em; text-transform: uppercase; padding: .1875rem .5rem; border-radius: 999px; font-weight: 600; }
 
 /* ---- results -------------------------------------------------------- */
 .siteplan_page .unit-filter_list { background: var(--sp-white); border-left: 1px solid var(--sp-line); min-height: 0; }
@@ -1244,7 +1244,7 @@ html.sv-map-go .siteplan_page .unit-filter_mobile-toolbar { transition: opacity 
 .siteplan_page .site-plan_detail-wrap.is-shareholder .unit-details_scroll-nav,
 .siteplan_page .site-plan_detail-wrap.is-shareholder .unit-details_vr,
 .siteplan_page .site-plan_detail-wrap.is-shareholder .unit-details_reserve-wrapper { display: none !important; }
-.siteplan_page .unit-filter_tooltip-pill.is-shareholder,
+.unit-filter_tooltip-pill.is-shareholder,
 .siteplan_page .unit-filter_status-badge.is-shareholder { background: #e3dacb; color: #565450; }
 /* detail panel: no page dim behind it (mockup), tabs fit, feature labels sentence case */
 html .siteplan_page .site-plan_detail-wrap,
@@ -1300,7 +1300,7 @@ html.siteplan-ready, html:has(.siteplan_page) { background: #f4ede2; }
 .siteplan_page .unit-filter_results-count,
 .siteplan_page .unit-filter_card-copy > .text-wrapper .heading-style-h3,
 .siteplan_page .unit-details_unit_number-wrapper .heading-style-h2,
-.siteplan_page .unit-filter_tooltip-id,
+.unit-filter_tooltip-id,
 .siteplan_page .unit-details_metric .unit-details_text-wrapper > div:first-child,
 .siteplan_page .unit-details_metric .unit-details_text-unit-wrapper > div:first-child { font-family: var(--sp-display); font-weight: 400; }
 .siteplan_page .siteplan_title { font-size: 1.5rem; font-weight: 300; letter-spacing: .01em; }
@@ -1308,7 +1308,7 @@ html.siteplan-ready, html:has(.siteplan_page) { background: #f4ede2; }
 .siteplan_page .unit-filter_results-count { font-size: 1.25rem; }
 .siteplan_page .unit-filter_card-copy > .text-wrapper .heading-style-h3 { font-size: 1.25rem; line-height: 1.1; }
 .siteplan_page .unit-details_unit_number-wrapper .heading-style-h2 { font-size: 1.75rem; font-weight: 300; }
-.siteplan_page .unit-filter_tooltip-id { font-size: 1.25rem; }
+.unit-filter_tooltip-id { font-size: 1.25rem; }
 .siteplan_page .unit-details_metric .unit-details_text-wrapper > div:first-child,
 .siteplan_page .unit-details_metric .unit-details_text-unit-wrapper > div:first-child { font-size: 1.5rem; font-weight: 300; }
 /* eyebrows: Archivo wide */
@@ -1319,7 +1319,7 @@ html.siteplan-ready, html:has(.siteplan_page) { background: #f4ede2; }
 .siteplan_page .unit-details_section-label,
 .siteplan_page .unit-filter_radio-group .text-style-label,
 .siteplan_page .unit-filter_results-header .text-style-label,
-.siteplan_page .unit-filter_tooltip-pill,
+.unit-filter_tooltip-pill,
 .siteplan_page .unit-filter_status-badge,
 .siteplan_page .unit-details_metric .unit-details_text-wrapper > div:last-child,
 .siteplan_page .unit-details_metric .unit-details_text-unit-wrapper > div:last-child,
@@ -1359,8 +1359,8 @@ html.siteplan-ready, html:has(.siteplan_page) { background: #f4ede2; }
 .siteplan_page .site-plan_zoom-btn,
 .siteplan_page .site-plan_list-card,
 .siteplan_page .unit-filter_status-badge,
-.siteplan_page .unit-filter_tooltip,
-.siteplan_page .unit-filter_tooltip-pill,
+.unit-filter_tooltip,
+.unit-filter_tooltip-pill,
 .siteplan_page .unit-details_thumbnails > *,
 .siteplan_page .unit-details_floorplan-image,
 .siteplan_page .unit-filter_price-note { border-radius: 0; }
@@ -1393,7 +1393,7 @@ html.siteplan-ready, html:has(.siteplan_page) { background: #f4ede2; }
 .siteplan_page .site-plan_detail-wrap:not(.is-open) .site-plan_detail-panel { transform: translateX(105%); }
 .siteplan_page .site-plan_detail-wrap.is-open .site-plan_detail-panel { transform: none; }
 .siteplan_page .site-plan_plot { transition: fill-opacity .4s var(--sp-out), stroke-width .3s var(--sp-out), stroke-opacity .3s var(--sp-out); }
-.siteplan_page .unit-filter_tooltip { transition: opacity .3s var(--sp-out), transform .3s var(--sp-out); }
+.unit-filter_tooltip { transition: opacity .3s var(--sp-out), transform .3s var(--sp-out); }
 html.sv-map-go .siteplan_page .site-plan_map-svg { transition: opacity .9s var(--sp-out) .12s; }
 html.sv-map-go .siteplan_page .site-plan_map-canvas { transition: transform 1.2s var(--sp-out); }
 html.sv-map-go .siteplan_page .unit-filter_toolbar { transition: opacity .6s var(--sp-out) .3s, transform .6s var(--sp-out) .3s; }
@@ -1509,3 +1509,38 @@ html.sv-map-go .siteplan_page .site-plan_context { transition: opacity .6s var(-
   .siteplan_page .unit-filter_hint { font-size: .875rem; color: var(--sp-ink-2); }
   .siteplan_page .unit-filter_mobile-match { font-family: var(--sp-display); font-size: 1.125rem; font-weight: 400; }
 }
+
+/* ============================================================
+   26 Oct 2026 - Scopepin batch 3 (/unit-selection)
+   ============================================================ */
+/* #10 plot tooltips: the controller moves the tooltip onto <body>, so the rules above are unscoped
+   and the visible state (missing since the Home head CSS moved here) is restored */
+.unit-filter_tooltip { display: block; }
+.unit-filter_tooltip.is-visible { opacity: 1; transform: none; }
+/* #8 body text instead of the wide accent face wherever it carries information */
+.siteplan_page .unit-details_sub { font-family: var(--sp-body); font-size: .8125rem; letter-spacing: 0; text-transform: none; color: var(--sp-ink-2); }
+.siteplan_page .unit-details_label,
+.siteplan_page .unit-filter_card-label,
+.siteplan_page .unit-details_metric .unit-details_text-wrapper > div:last-child,
+.siteplan_page .unit-details_metric .unit-details_text-unit-wrapper > div:last-child { font-family: var(--sp-body); font-size: .75rem; letter-spacing: 0; text-transform: none; color: var(--sp-ink-3); }
+.siteplan_page .unit-details_scroll-link { font-size: .625rem !important; }
+/* #9 facet counts: square tags with even padding */
+.siteplan_page .unit-filter_count { min-width: 1.5rem; height: 1.5rem; padding: 0 .375rem; display: inline-flex; align-items: center; justify-content: center; font-size: .625rem; line-height: 1; }
+/* #12 the plan fills the map's width at 100% (the wetland below is reached by dragging or zooming), the legend
+   sits top-left and the compass bottom-left of the map container; the colour-by toolbar (sales open) joins the compass */
+.siteplan_page .site-plan_map-canvas,
+.siteplan_page .site-plan_map-extension { max-width: none; }
+html .siteplan_page .unit-filter_map .unit-filter_legend.unit-filter_desktop-legend { bottom: auto; top: .875rem; }
+html .siteplan_page .unit-filter_map .unit-filter_toolbar { top: auto; bottom: .875rem; left: 4.5rem; }
+.siteplan_page .unit-filter_map > .site-plan_compass-wrapper { position: absolute; left: 1rem; bottom: 1rem; z-index: 6; width: 3rem; }
+/* #11 view badges are docked onto the map container (zoom module, dock()) so they keep to its edges at any zoom */
+.siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge[data-placement='east'],
+.siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge[data-placement='north-east'] { left: auto; right: 1.25rem; transform: translate(0, -50%); }
+.siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge[data-placement='south-east'] { left: auto; right: 1.25rem; top: auto; bottom: 4.75rem; transform: none; }
+.siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge[data-placement='south'] { top: auto; bottom: 1.25rem; transform: translate(-50%, 0); }
+.siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge[data-placement='west-upper'],
+.siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge[data-placement='west-lower'] { left: 1.25rem; transform: translate(0, -50%); }
+.siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge[data-placement='north-east'] { top: 1.25rem; transform: none; }
+.siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge:hover,
+.siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge.is-active { scale: 1.1; }
+.siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge:active { scale: .94; }

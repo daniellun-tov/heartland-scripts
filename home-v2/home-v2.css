@@ -219,3 +219,7 @@ textarea.homev2-register_input{resize:vertical}
 .homev2-centre_slide.is-on .homev2-centre_slide-img{transform:scale(1)}
 .homev2-centre_half,.homev2-centre_shade{will-change:clip-path}
 @media (prefers-reduced-motion:reduce){.homev2-centre_slide,.homev2-centre_slide-img,.homev2-centre_bar-fill{transition:none}}
+/* 26 Oct 2026 (Scopepin #3): the chapters renders run full bleed. The section has no padding any more, so the gable
+   is cut out of the sticky picture itself (the previous section shows through the cut-out) instead of being drawn as a plum shape. */
+.section_homev2-chapters.is-gable-top::before{display:none}
+.section_homev2-chapters{clip-path:polygon(0 calc(var(--homev2-gable-height)*.6167),50% calc(var(--homev2-gable-height)*.0667),100% calc(var(--homev2-gable-height)*.6167),100% 100%,0 100%)}
