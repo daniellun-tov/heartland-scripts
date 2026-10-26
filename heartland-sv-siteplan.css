@@ -1544,3 +1544,34 @@ html .siteplan_page .unit-filter_map .unit-filter_toolbar { top: auto; bottom: .
 .siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge:hover,
 .siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge.is-active { scale: 1.1; }
 .siteplan_page .unit-filter_map > .site-plan_badges .site-plan_badge:active { scale: .94; }
+
+/* ============================================================
+   26 Oct 2026 - Scopepin batch 5 (/unit-selection)
+   ============================================================ */
+/* #14 panel tabs in the body face */
+.siteplan_page .unit-details_scroll-link { font-family: var(--sp-body); font-size: .8125rem !important; font-weight: 500; letter-spacing: 0; text-transform: none; }
+/* #15 panel footer buttons share one height */
+.siteplan_page .unit-details_reserve-wrapper .btn_main_wrap { height: 2.75rem; }
+.siteplan_page .unit-details_reserve-wrapper .btn_main_layout,
+.siteplan_page .unit-details_reserve-wrapper .btn_main_wrap[wized="shareWhatsapp"] .btn_main_layout { height: 100%; padding-top: 0; padding-bottom: 0; display: flex; align-items: center; }
+/* #16 chips with a count tag: the gap to the right edge matches the top and bottom */
+.siteplan_page .unit-filter_chip:has(.unit-filter_count) { padding-right: .375rem; }
+/* #17 filter groups: tight label-to-chips, more room between groups, a hairline above each group */
+.siteplan_page .unit-filter_filters,
+.siteplan_page .unit-filter_more-list { gap: 0; }
+.siteplan_page .unit-filter_filters .unit-filter_group-title { margin: 1.25rem 0 .625rem; padding-top: 1.25rem; border-top: 1px solid var(--sp-line); }
+.siteplan_page .unit-filter_filters .unit-filter_price-note { margin-top: .75rem; }
+.siteplan_page .unit-filter_filters .unit-filter_head { margin-bottom: 0; }
+/* #18 More filters: an outlined button, the arrow points down when closed and up when open */
+.siteplan_page .unit-filter_more-button { margin-top: 1.5rem; }
+.siteplan_page .unit-filter_more-button .btn_main_wrap { border: 1px solid var(--sp-ink); background: transparent; color: var(--sp-ink); }
+.siteplan_page .unit-filter_more-button .btn_main_wrap:hover { background: var(--sp-ink); color: var(--sp-cream); }
+.siteplan_page .unit-filter_more-button .btn_main_layout { padding: .8125rem 1.125rem; justify-content: center; gap: .625rem; color: inherit; }
+.siteplan_page .unit-filter_more-button .btn_main_wrap:hover .btn_main_layout { color: inherit; }
+.siteplan_page .unit-filter_more-button .btn_main_text { font-weight: 600; font-size: .5625rem; color: inherit; }
+.siteplan_page .unit-filter_more-button .btn_main_icon { display: flex; order: 2; width: .75rem; height: .75rem; color: inherit; transform: rotate(180deg); transition: transform .4s var(--sp-out); }
+.siteplan_page .unit-filter_more-button.is-open .btn_main_icon { transform: none; }
+/* #19 street names in the map-label face; each <text> is centred on its road and turned to its angle (embed) */
+.siteplan_page .site-plan_street { font-family: var(--sp-body); font-size: 44px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; fill: rgba(44, 43, 39, .8); text-anchor: middle; dominant-baseline: central; }
+/* #20 the wetland strip pans like the plan (the native image drag is blocked in the zoom module) */
+.siteplan_page .site-plan_map-extension-image { -webkit-user-drag: none; user-select: none; }

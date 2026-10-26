@@ -1184,6 +1184,11 @@ window.Wized = window.Wized || [];
     box.addEventListener('pointerleave', end);
     /* a drag must not read as a click on a plot */
     box.addEventListener('click', function (e) { if (moved) { e.stopPropagation(); e.preventDefault(); } }, true);
+    /* Scopepin #20: the wetland strip is a plain <img>, so a mouse drag on it
+       started the browser's native image drag, which cancels the pointer
+       stream and stopped the pan after a few pixels. The plan itself never
+       hit this because its overlay SVG sits on top of the base image. */
+    box.addEventListener('dragstart', function (e) { e.preventDefault(); });
   }
 
   /* Below 992px the map is wider than the screen and pans, so view badges
@@ -1558,9 +1563,17 @@ let audioContext;
       }
     }
 
+    /* Scopepin #18: is-open on the button turns its arrow (CSS); aria-expanded for screen readers */
+    function setState(isOpen) {
+      setLabel(isOpen);
+      wrap.classList.toggle('is-open', isOpen);
+      var ctl = wrap.querySelector('a, button');
+      if (ctl) ctl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+
     clearInline();
     list.classList.add('svx-more-collapsed');
-    setLabel(false);
+    setState(false);
 
     wrap.addEventListener('click', function (e) {
       e.preventDefault();
@@ -1568,7 +1581,7 @@ let audioContext;
       var willOpen = list.classList.contains('svx-more-collapsed');
       list.classList.toggle('svx-more-collapsed', !willOpen);
       list.classList.toggle('svx-more-open', willOpen);
-      setLabel(willOpen);
+      setState(willOpen);
     });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
@@ -2160,11 +2173,15 @@ let audioContext;
         ? (u.hero_image ? [u.hero_image] : [])
         : u.media;
       var out = normList(raw);
-      /* standalone page: the 3D floor-plan render (variant render_image) leads the gallery */
+      /* standalone page: the 3D floor-plan render (variant render_image) joins the gallery.
+         Scopepin #13: the exterior (axo) renders lead, the 3D floor plan follows them,
+         just before the 2D floor-plan sheet (or last when there is no sheet) */
       var fr = document.querySelector('.siteplan_page') && u.unit_variant && u.unit_variant.render_image && u.unit_variant.render_image.url;
       if (fr) {
         out = out.filter(function (m) { return m.url !== fr; });
-        out.unshift({ kind: 'image', url: fr, caption: 'Floor plan \u00b7 3D', poster: '', youtube_id: '' });
+        var sheet = out.findIndex(function (m) { return /floor-?plan/i.test(decodeURIComponent(m.url || '')); });
+        var item = { kind: 'image', url: fr, caption: 'Floor plan \u00b7 3D', poster: '', youtube_id: '' };
+        if (sheet < 0) out.push(item); else out.splice(sheet, 0, item);
       }
       if (out.length && out[0].kind !== 'image') {
         var i = out.findIndex(function (m) { return m.kind === 'image'; });
