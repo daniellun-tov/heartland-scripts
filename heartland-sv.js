@@ -480,6 +480,14 @@ window.Wized = window.Wized || [];
 
       Wized.data.v.selectedUnit = u;
       detailWrap()?.classList.toggle('is-shareholder', u.status === 'shareholder');
+      /* standalone page: "Type G · Phase 2 · Erf 17543" under the address */
+      document.querySelectorAll('[data-detail="sub"]').forEach((el) => {
+        const parts = [];
+        if (u.type_code) parts.push('Type ' + u.type_code); else if (u.sdp_code) parts.push(u.sdp_code);
+        if (u.phase) parts.push('Phase ' + u.phase);
+        if (u.erf_number) parts.push('Erf ' + u.erf_number);
+        el.textContent = parts.join(' \u00b7 ');
+      });
 
       const s = panelScroll();
       if (s) s.scrollTop = 0;
@@ -542,7 +550,7 @@ window.Wized = window.Wized || [];
         try { u = Wized.data.v.selectedUnit; } catch (_) {}
         closeUnit();
         if (!link.hasAttribute('data-prelaunch-ui')) return;
-        const msg = document.querySelector('#contact textarea');
+        const msg = document.querySelector('#contact textarea') || document.querySelector('#regForm textarea[name="message"]');
         if (u && msg && !msg.value.trim()) {
           msg.value = 'I am interested in ' + label(u) + (u.type_code ? ' (Type ' + u.type_code + ')' : '') + '. Please let me know when sales open.';
         }
@@ -608,6 +616,24 @@ window.Wized = window.Wized || [];
         const u = units.find((x) => x.plot_id === card.getAttribute('data-plot'));
         if (u) openUnit(u);
       });
+
+      /* standalone page: the list cards show the 3D floor-plan render
+         (variant render_image) instead of the type's hero photo. Wized
+         renders the cards, so re-apply whenever the list changes. */
+      const list = document.querySelector('.site-plan_list');
+      if (list && document.querySelector('.siteplan_page')) {
+        const byPlot = {};
+        units.forEach((x) => { byPlot[x.plot_id] = x; });
+        const swap = () => {
+          list.querySelectorAll('[data-plot] img.unit-filter_card-image').forEach((img) => {
+            const x = byPlot[img.closest('[data-plot]').getAttribute('data-plot')];
+            const url = x && x.unit_variant && x.unit_variant.render_image && x.unit_variant.render_image.url;
+            if (url && img.getAttribute('src') !== url) { img.setAttribute('src', url); img.removeAttribute('srcset'); img.alt = label(x) + ' \u2013 3D floor plan'; }
+          });
+        };
+        swap();
+        new MutationObserver(swap).observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'data-plot'] });
+      }
 
       const overlay = document.querySelector('.site-plan_detail-overlay');
 
@@ -2129,6 +2155,12 @@ let audioContext;
         ? (u.hero_image ? [u.hero_image] : [])
         : u.media;
       var out = normList(raw);
+      /* standalone page: the 3D floor-plan render (variant render_image) leads the gallery */
+      var fr = document.querySelector('.siteplan_page') && u.unit_variant && u.unit_variant.render_image && u.unit_variant.render_image.url;
+      if (fr) {
+        out = out.filter(function (m) { return m.url !== fr; });
+        out.unshift({ kind: 'image', url: fr, caption: 'Floor plan \u00b7 3D', poster: '', youtube_id: '' });
+      }
       if (out.length && out[0].kind !== 'image') {
         var i = out.findIndex(function (m) { return m.kind === 'image'; });
         if (i > 0) out.unshift(out.splice(i, 1)[0]);
