@@ -617,21 +617,32 @@ window.Wized = window.Wized || [];
         if (u) openUnit(u);
       });
 
-      /* standalone page: the list cards show the 3D floor-plan render
-         (variant render_image) instead of the type's hero photo. Wized
-         renders the cards, so re-apply whenever the list changes. */
+      /* standalone page: each list card shows the first image of that unit's
+         gallery (Scopepin #23 - was the 3D floor-plan render), so the card and
+         the panel open on the same picture. Wized renders the cards, so
+         re-apply whenever the list changes. */
       const list = document.querySelector('.site-plan_list');
       if (list && document.querySelector('.siteplan_page')) {
         const byPlot = {};
         units.forEach((x) => { byPlot[x.plot_id] = x; });
+        const firstImage = (x) => {
+          const items = window.svGalleryItems ? window.svGalleryItems(x) : [];
+          const it = items.find((m) => m.kind === 'image');
+          if (it) return { url: it.url, alt: it.url === (x.unit_variant && x.unit_variant.render_image && x.unit_variant.render_image.url) ? '3D floor plan' : 'artist\u2019s impression' };
+          const fr = x.unit_variant && x.unit_variant.render_image && x.unit_variant.render_image.url;
+          return fr ? { url: fr, alt: '3D floor plan' } : null;
+        };
         const swap = () => {
           list.querySelectorAll('[data-plot] img.unit-filter_card-image').forEach((img) => {
             const x = byPlot[img.closest('[data-plot]').getAttribute('data-plot')];
-            const url = x && x.unit_variant && x.unit_variant.render_image && x.unit_variant.render_image.url;
-            if (url && img.getAttribute('src') !== url) { img.setAttribute('src', url); img.removeAttribute('srcset'); img.alt = label(x) + ' \u2013 3D floor plan'; }
+            const pic = x && firstImage(x);
+            if (pic && img.getAttribute('src') !== pic.url) { img.setAttribute('src', pic.url); img.removeAttribute('srcset'); img.alt = label(x) + ' \u2013 ' + pic.alt; }
           });
         };
         swap();
+        /* the gallery module sits further down this file; if Wized ran this callback
+           before the file finished, try again once it has */
+        if (!window.svGalleryItems) setTimeout(swap, 0);
         new MutationObserver(swap).observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'data-plot'] });
       }
 
@@ -2153,6 +2164,33 @@ let audioContext;
     if (onIndex) onIndex(index);
   }
 
+  /* The unit gallery's items, in order. Module level so the list cards can use the
+     same first frame (Scopepin #23). A still image reads better as the opening
+     frame than a video poster. */
+  function itemsFor(u) {
+    if (!u) return [];
+    var raw = (u.media == null || (Array.isArray(u.media) && !u.media.length))
+      ? (u.hero_image ? [u.hero_image] : [])
+      : u.media;
+    var out = normList(raw);
+    /* standalone page: the 3D floor-plan render (variant render_image) joins the gallery.
+       Scopepin #13: the exterior (axo) renders lead, the 3D floor plan follows them,
+       just before the 2D floor-plan sheet (or last when there is no sheet) */
+    var fr = document.querySelector('.siteplan_page') && u.unit_variant && u.unit_variant.render_image && u.unit_variant.render_image.url;
+    if (fr) {
+      out = out.filter(function (m) { return m.url !== fr; });
+      var sheet = out.findIndex(function (m) { return /floor[-_ ]?plan/i.test(decodeURIComponent(m.url || '')); });
+      var item = { kind: 'image', url: fr, caption: 'Floor plan \u00b7 3D', poster: '', youtube_id: '' };
+      if (sheet < 0) out.push(item); else out.splice(sheet, 0, item);
+    }
+    if (out.length && out[0].kind !== 'image') {
+      var i = out.findIndex(function (m) { return m.kind === 'image'; });
+      if (i > 0) out.unshift(out.splice(i, 1)[0]);
+    }
+    return out;
+  }
+  window.svGalleryItems = itemsFor;
+
   /* ==========================================================
      Consumer 1 - unit detail panel gallery
      ========================================================== */
@@ -2166,29 +2204,6 @@ let audioContext;
     var media = [];
     var current = 0;
 
-    /* A still image reads better as the opening frame than a video poster. */
-    function itemsFor(u) {
-      if (!u) return [];
-      var raw = (u.media == null || (Array.isArray(u.media) && !u.media.length))
-        ? (u.hero_image ? [u.hero_image] : [])
-        : u.media;
-      var out = normList(raw);
-      /* standalone page: the 3D floor-plan render (variant render_image) joins the gallery.
-         Scopepin #13: the exterior (axo) renders lead, the 3D floor plan follows them,
-         just before the 2D floor-plan sheet (or last when there is no sheet) */
-      var fr = document.querySelector('.siteplan_page') && u.unit_variant && u.unit_variant.render_image && u.unit_variant.render_image.url;
-      if (fr) {
-        out = out.filter(function (m) { return m.url !== fr; });
-        var sheet = out.findIndex(function (m) { return /floor[-_ ]?plan/i.test(decodeURIComponent(m.url || '')); });
-        var item = { kind: 'image', url: fr, caption: 'Floor plan \u00b7 3D', poster: '', youtube_id: '' };
-        if (sheet < 0) out.push(item); else out.splice(sheet, 0, item);
-      }
-      if (out.length && out[0].kind !== 'image') {
-        var i = out.findIndex(function (m) { return m.kind === 'image'; });
-        if (i > 0) out.unshift(out.splice(i, 1)[0]);
-      }
-      return out;
-    }
 
     function renderStage() {
       var it = media[current];
