@@ -1482,3 +1482,7 @@ html.sv-map-go .siteplan_page .site-plan_context { transition: opacity .6s var(-
 .siteplan_page .unit-filter_results-header .unit-filter_radio-group { flex-wrap: wrap; }
 /* cards: a little more of the plan */
 .siteplan_page .unit-filter_card-image { aspect-ratio: 5 / 4; }
+/* the section-5 sub-navbar sizes above are !important: the page overrides them the same way */
+.siteplan_page .unit-details_scroll-nav { gap: 0 !important; margin: 0 !important; padding: 0 .875rem !important; }
+.siteplan_page .unit-details_scroll-link { min-height: 0 !important; padding: .75rem 0 !important; font-size: .5rem !important; line-height: 1.2 !important; flex: 0 0 auto; }
+@media (max-width: 767px) { .siteplan_page .unit-details_scroll-link { padding: .75rem 0 !important; font-size: .5rem !important; } }
