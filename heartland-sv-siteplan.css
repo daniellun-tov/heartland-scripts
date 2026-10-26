@@ -1486,3 +1486,26 @@ html.sv-map-go .siteplan_page .site-plan_context { transition: opacity .6s var(-
 .siteplan_page .unit-details_scroll-nav { gap: 0 !important; margin: 0 !important; padding: 0 .875rem !important; }
 .siteplan_page .unit-details_scroll-link { min-height: 0 !important; padding: .75rem 0 !important; font-size: .5rem !important; line-height: 1.2 !important; flex: 0 0 auto; }
 @media (max-width: 767px) { .siteplan_page .unit-details_scroll-link { padding: .75rem 0 !important; font-size: .5rem !important; } }
+/* panel footer: WhatsApp as an icon button, Register takes the row */
+.siteplan_page .unit-details_reserve-wrapper .btn_main_wrap[wized="shareWhatsapp"] .btn_main_text { display: none; }
+.siteplan_page .unit-details_reserve-wrapper .btn_main_wrap[wized="shareWhatsapp"] .btn_main_layout { padding: .75rem .875rem; }
+.siteplan_page .unit-details_reserve-wrapper .btn_main_wrap[wized="shareWhatsapp"] .btn_main_icon { width: 1.125rem; height: 1.125rem; display: flex; }
+.siteplan_page .unit-details_reserve-wrapper .btn_main_layout { padding: .8125rem .75rem; overflow: visible; }
+.siteplan_page .btn_main_text { overflow: visible; }
+/* mobile: compact CTA, square toolbar controls in the home-new ink */
+@media (max-width: 991px) {
+  .siteplan_page .siteplan_header .btn_main_layout { padding: .625rem .75rem; }
+  .siteplan_page .siteplan_header .btn_main_text { font-size: .5rem; letter-spacing: .14em; }
+  .siteplan_page .unit-filter_mobile-filter-button,
+  .siteplan_page .unit-filter_mobile-view-switch,
+  .siteplan_page .unit-filter_mobile-view-link,
+  .siteplan_page .unit-filter_mobile-segment,
+  .siteplan_page .unit-filter_mobile-sort-pill { border-radius: 0; }
+  .siteplan_page .unit-filter_mobile-filter-button { border: 1px solid var(--sp-ink); color: var(--sp-ink); background: transparent; font-family: var(--sp-wide); font-size: .5625rem; letter-spacing: .18em; text-transform: uppercase; font-weight: 600; }
+  .siteplan_page .unit-filter_mobile-view-switch { background: var(--sp-white); border: 1px solid var(--sp-sand); padding: .125rem; }
+  .siteplan_page .unit-filter_mobile-view-link { font-family: var(--sp-wide); font-size: .5625rem; letter-spacing: .18em; text-transform: uppercase; font-weight: 600; color: var(--sp-ink); background: transparent; }
+  .siteplan_page .unit-filter_mobile-view-link.is-current { background: var(--sp-ink); color: var(--sp-cream); }
+  .siteplan_page .unit-filter_mobile-map-meta { background: var(--sp-white); }
+  .siteplan_page .unit-filter_hint { font-size: .875rem; color: var(--sp-ink-2); }
+  .siteplan_page .unit-filter_mobile-match { font-family: var(--sp-display); font-size: 1.125rem; font-weight: 400; }
+}
