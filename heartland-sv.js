@@ -1072,22 +1072,42 @@ window.Wized = window.Wized || [];
     if (z) setZoomVar(z);
   }
 
-  function set(next, quiet) {
+  /* anchor = {x, y} in box pixels (the point under the cursor on a wheel
+     zoom); without one the middle of the viewport stays put */
+  function set(next, quiet, anchor) {
     next = Math.max(minZoom(), Math.min(MAX, Math.round(next * 100) / 100));
     if (next === zoom) { label(); return; }
-    /* keep whatever is in the middle of the viewport in the middle */
     var w = canvas.offsetWidth, h = canvas.offsetHeight;
-    var fx = w ? (box.scrollLeft + box.clientWidth / 2) / w : 0.5;
-    var fy = h ? (box.scrollTop + box.clientHeight / 2) / h : 0.5;
+    var ax = anchor ? anchor.x : box.clientWidth / 2, ay = anchor ? anchor.y : box.clientHeight / 2;
+    var fx = w ? (box.scrollLeft + ax) / w : 0.5;
+    var fy = h ? (box.scrollTop + ay) / h : 0.5;
     zoom = next;
     setZoomVar(zoom);
     box.classList.toggle('is-zoomed', zoom !== 1 || box.scrollWidth > box.clientWidth);
     label();
-    requestAnimationFrame(function () {
-      box.scrollLeft = fx * canvas.offsetWidth - box.clientWidth / 2;
-      box.scrollTop = fy * canvas.offsetHeight - box.clientHeight / 2;
+    var place = function () {
+      box.scrollLeft = fx * canvas.offsetWidth - ax;
+      box.scrollTop = fy * canvas.offsetHeight - ay;
       if (!quiet && ui) ui.setAttribute('data-zoom-value', zoom);
-    });
+    };
+    if (anchor) place(); else requestAnimationFrame(place);
+  }
+
+  /* Wheel / trackpad zoom, standalone page only (there the map fills the
+     viewport and nothing else scrolls; on Home the wheel must keep scrolling
+     the page). Zooms about the cursor; a pinch on a trackpad arrives as a
+     ctrl+wheel and is handled the same way. */
+  function bindWheel() {
+    if (!document.querySelector('.siteplan_page')) return;
+    box.addEventListener('wheel', function (e) {
+      if (e.target.closest && e.target.closest('.site-plan_zoom')) return;
+      e.preventDefault();
+      var d = e.deltaY;
+      if (e.deltaMode === 1) d *= 16; else if (e.deltaMode === 2) d *= box.clientHeight;
+      var factor = Math.exp(-d * (e.ctrlKey ? 0.01 : 0.0022));
+      var r = box.getBoundingClientRect();
+      set(zoom * factor, true, { x: e.clientX - r.left, y: e.clientY - r.top });
+    }, { passive: false });
   }
 
   function build() {
@@ -1170,6 +1190,7 @@ window.Wized = window.Wized || [];
     measure();
     build();
     bindPan();
+    bindWheel();
     label();
     dock();
     /* the badge host is filled in by the view badges module, which may land
