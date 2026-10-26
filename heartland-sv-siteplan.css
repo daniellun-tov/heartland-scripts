@@ -1591,3 +1591,43 @@ html .siteplan_page .unit-filter_map .unit-filter_toolbar { top: auto; bottom: .
 .siteplan_page .siteplan_footer { font-family: var(--sp-body); flex: none; }
 .siteplan_page .siteplan_footer-text { font-family: var(--sp-body); letter-spacing: 0; text-transform: none; }
 @media (max-width: 479px) { .siteplan_page .siteplan_footer { padding: 0 .875rem; } .siteplan_page .siteplan_footer-text { font-size: .625rem; } }
+
+/* ============================================================
+   26 Oct 2026 - Scopepin batch 7 (/unit-selection)
+   ============================================================ */
+/* #23 list cards open on the unit's first gallery image (heartland-sv.js); exterior renders sit centred */
+.siteplan_page .unit-filter_card-image { object-position: center; }
+.siteplan_page .unit-filter_card-image[src*='floor-render'] { object-position: center top; }
+/* #24 mobile filter drawer close = the detail panel's close button (.unit-details_return): same size, place and look.
+   position:fixed so it stays put while the drawer scrolls (the drawer is itself fixed and full-screen here) */
+@media (max-width: 991px) {
+  .siteplan_page .unit-filter_filters .unit-filter_mobile-close {
+    position: fixed; top: 1rem; right: 1rem; left: auto; z-index: 30; margin: 0;
+    width: 2rem; height: 2rem; padding: 0; display: grid; place-items: center;
+    background: var(--sp-white); border: 1px solid var(--sp-sand); border-radius: 0; box-shadow: none;
+    color: var(--sp-ink); font-family: var(--sp-body); font-size: 1.125rem; line-height: 1; font-weight: 400; text-decoration: none;
+    transition: border-color .3s;
+  }
+  .siteplan_page .unit-filter_filters .unit-filter_mobile-close:hover { border-color: var(--sp-ink); }
+  .siteplan_page .unit-filter_filters .unit-filter_head { padding-right: 2.75rem; }
+}
+/* #25 map marker tooltips styled like the plot tooltip: cream card, sand hairline, square corners,
+   the same shadow, Cormorant name, Archivo pill, Hanken body (the tooltip sits on <body>, so these are unscoped) */
+body .site-plan_badge-tip {
+  background: #f4ede2; border: 1px solid #e6d2b8; border-radius: 0;
+  box-shadow: 0 10px 30px rgba(42, 35, 48, .12); padding: .625rem .75rem; max-width: 17rem;
+  font-family: "Hanken Grotesk", system-ui, sans-serif; font-size: .75rem; line-height: 1.45; color: #4a4150;
+}
+body .site-plan_badge-tip .site-plan_badge-tip_head {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .25rem;
+  font-family: "Cormorant", Georgia, serif; font-size: 1.25rem; font-weight: 400; line-height: 1.2; color: #2a2330;
+}
+body .site-plan_badge-tip .site-plan_badge-tip_dir {
+  flex: none; background: #2a2330; color: #fbf7ef; border-radius: 0; padding: .1875rem .5rem;
+  font-family: "Archivo", system-ui, sans-serif; font-size: .625rem; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; line-height: 1.5;
+}
+/* #26 header CTA a size down on desktop */
+@media (min-width: 992px) {
+  .siteplan_page .siteplan_header .btn_main_wrap .btn_main_layout { padding: .5625rem .875rem; }
+  .siteplan_page .siteplan_header .btn_main_wrap .btn_main_text { font-size: .625rem; letter-spacing: .2em; line-height: 1; }
+}
