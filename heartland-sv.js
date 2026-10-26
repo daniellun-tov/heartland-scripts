@@ -997,7 +997,7 @@ window.Wized = window.Wized || [];
 
     function sync() {
       var n = (src.textContent || '').trim();
-      el.textContent = n ? n + (n === '1' ? ' unit' : ' units') : '';
+      el.textContent = n ? n + (n === '1' ? ' home' : ' homes') : '';
       /* mirror into the other results counters - harmless once setCount above
          writes them all, and it keeps them right until that ships */
       document.querySelectorAll('[data-count="results"]').forEach(function (c) {
