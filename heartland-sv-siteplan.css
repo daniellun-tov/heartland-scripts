@@ -1255,3 +1255,13 @@ html .siteplan_page .site-plan_detail-wrap::before { background: none; }
 .siteplan_page .unit-details_feature-label { text-transform: none; letter-spacing: 0; }
 html.prices-hidden .siteplan_page .unit-filter_card-copy > h4 { display: none; }
 .siteplan_page .unit-filter_chip-text { margin: 0; }
+/* the panel scrolls as one column: nothing in it shrinks (the stage collapsed to 0 otherwise) */
+.siteplan_page .site-plan_detail-panel > * { flex: none; }
+.siteplan_page .unit-details_main-link[data-gallery='stage'] .ud-media { height: auto; aspect-ratio: 4 / 3; }
+.siteplan_page .site-plan_detail-overlay { background: transparent !important; }
+.siteplan_page .unit-details_scroll-nav { flex-wrap: wrap; gap: .125rem .875rem; }
+.siteplan_page .unit-details_reserve-wrapper { flex-wrap: nowrap; }
+.siteplan_page .unit-details_reserve-wrapper .btn_main_wrap { flex: 1 1 0; min-width: 0; }
+.siteplan_page .unit-details_reserve-wrapper .btn_main_layout { padding: .5625rem .75rem; }
+.siteplan_page .unit-details_reserve-wrapper .btn_main_text { white-space: nowrap; }
+.siteplan_page .unit-filter_desktop-legend { font-size: .72rem; gap: .375rem .75rem; max-width: calc(100% - 11rem); }
