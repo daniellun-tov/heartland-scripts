@@ -4,7 +4,8 @@
         #reservation-form; parked by the bundle before launch, when the form is the waitlist).
      2. NH_PLANS: the floorplan PDFs the modal links to.
      3. The page bundle, pinned by commit + SRI. To ship a change: commit, update the sha and
-        the integrity hash here, paste, publish staging. -->
+        the integrity hash here, paste, publish staging.
+     4. Scopepin: client feedback pins on staging (remove before the production publish). -->
 <style>
   /* Explore more: collapsed until the button is tapped (only when JS runs), like Sanford. Lives here, not
      in the head block, so the change ships without re-pasting the 21 KB head. The block sits far below the
@@ -16,8 +17,33 @@
   /* centred toggles (Base or furnished): the Designer centres them with the combo .nh_seg.nh_rise.is-centre,
      which stops matching once the reveal drops .nh_rise, and the head's .nh_seg{align-self:flex-start} took over */
   .nh_seg.is-centre{align-self:center;justify-self:center}
+  /* 27 Oct, client feedback "animations can be faster": shorter reveal timings. These override the head block's
+     rules of the same selector (this <style> comes later), so the head did not need re-pasting. */
+  html.nh-ld-reveal [data-nh-nav]:not(.is-pre),html.nh-ld-reveal .nh_hero_cue{animation-duration:.7s}
+  html.nh-js .nh_rise{transition:opacity 700ms var(--nh-ease),transform 850ms var(--nh-ease);transition-delay:var(--d,0ms)}
+  html.nh-js .nh_rv img{transition:clip-path 750ms var(--nh-ease),transform 1100ms var(--nh-ease)}
+  html.nh-js .nh_rv .nh_cap,.nh_bleed .nh_cap{transition:opacity 400ms var(--nh-ease) 300ms,transform 400ms var(--nh-ease) 300ms}
+  html.nh-js .nh_c{transition:opacity 600ms var(--nh-ease),transform 800ms var(--nh-ease);transition-delay:var(--d,0ms)}
+  .nh_li_wrap{transition:opacity 900ms var(--nh-ease)}
+  .nh_hero_mask svg{transition:transform 1800ms var(--nh-ease)}
+  .nh_hero_mask .nh_hero_mask_fade{transition:opacity 700ms var(--nh-ease) 200ms}
+  html.nh-loading .nh_hero_mask svg{transition:none}
+  /* room slideshow (bundle module 6): arrows + counter on the picture, progress line on the active room */
+  .nh_room{position:relative}
+  .nh_room_prog{position:absolute;left:0;right:0;top:-1px;height:1px;background:#8C3B4A;transform:scaleX(0);transform-origin:left center;pointer-events:none}
+  .nh_room_prog.is-run{animation:nh-fill 5000ms linear both}
+  .nh_explorer.is-paused .nh_room_prog.is-run{animation-play-state:paused}
+  .nh_stage_ui{position:absolute;z-index:3;top:1.5rem;right:1.5rem;display:flex;align-items:center;gap:.375rem;padding:.3125rem;border-radius:999px;background:rgba(243,235,226,.82);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  .nh_stage_btn{appearance:none;-webkit-appearance:none;display:grid;place-items:center;width:2.5rem;height:2.5rem;padding:0;border:0;border-radius:50%;background:transparent;color:#2B2622;cursor:pointer;transition:background-color .25s,color .25s,transform 160ms var(--nh-ease)}
+  .nh_stage_btn:hover,.nh_stage_btn:focus-visible{background:#2B2622;color:#F3EBE2}
+  .nh_stage_btn:focus-visible{outline:2px solid #8C3B4A;outline-offset:2px}
+  .nh_stage_btn:active{transform:scale(.94)}
+  .nh_stage_count{font-family:halyard-text,sans-serif;font-size:.75rem;letter-spacing:.12em;color:#2B2622;font-variant-numeric:tabular-nums;min-width:3.5rem;text-align:center}
+  @media screen and (max-width: 767px){.nh_stage_ui{top:12px;right:12px}.nh_stage_btn{width:2.25rem;height:2.25rem}}
+  @media (prefers-reduced-motion: reduce){.nh_room_prog{display:none}}
 </style>
 <div data-hl-entry="napier" data-hl-target="/reserve-flow" hidden></div>
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@b35ac77c2e1359c98459365878a5540592a529d7/heartland-reserve.js"></script>
 <script>window.NH_PLANS={studio:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6ad66f9576d24ed37ac4a704_nh-studio-floorplan.pdf",loft:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6ad66f13f08ff78c37d7fa0e_nh-loft-floorplan.pdf"};</script>
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a0ee6c1e18fb5afcc52338bb13c72d8ed5706d73/heartland-napier.js" integrity="sha384-uye/lMCC4ssO5BQD+D8coRCyXsACvH+9GhTrvzcAON/E+S4Hg2S9vX6tnTlZruSu" crossorigin="anonymous"></script>
+<script src="https://scopepin.com/w/v1.js" data-key="sp_fae8921b7e0ef6c44c2f69aa" async></script>

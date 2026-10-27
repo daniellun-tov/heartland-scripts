@@ -185,7 +185,7 @@
     var units = qsa(".nh_c", el);
     if (!units.length) { return 0; }
     var chars = el.getAttribute("data-nh-split") === "chars";
-    var LINE = chars ? 260 : 170, STEP = chars ? 22 : 38;
+    var LINE = chars ? 170 : 110, STEP = chars ? 14 : 26;
     var tops = units.map(function (u) { return u.getBoundingClientRect().top; });
     var line = 0, k = 0, last = tops[0];
     units.forEach(function (u, i) {
@@ -257,12 +257,12 @@
           if (el.classList.contains("nh_split_text")) {
             var n = splitTiming(el, cur);
             el.classList.add("in");
-            cur += Math.min(n, 3) * (el.getAttribute("data-nh-split") === "chars" ? 260 : 170) + 60;
+            cur += Math.min(n, 3) * (el.getAttribute("data-nh-split") === "chars" ? 170 : 110) + 40;
           } else if (el.classList.contains("nh_rise")) {
-            var dl = Math.min(cur, 900); cur += 100;
+            var dl = Math.min(cur, 600); cur += 70;
             el.style.setProperty("--d", dl + "ms");
             el.classList.add("in");
-            setTimeout(function () { el.classList.remove("nh_rise", "in"); el.style.removeProperty("--d"); }, 1500 + dl);
+            setTimeout(function () { el.classList.remove("nh_rise", "in"); el.style.removeProperty("--d"); }, 1000 + dl);
           } else { whenImg(el, function () { el.classList.add("in"); }); }
         });
       }, { threshold: 0.16, rootMargin: "0px 0px -10% 0px" });
@@ -361,8 +361,8 @@
     if (!poster || (poster.complete && poster.naturalWidth)) { got.poster = 1; } else { on(poster, "load", function () { got.poster = 1; }); on(poster, "error", function () { got.poster = 1; }); }
     if (d.fonts && d.fonts.load) { Promise.all([d.fonts.load("352px orpheuspro"), d.fonts.load("400 12px halyard-text")]).then(function () { got.fonts = 1; }, function () { got.fonts = 1; }); } else { got.fonts = 1; }
     if (d.readyState === "complete") { got.load = 1; } else { on(w, "load", function () { got.load = 1; }); }
-    var t0 = performance.now(), p = 0, T1 = 0, EXP = 720, HOLD = 220, ZOOM = 1800, swapped = false, revealed = false, geo = null;
-    function target(now) { return now - t0 > 6000 ? 1 : .1 + .35 * got.poster + .35 * got.fonts + .2 * got.load; }
+    var t0 = performance.now(), p = 0, T1 = 0, EXP = 560, HOLD = 120, ZOOM = 1200, swapped = false, revealed = false, geo = null;
+    function target(now) { return now - t0 > 4000 ? 1 : .1 + .35 * got.poster + .35 * got.fonts + .2 * got.load; }
     function viewport() { return { W: w.innerWidth, H: w.innerHeight }; }
     // Word geometry in the mask's own units (follows fitMask's frame and the screen's pixel density)
     function measure() {
@@ -387,11 +387,11 @@
       if (!T1) {
         // 1 · the arch window grows with the load
         var tg = target(now), el = now - t0;
-        p = Math.min(tg, el / 1500, p + Math.max((tg - p) * .07, tg > p ? .004 : 0));
+        p = Math.min(tg, el / 900, p + Math.max((tg - p) * .07, tg > p ? .004 : 0));
         k = (base + p * 70) / 100 * (.94 + .06 * EOUT(cl(el / 400)));
         setArch(k);
         if (count) { var n = Math.round(p * 100); count.textContent = (n < 10 ? "00" : n < 100 ? "0" : "") + n; }
-        if (p >= .999) { T1 = now + 140; }
+        if (p >= .999) { T1 = now + 80; }
         return w.requestAnimationFrame(frame);
       }
       var t = now - T1;
@@ -410,10 +410,10 @@
       }
       var z = EZ(cl((t - EXP - HOLD) / ZOOM));
       word(z);
-      if (!revealed && t - EXP - HOLD > 1000) {
+      if (!revealed && t - EXP - HOLD > 650) {
         revealed = true; mask.classList.add("in");
         root.classList.remove("nh-loading"); root.classList.add("nh-ld-reveal");
-        setTimeout(function () { root.classList.remove("nh-ld-reveal"); }, 1400);
+        setTimeout(function () { root.classList.remove("nh-ld-reveal"); }, 1000);
       }
       if (z < 1) { return w.requestAnimationFrame(frame); }
       done();
@@ -467,7 +467,8 @@
   }
   /* HERO_END: the whole sequence (mask, intro, condense) runs over the first 80% of the track; the last 20%
      is a hold so the arch frame sits still before the page scrolls on. Track heights (nh_hero) were raised
-     to keep the motion's scroll distance unchanged: 550vh desktop, 475vh phone. */
+     to keep the motion's scroll distance unchanged: 550vh desktop, 475vh phone. Cut to 360vh / 320vh on 27 Oct
+     (client feedback: too long before the property details). */
   var HERO_END = 0.8;
   function renderHero(raw) {
     raw = Math.min(1, raw / HERO_END);
@@ -499,8 +500,8 @@
       heroOn = onNow;
       var cur = 120;
       qsa(".nh_rise, .nh_split_text", copy).forEach(function (el) {
-        if (el.classList.contains("nh_split_text")) { if (onNow) { cur += Math.min(splitTiming(el, cur), 3) * 260; } }
-        else { el.style.setProperty("--d", (onNow ? cur : 0) + "ms"); cur += 110; }
+        if (el.classList.contains("nh_split_text")) { if (onNow) { cur += Math.min(splitTiming(el, cur), 3) * 170; } }
+        else { el.style.setProperty("--d", (onNow ? cur : 0) + "ms"); cur += 80; }
         el.classList.toggle("in", onNow);
       });
       sides.forEach(function (el) { el.classList.toggle("in", onNow); });
@@ -600,8 +601,59 @@
       if (r && noteEl) { noteEl.textContent = r.getAttribute("data-nh-room-note") || ""; }
       if (capEl) { capEl.classList.remove("is-swap"); void capEl.offsetWidth; capEl.classList.add("is-swap"); }
     }
-    rooms.forEach(function (r, i) { on(r, "click", function (e) { stop(e); pick(i); }); });
-    pick(0);
+    /* Slideshow (27 Oct, client feedback: the rooms were missed as clickable). Arrows and a counter on the
+       picture, a progress line on the active room, autoplay every 5s while in view (paused on hover/focus,
+       off for reduced motion), swipe on touch. Any manual change restarts the timer. */
+    var N = rooms.length, cur = 0, MS = 5000, el = 0, vis = false, paused = false;
+    var stageWrap = qs("[data-nh-stage-wrap]", root) || (stages[0] && stages[0].parentNode);
+    var ui = null, cnt = null;
+    rooms.forEach(function (r) { if (!qs(".nh_room_prog", r)) { var pr = d.createElement("span"); pr.className = "nh_room_prog"; pr.setAttribute("aria-hidden", "true"); r.appendChild(pr); } });
+    if (stageWrap && N > 1) {
+      var arrow = function (dir) { return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + (dir < 0 ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7") + '"/></svg>'; };
+      ui = d.createElement("div"); ui.className = "nh_stage_ui";
+      ui.innerHTML = '<button type="button" class="nh_stage_btn" data-nh-stage-prev aria-label="Previous room">' + arrow(-1) + '</button>' +
+        '<span class="nh_stage_count" data-nh-stage-count></span>' +
+        '<button type="button" class="nh_stage_btn" data-nh-stage-next aria-label="Next room">' + arrow(1) + '</button>';
+      stageWrap.appendChild(ui); cnt = qs("[data-nh-stage-count]", ui);
+    }
+    function pick(i, user) {
+      cur = (i + N) % N; el = 0;
+      rooms.forEach(function (r, k) {
+        r.classList.toggle("is-on", k === cur);
+        var pr = qs(".nh_room_prog", r);
+        if (pr) { pr.classList.remove("is-run"); if (k === cur && !reduce) { void pr.offsetWidth; pr.classList.add("is-run"); } }
+      });
+      stages.forEach(function (s) { s.classList.toggle("is-on", s.getAttribute("data-nh-stage") === String(cur)); });
+      var r = rooms[cur];
+      if (r && nameEl) { nameEl.textContent = r.getAttribute("data-nh-room-name") || text(qs(".nh_room_name", r)); }
+      if (r && noteEl) { noteEl.textContent = r.getAttribute("data-nh-room-note") || ""; }
+      if (cnt) { cnt.textContent = pad(cur + 1) + " / " + pad(N); }
+      if (capEl) { capEl.classList.remove("is-swap"); void capEl.offsetWidth; capEl.classList.add("is-swap"); }
+    }
+    function sync() { root.classList.toggle("is-paused", paused || !vis); }
+    function setPaused(v) { paused = v; sync(); }
+    rooms.forEach(function (r, i) { on(r, "click", function (e) { stop(e); pick(i, true); }); });
+    if (ui) {
+      on(qs("[data-nh-stage-prev]", ui), "click", function (e) { stop(e); pick(cur - 1, true); });
+      on(qs("[data-nh-stage-next]", ui), "click", function (e) { stop(e); pick(cur + 1, true); });
+    }
+    on(root, "mouseenter", function () { setPaused(true); });
+    on(root, "mouseleave", function () { setPaused(false); });
+    on(root, "focusin", function () { setPaused(true); });
+    on(root, "focusout", function () { setPaused(false); });
+    if (stageWrap) {
+      var tx = 0, ty = 0, tr = false;
+      on(stageWrap, "touchstart", function (e) { var t = e.touches[0]; tx = t.clientX; ty = t.clientY; tr = true; }, { passive: true });
+      on(stageWrap, "touchend", function (e) {
+        if (!tr) { return; } tr = false;
+        var t = e.changedTouches[0], dx = t.clientX - tx, dy = t.clientY - ty;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) { pick(cur + (dx < 0 ? 1 : -1), true); }
+      }, { passive: true });
+      on(stageWrap, "touchcancel", function () { tr = false; }, { passive: true });
+    }
+    if ("IntersectionObserver" in w) { new IntersectionObserver(function (es) { es.forEach(function (en) { vis = en.isIntersecting; }); sync(); }, { threshold: 0.35 }).observe(stageWrap || root); } else { vis = true; }
+    sync(); pick(0);
+    if (!reduce && N > 1) { setInterval(function () { if (paused || !vis || d.hidden) { return; } el += 100; if (el >= MS) { pick(cur + 1); } }, 100); }
   })();
 
   /* ----------------------------------------------------------- 7. loft gallery lightbox */
