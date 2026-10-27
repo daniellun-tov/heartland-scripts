@@ -184,7 +184,9 @@ window.Wized = window.Wized || [];
 
     /* out of the list, the counts and the chips - but shareholder plots stay
        clickable so the map can say "Reserved by shareholders" */
-    const LIST_HIDE = new Set(['unreleased', 'shareholder']);
+    /* 'unavailable' (Kem, 26 Oct 2026): reserved plots shown as Unavailable with
+       no detail - same treatment as the older 'shareholder' status */
+    const LIST_HIDE = new Set(['unreleased', 'shareholder', 'unavailable']);
     const NO_CLICK = new Set(['unreleased']);
 
     /* Declared up here, not below matches(): boot() runs the moment this
@@ -479,7 +481,7 @@ window.Wized = window.Wized || [];
       document.getElementById(u.plot_id)?.classList.add('is-selected');
 
       Wized.data.v.selectedUnit = u;
-      detailWrap()?.classList.toggle('is-shareholder', u.status === 'shareholder');
+      detailWrap()?.classList.toggle('is-shareholder', u.status === 'shareholder' || u.status === 'unavailable');
       /* standalone page: "Type G · Phase 2 · Erf 17543" under the address */
       document.querySelectorAll('[data-detail="sub"]').forEach((el) => {
         const parts = [];
@@ -683,8 +685,8 @@ window.Wized = window.Wized || [];
       price: tip.querySelector('[data-tooltip="price"]'),
     };
 
-    const PILL_CLASSES = ['is-available', 'is-reserved', 'is-sold', 'is-shareholder'];
-    const STATUS_LABEL = { shareholder: 'Reserved by shareholders' };
+    const PILL_CLASSES = ['is-available', 'is-reserved', 'is-sold', 'is-shareholder', 'is-unavailable'];
+    const STATUS_LABEL = { shareholder: 'Unavailable', unavailable: 'Unavailable' };
     const OFFSET = 14;
     const EDGE = 8;
     const money = new Intl.NumberFormat('en-ZA', {
@@ -717,9 +719,9 @@ window.Wized = window.Wized || [];
       field.status.classList.remove(...PILL_CLASSES);
       field.status.classList.add('is-' + String(u.status).toLowerCase());
 
-      if (u.status === 'shareholder') {
-        field.type.textContent = 'Custom home';
-        field.specs.textContent = 'Erf ' + (u.erf_number || '') + ' · details n/a';
+      if (u.status === 'shareholder' || u.status === 'unavailable') {
+        field.type.textContent = 'Erf ' + (u.erf_number || '');
+        field.specs.textContent = 'Not available';
         field.price.textContent = 'n/a';
         return;
       }

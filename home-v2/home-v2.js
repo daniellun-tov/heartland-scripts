@@ -304,6 +304,9 @@
       const place=(el,x,y)=>{ el.style.left=((x-vb.x)/vb.width*100)+'%'; el.style.top=((y-vb.y)/vb.height*100)+'%'; };
       marks.forEach(m=>place(m,+m.dataset.x,+m.dataset.y));
       place(home,+home.dataset.x,+home.dataset.y);
+      /* labels and the disc scale with the plan on laptops (see home-v2.css, --lms) */
+      const lms=()=>map.style.setProperty('--lms',Math.max(.72,Math.min(1,map.clientWidth/1400)).toFixed(3));
+      lms(); if(window.ResizeObserver) new ResizeObserver(lms).observe(map); else addEventListener('resize',lms);
       const L=path.getTotalLength(), brs=$$('#lmap .homev2-location_road-branch');
       gsap.set(brs,{strokeDasharray:1,strokeDashoffset:1});
       /* the line draws itself in; dots follow it */

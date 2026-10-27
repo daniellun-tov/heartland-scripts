@@ -47,6 +47,10 @@ html, .unit-filter_list, .unit-filter_filters, .unit-filter_map-container, .unit
   .site-plan_map-canvas.is-colour-type [data-type='H'] {
     fill: var(--_colors---unit-type--h);
   }
+  /* Type J (33 Suikerbossie, added 27 Oct 2026) takes the retired E colour */
+  .site-plan_map-canvas.is-colour-type [data-type='J'] {
+    fill: var(--_colors---unit-type--e);
+  }
   .site-plan_map-canvas.is-colour-type {
     opacity: 0.75;
   }
@@ -1072,7 +1076,8 @@ html .siteplan_page .unit-filter_map .unit-filter_legend.unit-filter_desktop-leg
 .siteplan_page .site-plan_map-canvas.is-colour-status { opacity: 1; }
 .siteplan_page .site-plan_plot.is-proposed,
 .siteplan_page .site-plan_map-canvas [data-status='unreleased'] { fill: #fbf7ef !important; fill-opacity: .6; stroke: #8a8580; stroke-opacity: 1; stroke-width: 5; stroke-dasharray: 22 14; }
-.siteplan_page .site-plan_map-canvas [data-status='shareholder'] { stroke: #8c6b34; stroke-opacity: 1; }
+.siteplan_page .site-plan_map-canvas [data-status='shareholder'],
+.siteplan_page .site-plan_map-canvas [data-status='unavailable'] { stroke: #8c6b34; stroke-opacity: 1; }
 /* unit numbers on the plots (heartland-sv.js writes them from the address) */
 .siteplan_page .site-plan_plot-no { font-family: var(--sp-body); font-size: 42px; font-weight: 600; fill: #2c2b27; text-anchor: middle; dominant-baseline: central; pointer-events: none; opacity: .75; }
 .siteplan_page .site-plan_plot-no.is-light { fill: #fbf7ef; }
@@ -1235,7 +1240,10 @@ html.sv-map-go .siteplan_page .unit-filter_mobile-toolbar { transition: opacity 
 /* ---- shareholder + proposed plots, shareholder detail panel ---- */
 .siteplan_page .site-plan_map-canvas [data-status='shareholder'],
 .siteplan_page .site-plan_map-canvas.is-colour-type [data-status='shareholder'],
-.siteplan_page .site-plan_map-canvas.is-colour-status [data-status='shareholder'] { fill: url(#sv-hatch) !important; fill-opacity: .9; }
+.siteplan_page .site-plan_map-canvas.is-colour-status [data-status='shareholder'],
+.siteplan_page .site-plan_map-canvas [data-status='unavailable'],
+.siteplan_page .site-plan_map-canvas.is-colour-type [data-status='unavailable'],
+.siteplan_page .site-plan_map-canvas.is-colour-status [data-status='unavailable'] { fill: url(#sv-hatch) !important; fill-opacity: .9; }
 .siteplan_page .site-plan_plot.is-proposed,
 .siteplan_page .site-plan_map-canvas [data-status='unreleased'] { cursor: default; pointer-events: none; }
 .siteplan_page .site-plan_detail-wrap.is-shareholder .unit-details_metrics,
@@ -1246,6 +1254,8 @@ html.sv-map-go .siteplan_page .unit-filter_mobile-toolbar { transition: opacity 
 .siteplan_page .site-plan_detail-wrap.is-shareholder .unit-details_vr,
 .siteplan_page .site-plan_detail-wrap.is-shareholder .unit-details_reserve-wrapper { display: none !important; }
 .unit-filter_tooltip-pill.is-shareholder,
+.unit-filter_tooltip-pill.is-unavailable,
+.siteplan_page .unit-filter_status-badge.is-unavailable,
 .siteplan_page .unit-filter_status-badge.is-shareholder { background: #e3dacb; color: #565450; }
 /* detail panel: no page dim behind it (mockup), tabs fit, feature labels sentence case */
 html .siteplan_page .site-plan_detail-wrap,

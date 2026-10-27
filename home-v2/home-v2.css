@@ -225,3 +225,22 @@ textarea.homev2-register_input{resize:vertical}
 .section_homev2-chapters{clip-path:polygon(0 calc(var(--homev2-gable-height)*.6167),50% calc(var(--homev2-gable-height)*.0667),100% calc(var(--homev2-gable-height)*.6167),100% 100%,0 100%)}
 /* 26 Oct 2026 (Scopepin #27): the care slider runs to the right edge of the screen, like the site plan picture */
 .homev2-centre_slider{margin-right:calc(var(--homev2-gutter) * -1)}
+
+/* Location map on laptops (Kem, 27 Oct 2026): the plan shrinks with the window but the
+   labels and the SV disc did not, so they ran into each other below ~1300px. --lms
+   (map width / 1400, floored at .72, set in home-v2.js) scales them with the plan;
+   below 1008px the plan stops shrinking and scrolls sideways instead, as on phones. */
+@media (min-width:768px){
+  .homev2-location_map .homev2-location_label-bold{font-size:calc(12.5px * var(--lms,1))}
+  .homev2-location_map .homev2-location_label-text{font-size:calc(15px * var(--lms,1))}
+  .homev2-location_map .homev2-location_home{--homev2-d:calc(58px * var(--lms,1));gap:calc(12px * var(--lms,1))}
+  .homev2-location_map .homev2-location_home .homev2-location_mountain{width:calc(128px * var(--lms,1))}
+}
+@media (min-width:768px) and (max-width:1100px){
+  .homev2-location_map-scroll{overflow-x:auto;overflow-y:hidden;margin-left:calc(var(--homev2-gutter) * -1);margin-right:calc(var(--homev2-gutter) * -1);padding:24px var(--homev2-gutter) 8px;scrollbar-width:none;overscroll-behavior-x:contain}
+  .homev2-location_map-scroll::-webkit-scrollbar{display:none}
+  .homev2-location_map-scroll .homev2-location_map{width:1008px;max-width:none}
+}
+/* Kem, 27 Oct 2026 ("picture doesn't load on laptop"): with Windows/macOS "reduce motion" on, the
+   scrubbed reveal never runs, so the site-plan aerial stayed at its clipped start state. Show it whole. */
+@media (prefers-reduced-motion:reduce){#planPh{clip-path:none}#planPh img{transform:none}}
