@@ -368,6 +368,12 @@
         .to('#archVeil',{opacity:1,ease:'none',duration:.25},.28)
         .to('#archH',{color:'#fff',ease:'none',duration:.2},.3);
       gsap.to('#archH .homev2_line > span',{y:'0%',duration:1.4,ease:'out',stagger:.1,scrollTrigger:{trigger:'#arch',start:'top 55%',once:true}});
+      /* phones (Johann, 28 Oct): the heading sits lower over the picture (CSS: gable height - 5vh), so it lifts clear of the
+         next section's gable as that gable slides in over the last stretch of the pin */
+      if(matchMedia('(max-width:767px)').matches){
+        const gh=()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--homev2-gable-height'))||110;
+        gsap.fromTo('#archH',{y:0},{y:()=>-(innerHeight*.05+26),ease:'none',scrollTrigger:{trigger:'#arch',start:()=>'bottom bottom+='+Math.round(gh()+40),end:'bottom bottom',scrub:.4,invalidateOnRefresh:true}});
+      }
     })();
     /* numbers count up */
     $$('.homev2-stats_grid [data-to]').forEach(el=>{ const to=+el.dataset.to, dec=(el.dataset.to.split('.')[1]||'').length, o={v:0}; el.textContent=(0).toFixed(dec);
