@@ -548,7 +548,7 @@
       L.style.clipPath=P([[g.x0,g.eave+ly],[cx-gap,g.top+ly],[cx-gap,g.bot+ly],[g.x0,g.bot+ly]]);
       R.style.clipPath=P([[cx+gap,g.top+ry],[g.x1,g.eave+ry],[g.x1,g.bot+ry],[cx+gap,g.bot+ry]]);
       if(S) S.style.clipPath=P([[g.x0,g.eave],[cx,g.top],[g.x1,g.eave],[g.x1,g.bot],[g.x0,g.bot]]);
-      if(sTop) sTop.style.opacity=(.6*ph).toFixed(3); if(sBot) sBot.style.opacity=(.86*pc).toFixed(3);
+      if(sTop) sTop.style.opacity=(.85*ph).toFixed(3); if(sBot) sBot.style.opacity=(.86*pc).toFixed(3);
       const sc='scale('+(1.15-.15*pe).toFixed(4)+')'; imgs.forEach(im=>{ im.style.transform=sc; });
       if(H){ H.style.opacity=ph.toFixed(3); H.style.transform='translate3d(0,'+(40*(1-ph)-(narrow?24:40)*pc).toFixed(1)+'px,0)'; }
       if(C){ C.style.opacity=pc.toFixed(3); C.style.transform='translate3d(0,'+(160*(1-pc)).toFixed(1)+'px,0)'; }
