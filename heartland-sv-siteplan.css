@@ -1671,7 +1671,8 @@ body .site-plan_badge-tip .site-plan_badge-tip_dir {
 .siteplan_page .popup .modal-content.vr .icon-button:hover { border-color: #f4ede2; background: #2a2330; }
 @media (max-width: 767px) {
   .siteplan_page .popup .modal-content.vr { width: 100%; height: 100svh; }
-  .siteplan_page .popup .vr_embed { height: 100%; }
+  .siteplan_page .popup .unit-detail-modal.vr { flex: 1 1 auto; height: 100%; }
+  .siteplan_page .popup .vr_embed { height: 100svh; }
 }
 /* Type J: sketch-plan cuts stand in for renders */
 .siteplan_page .unit-details_main-link[data-gallery='stage'] { position: relative; }
