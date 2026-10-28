@@ -1269,7 +1269,8 @@ html.prices-hidden .siteplan_page .unit-filter_card-copy > h4 { display: none; }
 /* the panel scrolls as one column: nothing in it shrinks (the stage collapsed to 0 otherwise) */
 .siteplan_page .site-plan_detail-panel > * { flex: none; }
 .siteplan_page .unit-details_main-link[data-gallery='stage'] .ud-media { height: auto; aspect-ratio: 4 / 3; }
-.siteplan_page .site-plan_detail-overlay { background: transparent !important; }
+/* panel open: dim the map behind it (Daniel, 28 Oct; was transparent) */
+.siteplan_page .site-plan_detail-overlay { background: rgba(42, 35, 48, .42) !important; cursor: pointer; }
 .siteplan_page .unit-details_scroll-nav { flex-wrap: wrap; gap: .125rem .875rem; }
 .siteplan_page .unit-details_reserve-wrapper { flex-wrap: nowrap; }
 .siteplan_page .unit-details_reserve-wrapper .btn_main_wrap { flex: 1 1 0; min-width: 0; }
@@ -1643,3 +1644,42 @@ body .site-plan_badge-tip .site-plan_badge-tip_dir {
   .siteplan_page .siteplan_header .btn_main_wrap .btn_main_layout { padding: .5625rem .875rem; }
   .siteplan_page .siteplan_header .btn_main_wrap .btn_main_text { font-size: .625rem; letter-spacing: .2em; line-height: 1; }
 }
+
+/* ---- 28 Oct: feature rows, 3D tour modal ---- */
+/* feature rows: label keeps its width, a long value wraps right-aligned
+   instead of running under the label ("Position" overlapped) */
+.siteplan_page .unit-details_feature { grid-template-columns: 1.875rem auto minmax(0, 1fr); align-items: start; }
+.siteplan_page .unit-details_feature::before { align-self: start; margin-top: -.3rem; }
+.siteplan_page .unit-details_feature-label { white-space: nowrap; line-height: 1.4; }
+.siteplan_page .unit-details_feature > :last-child { justify-self: end; text-align: right; min-width: 0; line-height: 1.4; }
+/* 3D tour + location map modals: same plum, square-cornered dialog as the
+   register popup instead of Webflow's old cream card */
+.siteplan_page .popup .modal-content.vr {
+  width: min(78rem, 94vw); max-width: none; height: auto; max-height: none;
+  padding: 0; gap: 0; border-radius: 0; background: #2a2330;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .35); align-items: stretch;
+}
+.siteplan_page .popup .unit-detail-modal.vr { padding: 0; margin: 0; min-height: 0; border-radius: 0; background: none; }
+.siteplan_page .popup .vr_embed { height: min(82vh, 50rem); margin: 0; background: #2a2330; }
+.siteplan_page .popup .vr_embed iframe { display: block; border: 0; }
+.siteplan_page .popup .vr_embed br { display: none; }
+.siteplan_page .popup .modal-content.vr .buttons-wrapper { position: absolute; top: 1rem; right: 1rem; left: auto; bottom: auto; width: auto; z-index: 2; }
+.siteplan_page .popup .modal-content.vr .icon-button {
+  width: 2.375rem; height: 2.375rem; border-radius: 0; border: 1px solid #e6d2b8;
+  background: rgba(42, 35, 48, .72); color: #f4ede2; transition: border-color .3s, background-color .3s;
+}
+.siteplan_page .popup .modal-content.vr .icon-button:hover { border-color: #f4ede2; background: #2a2330; }
+@media (max-width: 767px) {
+  .siteplan_page .popup .modal-content.vr { width: 100%; height: 100svh; }
+  .siteplan_page .popup .vr_embed { height: 100%; }
+}
+/* Type J: sketch-plan cuts stand in for renders */
+.siteplan_page .unit-details_main-link[data-gallery='stage'] { position: relative; }
+.siteplan_page .ud-soon {
+  position: absolute; left: .75rem; top: .75rem; z-index: 2; pointer-events: none;
+  padding: .375rem .625rem; background: rgba(42, 35, 48, .86); color: #f4ede2;
+  font-family: var(--sp-wide); font-size: .5rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; line-height: 1;
+}
+.siteplan_page .unit-details_main-link[data-gallery='stage'] .ud-media[src*='floorplan-J'] { object-fit: contain; object-position: center; background: #fff; }
+.siteplan_page .site-plan_detail-wrap.no-vr #detail-panel_vr,
+.siteplan_page .site-plan_detail-wrap.no-vr .unit-details_scroll-link[href='#detail-panel_vr'] { display: none !important; }

@@ -482,6 +482,8 @@ window.Wized = window.Wized || [];
 
       Wized.data.v.selectedUnit = u;
       detailWrap()?.classList.toggle('is-shareholder', u.status === 'shareholder' || u.status === 'unavailable');
+      /* no 3D tour for this type yet (Type J): hide the section and its tab */
+      detailWrap()?.classList.toggle('no-vr', !(u.unit_variant && u.unit_variant.xrai_link));
       /* standalone page: "Type G · Phase 2 · Erf 17543" under the address */
       document.querySelectorAll('[data-detail="sub"]').forEach((el) => {
         const parts = [];
@@ -550,8 +552,9 @@ window.Wized = window.Wized || [];
         if (!link) return;
         let u = null;
         try { u = Wized.data.v.selectedUnit; } catch (_) {}
-        closeUnit();
-        if (!link.hasAttribute('data-prelaunch-ui')) return;
+        /* The register button opens its popup over the panel and leaves the
+           panel open behind it (Daniel, 28 Oct); only the X closes it. */
+        if (!link.hasAttribute('data-prelaunch-ui')) { closeUnit(); return; }
         const msg = document.querySelector('#contact textarea') || document.querySelector('#regForm textarea[name="message"]');
         if (u && msg && !msg.value.trim()) {
           msg.value = 'I am interested in ' + label(u) + (u.type_code ? ' (Type ' + u.type_code + ')' : '') + '. Please let me know when sales open.';
@@ -608,9 +611,24 @@ window.Wized = window.Wized || [];
       });
 
       document.querySelector('.site-plan_detail-overlay')?.addEventListener('click', closeUnit);
+      const popupOpen = () => !!document.querySelector('.popup.is-active');
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && isOpen()) closeUnit();
+        /* Escape over a popup closes the popup only, not the panel behind it */
+        if (e.key === 'Escape' && isOpen() && !popupOpen()) closeUnit();
       });
+      /* custom-modal releases the page scroll when its popup closes; keep it
+         locked while the panel is still open behind the popup. */
+      document.querySelectorAll('.popup').forEach((pop) =>
+        new MutationObserver(() => {
+          if (!pop.classList.contains('is-active') && isOpen() && !popupOpen()) {
+            requestAnimationFrame(() => {
+              if (!isOpen()) return;
+              document.body.style.overflow = 'hidden';
+              window.lenis?.stop();
+            });
+          }
+        }).observe(pop, { attributes: true, attributeFilter: ['class'] }),
+      );
 
       document.querySelector('.site-plan_list')?.addEventListener('click', (e) => {
         const card = e.target.closest('[data-plot]');
@@ -2227,6 +2245,16 @@ let audioContext;
       exp.className = 'ud-expand';
       exp.innerHTML = EXPAND_SVG;
       stage.appendChild(exp);
+
+      /* a type shown from sketch-plan cuts until its renders arrive (Type J,
+         28 Oct): the tag follows the media captions, so it goes away by
+         itself once the plan rows are swapped for renders in Xano */
+      if (media.some(function (m) { return /sketch plan/i.test(m.caption || ''); })) {
+        var soon = document.createElement('span');
+        soon.className = 'ud-soon';
+        soon.textContent = 'Render coming soon';
+        stage.appendChild(soon);
+      }
     }
 
     function renderThumbs() {
@@ -2839,6 +2867,42 @@ let audioContext;
     if (document.querySelector('.site-plan_plot-nos')) mark('data');   /* the controller got there first */
     fallback = setTimeout(play, 9000);
     setTimeout(function () { hideVeil(true); }, 30000);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+/* ---------------------------------------------------------------------------
+   3D tour: only load it when the VR modal is open.
+   Wized binds the tour URL to the iframe's src as soon as a unit is picked,
+   so the hidden modal pulled ~15 MB of tour on every panel open and slowed
+   the gallery. Park the URL in data-src while the modal is closed, swap it
+   in when custom-modal adds is-active, and park it again on close (which
+   also stops the tour's audio/GPU work). Daniel, 28 Oct 2026.
+--------------------------------------------------------------------------- */
+(function () {
+  function boot() {
+    var modal = document.getElementById('unit-vr');
+    if (!modal) return;
+    var frame = function () { return modal.querySelector('iframe'); };
+    var isOpen = function () { return modal.classList.contains('is-active'); };
+    /* idempotent, so the observer can see its own writes without looping */
+    function sync() {
+      var f = frame();
+      if (!f) return;
+      var s = f.getAttribute('src');
+      var live = s && s !== 'about:blank';
+      if (live) f.setAttribute('data-src', s);
+      if (isOpen()) {
+        var want = f.getAttribute('data-src');
+        if (!live && want) f.setAttribute('src', want);
+      } else if (s !== 'about:blank') {
+        f.setAttribute('src', 'about:blank');
+      }
+    }
+    sync();
+    new MutationObserver(sync)
+      .observe(modal, { subtree: true, attributes: true, attributeFilter: ['src', 'class'] });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
