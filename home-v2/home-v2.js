@@ -260,7 +260,7 @@
       gsap.fromTo(h,{scale:.94,opacity:.6},{scale:1,opacity:1,ease:'none',scrollTrigger:{trigger:h,start:'top 95%',end:'top 45%',scrub:.5}});
     });
     /* 29 Oct: the site plan's second button (Register interest) rises with the first */
-    $$('.homev2-siteplan_buttons > .homev2_button:not(.is-rev)').forEach(el=>{ el.classList.add('is-rev'); gsap.set(el,{opacity:0,y:30}); });
+    $$('.homev2-siteplan_buttons > :not(.is-rev)').forEach(el=>{ el.classList.add('is-rev'); gsap.set(el,{opacity:0,y:30}); });
     $$('.is-rev').forEach(el=>{ gsap.to(el,{opacity:1,y:0,duration:1.1,ease:'out',scrollTrigger:{trigger:el,start:'top 90%',once:true}}); });
     $$('[data-draw]').forEach(el=>{ gsap.from(el,{scaleY:0,duration:1.3,ease:'out',scrollTrigger:{trigger:el,start:'top 85%',once:true}}); });
     $$('.homev2-vitality_image img').forEach(im=>gsap.fromTo(im,{yPercent:-4},{yPercent:4,ease:'none',scrollTrigger:{trigger:'.homev2-vitality_component',start:'top bottom',end:'bottom top',scrub:.4}}));
@@ -370,11 +370,18 @@
         .to('#archVeil',{opacity:1,ease:'none',duration:.25},.28)
         .to('#archH',{color:'#fff',ease:'none',duration:.2},.3);
       gsap.to('#archH .homev2_line > span',{y:'0%',duration:1.4,ease:'out',stagger:.1,scrollTrigger:{trigger:'#arch',start:'top 55%',once:true}});
-      /* phones (Johann, 28 Oct): the heading sits lower over the picture (CSS: gable height - 5vh), so it lifts clear of the
-         next section's gable as that gable slides in over the last stretch of the pin */
+      /* phones (Johann, 28 Oct): the heading sits low over the picture (CSS: gable height - 5vh). As the next section's gable
+         slides in, the heading rises just enough to stay above the gable's peak (Daniel, 29 Oct: it was being covered).
+         Measured every frame instead of tied to a scroll range, so iOS toolbars, vh vs innerHeight and fast flicks can't beat it. */
       if(matchMedia('(max-width:767px)').matches){
-        const gh=()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--homev2-gable-height'))||110;
-        gsap.fromTo('#archH',{y:0},{y:()=>-(innerHeight*.05+26),ease:'none',scrollTrigger:{trigger:'#arch',start:()=>'bottom bottom+='+Math.round(gh()+40),end:'bottom bottom',scrub:.4,invalidateOnRefresh:true}});
+        const arch=$('#arch'), h=$('#archH'), next=arch&&arch.nextElementSibling; let lift=0, raf=0;
+        const fit=()=>{ raf=0; if(!h||!next) return;
+          const peak=next.getBoundingClientRect().top, base=h.getBoundingClientRect().bottom+lift;
+          const want=Math.max(0, base-(peak-18));
+          if(Math.abs(want-lift)>.5){ lift=want; h.style.transform='translate3d(0,'+(-lift).toFixed(1)+'px,0)'; } };
+        addEventListener('scroll',()=>{ if(!raf) raf=requestAnimationFrame(fit); },{passive:true});
+        addEventListener('resize',()=>{ if(!raf) raf=requestAnimationFrame(fit); });
+        fit();
       }
     })();
     /* numbers count up */
