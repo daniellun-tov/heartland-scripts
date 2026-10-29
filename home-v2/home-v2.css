@@ -244,3 +244,16 @@ textarea.homev2-register_input{resize:vertical}
 /* Kem, 27 Oct 2026 ("picture doesn't load on laptop"): with Windows/macOS "reduce motion" on, the
    scrubbed reveal never runs, so the site-plan aerial stayed at its clipped start state. Show it whole. */
 @media (prefers-reduced-motion:reduce){#planPh{clip-path:none}#planPh img{transform:none}}
+
+/* ---- register CTAs (29 Oct 2026) ---- */
+/* nav Register: outlined over the hero, solid after it (cream on dark sections, plum on light); hover empties it */
+.homev2-nav_component.is-past-hero:not(.is-menu-open) a.homev2_button.is-nav{--homev2-bf:17%;color:var(--_home-v2---homev2-plum)}
+.homev2-nav_component.is-past-hero.is-on-light:not(.is-menu-open) a.homev2_button.is-nav{color:var(--_home-v2---homev2-cream)}
+@media (hover:hover){.homev2-nav_component.is-past-hero:not(.is-menu-open) a.homev2_button.is-nav:hover{--homev2-bf:0%;color:inherit}}
+/* phone bottom bar: parked below the screen until the script shows it */
+.homev2-mobile-cta{bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateY(calc(100% + 28px));transition:transform .55s cubic-bezier(.25,1,.5,1)}
+.homev2-mobile-cta.is-shown{transform:none}
+@media (prefers-reduced-motion:reduce){.homev2-mobile-cta{transition:none}}
+/* site plan: the two buttons share a row, so the solid one drops its own top margin */
+.homev2-siteplan_buttons>.homev2_button{margin-top:0}
+.homev2-nav_component.is-menu-open~.homev2-mobile-cta{transform:translateY(calc(100% + 28px))}

@@ -259,6 +259,8 @@
       gsap.to($$('.homev2_line > span',h),{y:'0%',duration:1.4,ease:'out',stagger:.1,scrollTrigger:{trigger:h,start:'top 85%',once:true}});
       gsap.fromTo(h,{scale:.94,opacity:.6},{scale:1,opacity:1,ease:'none',scrollTrigger:{trigger:h,start:'top 95%',end:'top 45%',scrub:.5}});
     });
+    /* 29 Oct: the site plan's second button (Register interest) rises with the first */
+    $$('.homev2-siteplan_buttons > .homev2_button:not(.is-rev)').forEach(el=>{ el.classList.add('is-rev'); gsap.set(el,{opacity:0,y:30}); });
     $$('.is-rev').forEach(el=>{ gsap.to(el,{opacity:1,y:0,duration:1.1,ease:'out',scrollTrigger:{trigger:el,start:'top 90%',once:true}}); });
     $$('[data-draw]').forEach(el=>{ gsap.from(el,{scaleY:0,duration:1.3,ease:'out',scrollTrigger:{trigger:el,start:'top 85%',once:true}}); });
     $$('.homev2-vitality_image img').forEach(im=>gsap.fromTo(im,{yPercent:-4},{yPercent:4,ease:'none',scrollTrigger:{trigger:'.homev2-vitality_component',start:'top bottom',end:'bottom top',scrub:.4}}));
@@ -610,6 +612,21 @@
       menuTl=gsap.timeline({onComplete(){ sheet.classList.remove('is-open'); }}).to(sheetLinks,{yPercent:-110,duration:.5,ease:'io',stagger:.03},0).to(sheetFoot,{opacity:0,duration:.3},0).to(sheet,{'--homev2-sh':'0%',duration:.8,ease:'io'},.2);
     }
   };
+  /* register, without interrupting the read (Johann / Daniel, 29 Oct 2026):
+     - past the hero the nav's Register turns solid (outlined over the film);
+     - phones: a bottom bar slides up only when someone scrolls back up (deciding, not reading),
+       and stays away over the hero, while the menu is open and once the register form is on screen */
+  (()=>{ const hero=$('#arrive'), bar=$('[data-mobile-cta]'), reg=$('#register'), nv=$('#nav'); if(!hero||!nv) return;
+    let lastY=scrollY, shown=false, tick=false;
+    const show=v=>{ if(!bar||v===shown) return; shown=v; bar.classList.toggle('is-shown',v); bar.setAttribute('aria-hidden',String(!v)); bar.tabIndex=v?0:-1; };
+    if(bar){ bar.setAttribute('aria-hidden','true'); bar.tabIndex=-1; }
+    const update=()=>{ tick=false; const y=scrollY, past=hero.getBoundingClientRect().bottom<90;
+      nv.classList.toggle('is-past-hero',past);
+      if(bar){ const r=reg&&reg.getBoundingClientRect(), atReg=!!r&&r.top<innerHeight*.9&&r.bottom>0, dy=y-lastY;
+        if(!past||atReg||menuOpen) show(false); else if(dy<-8) show(true); else if(dy>8) show(false); }
+      if(Math.abs(y-lastY)>8) lastY=y; };
+    addEventListener('scroll',()=>{ if(!tick){ tick=true; requestAnimationFrame(update); } },{passive:true});
+    update(); })();
   if(menuBtn) menuBtn.addEventListener('click',e=>{ e.preventDefault(); open(!menuOpen); });
   addEventListener('keydown',e=>{ if(e.key==='Escape'&&menuOpen) open(false); });
   const goLinks=new Set($$('[data-go], #nav a[href^="#"], #sheet a[href^="#"], footer a[href^="#"]'));
