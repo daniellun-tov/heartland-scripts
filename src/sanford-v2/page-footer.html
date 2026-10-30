@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@b35ac77c2e1359c98459365878a5540592a529d7/heartland-reserve.js"></script>
 <!-- Floor plan PDFs, one per unit type (Site assets). The bundle adds the download links. -->
 <script>window.SD2_PLANS={a:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6abfc0b17d22f5934a09d594_sanford-heart-type-a-floor-plans.pdf",b:"https://cdn.prod.website-files.com/61110f294933f9d0faf6d77f/6abfc0b11ccad9cb938674f6_sanford-heart-type-b-floor-plans.pdf"};</script>
-<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@a3b44276a3728795a2d9a0ec74ccd16c39d5b7da/heartland-sanford-v2.js" integrity="sha384-JyA8O24RBry0xGfhHEXITI8yfgPoapBkM1WTtfbddCUg0CBPH4nyXTxnWkaD7d3y" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/gh/daniellun-tov/heartland-scripts@94302cad69e943d466c915bad6148abfd37f99e5/heartland-sanford-v2.js" integrity="sha384-LxyEDV8tcQOK2A31foQBg/qW1JkbODT2x6Rgoc8YBe8yRX5PWvv+HMYw2g3aLqN4" crossorigin="anonymous"></script>
 
 <!-- Sanford Bot Chat Widget -->
 <script src="https://widgets.leadconnectorhq.com/loader.js" data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js" data-widget-id="6a69ceebf2ad8308219b3dde"></script>
@@ -45,11 +45,11 @@
   @media screen and (max-width: 767px){.sd2_light_stage{aspect-ratio:2400/1461;
     -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 70%,transparent 100%),linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%);-webkit-mask-composite:source-in;
     mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 70%,transparent 100%),linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%);mask-composite:intersect}}
-  /* aerial masterplan (30 Sep): Ruan's render replaces the drawing. Each home's overlay is a
-     full-colour cut-out of that home; when one is lit the rest of the picture greys back. */
+  /* aerial masterplan (30 Sep; 20 Oct: v3 render, stays in full colour): each home's overlay is a
+     full-colour cut-out of that home; the lit one gets a bold white outline and glow (see the overlay rule further down). */
   .sd2_map{background-image:none;background-color:#1c1a17}
   .sd2_map_base{transition:filter .5s ease,opacity .5s ease}
-  .sd2_map.is-lit .sd2_map_base{filter:grayscale(.8) brightness(.97);opacity:.82}
+  .sd2_map.is-lit .sd2_map_base{filter:none;opacity:1}
   .sd2_map_overlay{mix-blend-mode:normal;object-fit:fill;transition:opacity .4s ease;filter:drop-shadow(0 0 1px rgba(252,250,247,.85)) drop-shadow(0 10px 22px rgba(0,0,0,.35))}
   .sd2_map_overlay.is-on{opacity:1}
   @media screen and (max-width: 767px){.sd2_map_frame{aspect-ratio:4/3}.sd2_pin{width:2.125rem;height:2.125rem;font-size:.6875rem}}
@@ -114,7 +114,7 @@
   .sd2_pin[data-sd2-tone].is-active{background-color:var(--tn-d);border-color:#FCFAF7;box-shadow:0 0 0 7px var(--tn-soft),0 0 0 9px var(--tn-d),0 10px 26px rgba(28,26,23,.3)}
   .sd2_pin.is-reserved[data-sd2-tone]{background-color:#8C867C;border-color:#6B665E;color:#FCFAF7}
   .sd2_pin_tag{background-color:#6B665E}
-  .sd2_map_overlay[data-sd2-tone]{filter:drop-shadow(0 0 1.5px var(--tn-d)) drop-shadow(0 0 1.5px var(--tn-d)) drop-shadow(0 10px 22px rgba(0,0,0,.35))}
+  .sd2_map_overlay[data-sd2-tone]{filter:brightness(1.15) drop-shadow(0 0 2px #FCFAF7) drop-shadow(0 0 2px #FCFAF7) drop-shadow(0 0 2px #FCFAF7) drop-shadow(0 0 2px #FCFAF7) drop-shadow(0 0 18px rgba(252,250,247,.45))}
   .sd2_strip_btn[data-sd2-tone]{border-left-color:var(--tn-d)}
   .sd2_strip_btn[data-sd2-tone]:not(.is-active):not(.is-reserved):not(.is-sold) .sd2_strip_no{color:var(--tn-d)}
   .sd2_strip_btn.is-reserved[data-sd2-tone]{border-left-color:#8C867C}
