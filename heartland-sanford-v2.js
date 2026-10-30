@@ -229,6 +229,50 @@
     });
   })();
 
+  /* A CTA that scrolls to the reservation form puts the cursor in its first field once the
+     scroll lands. Capture on window hears every click before anything can stop it; the check
+     waits a tick so a CTA that some other handler took over (the sign-up gate, the waitlist
+     flow) - preventDefault() - is left alone. Focus waits for the scroll to finish: focusing
+     mid-scroll would cut the smooth scroll short. Reads href at click time, so CTAs whose
+     href is rewritten later (live copy, the detail card) are covered too. */
+  (function focusFormOnArrive() {
+    var form = qs("#reservation-form");
+    if (!form) { return; }
+    function firstField() {
+      return qsa("input, select, textarea", form).filter(function (f) {
+        var t = (f.type || "").toLowerCase();
+        return !f.disabled && !f.readOnly && f.tabIndex !== -1 && f.offsetParent !== null &&
+          !/^(hidden|submit|button|reset|image)$/.test(t);
+      })[0] || null;
+    }
+    function goesToForm(a) {
+      var href = a.getAttribute("href") || "";
+      if (href.charAt(0) !== "#" || href.length < 2) { return false; }
+      var t = null;
+      try { t = qs(href); } catch (err) { return false; }
+      return !!t && (t === form || t.contains(form));
+    }
+    function focusWhenSettled() {
+      var done = false, timer;
+      function go() {
+        if (done) { return; }
+        done = true;
+        clearTimeout(timer);
+        w.removeEventListener("scrollend", go);
+        var f = firstField();
+        if (f) { try { f.focus({ preventScroll: true }); } catch (err) { f.focus(); } }
+      }
+      if ("onscrollend" in w) { w.addEventListener("scrollend", go); }
+      // No scrollend (Safari) or no scroll at all (already there): fall back to a timer.
+      timer = setTimeout(go, reduceMotion ? 50 : 1200);
+    }
+    w.addEventListener("click", function (e) {
+      var a = e.target.closest && e.target.closest("a[href]");
+      if (!a || !goesToForm(a)) { return; }
+      setTimeout(function () { if (!e.defaultPrevented) { focusWhenSettled(); } }, 0);
+    }, true);
+  })();
+
   /* ----------------------------------------------------------- 1. reveals */
   (function reveals() {
     var els = qsa(".sd2_reveal");
