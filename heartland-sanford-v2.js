@@ -2571,6 +2571,16 @@
         environment: STAGING ? "staging" : "production",
         sent_at: new Date().toISOString()
       };
+      /* 2 Nov 2026 (Johan, via Daniel): every sign-up carries the CRM's lead fields by their
+         form names - First-Name, Last-Name, Email, Contact-Number, Property - plus
+         Form-Type "sign-up", so Property Funnels routes it like any other Heartland lead.
+         The older snake_case keys stay alongside for the existing workflow mappings. */
+      if (signup) {
+        body["Form-Type"] = "sign-up";
+        body["First-Name"] = now.first; body["Last-Name"] = now.last;
+        body["Email"] = body.email; body["Contact-Number"] = now.phone;
+        body["Property"] = "Sanford Heart";
+      }
       /* The launch-day sign-up hook gets the same shape as the Sanford Waitlist form's Webflow
          webhook (triggerType + payload.data with the form's field names), so the Property
          Funnels workflow maps it exactly like the waitlist one. */
@@ -2589,7 +2599,8 @@
             memberId: body.member_id,
             data: {
               "First-Name": now.first, "Last-Name": now.last, "Email": body.email,
-              "Contact-Number": now.phone, "Message": "", "Waitlist Homes": body.homes
+              "Contact-Number": now.phone, "Property": "Sanford Heart", "Form-Type": "sign-up",
+              "Message": "", "Waitlist Homes": body.homes
             }
           }
         };

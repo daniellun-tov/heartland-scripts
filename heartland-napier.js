@@ -1315,6 +1315,8 @@
         list: LIVE ? "favourites" : "waitlist", phase: LIVE ? "live" : "prelaunch", email: (m.auth && m.auth.email) || ST.email || "",
         phone: now.phone, first_name: now.first, last_name: now.last, homes: homesLabel(now.homes), homes_added: homesLabel(added), homes_removed: homesLabel(removed),
         joined: cf["waitlist-joined"] || "", member_id: m.id || "", page_url: String(w.location.href || "").split("#")[0], environment: STAGING ? "staging" : "production", sent_at: new Date().toISOString() };
+      /* 2 Nov 2026 (Johan, via Daniel): a sign-up carries the CRM lead fields by their form names plus Form-Type "sign-up". snake_case keys stay for existing mappings. */
+      if (signup) { body["Form-Type"] = "sign-up"; body["First-Name"] = now.first; body["Last-Name"] = now.last; body["Email"] = body.email; body["Contact-Number"] = now.phone; body["Property"] = "Napier Heart"; }
       try { w.fetch(CRM_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), keepalive: true, mode: "cors" }).then(function (r) { log("crm", body.event, r && r.status); }, function (e) { log("crm failed", e && e.message); }); } catch (e) { log("crm failed", e && e.message); }
     }
     function saveMember(extra) {

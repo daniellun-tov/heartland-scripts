@@ -101,6 +101,7 @@ async function viaDialog(p, email) {
   c = p.calls[0];
   ok(p.calls.length === 1, "one POST for a new sign-up");
   ok(c && c.body.event === "signup" && c.body.list === "waitlist" && c.body.phase === "prelaunch", "event signup, list waitlist, phase prelaunch");
+  ok(c && c.body["Form-Type"] === "sign-up" && c.body["Email"] === c.body.email && c.body["Property"] === "Sanford Heart" && "First-Name" in c.body && "Last-Name" in c.body && "Contact-Number" in c.body, "sign-up carries Form-Type sign-up and the CRM lead fields (2 Nov)");
   ok(c && c.body.email === "cat@x.co" && c.body.homes === "Home 4" && c.body.member_id === "mem_new", "with the email, the home it was joined for and the member id");
 
   console.log("returning member signs in, nothing changes");
