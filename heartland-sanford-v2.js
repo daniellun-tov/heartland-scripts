@@ -2348,7 +2348,7 @@
 
      Everything here is off unless the page says data-sd2-phase="prelaunch".
 
-     THE WAITLIST IS MEMBERSTACK. Joining is a passwordless sign-up (email + optional mobile,
+     THE WAITLIST IS MEMBERSTACK. Joining is a passwordless sign-up (email + mobile,
      then a 6-digit code) onto the Sanford Heart plan; the homes someone wants live on the
      member as "waitlist-homes", the date as "waitlist-joined". Being on that plan is what
      lifts the blur off the availability selector and the prices.
@@ -2634,13 +2634,36 @@
         el.style.display = ST.pendingHomes.length ? "" : "none";
       });
     }
+    /* 2 Nov 2026 (Daniel): a mobile number is required to sign up, so every new member carries
+       one (Memberstack "mobile-number", the CRM's Contact-Number). "Already on the list? Sign
+       in" ([data-sd2-signin]) hides the field - a returning member is only logging in - unless
+       Memberstack doesn't know the email, which makes it a sign-up after all. A member who is
+       signed in (another Heartland plan) but has no number is asked for it before joining. */
+    function okPhone(v) { return /^\+?\d{9,15}$/.test(String(v || "").replace(/[\s().\-]/g, "")); }
+    function hasPhone(m) { return !!(m && m.customFields && okPhone(m.customFields["mobile-number"])); }
+    function phoneErr(v) { return v ? "That mobile number doesn't look right." : "Enter your mobile number."; }
+    function memberEmail() { return (ST.member && ST.member.auth && ST.member.auth.email) || ""; }
+    function paintAuthPhone() {
+      qsa("[data-sd2-auth-form=email] input[type=tel]", auth).forEach(function (ph) {
+        ph.setAttribute("placeholder", "Mobile number");
+        ph.setAttribute("aria-label", "Mobile number");
+        ph.setAttribute("autocomplete", "tel");
+        ph.setAttribute("inputmode", "tel");
+        ph.required = !ST.signin;
+        ph.style.display = ST.signin ? "none" : "";
+      });
+    }
     function openAuth(name, opts) {
       opts = opts || {};
       if (!auth) { return; }
       ST.pendingHomes = opts.homes || ST.pendingHomes || [];
       ST.after = opts.after || null;
+      ST.signin = !!opts.signin;
       lastFocus = d.activeElement;
       paintAuthHomes();
+      paintAuthPhone();
+      var em1 = qs("[data-sd2-auth-form=email] input[type=email]", auth);
+      if (em1 && opts.email) { em1.value = opts.email; }
       auth.classList.add("is-open");
       auth.setAttribute("aria-hidden", "false");
       html.classList.add("sd2-auth-open");
@@ -2723,9 +2746,32 @@
         var em = qs("input[type=email]", fEmail), ph = qs("input[type=tel]", fEmail), btn = qs("[type=submit]", fEmail);
         var email = em ? String(em.value || "").trim() : "";
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { authErr("Enter your email address."); if (em) { em.focus(); } return; }
-        ST.phone = ph ? String(ph.value || "").trim() : "";
+        var phone = ph ? String(ph.value || "").trim() : "";
+        if (!ST.signin && !okPhone(phone)) { authErr(phoneErr(phone)); if (ph) { ph.focus(); } return; }
+        ST.phone = phone;
+        // Already signed in as this email (joining from another Heartland plan, or adding the
+        // missing number): no code needed, save and carry on.
+        if (ST.member && memberEmail().toLowerCase() === email.toLowerCase()) {
+          busy(btn, true, "Saving…");
+          saveMember({ homes: ST.pendingHomes, phone: phone }).then(function () {
+            var then = ST.after; ST.after = null;
+            if (then) { closeAuth(); then(); return; }
+            notifyTeam();
+            step("done");
+          }).catch(function (err) { authErr(msError(err)); })
+            .then(function () { busy(btn, false); });
+          return;
+        }
         busy(btn, true, "Sending your code…");
         sendCode(email).then(function () {
+          if (ST.signin && ST.mode === "signup" && !okPhone(ST.phone)) {
+            // "Sign in" with an email Memberstack doesn't know: it's a sign-up, which needs a number.
+            ST.signin = false;
+            paintAuthPhone();
+            authErr("There's no account for that email yet. Add your mobile number to sign up.");
+            if (ph) { ph.focus(); }
+            return;
+          }
           codeSentTo(email);
           step("code");
         }).catch(function (err) { authErr(msError(err)); })
@@ -2766,11 +2812,12 @@
         return;
       }
       e.preventDefault();
-      if (ST.member) {   // signed in (another Heartland plan) but not on this list: one click
+      if (ST.member && hasPhone(ST.member)) {   // signed in (another Heartland plan) but not on this list: one click
         saveMember({ homes: homes }).then(function () { notifyTeam(); openAuth("done"); });
         return;
       }
-      openAuth("email", { homes: homes });
+      if (ST.member) { openAuth("email", { homes: homes, email: memberEmail() }); return; }   // ...without a number: ask for it
+      openAuth("email", { homes: homes, signin: a.hasAttribute("data-sd2-signin") });
     }, true);
 
     /* ---------------- a home's card: join / add / remove */
@@ -2803,8 +2850,8 @@
       e.preventDefault();
       var n = cta.getAttribute("data-sd2-home");
       if (!ST.onList) {
-        if (ST.member) { saveMember({ homes: [n] }).then(function () { notifyTeam(); openAuth("done"); }); return; }
-        openAuth("email", { homes: [n] });
+        if (ST.member && hasPhone(ST.member)) { saveMember({ homes: [n] }).then(function () { notifyTeam(); openAuth("done"); }); return; }
+        openAuth("email", { homes: [n], email: memberEmail() });
         return;
       }
       busy(cta, true, "Saving…");
@@ -2873,9 +2920,10 @@
       });
       form.setAttribute("data-name", "Sanford Waitlist");
       form.setAttribute("name", "sanford-waitlist");
-      // Only the email is required to join; everything else is a courtesy.
+      // Email and mobile are required to join (the mobile is checked by the submit handler,
+      // not by "required", so a background notifyTeam() for an older member never stalls).
       [["sd2-first-name", "First name (optional)"], ["sd2-last-name", "Last name (optional)"],
-       ["sd2-contact-number", "Mobile (optional)"], ["sd2-message", "Anything we should know? (optional)"]].forEach(function (x) {
+       ["sd2-contact-number", "Mobile number"], ["sd2-message", "Anything we should know? (optional)"]].forEach(function (x) {
         var el = field(x[0]);
         if (el) { el.removeAttribute("required"); el.setAttribute("placeholder", x[1]); }
       });
@@ -2998,7 +3046,11 @@
         var em0 = field("sd2-email");
         var email0 = em0 ? String(em0.value || "").trim() : "";
         var again = function () { ST.pass = true; if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); } };
-        if (ST.member) { saveMember({}).then(again); return; }
+        // The reservation form requires a mobile: a sign-up made from it carries that number.
+        ST.phone = String((field("sd2-contact-number") || {}).value || "").trim();
+        ST.first = String((field("sd2-first-name") || {}).value || "").trim();
+        ST.last = String((field("sd2-last-name") || {}).value || "").trim();
+        if (ST.member) { saveMember(hasPhone(ST.member) ? {} : { phone: ST.phone }).then(again); return; }
         if (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email0)) {
           sendCode(email0).then(function () { codeSentTo(email0); openAuth("code", { after: again }); })
             .catch(function (err) { alertForm(msError(err)); });
@@ -3019,6 +3071,13 @@
       if (sub) { sub.setAttribute("data-was", sub.value); sub.value = "One moment…"; }
       function done() { ST.busy = false; if (sub) { sub.value = sub.getAttribute("data-was") || sub.value; } }
       var mine = ST.member && ST.member.auth && String(ST.member.auth.email || "").toLowerCase() === email.toLowerCase();
+      if (!(mine && hasPhone(ST.member)) && !okPhone(extra.phone)) {
+        var ph1 = field("sd2-contact-number");
+        done();
+        alertForm(phoneErr(extra.phone));
+        if (ph1) { try { ph1.focus({ preventScroll: true }); } catch (e1) { ph1.focus(); } }
+        return;
+      }
       if (mine) {
         saveMember(extra).then(function () { done(); nativeSubmit(); }).catch(function (err) { done(); alertForm(msError(err)); });
         return;
