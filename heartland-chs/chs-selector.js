@@ -1173,7 +1173,8 @@
           rr(c, x, y, w, h, 6); c.fill();
           if (on) { c.lineWidth = 5; c.strokeStyle = INK.navy; rr(c, x, y, w, h, 6); c.stroke(); }
           c.fillStyle = on ? INK.navy : INK.mutedInk;
-          c.font = (on ? 'bold ' : '') + Math.round(h * .34) + 'px Inter, sans-serif';
+          // Size from the shorter side: Bed 5's plot is portrait, so sizing from h made its number ~2x the others.
+          c.font = (on ? 'bold ' : '') + Math.round(Math.min(w, h) * .34) + 'px Inter, sans-serif';
           c.textAlign = 'center'; c.textBaseline = 'middle';
           c.fillText(b.num, x + w / 2, y + h / 2);
         });
