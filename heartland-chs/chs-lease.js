@@ -26,11 +26,11 @@
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
 
-  // 5400 -> "R 5 400" (non-breaking spaces, as the CMS writes it)
+  // 5400 -> "R 5 400" (ORDINARY spaces - heartland-rand-format; a non-breaking space breaks downstream workflows)
   function rand(v) {
     var n = String(v).replace(/[^\d.]/g, '');
     if (!n) return String(v);
-    return 'R ' + Math.round(parseFloat(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return 'R ' + Math.round(parseFloat(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   }
 
   function prefill(form) {

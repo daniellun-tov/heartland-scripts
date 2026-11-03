@@ -67,7 +67,7 @@
 
   /* Prices in the CMS are stored both as text ("R3,595,000") and as a number.
      Format the number ourselves so every place on the page agrees. */
-  function money(n) { return "R" + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+  function money(n) { return "R " + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " "); } // ordinary spaces - heartland-rand-format
   function short(n) { return "R" + (n / 1000000).toFixed(2).replace(/0$/, "").replace(/\.0$/, "") + "m"; }
 
   /* PHASE. The page says which phase it is in, on .sd2_page:

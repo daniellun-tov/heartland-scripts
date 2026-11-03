@@ -118,9 +118,10 @@
     for (var k = whole.length - 1; k >= 0; k--) {
       out = whole.charAt(k) + out;
       c++;
-      if (c % 3 === 0 && k > 0) { out = "," + out; }
+      if (c % 3 === 0 && k > 0) { out = " " + out; }
     }
-    return (neg ? "-R" : "R") + out + "." + frac;
+    /* Heartland rand format (3 Nov 2026): R, ORDINARY spaces, comma before cents - R 3 595 000,00. Never a non-breaking space (it breaks the values Zoho Sign and the CRM receive), never toLocaleString / Intl (en-ZA emits non-breaking spaces). */
+    return (neg ? "-R " : "R ") + out + "," + frac;
   }
 
   var MISSING = {};   // a sentinel, so a legitimately null value is not mistaken for absence

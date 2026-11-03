@@ -965,11 +965,11 @@ function priceOrZero(n) {
 function numberWithSpaces(n) {
   return Math.floor(Number(n) || 0)
     .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ' '); // was ','  — U+00A0 no-break space
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ' '); // ordinary space (heartland-rand-format), never U+00A0
 }
 
 function formatZAR(n) {
-  return 'R ' + numberWithSpaces(n); // R + U+00A0
+  return 'R ' + numberWithSpaces(n); // R + ordinary space
 }
 
 function setImg(id, src) {

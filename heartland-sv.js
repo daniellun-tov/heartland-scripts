@@ -577,11 +577,11 @@ window.Wized = window.Wized || [];
     const PILL_CLASSES = ['is-available', 'is-reserved', 'is-sold'];
     const OFFSET = 14;
     const EDGE = 8;
-    const money = new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
-      maximumFractionDigits: 0,
-    });
+    // Heartland rand format: R, ORDINARY spaces - never Intl/toLocaleString, whose en-ZA
+    // output carries non-breaking spaces that break downstream workflows.
+    const money = {
+      format: (v) => 'R ' + Math.round(Number(v) || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '),
+    };
 
     let byPlot = new Map();
     let active = null;

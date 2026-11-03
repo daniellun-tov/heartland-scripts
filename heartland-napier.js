@@ -51,7 +51,7 @@
   var clamp = function (v) { return v < 0 ? 0 : (v > 1 ? 1 : v); };
   var eio = function (t) { return -(Math.cos(Math.PI * t) - 1) / 2; };
   var pad = function (n) { return (n < 10 ? "0" : "") + n; };
-  function money(n) { return "R" + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+  function money(n) { return "R " + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " "); } // ordinary spaces - heartland-rand-format
   function short(n) { return "R" + (n / 1000000).toFixed(3).replace(/0+$/, "").replace(/\.$/, "") + "m"; }
   // Every <button> in the Designer is a Link with href="#": these clicks never navigate.
   function stop(e) { if (e && e.preventDefault) { e.preventDefault(); } }

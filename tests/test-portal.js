@@ -148,7 +148,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     ok("the reservation renders through the shared contract",
        b.$('[data-hl="unit.name"]').textContent === "Sanford Heart 06");
     ok("money is formatted, not printed raw",
-       b.$('[data-hl="total_cents"]').textContent === "R3,595,000.00");
+       b.$('[data-hl="total_cents"]').textContent === "R 3 595 000,00");
     ok("the property's colours are written onto the theme root",
        b.$('[data-hl-theme]').style.getPropertyValue('--hl-primary') === '#8a9380');
     ok("and the property is named on the document, for any CSS that wants it",
@@ -1191,7 +1191,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     const ad = rows(b, 'addons');
     ok("add-ons render with their own prices", ad.length === 1 &&
        ad[0].querySelector('[data-hl="name"]').textContent === "Custom Pergola" &&
-       ad[0].querySelector('[data-hl="price_cents"]').textContent === "R125,000.00");
+       ad[0].querySelector('[data-hl="price_cents"]').textContent === "R 125 000,00");
     ok("and the empty state stands aside", !b.shown('[data-hl-empty="addons"]'));
   }
 
@@ -1206,8 +1206,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     const b = boot({ list: [res({ total_ex_vat_cents: 312608696, vat_cents: 46891304 })] });
     await wait(80);
     ok("and rendered as money when Xano sends it",
-       b.$('[data-hl="total_ex_vat_cents"]').textContent === "R3,126,086.96" &&
-       b.$('[data-hl="vat_cents"]').textContent === "R468,913.04");
+       b.$('[data-hl="total_ex_vat_cents"]').textContent === "R 3 126 086,96" &&
+       b.$('[data-hl="vat_cents"]').textContent === "R 468 913,04");
   }
 
   /* ---------------------------------------------------- agreed after reserving */
@@ -1228,16 +1228,16 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     ok("upgrades agreed after reserving render as their own list", ex.length === 2);
     ok("with the frozen name and the agreed price",
        ex[0].querySelector('[data-hl="name"]').textContent === "Garage" &&
-       ex[0].querySelector('[data-hl="price_cents"]').textContent === "R125,000.00");
+       ex[0].querySelector('[data-hl="price_cents"]').textContent === "R 125 000,00");
 
     /* The distinction the whole model turns on: an extra agreed a month later must
        not silently restate the figure the Offer to Purchase was signed at. */
     ok("the signed purchase price is untouched by them",
-       b.$('[data-hl="total_cents"]').textContent === "R6,595,000.00");
+       b.$('[data-hl="total_cents"]').textContent === "R 6 595 000,00");
     ok("the extras carry their own total",
-       b.$('[data-hl="agreed_extras_total_cents"]').textContent === "R173,500.00");
+       b.$('[data-hl="agreed_extras_total_cents"]').textContent === "R 173 500,00");
     ok("and the sum of the two is a THIRD figure, not a replacement",
-       b.$('[data-hl="grand_total_cents"]').textContent === "R6,768,500.00");
+       b.$('[data-hl="grand_total_cents"]').textContent === "R 6 768 500,00");
     ok("reserve-time add-ons stay in their own list",
        rows(b, 'addons').length === 1 &&
        rows(b, 'addons')[0].querySelector('[data-hl="name"]').textContent === "Custom Pergola");

@@ -117,9 +117,9 @@ const stepShown = (b, name) => b.shown('[data-hl-step="' + name + '"]');
     await wait(40);
     ok("renders a text path", b.$('[data-hl="unit.name"]').textContent === "Sanford Heart 06");
     ok("formats a _cents path as money",
-       b.$('[data-hl="unit_price_cents"]').textContent === "R3,595,000.00");
+       b.$('[data-hl="unit_price_cents"]').textContent === "R 3 595 000,00");
     ok("formats the hold fee too",
-       b.$('[data-hl="reservation_fee_cents"]').textContent === "R3,000.00");
+       b.$('[data-hl="reservation_fee_cents"]').textContent === "R 3 000,00");
     ok("a null money value shows an em dash, not R0.00",
        b.$('[data-hl="purchase_deposit_cents"]').textContent === "—");
     ok("an unknown path LEAVES the designed copy alone",

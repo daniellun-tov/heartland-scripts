@@ -111,7 +111,7 @@
   function rands(c) {
     if (c === null || c === undefined) { return "—"; }
     var n = Math.round(Number(c) || 0) / 100;
-    return "R" + n.toFixed(2).split(".")[0].replace(/\B(?=([0-9]{3})+(?![0-9]))/g, ",");
+    return "R " + n.toFixed(2).split(".")[0].replace(/\B(?=([0-9]{3})+(?![0-9]))/g, " "); // ordinary spaces - heartland-rand-format
   }
   function param(k) {
     var m = new RegExp("[?&]" + k + "=([^&]*)").exec(w.location.search);
