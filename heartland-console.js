@@ -1930,10 +1930,18 @@
   }
 
   /* ---------- formatting ---------- */
+  /* Heartland rand format (3 Nov 2026): R, ORDINARY spaces, comma before cents - R 3 595 000,00. Never a non-breaking space (it breaks the values Zoho Sign and the CRM receive), never toLocaleString / Intl (en-ZA emits non-breaking spaces). */
+  function groupSp(whole) { return String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
   function rands(c) {
-    return "R " + ((c || 0) / 100).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    var n = Math.round(Number(c) || 0), neg = n < 0;
+    n = Math.abs(n);
+    var f = String(n % 100); if (f.length < 2) { f = "0" + f; }
+    return (neg ? "-R " : "R ") + groupSp(Math.floor(n / 100)) + "," + f;
   }
-  function randsShort(c) { return "R " + Math.round((c || 0) / 100).toLocaleString("en-ZA"); }
+  function randsShort(c) {
+    var r = Math.round((Number(c) || 0) / 100);
+    return (r < 0 ? "-R " : "R ") + groupSp(Math.abs(r));
+  }
   function day(ms) {
     if (!ms) { return "—"; }
     return new Date(ms).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
@@ -5468,7 +5476,11 @@
 
       var shown = val === "" ? "" : val;
       if (shown !== "" && col.kind === "cents" && !isNaN(Number(shown))) {
-        shown = Number(shown).toLocaleString("en-ZA", { maximumFractionDigits: 2 });
+        /* Ordinary spaces, comma decimal - never toLocaleString, whose en-ZA output carries
+           non-breaking spaces (heartland-rand-format). */
+        var sn = Number(shown), sneg = sn < 0, sa = Math.round(Math.abs(sn) * 100);
+        var sw = String(Math.floor(sa / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, " "), sf = sa % 100;
+        shown = (sneg ? "-" : "") + sw + (sf ? "," + (sf < 10 ? "0" : "") + sf : "");
       }
       if (col.kind === "enum" && col.options && col.options.length && shown !== "") {
         col.options.forEach(function (o) {
