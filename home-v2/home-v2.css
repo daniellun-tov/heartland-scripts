@@ -53,6 +53,8 @@ a.homev2_button.is-nav{--homev2-fill:var(--_home-v2---homev2-cream);background-i
 a.homev2_button.is-solid,input.homev2-register_submit{--homev2-bf:17%;background-color:transparent!important;background-image:repeating-linear-gradient(to bottom,var(--_home-v2---homev2-cream) 0 var(--homev2-bf),transparent var(--homev2-bf) 16.667%)!important}
 a.homev2_button.is-nav,a.homev2_button.is-variant-2,a.homev2_button.is-solid,input.homev2-register_submit{transition:--homev2-bf .7s cubic-bezier(.65,0,.35,1),color .45s ease .12s!important}
 @media (hover:hover){a.homev2_button.is-nav:hover,a.homev2_button.is-variant-2:hover{--homev2-bf:17%}a.homev2_button.is-solid:hover,input.homev2-register_submit:hover{--homev2-bf:0%}}
+/* touch: a tap leaves :hover stuck, and Webflow's hover sets cream text while the cream fill (above) stays - keep the text plum (white-on-white 'Sending...' on the register button) */
+@media (hover:none){a.homev2_button.is-solid:hover,input.homev2-register_submit:hover{color:var(--_home-v2---homev2-plum)!important}}
 a.homev2_button:focus-visible{--homev2-bf:17%}
 a.homev2_button.is-solid:focus-visible{--homev2-bf:0%}
 /* the three dots fold into an x */
