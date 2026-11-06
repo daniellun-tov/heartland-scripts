@@ -1940,6 +1940,7 @@
           iframe.className = "sd2_vr_iframe";
           iframe.setAttribute("title", "VR walkthrough");
           iframe.setAttribute("allow", "fullscreen; xr-spatial-tracking; gyroscope; accelerometer");
+          iframe.setAttribute("allowfullscreen", "");
           iframe.setAttribute("loading", "lazy");
           vrFrame.appendChild(iframe);
         }
@@ -1963,6 +1964,37 @@
       });
       if (vrTabs.length) { paintVr(vrTabs[0].getAttribute("data-type-slug")); }
     });
+
+    // XRai tour fullscreen (6 Nov). Where the browser can't make the tour's frame fullscreen
+    // (every iPhone: Safari has no element fullscreen there), the tour's own button posts
+    // {type:"xrai-tour-fullscreen", value} to this page and expects us to enlarge it; until
+    // now nothing listened, so the button flipped to ✕ and the tour stayed in its box.
+    // Covers the inline tour and the #sd2-vr-modal one: the frame is found by who sent it.
+    (function () {
+      var XRAI = "https://360.xrai.co.za", root = d.documentElement, big = null;
+      var st = d.createElement("style");
+      st.textContent = "iframe.sd2-vr-fs{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;" +
+        "width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;max-height:none!important;" +
+        "margin:0!important;border:0!important;border-radius:0!important;transform:none!important;z-index:2147483647!important;background:#000}" +
+        "html.sd2-vr-fs-on,html.sd2-vr-fs-on body{overflow:hidden!important}";
+      d.head.appendChild(st);
+      function setBig(f) {
+        if (big && big !== f) { big.classList.remove("sd2-vr-fs"); }
+        big = f;
+        if (f) { f.classList.add("sd2-vr-fs"); }
+        root.classList.toggle("sd2-vr-fs-on", !!f);
+      }
+      window.addEventListener("message", function (e) {
+        if (e.origin !== XRAI) { return; }
+        var m = e.data;
+        if (!m || m.type !== "xrai-tour-fullscreen") { return; }
+        var f = [].slice.call(d.querySelectorAll("iframe")).filter(function (x) { return x.contentWindow === e.source; })[0];
+        if (!f) { return; }
+        if (m.value) { setBig(f); } else if (big === f) { setBig(null); }
+      });
+      // The modal closes on Back; don't leave the page locked behind an enlarged frame.
+      window.addEventListener("popstate", function () { if (big) { setBig(null); } });
+    })();
 
     // Bond calculator. Defaults come from the Properties CMS item (interest, term, deposit).
     var cfg = qs("[data-sd2-fin-config]");
