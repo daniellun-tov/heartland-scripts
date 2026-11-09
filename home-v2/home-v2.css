@@ -289,3 +289,7 @@ textarea.homev2-register_input{resize:vertical}
 .homev2-chapters_eyebrow,.homev2-location_label-bold{font-weight:700!important;letter-spacing:.18em!important}
 /* fewer section labels: only the ones that carry information or numbering stay */
 .homev2_eyebrow:not(.is-numbers):not(.is-setting2):not(.is-variant-6):not(.is-c){display:none!important}
+/* Dated mark under the SV monogram (#rarity), 9 Nov 2026. Decorative, so it lives in CSS; it reveals with the monogram (.is-rev). */
+.homev2-rarity_wordmark{flex-direction:column;align-items:center}
+.homev2-rarity_wordmark::after{content:"Anno 2027";display:block;margin-top:.875rem;font-family:var(--_home-v2---homev2-serif);font-weight:400;font-size:1rem;line-height:1;font-variant-caps:small-caps;font-variant-numeric:oldstyle-nums;letter-spacing:.2em;color:var(--homev2-ink);opacity:.72}
+@media (max-width:767px){.homev2-rarity_wordmark::after{font-size:.9375rem;margin-top:.75rem}}
