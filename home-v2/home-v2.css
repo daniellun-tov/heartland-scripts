@@ -20,7 +20,7 @@ legend{all:revert;box-sizing:border-box}
 .homev2_embed>.w-embed::after{content:none}
 body{line-height:normal;font-size:16px}
 :where([data-button]){text-indent:0}
-:root{--_home-v2---homev2-cream:#F4EDE2;--_home-v2---homev2-sand:#E6D2B8;--_home-v2---homev2-dusk:#B9A3A6;--_home-v2---homev2-plum:#2A2330;--_home-v2---homev2-plum-2:#352C3B;--_home-v2---homev2-amber:#C8894F;--_home-v2---homev2-amber-soft:#D9A574;--_home-v2---homev2-white:#FFFFFF;--homev2-ink:#2A2330;--homev2-paper:var(--_home-v2---homev2-cream);--_home-v2---homev2-serif:"Cormorant",Georgia,serif;--_home-v2---homev2-wide:"Archivo",system-ui,sans-serif;--_home-v2---homev2-sans:"Hanken Grotesk",system-ui,sans-serif;--homev2-gutter:64px;--homev2-top:70%}
+:root{--_home-v2---homev2-cream:#F4EDE2;--_home-v2---homev2-sand:#E6D2B8;--_home-v2---homev2-dusk:#B9A3A6;--_home-v2---homev2-plum:#2A2330;--_home-v2---homev2-plum-2:#352C3B;--_home-v2---homev2-amber:#C8894F;--_home-v2---homev2-amber-soft:#D9A574;--_home-v2---homev2-white:#FFFFFF;--homev2-ink:#2A2330;--homev2-paper:var(--_home-v2---homev2-cream);--_home-v2---homev2-serif:"ivyora-display",Georgia,serif;--_home-v2---homev2-wide:"sweet-sans-pro",system-ui,sans-serif;--_home-v2---homev2-sans:"sweet-sans-pro",system-ui,sans-serif;--homev2-gutter:64px;--homev2-top:70%}
 *{box-sizing:border-box}
 html{scroll-behavior:auto}
 body{margin-top:0;margin-right:0;margin-bottom:0;margin-left:0;background-color:var(--_home-v2---homev2-plum);background-image:none;color:var(--_home-v2---homev2-plum);font-family:var(--_home-v2---homev2-sans);-webkit-font-smoothing:antialiased}
@@ -259,3 +259,33 @@ textarea.homev2-register_input{resize:vertical}
 /* site plan: the two buttons share a row, so the solid one drops its own top margin */
 .homev2-siteplan_buttons>.homev2_button{margin-top:0}
 .homev2-nav_component.is-menu-open~.homev2-mobile-cta{transform:translateY(calc(100% + 28px))}
+
+/* ===== Typography, 9 Nov 2026: IvyOra Display + Sweet Sans Pro (Adobe Fonts kit nai3klb) =====
+   Headings in IvyOra small caps with old-style figures; no italic accent words; Sweet Sans for
+   body and labels. Sweet Sans in the kit: Regular = 600, Medium = 700. IvyOra Display: 400 + italic.
+   !important because Webflow's combo classes (.homev2_display.is-lg etc.) outrank a single class. */
+.homev2_display,.homev2_statement,.homev2-features_title,.homev2-chapters_title,.homev2-centre_title,.homev2-types_title,
+.homev2_line-text,.homev2_line-italic,.homev2_display-text,.homev2_display-italic,.homev2-centre_title-italic,
+.homev2-hero_split-text,.homev2-location_card-title,.homev2-marquee_track-text,.homev2-vitality_list-link,
+.homev2_roll-text.is-large,.homev2-types_title .ch{font-weight:400!important;text-transform:none!important;font-variant-caps:small-caps;font-variant-numeric:oldstyle-nums;letter-spacing:.045em!important;text-wrap:balance}
+/* the hero name keeps a little more air */
+.homev2-hero_title .homev2_line-text{letter-spacing:.05em!important}
+/* accent words: same size and style as the rest of the heading (they were set 20% larger, in italic) */
+.homev2_line-italic,.homev2_display-italic,.homev2-centre_title-italic{font-style:normal!important;font-size:1em!important;line-height:inherit!important}
+.homev2_line-italic{display:block!important}
+/* IvyOra's descenders hang lower than Cormorant's: give the line reveal masks room */
+.homev2_line{padding-bottom:.16em!important;margin-bottom:-.16em!important}
+/* FAQ questions read in sentence case */
+.homev2-faq_list-link,.homev2-faq_list-italic{font-variant-caps:normal!important;text-transform:none!important;letter-spacing:0!important}
+/* figures that sit in a row stay lining */
+.homev2-stats_grid-bold,.homev2-types_stats-bold,.homev2_number{font-variant-numeric:lining-nums;font-weight:400!important}
+/* long feature titles: smaller so "A lift as standard, / or stair-lift ready" breaks cleanly */
+@media (min-width:992px){.homev2-features_title{font-size:2.875rem!important;line-height:1.08!important}}
+/* labels, buttons and nav in Sweet Sans Medium, a touch larger and wider for older eyes */
+.homev2_eyebrow,.homev2-chapters_kicker,.homev2-centre_eyebrow,.homev2-location_card-kicker,
+.homev2_roll-text:not(.is-large),.homev2_button,.homev2_text-link,.homev2-hero_status,.homev2-hero_middle,.homev2-register_label,
+.homev2-footer_columns-bold,.homev2_links-bold,.homev2-mobile-cta,.homev2-siteplan_chip,
+.homev2-village_drag,.homev2-types_stats-text,.homev2-menu_footer{font-weight:700!important;letter-spacing:.18em!important;font-size:.71875rem!important}
+.homev2-chapters_eyebrow,.homev2-location_label-bold{font-weight:700!important;letter-spacing:.18em!important}
+/* fewer section labels: only the ones that carry information or numbering stay */
+.homev2_eyebrow:not(.is-numbers):not(.is-setting2):not(.is-variant-6):not(.is-c){display:none!important}

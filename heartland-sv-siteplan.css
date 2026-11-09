@@ -951,7 +951,7 @@ html, .unit-filter_list, .unit-filter_filters, .unit-filter_map-container, .unit
 .siteplan_page, .unit-filter_tooltip {
   --sp-cream: #fbf7ef; --sp-sand: #efe8dc; --sp-line: #e3dacb; --sp-white: #fff;
   --sp-ink: #2c2b27; --sp-ink-2: #565450; --sp-ink-3: #8a8580; --sp-bronze-dark: #8c6b34;
-  --sp-display: "Fraunces", Georgia, serif; --sp-body: "Libre Franklin", system-ui, sans-serif;
+  --sp-display: "ivyora-display", Georgia, serif; --sp-body: "sweet-sans-pro", system-ui, sans-serif;
   --sp-r: 10px; --sp-shadow: 0 10px 30px rgba(44, 43, 39, .12);
   font-family: var(--sp-body); color: var(--sp-ink);
 }
@@ -1299,7 +1299,7 @@ html.prices-hidden .siteplan_page .unit-filter_card-copy > h4 { display: none; }
 .siteplan_page, .unit-filter_tooltip {
   --sp-cream: #f4ede2; --sp-sand: #e6d2b8; --sp-line: #e6d2b8; --sp-white: #fbfbfa;
   --sp-ink: #2a2330; --sp-ink-2: #4a4150; --sp-ink-3: #8a8088; --sp-bronze-dark: #c8894f; --sp-amber: #c8894f; --sp-amber-soft: #d9a574;
-  --sp-display: "Cormorant", Georgia, serif; --sp-body: "Hanken Grotesk", system-ui, sans-serif; --sp-wide: "Archivo", system-ui, sans-serif;
+  --sp-display: "ivyora-display", Georgia, serif; --sp-body: "sweet-sans-pro", system-ui, sans-serif; --sp-wide: "sweet-sans-pro", system-ui, sans-serif;
   --sp-r: 0px; --sp-shadow: 0 10px 30px rgba(42, 35, 48, .12);
   --sp-out: cubic-bezier(.25, 1, .5, 1); --sp-io: cubic-bezier(.75, 0, .25, 1);
   background: var(--sp-cream); color: var(--sp-ink); font-family: var(--sp-body);
@@ -1629,15 +1629,15 @@ html .siteplan_page .unit-filter_map .unit-filter_toolbar { top: auto; bottom: .
 body .site-plan_badge-tip {
   background: #f4ede2; border: 1px solid #e6d2b8; border-radius: 0;
   box-shadow: 0 10px 30px rgba(42, 35, 48, .12); padding: .625rem .75rem; max-width: 17rem;
-  font-family: "Hanken Grotesk", system-ui, sans-serif; font-size: .75rem; line-height: 1.45; color: #4a4150;
+  font-family: "sweet-sans-pro", system-ui, sans-serif; font-size: .75rem; line-height: 1.45; color: #4a4150;
 }
 body .site-plan_badge-tip .site-plan_badge-tip_head {
   display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .25rem;
-  font-family: "Cormorant", Georgia, serif; font-size: 1.25rem; font-weight: 400; line-height: 1.2; color: #2a2330;
+  font-family: "ivyora-display", Georgia, serif; font-variant-caps: small-caps; letter-spacing: .04em; font-size: 1.25rem; font-weight: 400; line-height: 1.2; color: #2a2330;
 }
 body .site-plan_badge-tip .site-plan_badge-tip_dir {
   flex: none; background: #2a2330; color: #fbf7ef; border-radius: 0; padding: .1875rem .5rem;
-  font-family: "Archivo", system-ui, sans-serif; font-size: .625rem; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; line-height: 1.5;
+  font-family: "sweet-sans-pro", system-ui, sans-serif; font-size: .625rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; line-height: 1.5;
 }
 /* #26 header CTA a size down on desktop */
 @media (min-width: 992px) {
@@ -1684,3 +1684,28 @@ body .site-plan_badge-tip .site-plan_badge-tip_dir {
 .siteplan_page .unit-details_main-link[data-gallery='stage'] .ud-media[src*='floorplan-J'] { object-fit: contain; object-position: center; background: #fff; }
 .siteplan_page .site-plan_detail-wrap.no-vr #detail-panel_vr,
 .siteplan_page .site-plan_detail-wrap.no-vr .unit-details_scroll-link[href='#detail-panel_vr'] { display: none !important; }
+
+/* =====================================================================
+   Typography, 9 Nov 2026: IvyOra Display + Sweet Sans Pro (Adobe Fonts kit nai3klb, loaded in the site head).
+   Display type in IvyOra small caps; wide labels in Sweet Sans Medium (700 in the kit). Matches home-v2.
+   ===================================================================== */
+.siteplan_page .siteplan_title,
+.siteplan_page .unit-filter_heading,
+.siteplan_page .unit-filter_card-copy > .text-wrapper .heading-style-h3,
+.siteplan_page .unit-details_unit_number-wrapper .heading-style-h2,
+.unit-filter_tooltip-id { font-weight: 400 !important; font-variant-caps: small-caps; font-variant-numeric: oldstyle-nums; letter-spacing: .04em; text-transform: none; }
+.siteplan_page .unit-filter_results-count,
+.siteplan_page .unit-details_metric .unit-details_text-wrapper > div:first-child,
+.siteplan_page .unit-details_metric .unit-details_text-unit-wrapper > div:first-child { font-weight: 400 !important; font-variant-numeric: lining-nums; }
+.siteplan_page .unit-filter_group-title,
+.siteplan_page .unit-filter_card-label,
+.siteplan_page .unit-details_label,
+.siteplan_page .unit-details_sub,
+.siteplan_page .unit-details_section-label,
+.siteplan_page .unit-filter_radio-group .text-style-label,
+.siteplan_page .unit-filter_results-header .text-style-label,
+.unit-filter_tooltip-pill,
+.siteplan_page .unit-filter_status-badge,
+.siteplan_page .unit-details_metric .unit-details_text-wrapper > div:last-child,
+.siteplan_page .unit-details_metric .unit-details_text-unit-wrapper > div:last-child,
+.siteplan_page .siteplan_back { font-weight: 700; letter-spacing: .18em; }
