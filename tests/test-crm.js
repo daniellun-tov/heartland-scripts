@@ -7,6 +7,7 @@ const path = require("path");
 const { JSDOM } = require("jsdom");
 const SANFORD = fs.readFileSync(path.join(__dirname, "..", "heartland-sanford-v2.js"), "utf8");
 const HOOK = "https://services.leadconnectorhq.com/hooks/QWZfk9PoAASowAZLLdv3/webhook-trigger/c35720c6-9624-4db1-8456-b398fdf6e91a";
+const SIGNUP_HOOK = "https://services.leadconnectorhq.com/hooks/QWZfk9PoAASowAZLLdv3/webhook-trigger/ClbpaesyJnBed5JMf16Y";
 const PLAN = "pln_sanford";
 
 let pass = 0, fail = 0;
@@ -93,16 +94,18 @@ async function viaDialog(p, email) {
   p = await page({ live: true, member: member("ben@x.co", "", false) });
   await p.w.SD2_WAITLIST.toggle("3"); await wait();
   c = p.calls[0];
-  ok(p.calls.length === 1 && c.body.event === "signup" && c.body.homes === "Home 3", "first heart = signup, with the home");
+  ok(p.calls.length === 1 && c.url === SIGNUP_HOOK, "first heart = a sign-up, sent to the sign-up workflow (11 Nov)");
+  ok(c && c.body.triggerType === "form_submission" && c.body.payload.data["Waitlist Homes"] === "Home 3" && c.body.payload.data["Form-Type"] === "sign-up", "Webflow-form shape, with the home");
 
   console.log("pre-launch: sign-up through the dialog");
   p = await page({ live: false });
   await viaDialog(p, "cat@x.co");
   c = p.calls[0];
   ok(p.calls.length === 1, "one POST for a new sign-up");
-  ok(c && c.body.event === "signup" && c.body.list === "waitlist" && c.body.phase === "prelaunch", "event signup, list waitlist, phase prelaunch");
-  ok(c && c.body["Form-Type"] === "sign-up" && c.body["Email"] === c.body.email && c.body["Property"] === "Sanford Heart" && "First-Name" in c.body && "Last-Name" in c.body && "Contact-Number" in c.body, "sign-up carries Form-Type sign-up and the CRM lead fields (2 Nov)");
-  ok(c && c.body.email === "cat@x.co" && c.body.homes === "Home 4" && c.body.member_id === "mem_new", "with the email, the home it was joined for and the member id");
+  const dd = c && c.body.payload ? c.body.payload.data : {};
+  ok(c && c.url === SIGNUP_HOOK, "a pre-launch sign-up also goes to the sign-up workflow (11 Nov)");
+  ok(dd["Form-Type"] === "sign-up" && dd["Property"] === "Sanford Heart" && "First-Name" in dd && "Last-Name" in dd && "Contact-Number" in dd, "sign-up carries Form-Type sign-up and the CRM lead fields");
+  ok(dd["Email"] === "cat@x.co" && dd["Waitlist Homes"] === "Home 4" && c.body.payload.memberId === "mem_new", "with the email, the home it was joined for and the member id");
 
   console.log("returning member signs in, nothing changes");
   const dan = member("dan@x.co", "Home 4", true);

@@ -2566,12 +2566,14 @@
        sends nothing. Staging posts too, marked environment "staging" so the CRM can drop it. */
     var CRM_HOOK = (PAGE.getAttribute("data-sd2-crm-hook") ||
       "https://services.leadconnectorhq.com/hooks/QWZfk9PoAASowAZLLdv3/webhook-trigger/c35720c6-9624-4db1-8456-b398fdf6e91a").trim();
-    /* 21 Oct 2026, launch day: after launch a sign-up (the gate in front of pricing and
-       availability) goes to its own Property Funnels workflow. Only the "signup" event in the
-       live phase uses it; home changes and contact edits stay on CRM_HOOK. Override (or "off")
-       with data-sd2-crm-signup-hook on .sd2_page. */
+    /* 21 Oct 2026, launch day: a sign-up (the gate in front of pricing and availability)
+       goes to its own Property Funnels workflow; home changes and contact edits stay on
+       CRM_HOOK. 11 Nov 2026 (Daniel): every sign-up, in either phase, goes to the sign-up
+       workflow .../ClbpaesyJnBed5JMf16Y - the same one the Napier interest form and the
+       Sanford Waitlist form post to. (c6b5cbc3... is now the reservation workflow, used by
+       Xano fn 209.) Override (or "off") with data-sd2-crm-signup-hook on .sd2_page. */
     var CRM_SIGNUP_HOOK = (PAGE.getAttribute("data-sd2-crm-signup-hook") ||
-      "https://services.leadconnectorhq.com/hooks/QWZfk9PoAASowAZLLdv3/webhook-trigger/c6b5cbc3-8502-475a-8bf6-7651993d99a5").trim();
+      "https://services.leadconnectorhq.com/hooks/QWZfk9PoAASowAZLLdv3/webhook-trigger/ClbpaesyJnBed5JMf16Y").trim();
     function crmSnap() {
       var cf = ST.member && ST.member.customFields ? ST.member.customFields : {};
       return { onList: ST.onList, homes: ST.homes.slice(), phone: cf["mobile-number"] || "",
@@ -2585,7 +2587,7 @@
       var signup = !before.onList;
       var contact = before.phone !== now.phone || before.first !== now.first || before.last !== now.last;
       if (!signup && !added.length && !removed.length && !contact) { return; }
-      var hook = signup && LIVE ? CRM_SIGNUP_HOOK : CRM_HOOK;
+      var hook = signup ? CRM_SIGNUP_HOOK : CRM_HOOK;
       if (!hook || /^off$/i.test(hook)) { return; }
       var body = {
         event: signup ? "signup" : (added.length || removed.length ? "homes_updated" : "contact_updated"),

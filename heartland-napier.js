@@ -1304,20 +1304,34 @@
     /* CRM: Property Funnels inbound webhook (same endpoint as Sanford, development "Napier Heart").
        Override or disable on [data-nh-page] with data-nh-crm-hook="…" or "off". */
     var CRM_HOOK = (PAGE.getAttribute("data-nh-crm-hook") || "https://services.leadconnectorhq.com/hooks/QWZfk9PoAASowAZLLdv3/webhook-trigger/c35720c6-9624-4db1-8456-b398fdf6e91a").trim();
+    /* 11 Nov 2026 (Daniel): sign-ups go to the Property Funnels sign-up workflow, the same one as
+       the Napier interest form and the Sanford sign-up gate, in the same Webflow-form shape so one
+       workflow maps them all. Home changes and contact edits stay on CRM_HOOK.
+       Override or disable with data-nh-crm-signup-hook="…" or "off". */
+    var CRM_SIGNUP_HOOK = (PAGE.getAttribute("data-nh-crm-signup-hook") || "https://services.leadconnectorhq.com/hooks/QWZfk9PoAASowAZLLdv3/webhook-trigger/ClbpaesyJnBed5JMf16Y").trim();
     function crmSnap() { var cf = ST.member && ST.member.customFields ? ST.member.customFields : {}; return { onList: ST.onList, homes: ST.homes.slice(), phone: cf["mobile-number"] || "", first: cf["first-name"] || "", last: cf["last-name"] || "" }; }
     function crmPush(before) {
-      if (!CRM_HOOK || /^off$/i.test(CRM_HOOK) || !ST.member || !ST.onList || !w.fetch) { return; }
+      if (!ST.member || !ST.onList || !w.fetch) { return; }
       var now = crmSnap(), m = ST.member, cf = m.customFields || {};
       var added = now.homes.filter(function (n) { return before.homes.indexOf(n) < 0; }), removed = before.homes.filter(function (n) { return now.homes.indexOf(n) < 0; });
       var signup = !before.onList, contact = before.phone !== now.phone || before.first !== now.first || before.last !== now.last;
       if (!signup && !added.length && !removed.length && !contact) { return; }
+      var hook = signup ? CRM_SIGNUP_HOOK : CRM_HOOK;
+      if (!hook || /^off$/i.test(hook)) { return; }
       var body = { event: signup ? "signup" : (added.length || removed.length ? "homes_updated" : "contact_updated"), development: "Napier Heart",
         list: LIVE ? "favourites" : "waitlist", phase: LIVE ? "live" : "prelaunch", email: (m.auth && m.auth.email) || ST.email || "",
         phone: now.phone, first_name: now.first, last_name: now.last, homes: homesLabel(now.homes), homes_added: homesLabel(added), homes_removed: homesLabel(removed),
         joined: cf["waitlist-joined"] || "", member_id: m.id || "", page_url: String(w.location.href || "").split("#")[0], environment: STAGING ? "staging" : "production", sent_at: new Date().toISOString() };
       /* 2 Nov 2026 (Johan, via Daniel): a sign-up carries the CRM lead fields by their form names plus Form-Type "sign-up". snake_case keys stay for existing mappings. */
       if (signup) { body["Form-Type"] = "sign-up"; body["First-Name"] = now.first; body["Last-Name"] = now.last; body["Email"] = body.email; body["Contact-Number"] = now.phone; body["Property"] = "Napier Heart"; }
-      try { w.fetch(CRM_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), keepalive: true, mode: "cors" }).then(function (r) { log("crm", body.event, r && r.status); }, function (e) { log("crm failed", e && e.message); }); } catch (e) { log("crm failed", e && e.message); }
+      if (hook === CRM_SIGNUP_HOOK) {
+        body = { triggerType: "form_submission", payload: { name: "Napier Sign Up", siteId: d.documentElement.getAttribute("data-wf-site") || "",
+          pageId: d.documentElement.getAttribute("data-wf-page") || "", publishedPath: String(w.location.pathname || ""), pageUrl: body.page_url,
+          submittedAt: body.sent_at, environment: body.environment, memberId: body.member_id,
+          data: { "First-Name": now.first, "Last-Name": now.last, "Email": body.email, "Contact-Number": now.phone, "Property": "Napier Heart",
+            "Form-Type": "sign-up", "Message": "", "Waitlist Homes": body.homes } } };
+      }
+      try { w.fetch(hook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), keepalive: true, mode: "cors" }).then(function (r) { log("crm", body.event || body.triggerType, r && r.status); }, function (e) { log("crm failed", e && e.message); }); } catch (e) { log("crm failed", e && e.message); }
     }
     function saveMember(extra) {
       var ms = ST.ms, chain = Promise.resolve(), before = crmSnap();
