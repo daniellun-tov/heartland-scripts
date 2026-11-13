@@ -5295,10 +5295,112 @@
     return links.length;
   }
 
+  /* ---- the buyer-preview NOTE (13 Nov 2026) --------------------------------------
+     The console now lives on sales.heartland.co.za, so it cannot hand its staff token to this
+     origin through localStorage. It mints a ONE-OFF NOTE instead (60 s, one reservation) and
+     opens /portal?preview=<uuid>#pt=<note>. This page trades the note at POST
+     /public/portal-preview for the buyer's view plus a 30-minute read-only SESSION that works
+     for this reservation only. The staff token never reaches this origin on this path.
+
+     THE NOTE IS STRIPPED FROM THE ADDRESS BAR BEFORE ANYTHING ELSE. A fragment never goes to a
+     server, but it sits in history and is copied when someone shares the tab; one
+     history.replaceState removes it, whether or not the note turns out to be usable.
+
+     THE SESSION IS KEPT IN sessionStorage, PER RESERVATION. A refresh or a tab change has no
+     note any more (it is spent and gone from the url), so the session is what keeps the preview
+     alive. Keyed by uuid so a preview of one deal never opens another. sessionStorage is per
+     tab, so closing the tab ends it.
+
+     THE LEGACY STAFF-TOKEN PATH IS KEPT, and only runs when there is neither a note nor a
+     session, until the old /sales-console retires. */
+  var PREVIEW_SESSION_PREFIX = "hl_preview_session:";
+
+  function takeFragmentNote() {
+    var h = "";
+    try { h = String(w.location.hash || ""); } catch (e) { return ""; }
+    var m = /(?:^#|&)pt=([^&]*)/.exec(h);
+    if (!m) { return ""; }
+    var note = "";
+    try { note = decodeURIComponent(m[1]).trim(); } catch (e) { note = ""; }
+    try {
+      w.history.replaceState(w.history.state, "", w.location.pathname + w.location.search);
+    } catch (e) {}
+    return note;
+  }
+
+  function storedSession(uuid) {
+    try { return w.sessionStorage.getItem(PREVIEW_SESSION_PREFIX + uuid) || ""; } catch (e) { return ""; }
+  }
+  function keepSession(uuid, tok) {
+    try {
+      if (tok) { w.sessionStorage.setItem(PREVIEW_SESSION_PREFIX + uuid, tok); }
+      else { w.sessionStorage.removeItem(PREVIEW_SESSION_PREFIX + uuid); }
+    } catch (e) {}
+  }
+
+  function showPreview(res) {
+    var one = res && res.reservation;
+    if (!one) { throw new Error("that reservation returned no buyer view"); }
+
+    if (res.server_time) {
+      var st = Number(res.server_time);
+      if (isFinite(st)) { clockOffset = st - Date.now(); }
+    }
+
+    PREVIEW = true;
+    PREVIEW_BY = String(res.viewed_by || "");
+    ALL = [one];
+    R = one;
+
+    previewBanner(PREVIEW_BY, R);
+    show("[data-hl-portal-loading]", false);
+    show("[data-hl-portal-index]", false);
+    show("[data-hl-portal-body]", true);
+    /* render() calls renderCountdown(), which starts the interval through
+       tickControl. There is no separate clock to start - and calling one that does
+       not exist is a ReferenceError that would have left this whole branch dead. */
+    render();
+    log("staff preview of", R.reference || R.uuid, "- read only");
+  }
+
+  function previewFail(e) {
+    fail("Could not open that preview - " + (e && e.message ? e.message : "unknown error") +
+         ". If your console session has expired, sign in again and try from there.");
+  }
+
+  /* Trades a note (or re-presents a session) for the buyer's view. */
+  function previewByToken(uuid, tok, isNote) {
+    fetch(BASE + "/public/portal-preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uuid: uuid, token: tok })
+    })
+      .then(readJson)
+      .then(function (res) {
+        /* The session comes back once, when a note is redeemed. A session being
+           re-presented gets none, and keeps the one it has. */
+        if (isNote && res && res.session) { keepSession(uuid, String(res.session)); }
+        showPreview(res);
+      })
+      .catch(function (e) {
+        /* A dead session must not be offered again on the next refresh. */
+        if (!isNote) { keepSession(uuid, ""); }
+        previewFail(e);
+      });
+  }
+
   function previewBoot(uuid) {
+    /* ALWAYS strip the fragment first, even when a session exists and the note is not needed. */
+    var note = takeFragmentNote();
+    if (note) { previewByToken(uuid, note, true); return; }
+
+    var sess = storedSession(uuid);
+    if (sess) { previewByToken(uuid, sess, false); return; }
+
+    /* LEGACY: the old console hands over a staff token. Kept until /sales-console retires. */
     var tok = staffToken(uuid);
     if (!tok) {
-      fail("Open this preview from the sales console - it borrows your staff session, " +
+      fail("Open this preview from Heartland Sales (the sales console) - it borrows your staff session, " +
            "and this tab has not got one. A preview link on its own carries no access.");
       return;
     }
@@ -5307,34 +5409,8 @@
       headers: { Authorization: "Bearer " + tok }
     })
       .then(readJson)
-      .then(function (res) {
-        var one = res && res.reservation;
-        if (!one) { throw new Error("that reservation returned no buyer view"); }
-
-        if (res.server_time) {
-          var st = Number(res.server_time);
-          if (isFinite(st)) { clockOffset = st - Date.now(); }
-        }
-
-        PREVIEW = true;
-        PREVIEW_BY = String(res.viewed_by || "");
-        ALL = [one];
-        R = one;
-
-        previewBanner(PREVIEW_BY, R);
-        show("[data-hl-portal-loading]", false);
-        show("[data-hl-portal-index]", false);
-        show("[data-hl-portal-body]", true);
-        /* render() calls renderCountdown(), which starts the interval through
-           tickControl. There is no separate clock to start - and calling one that does
-           not exist is a ReferenceError that would have left this whole branch dead. */
-        render();
-        log("staff preview of", R.reference || R.uuid, "- read only");
-      })
-      .catch(function (e) {
-        fail("Could not open that preview - " + (e && e.message ? e.message : "unknown error") +
-             ". If your console session has expired, sign in again and try from there.");
-      });
+      .then(showPreview)
+      .catch(previewFail);
   }
 
   function boot() {
@@ -5387,6 +5463,7 @@
       memberToken: memberToken,
       preview: function () { return PREVIEW; },
       previewUuid: previewUuid,
+      previewSession: storedSession,
       claimHandoff: claimHandoff,
       staffToken: staffToken,
       previewBy: function () { return PREVIEW_BY; },

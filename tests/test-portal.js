@@ -40,7 +40,7 @@ function boot(opts) {
   const dom = new JSDOM('<!doctype html><html><body>' + page + '</body></html>', {
     runScripts: "dangerously",
     virtualConsole: vc,
-    url: "https://www.heartland.co.za/portal" + (opts.search || ""),
+    url: "https://www.heartland.co.za/portal" + (opts.search || "") + (opts.hash || ""),
     beforeParse(w) {
       if (opts.wrapTabs) {
         /* jsdom has no layout, so offsetTop is 0 for everything and no row ever looks
@@ -105,6 +105,18 @@ function boot(opts) {
                    count: (opts.list || [res()]).length,
                    reservations: opts.list === undefined ? [res()] : opts.list,
                    server_time: opts.serverTime === undefined ? Date.now() : opts.serverTime };
+        } else if (u.indexOf('/public/portal-preview') > -1) {
+          /* The buyer-preview NOTE exchange. A note is traded for the view plus a session; a
+             session presented again gets the view and no new session. */
+          const sent = o && o.body ? JSON.parse(o.body) : {};
+          const isSession = sent.token === 'sess-1';
+          if (opts.noteFails || (!isSession && sent.token !== 'note-1')) {
+            return Promise.resolve({ ok: false, status: 403,
+              text: () => Promise.resolve('{"message":"This preview link has expired or was already used."}') });
+          }
+          body = { viewing_as: "buyer", viewed_by: "Sipho N",
+                   reservation: opts.previewRes || res(),
+                   server_time: "now", session: isSession ? "" : "sess-1" };
         } else if (u.indexOf('/portal-view') > -1) {
           if (opts.previewFails) {
             return Promise.resolve({ ok: false, status: 403,
@@ -2141,6 +2153,75 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     ok("a corrupt note is refused rather than thrown on",
        !b.calls.some(c => c.url.indexOf('/portal-view') > -1) &&
        b.shown('[data-hl-portal-empty]'));
+  }
+
+  /* ------------------------------------------ the buyer-preview note (#pt=) */
+  {
+    const b = boot({ search: "?preview=res-1", hash: "#pt=note-1", noCookie: true });
+    await wait(80);
+    const c = b.calls.find(x => x.url.indexOf('/public/portal-preview') > -1);
+    ok("a note in the fragment is traded at /public/portal-preview",
+       !!c && c.method === 'POST' && c.body.uuid === 'res-1' && c.body.token === 'note-1');
+    ok("and no Authorization header travels with it", !!c && c.auth === null);
+    ok("and the fragment is stripped from the address bar",
+       b.w.location.hash === '' && b.w.location.search === '?preview=res-1');
+    ok("and the staff endpoints are never called", !b.calls.some(x => /portal-view|\/staff\/|\/auth\/memberstack|\/member\//.test(x.url)));
+    ok("and the page renders as a read-only preview", b.w.HLPortal.preview() === true);
+    ok("and the banner names who is looking", /Sipho N/.test((b.$('#hl-preview-bar') || {}).textContent || ''));
+    ok("and the returned session is kept for this reservation only",
+       b.session('hl_preview_session:res-1') === 'sess-1' && b.session('hl_preview_session:res-2') === null);
+    ok("and no staff token is stored", b.session('hl_staff_token') === null);
+  }
+
+  {
+    /* A refresh: the note is gone from the url, the session carries it. */
+    const b = boot({ search: "?preview=res-1", noCookie: true, session: { 'hl_preview_session:res-1': 'sess-1' } });
+    await wait(80);
+    const c = b.calls.find(x => x.url.indexOf('/public/portal-preview') > -1);
+    ok("a refresh re-presents the stored session", !!c && c.body.token === 'sess-1');
+    ok("and still renders the preview", b.w.HLPortal.preview() === true);
+    ok("and keeps the session it had", b.session('hl_preview_session:res-1') === 'sess-1');
+  }
+
+  {
+    /* A session for one deal does not open another. */
+    const b = boot({ search: "?preview=res-2", noCookie: true, staffToken: "",
+                     session: { 'hl_preview_session:res-1': 'sess-1' } });
+    await wait(80);
+    ok("a session kept for another reservation is not used",
+       !b.calls.some(x => x.url.indexOf('/public/portal-preview') > -1) && b.w.HLPortal.preview() === false);
+  }
+
+  {
+    const b = boot({ search: "?preview=res-1", hash: "#pt=note-1", noCookie: true, noteFails: true });
+    await wait(80);
+    ok("a refused note shows the empty state, not a dashboard",
+       b.w.HLPortal.preview() === false && b.shown('[data-hl-portal-empty]'));
+    ok("and the fragment is still stripped", b.w.location.hash === '');
+    ok("and no session is kept", b.session('hl_preview_session:res-1') === null);
+  }
+
+  {
+    const b = boot({ search: "?preview=res-1", noCookie: true, session: { 'hl_preview_session:res-1': 'dead' } });
+    await wait(80);
+    ok("an expired session fails and is forgotten",
+       b.w.HLPortal.preview() === false && b.session('hl_preview_session:res-1') === null);
+  }
+
+  {
+    /* The note wins over a legacy staff token sitting in the tab. */
+    const b = boot({ search: "?preview=res-1", hash: "#pt=note-1", noCookie: true, staffToken: "staff-tok" });
+    await wait(80);
+    ok("a note takes the new path even when a staff token is present",
+       b.calls.some(x => x.url.indexOf('/public/portal-preview') > -1) &&
+       !b.calls.some(x => x.url.indexOf('/portal-view') > -1));
+  }
+
+  {
+    const b = boot({ search: "?preview=res-1", hash: "#other=1", noCookie: true, staffToken: "staff-tok" });
+    await wait(80);
+    ok("an unrelated fragment leaves the legacy staff-token path alone",
+       b.calls.some(x => x.auth === 'Bearer staff-tok') && b.w.location.hash === '#other=1');
   }
 
   {
