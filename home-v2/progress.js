@@ -34,9 +34,10 @@
     img.alt = '';
     img.decoding = 'async';
     if (i > 0) img.loading = 'lazy';
-    img.src = it.type === 'video' ? it.poster : it.photo;
+    /* a video item with a Photo URL shows that still on its tile (no loop); the lightbox still plays the full film */
+    img.src = it.type === 'video' ? (it.photo || it.poster) : it.photo;
     holder.appendChild(img);
-    if (it.type === 'video' && it.loop) {
+    if (it.type === 'video' && it.loop && !it.photo) {
       var v = document.createElement('video');
       v.className = 'homev2-progress_video';
       v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'none';
