@@ -34,3 +34,18 @@ html.homev2-lightbox-open{overflow:hidden}
   .homev2-lightbox_nav,.homev2-lightbox_thumbs{display:none}
 }
 @media (prefers-reduced-motion:reduce){.homev2-lightbox,.homev2-progress_video{transition:none}}
+
+/* Bento placement for the Site progress collection list. nth-child on a CMS list cannot be set with Webflow style combos, so it lives here.
+   The list wrapper, list and Webflow's w-dyn-item are display:contents, so .homev2-progress_item is a direct grid cell. */
+.homev2-progress_grid{grid-template-columns:repeat(6,1fr)}
+.homev2-progress_list>:nth-child(1)>.homev2-progress_item{grid-column:1/-1;aspect-ratio:16/9}
+.homev2-progress_list>:nth-child(2)>.homev2-progress_item{grid-column:span 2;aspect-ratio:auto}
+.homev2-progress_list>:nth-child(3)>.homev2-progress_item{grid-column:span 4;aspect-ratio:16/9}
+.homev2-progress_list>:nth-child(n+4)>.homev2-progress_item{grid-column:span 2}
+.homev2-progress_more{grid-column:span 2}
+@media (max-width:767px){
+  .homev2-progress_grid{grid-template-columns:repeat(2,1fr)}
+  .homev2-progress_list>:nth-child(1)>.homev2-progress_item{aspect-ratio:4/5}
+  .homev2-progress_list>:nth-child(2)>.homev2-progress_item,.homev2-progress_list>:nth-child(3)>.homev2-progress_item,.homev2-progress_list>:nth-child(n+4)>.homev2-progress_item{grid-column:span 1;aspect-ratio:4/3}
+  .homev2-progress_more{grid-column:1/-1;aspect-ratio:auto;padding:2rem 0}
+}

@@ -14,7 +14,7 @@
   var SHOWN = 5; /* hero + 4 bento tiles; the rest sit behind the "+N View all" tile */
   var data = items.map(function (el) {
     var d = el.dataset;
-    return { el: el, type: d.type === 'video' ? 'video' : 'photo', loop: d.loop, full: d.full, poster: d.poster, photo: d.photo };
+    return { el: el, type: String(d.type || '').toLowerCase() === 'video' ? 'video' : 'photo', loop: d.loop, full: d.full, poster: d.poster, photo: d.photo };
   });
 
   /* ---- tile media ---- */
