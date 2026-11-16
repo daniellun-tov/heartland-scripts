@@ -58,6 +58,8 @@
   if (more) {
     var n = data.length - SHOWN;
     if (n > 0) {
+      var bg = data[SHOWN], src = bg && (bg.type === 'video' ? bg.poster : bg.photo);
+      if (src) { var mi = document.createElement('img'); mi.className = 'homev2-progress_more-img'; mi.alt = ''; mi.decoding = 'async'; mi.loading = 'lazy'; mi.src = src; more.insertBefore(mi, more.firstChild); }
       var num = more.querySelector('[data-progress-count]'); if (num) num.textContent = '+' + n;
       more.addEventListener('click', function (e) { e.preventDefault(); open(SHOWN); });
     } else more.hidden = true;
