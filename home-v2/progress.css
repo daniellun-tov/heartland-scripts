@@ -1,0 +1,36 @@
+/* Stellenbosch Village: progress section media + lightbox. Layout and type for the section itself are
+   native Webflow styles (homev2-progress_*); this file only styles what the script builds. */
+.homev2-progress_media{position:relative;overflow:hidden;width:100%;height:100%;background:var(--_home-v2---homev2-plum-2,#352c3b)}
+.homev2-progress_img,.homev2-progress_video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.homev2-progress_video{opacity:0;transition:opacity .6s cubic-bezier(.25,1,.5,1)}
+.homev2-progress_video.is-playing,.homev2-progress_item:hover .homev2-progress_video{opacity:1}
+.homev2-progress_item.is-extra{display:none}
+.homev2-progress_item{cursor:pointer}
+.homev2-progress_item:focus-visible,.homev2-progress_more:focus-visible{outline:2px solid var(--_home-v2---homev2-amber-soft,#d9a574);outline-offset:3px}
+
+html.homev2-lightbox-open{overflow:hidden}
+.homev2-lightbox{position:fixed;inset:0;z-index:1000;display:grid;grid-template-rows:auto 1fr auto;background:rgba(33,27,38,.96);color:var(--_home-v2---homev2-cream,#f4ede2);font-family:var(--_home-v2---homev2-sans,"sweet-sans-pro",system-ui,sans-serif);opacity:0;transition:opacity .35s cubic-bezier(.25,1,.5,1)}
+.homev2-lightbox.is-open{opacity:1}
+.homev2-lightbox[hidden]{display:none}
+.homev2-lightbox_top{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem}
+.homev2-lightbox_count{font-size:.71875rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.homev2-lightbox_btn{background:none;border:1px solid rgba(244,237,226,.4);color:inherit;font:inherit;font-size:.71875rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;padding:.7rem 1.1rem;cursor:pointer;transition:background-color .3s,color .3s}
+.homev2-lightbox_btn:hover{background:var(--_home-v2---homev2-cream,#f4ede2);color:var(--_home-v2---homev2-plum,#2a2330)}
+.homev2-lightbox_stage{display:flex;align-items:center;justify-content:center;min-height:0;padding:0 4.5rem}
+.homev2-lightbox_media{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;background:#000}
+.homev2-lightbox_nav{position:absolute;top:50%;width:3rem;height:3rem;margin-top:-1.5rem;background:none;border:1px solid rgba(244,237,226,.4);color:inherit;cursor:pointer;transition:background-color .3s}
+.homev2-lightbox_nav:hover{background:rgba(244,237,226,.14)}
+.homev2-lightbox_nav::before{content:"";position:absolute;top:50%;left:50%;width:.7rem;height:.7rem;border:solid currentColor;border-width:0 0 1px 1px}
+.homev2-lightbox_nav.is-prev{left:1rem}.homev2-lightbox_nav.is-prev::before{transform:translate(-30%,-50%) rotate(45deg)}
+.homev2-lightbox_nav.is-next{right:1rem}.homev2-lightbox_nav.is-next::before{transform:translate(-70%,-50%) rotate(-135deg)}
+.homev2-lightbox_thumbs{display:flex;gap:.5rem;overflow-x:auto;padding:1rem 1.5rem 1.25rem;justify-content:safe center;scrollbar-width:none}
+.homev2-lightbox_thumbs::-webkit-scrollbar{display:none}
+.homev2-lightbox_thumb{flex:none;width:5.5rem;aspect-ratio:4/3;padding:0;border:1px solid transparent;background:none;opacity:.5;cursor:pointer;transition:opacity .3s}
+.homev2-lightbox_thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.homev2-lightbox_thumb:hover,.homev2-lightbox_thumb.is-on{opacity:1}
+.homev2-lightbox_thumb.is-on{border-color:var(--_home-v2---homev2-amber-soft,#d9a574)}
+@media (max-width:767px){
+  .homev2-lightbox_stage{padding:0}
+  .homev2-lightbox_nav,.homev2-lightbox_thumbs{display:none}
+}
+@media (prefers-reduced-motion:reduce){.homev2-lightbox,.homev2-progress_video{transition:none}}

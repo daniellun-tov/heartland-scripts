@@ -265,7 +265,7 @@
     $$('[data-draw]').forEach(el=>{ gsap.from(el,{scaleY:0,duration:1.3,ease:'out',scrollTrigger:{trigger:el,start:'top 85%',once:true}}); });
     $$('.homev2-vitality_image img').forEach(im=>gsap.fromTo(im,{yPercent:-4},{yPercent:4,ease:'none',scrollTrigger:{trigger:'.homev2-vitality_component',start:'top bottom',end:'bottom top',scrub:.4}}));
     gsap.fromTo('#marq span',{xPercent:0},{xPercent:-12,ease:'none',scrollTrigger:{trigger:'#marq',start:'top bottom',end:'bottom top',scrub:.4}});
-    gsap.to('#openPh',{clipPath:'inset(0% 0% 0% 0%)',ease:'none',scrollTrigger:{trigger:'.homev2-siteplan_open-wrapper',start:'top 85%',end:'top 20%',scrub:.5}});
+    if($('#openPh')) gsap.to('#openPh',{clipPath:'inset(0% 0% 0% 0%)',ease:'none',scrollTrigger:{trigger:'.homev2-siteplan_open-wrapper',start:'top 85%',end:'top 20%',scrub:.5}});
 
     /* care picture opens from the left edge as it scrolls in */
     (()=>{ const st=$('#cg .homev2-care_stage'); if(!st) return; const narrow=matchMedia('(max-width:760px)').matches;
@@ -398,7 +398,7 @@
     gsap.to('#prog',{width:'100%',ease:'none',scrollTrigger:{trigger:'.homev2_page',start:'top top',end:'bottom bottom',scrub:true}});
     const nav=$('#nav');
     const lit=new Set(); $$('section.is-cream, section.is-sand').forEach(s=>{ ScrollTrigger.create({trigger:s,start:'top 60px',end:'bottom 60px',onToggle(st){ st.isActive?lit.add(s):lit.delete(s); window.__homev2Light=lit.size>0; if(!nav.classList.contains('is-menu-open')) nav.classList.toggle('is-on-light',window.__homev2Light); }}); });
-  } else { $$('.is-rev').forEach(e=>{e.style.opacity=1;e.style.transform='none'}); $$('.homev2_line > span').forEach(s=>s.style.transform='none'); $('#openPh').style.clipPath='none';
+  } else { $$('.is-rev').forEach(e=>{e.style.opacity=1;e.style.transform='none'}); $$('.homev2_line > span').forEach(s=>s.style.transform='none'); if($('#openPh')) $('#openPh').style.clipPath='none';
     /* reduced motion (a laptop with "Reduce motion" on): the Vitality Centre's intro and its amenity list share one sticky frame, so without
        the scrubbed hand-over both showed on top of each other. Same hand-over here as plain cross-fades: no movement, no slat wipe. */
     const lv=$('#vitality');
