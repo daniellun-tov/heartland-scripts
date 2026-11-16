@@ -4579,6 +4579,7 @@
   function gallery() {
     var list = (R && R.media && R.media.gallery) || [];
     var out = [];
+    var seen = {};
     for (var i = 0; i < list.length; i++) {
       var m = list[i] || {};
       var url = safeUrl(m.url);
@@ -4586,6 +4587,10 @@
         warn("render", m.key || "(no key)", "has a link this page will not render:", m.url);
         continue;
       }
+      /* The same picture twice is one picture: a type whose Your home and Aerial view
+         point at one file shows it once, under the first (lowest sort_order) label. */
+      if (seen[url]) continue;
+      seen[url] = true;
       out.push({
         key    : String(m.key || ""),
         label  : String(m.label || ""),
