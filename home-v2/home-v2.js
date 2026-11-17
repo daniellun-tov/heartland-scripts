@@ -523,6 +523,10 @@
           bgs=$$('.homev2-chapters_bg',sec), stages=$$('.homev2-chapters_stage',sec), wins=$$('.homev2-chapters_photo',sec);
     if(!track||bgs.length<2) return;
     const N=bgs.length, bimg=bgs.map(b=>$('img',b)), pimg=wins.map(w=>$('img',w));
+    /* Webflow ships these tall-cropped backgrounds with sizes=100vw, so a phone fetches an 800-1080px variant and stretches it;
+       tell the browser the image renders far wider than the screen so it picks the 2600px variant (tablet and phone only) */
+    const mq=matchMedia('(max-width:991px)'), setSizes=()=>{ if(mq.matches) bimg.forEach(i=>{ if(i) i.sizes='2600px'; }); };
+    setSizes(); if(mq.addEventListener) mq.addEventListener('change',setSizes);
     const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2, cl=x=>Math.max(0,Math.min(1,x));
     const H0=.35, HM=.7, TOT=2*H0+(N-2)*HM+(N-1);
     const toT=p=>{ let u=p*TOT-H0; if(u<=0) return 0; for(let k=0;k<N-1;k++){ if(u<1) return k+u; u-=1; if(k<N-2){ if(u<HM) return k+1; u-=HM; } } return N-1; };

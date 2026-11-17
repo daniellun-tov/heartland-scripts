@@ -30,8 +30,12 @@ html.homev2-lightbox-open{overflow:hidden}
 .homev2-lightbox_thumb:hover,.homev2-lightbox_thumb.is-on{opacity:1}
 .homev2-lightbox_thumb.is-on{border-color:var(--_home-v2---homev2-amber-soft,#d9a574)}
 @media (max-width:767px){
-  .homev2-lightbox_stage{padding:0}
-  .homev2-lightbox_nav,.homev2-lightbox_thumbs{display:none}
+  .homev2-lightbox_stage{padding:0 0 5.5rem}
+  .homev2-lightbox_thumbs{display:none}
+  /* arrows sit side by side, bottom centre, clear of the photo */
+  .homev2-lightbox_nav{top:auto;right:auto;left:50%;bottom:max(1.25rem,env(safe-area-inset-bottom));margin-top:0}
+  .homev2-lightbox_nav.is-prev{left:50%;margin-left:-3.5rem}
+  .homev2-lightbox_nav.is-next{right:auto;margin-left:.5rem}
 }
 @media (prefers-reduced-motion:reduce){.homev2-lightbox,.homev2-progress_video{transition:none}}
 
