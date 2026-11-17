@@ -2543,7 +2543,7 @@
         "Required — the portal login is keyed on it.", ' autocomplete="off" spellcheck="false"') +
       nrField("phone", "Phone", "tel") +
       nrAddressField() +
-      nrSelect("payer_route", "Paying by", [
+      nrSelect("payer_route", "Purchase type", [
         { v: "undecided", t: "Not decided yet" },
         { v: "bond", t: "Bond" },
         { v: "cash", t: "Cash" }
@@ -2613,7 +2613,7 @@
       ["Address", NR.v.address || "not given — the offer will have it blank"],
       ["Home", (prop ? prop.name + " · " : "") + (unit ? (unit.name || unit.unit_number) : "") +
         (unit && unit.price_display ? " · " + unit.price_display : "")],
-      ["Paying by", label(NR.v.payer_route)],
+      ["Purchase type", label(NR.v.payer_route)],
       ["Fee received", (fee ? randsShort(fee) : "the property’s own fee") +
         " · " + label(NR.v.fee_method) + (NR.v.fee_reference ? " · " + NR.v.fee_reference : "") +
         " · " + when],

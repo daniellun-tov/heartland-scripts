@@ -196,7 +196,7 @@ async function fill(p, over) {
       /m\.nkosi@example\.co\.za/.test(s.review.Buyer), s.review.Buyer);
     ok("the home", /Sanford Heart/.test(s.review.Home) && /Home 5/.test(s.review.Home), s.review.Home);
     ok("the address is on the review", /Robert Broom/.test(s.review.Address), s.review.Address);
-    ok("the route", s.review["Paying by"] === "bond", s.review["Paying by"]);
+    ok("the route", s.review["Purchase type"] === "bond", s.review["Purchase type"]);
     /* THE SEPARATOR IS THE RUNTIME'S BUSINESS. This line reads "R 3 000 - eft - FNB
        8821 - today" on a browser with South African locale data and "R 3,000- ..." on
        one without, because the console pins en-ZA and not every Chromium build ships
