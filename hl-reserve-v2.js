@@ -251,7 +251,7 @@
           (f.k === "address" ? '<datalist id="addrlist"></datalist>' : "") +
           (f.k === "id_number" ? '<div id="idNote" class="mut" style="font-size:11px"></div>' : "");
       }).join("") +
-      '<label for="f_payer_route">Route</label>' +
+      '<label for="f_payer_route">Purchase type</label>' +
       '<select id="f_payer_route">' +
         ["bond", "cash", "undecided"].map(function (x) {
           return '<option value="' + x + '"' + (R.payer_route === x ? " selected" : "") + ">" + x + "</option>";
@@ -271,7 +271,7 @@
         (locked ? "locked — " + esc(R._lockReason || "") : "still rebuilding on each save") + "</span></div>" +
       (R.otp_url
         ? '<div class="mono" style="margin-top:6px">' + esc(R.otp_url) + "</div>"
-        : '<div class="mut" style="margin-top:6px">No url yet. Sanford has no cash template, so a cash route stays empty.</div>') +
+        : '<div class="mut" style="margin-top:6px">No url yet. Sanford has no cash template, so a cash purchase stays empty.</div>') +
 
       (locked
         ? '<div class="mut" style="margin-top:10px;font-size:11px">Locked. Saving details again now writes an otp_stale event instead of rewriting the url.</div>'

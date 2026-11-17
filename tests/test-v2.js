@@ -79,6 +79,11 @@ function boot(search, opts) {
     ok("renders the unit name from the snapshot", html.indexOf('Home 7') > -1);
     ok("renders the frozen price", html.indexOf('R3,595,000') > -1);
     ok("renders the plan id", html.indexOf('pln_sanford') > -1);
+    // Bond/cash selector: the visible label is "Purchase type"; the id (and so the posted key) is unchanged.
+    const lab = root().querySelector('label[for="f_payer_route"]');
+    ok("bond/cash selector is labelled Purchase type", !!lab && lab.textContent === "Purchase type");
+    ok("no label reads Route", !/>\s*Route\s*</.test(html));
+    ok("the selector id is still f_payer_route", !!root().getElementById('f_payer_route'));
   }
   // 4. saving details, then confirming, drives the lock
   {

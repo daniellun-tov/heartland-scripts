@@ -246,6 +246,8 @@ const openSetup = async (p, sub) => {
     await click(p, "[data-pl-deal]"); await p.waitForTimeout(600);
     ok("the reservation link opens the deal in Deals", (await attr(p, "#tabPipe", "aria-selected")) === "true" &&
       (await count(p, "#drawer h1")) === 1, await attr(p, "#tabPipe", "aria-selected"));
+    const dts = await p.evaluate(() => [...document.getElementById("hl-console-host").shadowRoot.querySelectorAll("#drawer dt")].map(e => e.textContent));
+    ok("the deal drawer labels bond/cash as Purchase type, never Route", dts.indexOf("Purchase type") > -1 && dts.indexOf("Route") === -1, dts);
     await clickId(p, "close"); await clickId(p, "tabLeads"); await p.waitForTimeout(400);
 
     await click(p, '[data-pl-sort="last_name"]'); await p.waitForTimeout(150);

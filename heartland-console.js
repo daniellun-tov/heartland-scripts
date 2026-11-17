@@ -3341,7 +3341,7 @@
     var hidden = SUBS.filter(function (s) { return allowed.indexOf(s) === -1; });
     if (hidden.length) {
       bar += '<span class="muted" style="font-size:.75rem;align-self:center">' +
-             esc(label(r.payer_route || "undecided")) + " route — " +
+             "Purchase type: " + esc(label(r.payer_route || "undecided")) + " — " +
              esc(hidden.map(label).join(", ")) + " never apply</span>";
     }
     return bar;
@@ -3376,7 +3376,7 @@
       '<dl class="dl">' +
         "<dt>Email</dt><dd>" + esc(r.email || "—") + "</dd>" +
         "<dt>Phone</dt><dd>" + esc(r.phone || "—") + "</dd>" +
-        "<dt>Route</dt><dd>" + esc(label(r.payer_route)) + "</dd>" +
+        "<dt>Purchase type</dt><dd>" + esc(label(r.payer_route)) + "</dd>" +
         "<dt>Payment</dt><dd>" + esc(label(r.status)) +
           (r.pf_payment_id ? ' <span class="muted mono">' + esc(r.pf_payment_id) + "</span>" : "") + "</dd>" +
         "<dt>Confirmed</dt><dd>" + esc(when(r.confirmed_at)) + "</dd>" +
@@ -3414,7 +3414,7 @@
               '<a href="' + esc(r.otp_url) + '" target="_blank" rel="noopener">Open</a>' +
             "</div>" +
             '<div class="muted" style="font-size:.8125rem">Built when the buyer confirmed their details, and frozen from that point. Send this if they need it again.</div>'
-          : '<div class="muted" style="font-size:.8125rem">No OTP link yet. It is built when the buyer confirms their details, and only for a route that has a template &mdash; Sanford has no cash template today.</div>') +
+          : '<div class="muted" style="font-size:.8125rem">No OTP link yet. It is built when the buyer confirms their details, and only for a purchase type that has a template &mdash; Sanford has no cash template today.</div>') +
       "</div>" +
 
       '<div class="sect"><h2>Money</h2><dl class="dl">' +
@@ -3456,7 +3456,7 @@
                 '<button class="primary" id="mvGo">Move deal</button>' +
                 '<div class="err" id="mvErr" style="margin-top:10px"></div>' +
                 '<div class="ok" id="mvOk"></div>'
-              : '<div class="none">Nothing further to move to on this route.</div>')
+              : '<div class="none">Nothing further to move to for this purchase type.</div>')
           : '<div class="none">A deal stage starts once the hold fee is paid. This reservation is ' +
             esc(label(r.status)) + ".</div>") +
       "</div>" +
