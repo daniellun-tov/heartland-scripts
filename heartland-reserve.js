@@ -477,7 +477,45 @@
     }
   }
 
+  /* THE BUYER'S CONFIGURATOR CHOICES, AS {label, value} ROWS. One list for the flow and the
+     portal, so the two cannot disagree about what the buyer chose (18 Nov 2026). Read from
+     reservation.configuration, which map_form_fields fills from the brochure form. Labels only -
+     nothing here prices anything. A choice of "None" is not a line; a Yes/No upgrade is a line
+     only when it is yes. storage_label and yale_label added for Outeniqua. */
+  var CHOICE_LABELS = [
+    ["floor_label", "Flooring"],
+    ["outdoor_label", "Outdoor"],
+    ["solar_label", "Energy"],
+    ["appliance_label", "Appliances"],
+    ["furniture_label", "Furniture"],
+    ["storage_label", "Storage"],
+    ["yale_label", "Smart lock"]
+  ];
+  var CHOICE_FLAGS = [
+    ["garage_upgrade", "Garage upgrade"],
+    ["pool_upgrade", "Pool"],
+    ["fireplace_upgrade", "Fireplace"]
+  ];
+
+  function choices(configuration) {
+    var c = (configuration && typeof configuration === "object") ? configuration : {};
+    var out = [];
+    var i, v;
+    for (i = 0; i < CHOICE_LABELS.length; i++) {
+      v = String(c[CHOICE_LABELS[i][0]] === undefined || c[CHOICE_LABELS[i][0]] === null ? "" : c[CHOICE_LABELS[i][0]]).trim();
+      if (!v || v.toLowerCase() === "none") { continue; }
+      out.push({key: CHOICE_LABELS[i][0], label: CHOICE_LABELS[i][1], value: v});
+    }
+    for (i = 0; i < CHOICE_FLAGS.length; i++) {
+      v = String(c[CHOICE_FLAGS[i][0]] === undefined || c[CHOICE_FLAGS[i][0]] === null ? "" : c[CHOICE_FLAGS[i][0]]).trim();
+      if (v.toLowerCase() !== "yes") { continue; }
+      out.push({key: CHOICE_FLAGS[i][0], label: CHOICE_FLAGS[i][1], value: "Included"});
+    }
+    return out;
+  }
+
   w.HLRender = {
+    choices: choices,
     money: money,
     path: path,
     display: display,
@@ -1762,9 +1800,39 @@
     });
   }
 
+  /* THE BUYER'S CHOICES ON THE FLOW (18 Nov 2026). Daniel: the buyer should see their
+     configurator selections being saved. Any [data-hl-choices] block is filled with one
+     .hl-row per choice - into its [data-hl-choices-list] child if it has one - and the whole
+     block is hidden when there is nothing to show, so a buyer who chose nothing sees no empty
+     heading. Rows are built with textContent; nothing from the reservation becomes markup. */
+  function renderChoices() {
+    var blocks = d.querySelectorAll("[data-hl-choices]");
+    if (!blocks.length) { return; }
+    var items = w.HLRender.choices(R && R.configuration);
+    for (var b = 0; b < blocks.length; b++) {
+      var list = blocks[b].querySelector("[data-hl-choices-list]") || blocks[b];
+      while (list.firstChild) { list.removeChild(list.firstChild); }
+      for (var i = 0; i < items.length; i++) {
+        var row = d.createElement("div");
+        row.className = "hl-row";
+        var k = d.createElement("div");
+        k.className = "hl-row-key";
+        k.textContent = items[i].label;
+        var v = d.createElement("div");
+        v.className = "hl-row-value";
+        v.textContent = items[i].value;
+        row.appendChild(k);
+        row.appendChild(v);
+        list.appendChild(row);
+      }
+      blocks[b].style.display = items.length ? "" : "none";
+    }
+  }
+
   function render() {
     if (!R) { return; }
     renderDisplays();
+    renderChoices();
     renderInputs();
     renderStep();
     applyBuyerType();
@@ -4772,36 +4840,8 @@
 
      A choice of "None" is not a line. Printing "Energy: None" fills a summary with
      things the buyer did not buy. */
-  var SPEC_CHOICES = [
-    ["floor_label", "Flooring"],
-    ["outdoor_label", "Outdoor"],
-    ["solar_label", "Energy"],
-    ["appliance_label", "Appliances"],
-    ["furniture_label", "Furniture"]
-  ];
-
-  /* Yes/No upgrades, shown ONLY when the answer is yes, for the same reason. */
-  var SPEC_FLAGS = [
-    ["garage_upgrade", "Garage upgrade"],
-    ["pool_upgrade", "Pool"],
-    ["fireplace_upgrade", "Fireplace"]
-  ];
-
   function spec() {
-    var c = (R && R.configuration) || {};
-    var out = [];
-    var i, v;
-    for (i = 0; i < SPEC_CHOICES.length; i++) {
-      v = String(c[SPEC_CHOICES[i][0]] === undefined ? "" : c[SPEC_CHOICES[i][0]]).trim();
-      if (!v || v.toLowerCase() === "none") { continue; }
-      out.push({key: SPEC_CHOICES[i][0], label: SPEC_CHOICES[i][1], value: v});
-    }
-    for (i = 0; i < SPEC_FLAGS.length; i++) {
-      v = String(c[SPEC_FLAGS[i][0]] === undefined ? "" : c[SPEC_FLAGS[i][0]]).trim();
-      if (v.toLowerCase() !== "yes") { continue; }
-      out.push({key: SPEC_FLAGS[i][0], label: SPEC_FLAGS[i][1], value: "Included"});
-    }
-    return out;
+    return w.HLRender.choices(R && R.configuration);
   }
 
   /* The template is captured before the first render and kept by identity rather than

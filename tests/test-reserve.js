@@ -472,6 +472,41 @@ const stepShown = (b, name) => b.shown('[data-hl-step="' + name + '"]');
        b.$('[data-hl-theme]').style.getPropertyValue('--hl-primary') === '');
   }
 
+  /* 18 Nov 2026 - the buyer's configurator choices are shown on the flow. */
+  {
+    const b = boot({ resOver: { configuration: {
+      floor_label: "Light Oak", appliance_label: "Luxury Upgrade", outdoor_label: "Patio Deck Upgrade",
+      storage_label: "Storage 1", yale_label: "None", solar_label: "",
+      garage_upgrade: "Yes", pool_upgrade: "No", include_bond_cost: "No"
+    } } });
+    await wait(80);
+    const rows = Array.from(b.w.document.querySelectorAll('[data-hl-choices-list] .hl-row'))
+      .map(r => r.querySelector('.hl-row-key').textContent + '=' + r.querySelector('.hl-row-value').textContent);
+    ok("the flow lists the buyer's choices", rows.indexOf("Flooring=Light Oak") > -1 &&
+       rows.indexOf("Appliances=Luxury Upgrade") > -1 && rows.indexOf("Outdoor=Patio Deck Upgrade") > -1);
+    ok("storage is listed (Outeniqua)", rows.indexOf("Storage=Storage 1") > -1);
+    ok("a None choice and an empty one are not lines", !rows.some(r => /Smart lock|Energy/.test(r)));
+    ok("a Yes upgrade is Included and a No upgrade is not a line",
+       rows.indexOf("Garage upgrade=Included") > -1 && !rows.some(r => /Pool/.test(r)));
+    ok("finance flags are not choices", !rows.some(r => /bond/i.test(r)));
+    ok("the block is shown", b.w.document.querySelector('[data-hl-choices]').style.display === "");
+  }
+
+  {
+    const b = boot({ resOver: { configuration: { yale_label: "None" } } });
+    await wait(80);
+    ok("a buyer with no choices sees no empty block",
+       b.w.document.querySelector('[data-hl-choices]').style.display === "none" &&
+       b.w.document.querySelectorAll('[data-hl-choices-list] .hl-row').length === 0);
+  }
+
+  {
+    const b = boot({ resOver: { configuration: { floor_label: "<img src=x onerror=alert(1)>" } } });
+    await wait(80);
+    ok("a choice is text, never markup",
+       b.w.document.querySelectorAll('[data-hl-choices-list] img').length === 0);
+  }
+
   const fails = A.filter(a => !a.pass);
   A.forEach(a => console.log((a.pass ? "  ok  " : "FAIL  ") + a.n));
   console.log("\n" + (A.length - fails.length) + "/" + A.length + " passed");
