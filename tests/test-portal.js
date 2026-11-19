@@ -224,6 +224,80 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   }
 
   {
+    /* BUILD AND MOVE-IN HAVE SUB-STAGES (19 Nov), and none has a countdown: the server
+       stores no deadline for them, so the clock must stay blank and no deadline wording
+       may appear. The fixture draws only the finance steps, so the Designer's extra
+       steps are added here - which is also the case a real page would be in once they
+       exist. */
+    const NEW = ["upgrade-meeting", "construction-start", "finalise-upgrades", "site-visit",
+      "meet-your-home", "pre-transfer-occupation", "lodgement", "registration-occupation",
+      "property-registration", "owner"];
+    const extra = NEW.map(k => '<div data-hl-substage="' + k + '"><span data-hl-mark class="hl-substep-mark"></span><span>' + k + '</span></div>').join("");
+    const page = PAGE.replace('<div data-hl-substage="transfer-attorneys">', extra + '<div data-hl-substage="transfer-attorneys">');
+    ok("(test setup) the extra steps made it into the page", page.indexOf('data-hl-substage="owner"') > -1);
+    const at = (over) => boot({ page, list: [res(Object.assign({ deal_stage_due_at: null, days_left: null }, over))] });
+
+    const b = await at({ payer_route: "cash", deal_stage: "build", deal_sub_stage: "upgrade-meeting" });
+    await wait(80);
+    const cls = sel => b.$(sel).className;
+    ok("build/upgrade-meeting: the sub-stage is named 'Upgrade meeting'",
+       b.$('[data-hl-next-title]').textContent === "Upgrade meeting");
+    ok("build/upgrade-meeting: build is the active stage", /is-active/.test(cls('[data-hl-stage="build"]')));
+    ok("build/upgrade-meeting: finance is a done stage", /is-done/.test(cls('[data-hl-stage="finance"]')));
+    ok("build/upgrade-meeting: its own step is active", /is-active/.test(cls('[data-hl-substage="upgrade-meeting"]')));
+    ok("build/upgrade-meeting: every cash finance step is done",
+       ["sign-otp", "pay-deposit", "transfer-attorneys"].every(k => /is-done/.test(cls('[data-hl-substage="' + k + '"]'))));
+    ok("build/upgrade-meeting: the later steps are not done and not active",
+       /is-todo/.test(cls('[data-hl-substage="construction-start"]')) && /is-todo/.test(cls('[data-hl-substage="lodgement"]')));
+    ok("build/upgrade-meeting: no finance step is active", !b.all('[data-hl-substage].is-active').some(e => /sign-otp|pay-deposit|transfer-attorneys/.test(e.getAttribute('data-hl-substage'))));
+    ok("build/upgrade-meeting: exactly one sub-step is active", b.all('[data-hl-substage].is-active').length === 1);
+    ok("build/upgrade-meeting: no countdown number", b.$('[data-hl-countdown]').textContent === "");
+    ok("build/upgrade-meeting: no deadline wording", b.$('[data-hl-countdown-label]').textContent === "");
+    ok("build/upgrade-meeting: no due date and the deadline card is hidden",
+       b.$('[data-hl-due]').textContent === "" && !b.shown('[data-hl-countdown-wrap]'));
+    ok("build/upgrade-meeting: the next-step eyebrow is shown", b.shown('[data-hl-next]'));
+
+    const m = await at({ payer_route: "bond", deal_stage: "move-in", deal_sub_stage: "owner" });
+    await wait(80);
+    const cm = sel => m.$(sel).className;
+    ok("move-in/owner: the sub-stage is named 'Owner'", m.$('[data-hl-next-title]').textContent === "Owner");
+    ok("move-in/owner: move-in is the active stage and build a done one",
+       /is-active/.test(cm('[data-hl-stage="move-in"]')) && /is-done/.test(cm('[data-hl-stage="build"]')));
+    ok("move-in/owner: its own step is active and the one before it is done",
+       /is-active/.test(cm('[data-hl-substage="owner"]')) && /is-done/.test(cm('[data-hl-substage="property-registration"]')));
+    ok("move-in/owner: finance and build steps are done",
+       /is-done/.test(cm('[data-hl-substage="bond-approved"]')) && /is-done/.test(cm('[data-hl-substage="site-visit"]')));
+    ok("move-in/owner: no countdown and no deadline wording",
+       m.$('[data-hl-countdown]').textContent === "" && m.$('[data-hl-countdown-label]').textContent === "");
+
+    const l = await at({ payer_route: "bond", deal_stage: "move-in", deal_sub_stage: "lodgement" });
+    await wait(80);
+    ok("move-in/lodgement is labelled 'Lodgement'", l.$('[data-hl-next-title]').textContent === "Lodgement");
+    ok("move-in/lodgement: pre-transfer-occupation is done, registration-occupation is not",
+       /is-done/.test(l.$('[data-hl-substage="pre-transfer-occupation"]').className) &&
+       /is-todo/.test(l.$('[data-hl-substage="registration-occupation"]').className));
+
+    /* the multi-word labels are the ones most likely to be mistyped */
+    const lab = {};
+    for (const k of ["registration-occupation", "pre-transfer-occupation", "finalise-upgrades"]) {
+      const x = await at({ deal_stage: k === "finalise-upgrades" ? "build" : "move-in", deal_sub_stage: k });
+      await wait(60);
+      lab[k] = x.$('[data-hl-next-title]').textContent;
+    }
+    ok("'Registration and occupation' is spelled out", lab["registration-occupation"] === "Registration and occupation");
+    ok("'Pre-transfer occupation' keeps its hyphen", lab["pre-transfer-occupation"] === "Pre-transfer occupation");
+    ok("'Finalise upgrades' reads as words", lab["finalise-upgrades"] === "Finalise upgrades");
+
+    /* LEGACY: a build row with no sub-stage has finished finance */
+    const g = await at({ payer_route: "cash", deal_stage: "build", deal_sub_stage: "" });
+    await wait(80);
+    ok("legacy build: finance steps read as done",
+       ["sign-otp", "pay-deposit", "transfer-attorneys"].every(k => /is-done/.test(g.$('[data-hl-substage="' + k + '"]').className)));
+    ok("legacy build: no sub-step is active", g.all('[data-hl-substage].is-active').length === 0);
+    ok("legacy build: still claims no next step", !g.shown('[data-hl-next]'));
+  }
+
+  {
     /* EMPTY means not started. UNKNOWN means Xano moved on past this file - and
        answering that with "pre-qualify" would be worse than answering awkwardly. */
     const b = boot({ list: [res({ deal_stage: "finance", deal_sub_stage: "snagging" })] });

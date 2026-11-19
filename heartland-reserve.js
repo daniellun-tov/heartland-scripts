@@ -2510,6 +2510,16 @@
     cash: ["sign-otp", "pay-deposit", "transfer-attorneys"]
   };
 
+  /* BUILD AND MOVE-IN HAVE SUB-STAGES TOO (server change, 19 Nov), the same on every
+     route. They carry no countdown: the server stores no deadline for them, so the clock
+     and the due date stay blank by themselves and nothing here invents one. The tracker
+     walks finance (by route), then these, in that order. */
+  var STAGE_SUBS = {
+    build: ["upgrade-meeting", "construction-start", "finalise-upgrades", "site-visit"],
+    "move-in": ["meet-your-home", "pre-transfer-occupation", "lodgement",
+                "registration-occupation", "property-registration", "owner"]
+  };
+
   /* LABELS EXIST ONLY FOR THE HOME INDEX. Everywhere else the Designer writes the
      words and this script only sets classes - which is the right division and stays
      that way. But a card the script CLONES has no author to write "Sign OTP" into it,
@@ -2522,7 +2532,12 @@
   var SUBSTAGE_LABEL = {
     "pre-qualify": "Pre-qualify", "sign-otp": "Sign the Offer to Purchase",
     "pay-deposit": "Pay the deposit", "bond-approval": "Bond approval",
-    "bond-approved": "Bond approved", "transfer-attorneys": "With the transfer attorneys"
+    "bond-approved": "Bond approved", "transfer-attorneys": "With the transfer attorneys",
+    "upgrade-meeting": "Upgrade meeting", "construction-start": "Construction start",
+    "finalise-upgrades": "Finalise upgrades", "site-visit": "Site visit",
+    "meet-your-home": "Meet your home", "pre-transfer-occupation": "Pre-transfer occupation",
+    "lodgement": "Lodgement", "registration-occupation": "Registration and occupation",
+    "property-registration": "Property registration", "owner": "Owner"
   };
   /* WHAT THE CLOCK IS COUNTING, in words. Four numbers under DAYS / HOURS / MINUTES /
      SECONDS tell a buyer how long something has left without ever saying what - and a
@@ -2814,8 +2829,14 @@
     return (r === "cash") ? "cash" : "bond";
   }
 
-  function markProgress(sel, attr, order, current) {
+  /* `floor` is for a deal that is past a group of steps but has no step of its own yet
+     (a build row from before build had sub-stages): the first `floor` steps read as done
+     rather than as not-yet, which is what "finance is finished" means on the tracker. It
+     applies only when `current` is empty - a value this file does not recognise is still
+     left unlit, as the comment on subStageOf explains. */
+  function markProgress(sel, attr, order, current, floor) {
     var at = order.indexOf(String(current || "").toLowerCase());
+    var below = (at === -1 && !current && floor) ? floor : 0;
     var els = d.querySelectorAll(sel);
     for (var i = 0; i < els.length; i++) {
       var mine = order.indexOf(String(els[i].getAttribute(attr) || "").toLowerCase());
@@ -2826,8 +2847,8 @@
       els[i].style.display = "";
 
       var active = (mine === at);
-      var done = (at > -1 && mine < at);
-      var todo = (at === -1 || mine > at);
+      var done = (at > -1 && mine < at) || (at === -1 && mine < below);
+      var todo = !active && !done;
 
       els[i].classList.toggle("is-active", active);
       els[i].classList.toggle("is-done", done);
@@ -2888,8 +2909,17 @@
 
   function renderStages() {
     markProgress("[data-hl-stage]", "data-hl-stage", STAGES, stageOf(R));
-    markProgress("[data-hl-substage]", "data-hl-substage",
-                 SUBSTAGES[routeOf(R)], subStageOf(R));
+    /* THE SUB-STEP TRACKER WALKS THE WHOLE PATH: the route's finance steps, then build,
+       then move-in. A build or move-in deal therefore lights its own step and shows every
+       finance step (and, in move-in, every build step) as done. A page that draws only
+       the finance steps is unaffected - elements for steps it does not draw are simply
+       not there. */
+    var fin = SUBSTAGES[routeOf(R)];
+    var path = fin.concat(STAGE_SUBS.build, STAGE_SUBS["move-in"]);
+    var st = stageOf(R);
+    var floor = (st === "build") ? fin.length
+              : (st === "move-in") ? fin.length + STAGE_SUBS.build.length : 0;
+    markProgress("[data-hl-substage]", "data-hl-substage", path, subStageOf(R), floor);
 
     var route = routeOf(R);
     var els = d.querySelectorAll("[data-hl-route]");
