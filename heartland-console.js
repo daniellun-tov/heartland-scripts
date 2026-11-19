@@ -1911,6 +1911,24 @@
     "pre-qualify": 7, "sign-otp": 7, "pay-deposit": 7,
     "transfer-attorneys": null, "bond-approval": 30, "bond-approved": null
   };
+  /* BUILD AND MOVE-IN GOT SUB-STAGES TOO (server change, 19 Nov). The same on every route,
+     and none has a countdown - which is why WINDOW_DAYS needs no entries for them: an
+     absent key already reads "no countdown". SUBS above stays finance-only on purpose,
+     because the dashboard funnel counts deals per finance step and reads it. */
+  var STAGE_SUBS = {
+    build: ["upgrade-meeting", "construction-start", "finalise-upgrades", "site-visit"],
+    "move-in": ["meet-your-home", "pre-transfer-occupation", "lodgement",
+                "registration-occupation", "property-registration", "owner"]
+  };
+  /* The ten new steps get proper sentence-case words; the finance steps keep label()'s
+     output, which is what every existing screen and test already shows for them. */
+  var SUB_LABEL = {
+    "upgrade-meeting": "Upgrade meeting", "construction-start": "Construction start",
+    "finalise-upgrades": "Finalise upgrades", "site-visit": "Site visit",
+    "meet-your-home": "Meet your home", "pre-transfer-occupation": "Pre-transfer occupation",
+    "lodgement": "Lodgement", "registration-occupation": "Registration and occupation",
+    "property-registration": "Property registration", "owner": "Owner"
+  };
 
   /* ---------- storage ---------- */
   function token() { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return S.tok || ""; } }
@@ -1957,6 +1975,7 @@
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   function label(s) { return String(s || "").replace(/-/g, " ").replace(/_/g, " "); }
+  function subLabel(s) { return SUB_LABEL[s] || label(s); }
   function name(r) { return [r.first_name, r.last_name].filter(Boolean).join(" ") || r.email || "—"; }
 
   /* A DEADLINE INSIDE THREE DAYS IS AN HOURS-AND-MINUTES PROBLEM, NOT A DAYS ONE.
@@ -3263,7 +3282,7 @@
             return '<div class="item" data-uuid="' + esc(r.uuid) + '">' +
               '<div><div class="lead">' + esc(name(r)) + "</div>" +
               '<div class="meta">' + esc(r.property_name) + " · " + esc(r.unit_name) +
-              (r.deal_sub_stage ? " · " + esc(label(r.deal_sub_stage)) : "") + "</div></div>" +
+              (r.deal_sub_stage ? " · " + esc(subLabel(r.deal_sub_stage)) : "") + "</div></div>" +
               "<div>" + (g.key === "flagged"
                 ? '<span class="tag crit">' + esc((r.admin_notes || "").slice(0, 60)) + "</span>"
                 : deadline(r)) + "</div></div>";
@@ -3309,7 +3328,7 @@
         "<td>" + esc(r.property_name) + '<div class="muted">' + esc(r.unit_name) + "</div></td>" +
         '<td><span class="pill s-' + esc(r.status) + '"><span class="dot"></span>' + esc(label(r.status)) + "</span></td>" +
         "<td>" + (r.deal_stage ? esc(label(r.deal_stage)) +
-            '<div class="muted">' + esc(label(r.deal_sub_stage || "")) + "</div>"
+            '<div class="muted">' + esc(subLabel(r.deal_sub_stage || "")) + "</div>"
           : '<span class="muted">not started</span>') + "</td>" +
         "<td>" + deadline(r) + "</td>" +
         '<td class="num">' + esc(rands(r.reservation_fee_cents)) + "</td>" +
@@ -3326,17 +3345,52 @@
     return (S.data.items || []).filter(function (r) { return r.uuid === uuid; })[0];
   }
 
+  /* THE BUYER'S WHOLE PATH, as (stage, sub) steps: the route's finance steps, then build,
+     then move-in. Build and move-in are the same on every route; only finance is filtered
+     by route. This is the one list the bar and the Move-to options both walk, so they
+     cannot disagree about what "next" is. */
+  function dealPath(r) {
+    var allowed = ROUTE[r.payer_route] || ROUTE.undecided;
+    var path = allowed.map(function (s) { return { stage: "finance", sub: s }; });
+    ["build", "move-in"].forEach(function (st) {
+      STAGE_SUBS[st].forEach(function (s) { path.push({ stage: st, sub: s }); });
+    });
+    return path;
+  }
+  /* Where the deal stands on that path. Sub-stage names are unique across stages, so the
+     sub alone finds the step. -1 means "no step yet" (reserve, or finance before any
+     sub-stage); a build / move-in row with NO sub-stage is legacy and is told apart by
+     its stage, because "nothing in build is current" is a different state from "not
+     started". */
+  function pathPos(r, path) {
+    for (var i = 0; i < path.length; i++) {
+      if (path[i].sub === r.deal_sub_stage) { return i; }
+    }
+    return -1;
+  }
+  function legacyStage(r) {
+    return (!r.deal_sub_stage && (r.deal_stage === "build" || r.deal_stage === "move-in"))
+      ? r.deal_stage : "";
+  }
+  function stepKey(st) { return st.stage + ":" + st.sub; }
+
   /* Only the steps this buyer's route actually walks, because that is exactly what
      the buyer sees on their own dashboard. Showing a cash buyer the bond steps -
      even greyed out - invites sales to discuss a step that will never arrive. */
   function stageBar(r) {
     var allowed = ROUTE[r.payer_route] || ROUTE.undecided;
-    var idx = allowed.indexOf(r.deal_sub_stage);
-    var bar = allowed.map(function (s, i) {
+    var path = dealPath(r);
+    var idx = pathPos(r, path);
+    var legacy = legacyStage(r);
+    var bar = path.map(function (st, i) {
       var cls = "step";
-      if (s === r.deal_sub_stage) { cls += " now"; }
+      if (i === idx) { cls += " now"; }
       else if (idx > -1 && i < idx) { cls += " done"; }
-      return '<span class="' + cls + '">' + esc(label(s)) + "</span>";
+      /* A legacy row has no current step, but everything in the stages before its own
+         is behind it: a legacy build row has finished finance, a legacy move-in row has
+         finished finance and build. Nothing in its own stage is marked now. */
+      else if (legacy && STAGES.indexOf(st.stage) < STAGES.indexOf(legacy)) { cls += " done"; }
+      return '<span class="' + cls + '">' + esc(subLabel(st.sub)) + "</span>";
     }).join("");
     var hidden = SUBS.filter(function (s) { return allowed.indexOf(s) === -1; });
     if (hidden.length) {
@@ -3347,12 +3401,27 @@
     return bar;
   }
 
+  /* WHAT THE SERVER WILL ACCEPT, and nothing more: every earlier step (back any
+     distance), and the NEXT step only. A legacy build / move-in row has no step to
+     measure "next" from, so it may go to any step of its own stage, to any earlier step,
+     and to the first step of the stage after. Each option carries its own stage. */
   function stageOptions(r) {
-    var allowed = ROUTE[r.payer_route] || ROUTE.undecided;
-    if (!r.deal_sub_stage) { return allowed.slice(0, 1).concat(allowed.slice(1)); }
-    var i = allowed.indexOf(r.deal_sub_stage);
-    if (i === -1) { return allowed; }
-    return allowed.filter(function (s, j) { return j !== i && j <= i + 1; });
+    var path = dealPath(r);
+    var legacy = legacyStage(r);
+    if (legacy) {
+      var next = STAGES[STAGES.indexOf(legacy) + 1];
+      var nextFirst = next && STAGE_SUBS[next] ? STAGE_SUBS[next][0] : "";
+      return path.filter(function (st) {
+        return STAGES.indexOf(st.stage) < STAGES.indexOf(legacy) ||
+               st.stage === legacy || st.sub === nextFirst;
+      });
+    }
+    var i = pathPos(r, path);
+    /* No step yet, or a finance step this route does not walk: keep today's behaviour -
+       every finance step of the route, and nothing beyond (the server moves reserve and
+       finance forward by stage, one at a time). */
+    if (i === -1) { return path.filter(function (st) { return st.stage === "finance"; }); }
+    return path.filter(function (st, j) { return j !== i && j <= i + 1; });
   }
 
   function openDrawer(uuid) {
@@ -3446,9 +3515,9 @@
             "</div>" +
             (opts.length
               ? '<div style="margin-bottom:10px"><label for="mvSub">Move to</label>' +
-                '<select id="mvSub">' + opts.map(function (s) {
-                  var w = WINDOW_DAYS[s];
-                  return '<option value="' + esc(s) + '">' + esc(label(s)) +
+                '<select id="mvSub">' + opts.map(function (st) {
+                  var w = WINDOW_DAYS[st.sub];
+                  return '<option value="' + esc(stepKey(st)) + '">' + esc(subLabel(st.sub)) +
                     (w ? " — " + w + " day window" : " — no countdown") + "</option>";
                 }).join("") + "</select></div>" +
                 '<div style="margin-bottom:10px"><label for="mvDue">Deadline override <span class="muted">(optional)</span></label>' +
@@ -4364,7 +4433,11 @@
   }
 
   function moveStage(r) {
-    var sub = $("mvSub").value;
+    /* "stage:sub" - the option carries its own stage, so a move into build or move-in is
+       not sent as finance. */
+    var pick = $("mvSub").value.split(":");
+    var stage = pick[0];
+    var sub = pick[1];
     var due = $("mvDue").value;
     var why = "changed in the sales console";
     var go = $("mvGo");
@@ -4374,13 +4447,13 @@
     $("mvErr").textContent = "";
     $("mvOk").textContent = "Saving…";
 
-    var body = { deal_stage: "finance", deal_sub_stage: sub, reason: why };
+    var body = { deal_stage: stage, deal_sub_stage: sub, reason: why };
     if (due) { body.due_at_override = new Date(due + "T12:00:00").getTime() + ""; }
 
     api("/staff/reservations/" + encodeURIComponent(r.uuid) + "/stage",
         { method: "POST", body: JSON.stringify(body) })
       .then(function (res) {
-        $("mvOk").textContent = "Moved to " + label(res.deal_sub_stage) +
+        $("mvOk").textContent = "Moved to " + subLabel(res.deal_sub_stage) +
           (res.deal_stage_due_at ? ", due " + day(res.deal_stage_due_at) : "") + ".";
         return load();
       })
@@ -8872,7 +8945,7 @@
     }
     if (col.key === "res_deal") {
       if (!l.res_deal_stage) { return ""; }
-      return label(l.res_deal_stage) + (l.res_deal_sub_stage ? " · " + label(l.res_deal_sub_stage) : "");
+      return label(l.res_deal_stage) + (l.res_deal_sub_stage ? " · " + subLabel(l.res_deal_sub_stage) : "");
     }
     if (col.key === "res_due") {
       if (!l.res_deal_stage_due_at) { return ""; }
