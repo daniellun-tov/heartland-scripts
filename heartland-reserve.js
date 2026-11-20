@@ -2468,7 +2468,11 @@
      .is-blocked                       added to [data-hl-portal]
 
    THE STEP PRESENTATION. One deck per sub-stage, cash and bond where they differ.
-     [data-hl-slides]                  where the deck goes; hidden when the step has none
+     [data-hl-slides-card]             the cover card: slide 1, "1 / N", the deck's title,
+                                       "N slides · about 2 minutes", View the slides.
+                                       Opens the deck in the gallery lightbox at slide 1.
+                                       Hidden when the step has no deck (build, move-in).
+     [data-hl-slides]                  the older scrolling strip of every slide; same rules
 
    LISTS - one renderer, three lists. The Designer draws ONE row; the script clones
    it per item and removes the original, so a list can be restyled and rearranged
@@ -2646,6 +2650,30 @@
     ]
   };
 
+  /* WHAT EACH DECK IS CALLED on the slides card. Written from the slides themselves, in
+     the buyer's words rather than the file's - the file names describe the state the
+     buyer has just reached ("Deposit Paid"), and the title says what the deck is for.
+     Confirmed with Daniel 20 Nov 2026. A deck with no title here falls back to a
+     generic one rather than showing its file name. */
+  var DECK_TITLES = {
+    "Heartland_01_After_Reserving": "What happens after you reserve",
+    "Heartland_02_OTP_Bond": "After you sign: buying with a bond",
+    "02_OTP_Signed_Cash_Purchase": "After you sign: buying cash",
+    "05_Bond_Deposit_Paid": "Deposit paid: now apply for your bond",
+    "04_Cash_Deposit_Paid": "Deposit paid: what happens from here",
+    "06_Bond_Application_Submitted": "Your bond application is in",
+    "07_Bond_Approved_and_Accepted": "Bond approved: what happens from here"
+  };
+
+  function deckTitle(key) { return DECK_TITLES[key] || "About this step"; }
+
+  /* "about N minutes". Roughly 25 seconds a slide, rounded to a whole minute and never
+     less than one - this is a reassurance about the size of the thing, not a timer. */
+  function deckMinutes(n) {
+    var m = Math.max(1, Math.round(n * 25 / 60));
+    return "about " + m + (m === 1 ? " minute" : " minutes");
+  }
+
   /* sub-stage -> deck, per route. "both" means the route makes no difference. */
   var SLIDE_MAP = {
     "pre-qualify": {"both": "Heartland_01_After_Reserving"},
@@ -2668,7 +2696,8 @@
     if (!deck) { return []; }
     var out = [];
     for (var i = 0; i < deck.length; i++) {
-      out.push({ n: i + 1, of: deck.length, src: SLIDE_CDN + deck[i], deck: key });
+      out.push({ n: i + 1, of: deck.length, src: SLIDE_CDN + deck[i], deck: key,
+                 title: deckTitle(key) });
     }
     return out;
   }
@@ -2940,10 +2969,52 @@
      buyer they have no days left while they still have the evening is how a portal
      causes a phone call. Against the server because a deadline reasoned from the
      device clock is wrong for exactly the buyer whose clock is wrong. */
-  function daysLeft(dueAt) {
-    var due = Number(dueAt);
-    if (!dueAt || !isFinite(due)) { return null; }
+  function daysLeft(ts) {
+    var due = dueAt(ts);
+    if (due === null) { return null; }
     return Math.ceil((due - nowServer()) / DAY);
+  }
+
+  /* A DEAL DEADLINE IS A WHOLE HOUR IN SOUTH AFRICAN TIME, ROUNDED UP - never earlier
+     than the real one. 13:20 is 2pm and 14:00 stays 2pm. move_deal_stage and open_deal
+     store it rounded since 20 Nov; this rounds again so rows written before then read
+     the same, and so the clock counts to the time the buyer is told.
+
+     Africa/Johannesburg is UTC+2 all year with no daylight saving, and two hours is a
+     whole number of hours - so rounding up to the hour in UTC IS rounding up to the
+     hour in SAST. The offset only matters for the words.
+
+     The same rule lives in Heartland Sales (its deadline formatter) and in Xano
+     (move_deal_stage and open_deal round on write). Change all three together. */
+  var HOUR = 60 * 60 * 1000;
+  var SAST_OFFSET = 2 * HOUR;
+  var WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var MONTHS = ["January","February","March","April","May","June",
+                "July","August","September","October","November","December"];
+
+  /* Epoch ms from what Xano sends: a number, a numeric string, or a date string. */
+  function toMs(ts) {
+    if (ts === null || ts === undefined || ts === "") { return null; }
+    var n = Number(ts);
+    if (!isFinite(n)) { n = Date.parse(String(ts)); }
+    return (isFinite(n) && n > 0) ? n : null;
+  }
+
+  function dueAt(ts) {
+    var n = toMs(ts);
+    return (n === null) ? null : Math.ceil(n / HOUR) * HOUR;
+  }
+
+  /* "Sunday 22 November @ 2pm". Lower-case am/pm, no minutes (there are none after
+     rounding), no space. Noon is 12pm; midnight is written out, because "12am" is the
+     one time people read wrongly - and a deadline is the worst place for that. */
+  function fmtDue(ts) {
+    var n = dueAt(ts);
+    if (n === null) { return ""; }
+    var t = new Date(n + SAST_OFFSET);
+    var h = t.getUTCHours();
+    var at = (h === 0) ? "midnight" : (h === 12) ? "12pm" : (h < 12) ? h + "am" : (h - 12) + "pm";
+    return WEEKDAYS[t.getUTCDay()] + " " + t.getUTCDate() + " " + MONTHS[t.getUTCMonth()] + " @ " + at;
   }
 
   function fmtDate(ts) {
@@ -3019,8 +3090,9 @@
     var msLeft = null;        /* exact milliseconds, the clock */
 
     if (R && R.deal_stage_due_at) {
-      var due = Number(R.deal_stage_due_at);
-      if (isFinite(due)) { msLeft = due - nowServer(); }
+      /* To the ROUNDED time, so the clock runs out when the buyer was told it would. */
+      var due = dueAt(R.deal_stage_due_at);
+      if (due !== null) { msLeft = due - nowServer(); }
 
       left = (R.days_left === null || R.days_left === undefined)
         ? daysLeft(R.deal_stage_due_at)
@@ -3088,7 +3160,7 @@
 
     var dues = d.querySelectorAll("[data-hl-due]");
     for (var j = 0; j < dues.length; j++) {
-      dues[j].textContent = R ? fmtDate(R.deal_stage_due_at) : "";
+      dues[j].textContent = R ? fmtDue(R.deal_stage_due_at) : "";
     }
 
     /* reveal(), not display:block. The deadline card is a FLEX ROW in Webflow, and
@@ -3134,9 +3206,8 @@
      who was actually sitting on the page as the clock ran out. */
   function expiryCheck() {
     if (cdReloaded || !R || R.is_blocked) { return; }
-    if (!R.deal_stage_due_at) { return; }
-    var due = Number(R.deal_stage_due_at);
-    if (!isFinite(due) || due - nowServer() > 0) { return; }
+    var due = dueAt(R.deal_stage_due_at);
+    if (due === null || due - nowServer() > 0) { return; }
     cdReloaded = true;
     log("the deadline passed while this page was open - reloading for the server's view");
     w.setTimeout(function () { w.location.reload(); }, 1200);
@@ -3162,6 +3233,8 @@
     var s = d.createElement("style");
     s.setAttribute("data-hl-slides-css", "");
     s.textContent =
+      /* THE STRIP - the old per-step hosts. Kept so a page that still carries a bare
+         [data-hl-slides] keeps working until its Designer change lands. */
       ".hl-sl-strip{display:flex;gap:.75rem;overflow-x:auto;scroll-snap-type:x mandatory;" +
       "-webkit-overflow-scrolling:touch;padding-bottom:.5rem;scrollbar-width:thin}" +
       ".hl-sl-thumb{flex:0 0 auto;width:min(78vw,22rem);scroll-snap-align:start;border:0;padding:0;" +
@@ -3170,88 +3243,166 @@
       ".hl-sl-thumb:hover{transform:translateY(-2px)}" +
       ".hl-sl-thumb img{display:block;width:100%;height:auto}" +
       ".hl-sl-count{font-size:.8125rem;opacity:.7;margin-top:.5rem}" +
-      /* the lightbox */
-      ".hl-sl-box{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.9);display:flex;" +
-      "align-items:center;justify-content:center;padding:1rem}" +
-      ".hl-sl-box img{max-width:100%;max-height:85vh;width:auto;height:auto;display:block}" +
-      ".hl-sl-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);" +
-      "color:#fff;border:0;width:3rem;height:3rem;border-radius:50%;font-size:1.5rem;cursor:pointer;" +
-      "line-height:1}" +
-      ".hl-sl-prev{left:1rem}.hl-sl-next{right:1rem}" +
-      ".hl-sl-close{position:absolute;top:1rem;right:1rem;transform:none}" +
-      ".hl-sl-pos{position:absolute;bottom:1.25rem;left:0;right:0;text-align:center;color:#fff;" +
-      "font-size:.875rem;opacity:.85}" +
-      "@media (max-width:30rem){.hl-sl-btn{width:2.5rem;height:2.5rem}}";
+      /* THE COVER CARD. Its frame (background, border, padding) is the host's, drawn in
+         the Designer with the portal's card class; everything inside is drawn here.
+         Scoped through [data-hl-slides-card] three deep, because the portal styles every
+         h2 in a tab panel as an eyebrow and this title is not one. */
+      "[data-hl-slides-card] .hl-slc{display:flex;flex-direction:column;gap:.875rem}" +
+      "[data-hl-slides-card] .hl-slc-thumb{position:relative;display:block;width:100%;" +
+      "aspect-ratio:16/9;border:0;padding:0;margin:0;cursor:pointer;overflow:hidden;" +
+      "border-radius:var(--hl-radius,.25rem);background:var(--hl-k-sand,var(--hl-line,#e3ded6))}" +
+      "[data-hl-slides-card] .hl-slc-thumb img{display:block;width:100%;height:100%;object-fit:cover;" +
+      "transition:transform .25s ease}" +
+      "[data-hl-slides-card] .hl-slc-thumb:hover img{transform:scale(1.02)}" +
+      "[data-hl-slides-card] .hl-slc-thumb:focus-visible,[data-hl-slides-card] .hl-slc-link:focus-visible" +
+      "{outline:2px solid var(--hl-k-ink,var(--hl-ink,#1c1a17));outline-offset:2px}" +
+      "[data-hl-slides-card] .hl-slc-icon{position:absolute;left:50%;top:50%;width:3.25rem;height:3.25rem;" +
+      "margin:-1.625rem 0 0 -1.625rem;border-radius:999px;background:rgba(28,26,23,.82);color:#fff;" +
+      "display:flex;align-items:center;justify-content:center}" +
+      "[data-hl-slides-card] .hl-slc-badge{position:absolute;right:.625rem;bottom:.625rem;" +
+      "padding:.125rem .5625rem;border-radius:999px;background:var(--hl-k-ink,var(--hl-ink,#1c1a17));color:#fff;" +
+      "font-size:.75rem;font-weight:700;line-height:1.5;font-variant-numeric:tabular-nums;white-space:nowrap}" +
+      "[data-hl-slides-card] .hl-slc-body{min-width:0;display:flex;flex-direction:column;gap:.25rem}" +
+      /* Four deep on purpose: the skin's eyebrow rule for tab-panel h2s is 0,3,1. */
+      "[data-hl-portal] [data-hl-slides-card] .hl-slc .hl-slc-title{margin:0;" +
+      "font-family:var(--hl-k-body,inherit);font-size:1.0625rem;font-weight:700;line-height:1.3;" +
+      "letter-spacing:normal;text-transform:none;opacity:1;color:var(--hl-k-ink,var(--hl-ink,#1c1a17))}" +
+      "[data-hl-slides-card] .hl-slc-meta{font-size:.875rem;color:var(--hl-k-mute,inherit);white-space:nowrap}" +
+      "[data-hl-slides-card] .hl-slc-link{align-self:flex-start;min-height:2.75rem;padding:0;border:0;" +
+      "background:transparent;cursor:pointer;font:inherit;font-size:.9375rem;font-weight:700;" +
+      "color:var(--hl-k-accent,var(--hl-secondary,#845e46));display:inline-flex;align-items:center;gap:.5rem;white-space:nowrap}" +
+      "[data-hl-slides-card] .hl-slc-link:hover{color:var(--hl-k-ink,var(--hl-ink,#1c1a17))}";
     d.head.appendChild(s);
   }
 
-  var lightbox = null;
+  var SVG_GRID = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect>' +
+    '<rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>';
+  var SVG_ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M5 12h14M13 6l6 6-6 6"></path></svg>';
 
-  /* One overlay, reused. Building it per open would leak a node on every click and
-     lose the listeners that close it. */
-  function openLightbox(slides, at) {
-    slideCss();
-    var i = at;
-
-    if (!lightbox) {
-      lightbox = d.createElement("div");
-      lightbox.className = "hl-sl-box";
-      lightbox.setAttribute("role", "dialog");
-      lightbox.setAttribute("aria-modal", "true");
-      lightbox.setAttribute("aria-label", "Step presentation");
-      lightbox.innerHTML =
-        '<img alt="">' +
-        '<button class="hl-sl-btn hl-sl-prev" aria-label="Previous slide">&#8249;</button>' +
-        '<button class="hl-sl-btn hl-sl-next" aria-label="Next slide">&#8250;</button>' +
-        '<button class="hl-sl-btn hl-sl-close" aria-label="Close">&times;</button>' +
-        '<div class="hl-sl-pos"></div>';
-      d.body.appendChild(lightbox);
+  /* ONE LIGHTBOX. The deck opens in the gallery's overlay, so the slides get the swipe,
+     the neighbour preload, the wrap and the focus return the gallery already had. Until
+     20 Nov there was a second overlay (.hl-sl-box) built only for the slides, without
+     swipe - two lightboxes on one page that behaved differently. */
+  function openDeck(slides, at) {
+    var items = [];
+    for (var i = 0; i < slides.length; i++) {
+      items.push({
+        url: slides[i].src,
+        label: slides[i].title || "",
+        alt: (slides[i].title ? slides[i].title + ", " : "") +
+             "slide " + slides[i].n + " of " + slides[i].of
+      });
     }
-
-    var img = lightbox.querySelector("img");
-    var pos = lightbox.querySelector(".hl-sl-pos");
-    var opener = d.activeElement;
-
-    function show(n) {
-      if (n < 0) { n = slides.length - 1; }
-      if (n >= slides.length) { n = 0; }
-      i = n;
-      img.setAttribute("src", slides[i].src);
-      img.setAttribute("alt", "Slide " + slides[i].n + " of " + slides[i].of);
-      pos.textContent = slides[i].n + " / " + slides[i].of;
-    }
-
-    function close() {
-      lightbox.style.display = "none";
-      d.removeEventListener("keydown", onKey);
-      /* Give the page its scroll back, and the focus to whatever opened this. */
-      d.documentElement.style.overflow = "";
-      if (opener && typeof opener.focus === "function") { opener.focus(); }
-    }
-
-    function onKey(e) {
-      if (e.key === "Escape") { close(); }
-      else if (e.key === "ArrowLeft") { show(i - 1); }
-      else if (e.key === "ArrowRight") { show(i + 1); }
-    }
-
-    /* Rebound on every open, because the slide list changes with the sub-stage. */
-    lightbox.querySelector(".hl-sl-prev").onclick = function () { show(i - 1); };
-    lightbox.querySelector(".hl-sl-next").onclick = function () { show(i + 1); };
-    lightbox.querySelector(".hl-sl-close").onclick = close;
-    lightbox.onclick = function (e) { if (e.target === lightbox) { close(); } };
-    d.addEventListener("keydown", onKey);
-
-    d.documentElement.style.overflow = "hidden";
-    lightbox.style.display = "flex";
-    show(at);
-    lightbox.querySelector(".hl-sl-close").focus();
+    return lbOpenItems(items, at, slides.length ? slides[0].title : "");
   }
 
-  /* [data-hl-slides] is where the deck goes. A page without it simply has no
-     presentation - the module does not care, and neither does the Designer. */
+  function drawStrip(host, slides) {
+    var strip = d.createElement("div");
+    strip.className = "hl-sl-strip";
+
+    for (var i = 0; i < slides.length; i++) {
+      var b = d.createElement("button");
+      b.type = "button";
+      b.className = "hl-sl-thumb";
+      b.setAttribute("data-hl-slide", String(slides[i].n));
+      b.setAttribute("aria-label", "Open slide " + slides[i].n + " of " + slides[i].of);
+      var im = d.createElement("img");
+      im.setAttribute("src", slides[i].src);
+      im.setAttribute("alt", "");
+      /* Off-screen slides cost nothing until they are scrolled to. */
+      im.setAttribute("loading", "lazy");
+      im.setAttribute("decoding", "async");
+      b.appendChild(im);
+      (function (list, at) {
+        b.addEventListener("click", function () { openDeck(list, at); });
+      })(slides, i);
+      strip.appendChild(b);
+    }
+
+    var count = d.createElement("div");
+    count.className = "hl-sl-count";
+    count.textContent = slides.length + (slides.length === 1 ? " slide" : " slides") +
+                        " — tap to enlarge";
+
+    host.appendChild(strip);
+    host.appendChild(count);
+  }
+
+  /* THE COVER CARD. Slide 1 stands for the deck; one click opens it at slide 1. Two
+     real buttons, the picture and the link, because a buyer aims at either and a
+     picture that is not a button is a dead area on a phone. Both carry the same label:
+     what they open, by name. */
+  function drawCard(host, slides) {
+    var title = slides[0].title || deckTitle(slides[0].deck);
+    var label = "Open the slides: " + title;
+
+    var wrap = d.createElement("div");
+    wrap.className = "hl-slc";
+
+    var thumb = d.createElement("button");
+    thumb.type = "button";
+    thumb.className = "hl-slc-thumb";
+    thumb.setAttribute("data-hl-slides-open", "thumb");
+    thumb.setAttribute("aria-label", label);
+    var im = d.createElement("img");
+    im.setAttribute("src", slides[0].src);
+    im.setAttribute("alt", "");
+    im.setAttribute("decoding", "async");
+    thumb.appendChild(im);
+    var icon = d.createElement("span");
+    icon.className = "hl-slc-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML = SVG_GRID;
+    thumb.appendChild(icon);
+    var badge = d.createElement("span");
+    badge.className = "hl-slc-badge";
+    badge.setAttribute("aria-hidden", "true");
+    badge.setAttribute("data-hl-slides-badge", "");
+    badge.textContent = "1 / " + slides.length;
+    thumb.appendChild(badge);
+
+    var body = d.createElement("div");
+    body.className = "hl-slc-body";
+    var h = d.createElement("h2");
+    h.className = "hl-slc-title";
+    h.setAttribute("data-hl-slides-title", "");
+    h.textContent = title;
+    var meta = d.createElement("span");
+    meta.className = "hl-slc-meta";
+    meta.setAttribute("data-hl-slides-meta", "");
+    meta.textContent = slides.length + (slides.length === 1 ? " slide" : " slides") +
+                       " · " + deckMinutes(slides.length);
+    var link = d.createElement("button");
+    link.type = "button";
+    link.className = "hl-slc-link";
+    link.setAttribute("data-hl-slides-open", "link");
+    link.setAttribute("aria-label", label);
+    link.innerHTML = "View the slides" + SVG_ARROW;
+    body.appendChild(h);
+    body.appendChild(meta);
+    body.appendChild(link);
+
+    function open() { openDeck(slides, 0); }
+    thumb.addEventListener("click", open);
+    link.addEventListener("click", open);
+
+    wrap.appendChild(thumb);
+    wrap.appendChild(body);
+    host.appendChild(wrap);
+  }
+
+  /* TWO KINDS OF HOST, one deck.
+       [data-hl-slides-card]   the cover card - the side column on /portal since 20 Nov.
+       [data-hl-slides]        the scrolling strip - the old per-step hosts. Kept so a
+                               page published before its Designer change still works.
+     Either is hidden when the step has no deck (build, move-in). A page with neither
+     simply has no presentation. */
   function renderSlides() {
-    var hosts = d.querySelectorAll("[data-hl-slides]");
+    var hosts = d.querySelectorAll("[data-hl-slides],[data-hl-slides-card]");
     if (!hosts.length) { return 0; }
 
     var slides = slidesFor(R);
@@ -3264,35 +3415,8 @@
       if (!slides.length) { host.style.display = "none"; continue; }
       reveal(host);
 
-      var strip = d.createElement("div");
-      strip.className = "hl-sl-strip";
-
-      for (var i = 0; i < slides.length; i++) {
-        var b = d.createElement("button");
-        b.type = "button";
-        b.className = "hl-sl-thumb";
-        b.setAttribute("data-hl-slide", String(slides[i].n));
-        b.setAttribute("aria-label", "Open slide " + slides[i].n + " of " + slides[i].of);
-        var im = d.createElement("img");
-        im.setAttribute("src", slides[i].src);
-        im.setAttribute("alt", "");
-        /* Off-screen slides cost nothing until they are scrolled to. */
-        im.setAttribute("loading", "lazy");
-        im.setAttribute("decoding", "async");
-        b.appendChild(im);
-        (function (list, at) {
-          b.addEventListener("click", function () { openLightbox(list, at); });
-        })(slides, i);
-        strip.appendChild(b);
-      }
-
-      var count = d.createElement("div");
-      count.className = "hl-sl-count";
-      count.textContent = slides.length + (slides.length === 1 ? " slide" : " slides") +
-                          " — tap to enlarge";
-
-      host.appendChild(strip);
-      host.appendChild(count);
+      if (host.hasAttribute("data-hl-slides-card")) { drawCard(host, slides); }
+      else { drawStrip(host, slides); }
     }
     return slides.length;
   }
@@ -3970,7 +4094,7 @@
     var it = lbItems[lbAt];
     if (!lb || !it) { return; }
     lb.img.setAttribute("src", it.url);
-    lb.img.setAttribute("alt", it.label || "");
+    lb.img.setAttribute("alt", it.alt || it.label || "");
     lb.cap.textContent = it.label;
     lb.cap.style.display = it.label ? "block" : "none";
     lb.count.textContent = (lbAt + 1) + " / " + lbItems.length;
@@ -3991,9 +4115,17 @@
   }
 
   function lbOpen(list, index) {
-    var items = lbCollect(list);
-    if (!items.length) { return false; }
+    return lbOpenItems(lbCollect(list), index, "");
+  }
+
+  /* THE ENTRY POINT FOR A PLAIN LIST - [{url, label, alt}] - which is what the step
+     slides hand over. The gallery's own rows come through lbOpen above, read from the
+     DOM; both end here, so there is one overlay and one set of behaviours. `name` is
+     what a screen reader announces the dialog as. */
+  function lbOpenItems(items, index, name) {
+    if (!items || !items.length) { return false; }
     lbBuild();
+    lb.root.setAttribute("aria-label", name || "Gallery");
     lbItems = items;
     lbAt = (index >= 0 && index < items.length) ? index : 0;
     lbPaint();
@@ -4486,7 +4618,7 @@
       substage_label: labelOf(SUBSTAGE_LABEL, r.deal_sub_stage),
       status_label: labelOf(STATUS_LABEL, r.status),
       due_label: due,
-      due_date: fmtDate(r.deal_stage_due_at),
+      due_date: fmtDue(r.deal_stage_due_at),
       days_left: (left === null) ? "" : String(Math.max(0, left)),
       state: state,
       grand_total_cents: r.grand_total_cents,
@@ -5531,6 +5663,9 @@
                 at: lbAt, count: lbItems.length};
       },
       lightboxStep: lbStep,
+      lightboxSrc: function () { return lb ? (lb.img.getAttribute("src") || "") : ""; },
+      dueAt: dueAt,
+      fmtDue: fmtDue,
       lightboxClose: lbClose,
       tab: function () { return currentTab; },
       offset: function () { return clockOffset; },

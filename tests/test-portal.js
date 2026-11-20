@@ -14,6 +14,15 @@ const PAGE = fs.readFileSync(FIX + "/portal-fixture.html", 'utf8');
 
 const A = []; const ok = (n, c) => A.push({ n, pass: !!c });
 const DAY = 24 * 60 * 60 * 1000;
+/* DEADLINES ARE WHOLE HOURS since 20 Nov - Xano stores them rounded up and the portal
+   rounds again on read. A fixture that wants an exact span ("ten days out") therefore
+   puts the deadline on an hour and moves the SERVER's clock instead: the portal counts
+   against server_time, so the span it sees is exactly the one asked for. */
+const HR = 60 * 60 * 1000;
+function aligned(span) {
+  const due = Math.ceil((Date.now() + span) / HR) * HR;
+  return { due, serverTime: due - span };
+}
 
 function res(over) {
   return Object.assign({
@@ -324,11 +333,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   /* ---------------------------------------------------- the countdown */
   {
-    const b = boot();
+    const t = aligned(10 * DAY);
+    const b = boot({ list: [res({ deal_stage_due_at: t.due })], serverTime: t.serverTime });
     await wait(80);
     ok("ten days out reads as ten", b.$('[data-hl-countdown]').textContent === "10");
     ok("and is not flagged", b.$('[data-hl-countdown]').getAttribute('data-hl-countdown-state') === "ok");
-    ok("the due date is written out", /\d{4}$/.test(b.$('[data-hl-due]').textContent));
+    ok("the due date is written out, with its hour",
+       /^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday) \d{1,2} [A-Z][a-z]+ @ (\d{1,2}(am|pm)|midnight)$/
+         .test(b.$('[data-hl-due]').textContent));
   }
 
   {
@@ -376,7 +388,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   /* ------------------------------------------- the clock, to the second */
   {
     const HOUR = 60 * 60 * 1000, MIN = 60 * 1000;
-    const b = boot({ list: [res({ deal_stage_due_at: Date.now() + 2 * DAY + 3 * HOUR + 4 * MIN + 30000 })] });
+    const t = aligned(2 * DAY + 3 * HOUR + 4 * MIN + 30000);
+    const b = boot({ list: [res({ deal_stage_due_at: t.due })], serverTime: t.serverTime });
     await wait(80);
     const n = s => b.$(s).textContent;
     ok("the clock breaks the deadline down into days", n('[data-hl-cd-d]') === "2");
@@ -703,7 +716,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   {
     /* "1 Days" is the kind of thing a buyer photographs and sends to their agent. */
-    const b = boot({ list: [res({ deal_stage_due_at: Date.now() + DAY + 60 * 60 * 1000 + 60 * 1000 + 1500 })] });
+    const t = aligned(DAY + 60 * 60 * 1000 + 60 * 1000 + 1500);
+    const b = boot({ list: [res({ deal_stage_due_at: t.due })], serverTime: t.serverTime });
     await wait(80);
     ok("one of anything is singular",
        b.$('[data-hl-cd-d-label]').textContent === "Day" &&
@@ -715,7 +729,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     /* THE HEADLINE AND THE CLOCK DISAGREE BY DESIGN, and the disagreement is a
        rounding: eighteen hours is "1 day" as a badge and "0d 18h" as a clock. This
        test exists so that nobody later "fixes" one of them into the other. */
-    const b = boot({ list: [res({ deal_stage_due_at: Date.now() + 18 * 60 * 60 * 1000 })] });
+    const t = aligned(18 * 60 * 60 * 1000);
+    const b = boot({ list: [res({ deal_stage_due_at: t.due })], serverTime: t.serverTime });
     await wait(80);
     ok("the badge rounds a part-day up", b.$('[data-hl-countdown]').textContent === "1");
     ok("the clock does not", b.$('[data-hl-cd-d]').textContent === "0");
@@ -815,14 +830,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   /* ---------------------------------------------------- the card's contents */
   {
-    const now = Date.now();
+    const now = Math.floor(Date.now() / HR) * HR;
     const list = [
       res({ uuid: "ok",  unit: { display_name: "Home 1" }, deal_stage_due_at: now + 20 * DAY }),
       res({ uuid: "late", unit: { display_name: "Home 2" }, deal_stage_due_at: now - 2 * DAY,
             deal_stage: "finance", deal_sub_stage: "pay-deposit" }),
       res({ uuid: "soon", unit: { display_name: "Home 3" }, deal_stage_due_at: now + 2 * DAY })
     ];
-    const b = boot({ list });
+    const b = boot({ list, serverTime: now });
     await wait(80);
     const order = cards(b).map(c => c.getAttribute('data-hl-row-key'));
     ok("the home that needs attention is first, not the newest",
@@ -841,6 +856,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     ok("and says how late it is in days", /Overdue by 2 days/.test(cardText('late')));
     ok("a card that is not late says how long is left",
        /Due in 20 days/.test(cardText('ok')));
+    ok("and the date in the same words as the countdown band",
+       cardText('ok').indexOf(b.w.HLPortal.fmtDue(now + 20 * DAY)) > -1 && / @ \d{1,2}(am|pm)|midnight/.test(cardText('ok')));
   }
 
   /* ---------------------------------------------------- the choice travels */
@@ -1098,28 +1115,164 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     ok("and keeps its action", b.$('[data-hl-action]').style.display !== 'none');
   }
 
-  /* ------------------------------------------- the lightbox */
+  /* ------------------------------------------- the strip opens in THE lightbox */
   {
     const b = boot({ list: [res({ payer_route: "bond", deal_sub_stage: "pre-qualify" })] });
     await wait(80);
     const first = b.$('[data-hl-slides] .hl-sl-thumb');
     ok("a thumbnail is a button, not a link that navigates", first.tagName === 'BUTTON');
-    first.dispatchEvent(new b.w.MouseEvent('click', { bubbles: true }));
-    const box = b.$('.hl-sl-box');
-    ok("clicking opens the lightbox", !!box && box.style.display === 'flex');
+    b.all('[data-hl-slides] .hl-sl-thumb')[2].dispatchEvent(new b.w.MouseEvent('click', { bubbles: true }));
+    const box = b.$('[data-hl-lightbox-view]');
+    ok("a strip thumbnail opens the gallery lightbox", !!box && /is-open/.test(box.className));
     ok("as a dialog", box.getAttribute('role') === 'dialog' && box.getAttribute('aria-modal') === 'true');
-    ok("showing the slide that was clicked",
-       /After_Reserving_Slide1/.test(box.querySelector('img').getAttribute('src')));
-    ok("and its position", box.querySelector('.hl-sl-pos').textContent === '1 / 5');
-    box.querySelector('.hl-sl-next').click();
-    ok("next advances", /Slide2/.test(box.querySelector('img').getAttribute('src')));
-    box.querySelector('.hl-sl-prev').click();
-    box.querySelector('.hl-sl-prev').click();
-    ok("and previous wraps to the end rather than dead-ending",
-       /Slide5/.test(box.querySelector('img').getAttribute('src')));
+    ok("named for the deck", box.getAttribute('aria-label') === 'What happens after you reserve');
+    ok("at the slide that was clicked", b.w.HLPortal.lightbox().at === 2 &&
+       /After_Reserving_Slide3/.test(b.w.HLPortal.lightboxSrc()));
+    ok("there is no second overlay any more", !b.$('.hl-sl-box'));
     b.d.dispatchEvent(new b.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    ok("Escape closes it", box.style.display === 'none');
+    ok("Escape closes it", b.w.HLPortal.lightbox().open === false);
     ok("and gives the page its scroll back", b.d.documentElement.style.overflow === '');
+  }
+
+  /* ------------------------------------------- the slides cover card */
+  {
+    const CASES = [
+      ["bond", "pre-qualify",        "Heartland_01_After_Reserving",  "What happens after you reserve", 5],
+      ["cash", "sign-otp",           "Heartland_01_After_Reserving",  "What happens after you reserve", 5],
+      ["bond", "pay-deposit",        "Heartland_02_OTP_Bond",         "After you sign: buying with a bond", 4],
+      ["cash", "pay-deposit",        "02_OTP_Signed_Cash_Purchase",   "After you sign: buying cash", 4],
+      ["bond", "transfer-attorneys", "05_Bond_Deposit_Paid",          "Deposit paid: now apply for your bond", 4],
+      ["cash", "transfer-attorneys", "04_Cash_Deposit_Paid",          "Deposit paid: what happens from here", 4],
+      ["bond", "bond-approval",      "06_Bond_Application_Submitted", "Your bond application is in", 3],
+      ["bond", "bond-approved",      "07_Bond_Approved_and_Accepted", "Bond approved: what happens from here", 4]
+    ];
+    for (const [route, sub, deck, title, n] of CASES) {
+      const b = boot({ list: [res({ payer_route: route, deal_stage: "finance", deal_sub_stage: sub })] });
+      await wait(80);
+      const card = b.$('[data-hl-slides-card]');
+      const tag = route + "/" + sub;
+      ok(tag + ": the card is shown", card.style.display !== 'none' && !!card.querySelector('.hl-slc'));
+      ok(tag + ": its thumbnail is slide 1 of " + deck,
+         new RegExp(deck + "_Slide1\\.").test(card.querySelector('.hl-slc-thumb img').getAttribute('src')));
+      ok(tag + ": badge 1 / " + n, card.querySelector('[data-hl-slides-badge]').textContent === "1 / " + n);
+      ok(tag + ": titled \"" + title + "\"", card.querySelector('[data-hl-slides-title]').textContent === title);
+      ok(tag + ": count line", card.querySelector('[data-hl-slides-meta]').textContent ===
+         n + " slides · about " + (n === 3 ? "1 minute" : "2 minutes"));
+    }
+  }
+  {
+    const b = boot({ list: [res({ payer_route: "bond", deal_stage: "finance", deal_sub_stage: "pre-qualify" })] });
+    await wait(80);
+    const card = b.$('[data-hl-slides-card]');
+    const btns = Array.from(card.querySelectorAll('button'));
+    ok("the card has two real buttons, the picture and the link",
+       btns.length === 2 && btns.every(x => x.type === 'button'));
+    ok("both say what they open",
+       btns.every(x => x.getAttribute('aria-label') === 'Open the slides: What happens after you reserve'));
+    ok("the link reads View the slides", /^View the slides/.test(card.querySelector('.hl-slc-link').textContent));
+    ok("the card draws no strip", !card.querySelector('.hl-sl-strip'));
+    ok("its title is a heading", card.querySelector('[data-hl-slides-title]').tagName === 'H2');
+
+    card.querySelector('.hl-slc-link').click();
+    ok("View the slides opens the deck at slide 1",
+       b.w.HLPortal.lightbox().open && b.w.HLPortal.lightbox().at === 0 &&
+       /After_Reserving_Slide1\./.test(b.w.HLPortal.lightboxSrc()));
+    ok("the whole deck, not one picture", b.w.HLPortal.lightbox().count === 5);
+    ok("the counter reads 1 / 5", b.$('[data-hl-lb-count]').textContent === '1 / 5');
+    ok("the slide has alt text that names it",
+       b.$('[data-hl-lightbox-view] img').getAttribute('alt') === 'What happens after you reserve, slide 1 of 5');
+
+    b.d.dispatchEvent(new b.w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    ok("the right arrow key pages forward", b.w.HLPortal.lightbox().at === 1 &&
+       /After_Reserving_Slide2\./.test(b.w.HLPortal.lightboxSrc()));
+    b.d.dispatchEvent(new b.w.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    b.d.dispatchEvent(new b.w.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    ok("and back from slide 1 wraps to slide 5", b.w.HLPortal.lightbox().at === 4);
+
+    /* A swipe, as the gallery reads it: touchstart then touchend 120px to the left. */
+    const view = b.$('[data-hl-lightbox-view]');
+    const touch = (type, x) => {
+      const ev = new b.w.Event(type, { bubbles: true });
+      ev[type === 'touchstart' ? 'touches' : 'changedTouches'] = [{ clientX: x }];
+      view.dispatchEvent(ev);
+    };
+    touch('touchstart', 300); touch('touchend', 180);
+    ok("a swipe left pages forward (wrapping from 5 to 1)", b.w.HLPortal.lightbox().at === 0);
+    touch('touchstart', 180); touch('touchend', 300);
+    ok("a swipe right pages back", b.w.HLPortal.lightbox().at === 4);
+    touch('touchstart', 200); touch('touchend', 225);
+    ok("a tap with a little drift is not a swipe", b.w.HLPortal.lightbox().at === 4);
+
+    b.w.HLPortal.lightboxClose();
+    ok("closing drops the picture", !b.w.HLPortal.lightboxSrc());
+    card.querySelector('.hl-slc-thumb').click();
+    ok("the picture opens it too, at slide 1 again", b.w.HLPortal.lightbox().open && b.w.HLPortal.lightbox().at === 0);
+    b.w.HLPortal.lightboxClose();
+  }
+  for (const [stage, sub] of [["build", "upgrade-meeting"], ["build", null], ["move-in", null]]) {
+    const b = boot({ list: [res({ deal_stage: stage, deal_sub_stage: sub })] });
+    await wait(80);
+    ok(stage + "/" + sub + ": no deck, so the card is hidden and empty",
+       b.$('[data-hl-slides-card]').style.display === 'none' &&
+       !b.$('[data-hl-slides-card]').firstChild);
+  }
+  {
+    /* The deck follows the reservation on screen: switching home redraws the card,
+       once, for the other deal's step. */
+    const b = boot({ list: [res({ uuid: "a", payer_route: "bond", deal_sub_stage: "pre-qualify" }),
+                            res({ uuid: "b", payer_route: "bond", deal_sub_stage: "bond-approval" })],
+                     search: "?r=a" });
+    await wait(80);
+    const before = b.$('[data-hl-slides-card] [data-hl-slides-title]').textContent;
+    b.w.HLPortal.select("b");
+    await wait(20);
+    const t = b.$('[data-hl-slides-card] [data-hl-slides-title]');
+    ok("switching to another home redraws the card for its deck",
+       before === 'What happens after you reserve' && t && t.textContent === 'Your bond application is in' &&
+       b.all('[data-hl-slides-card] .hl-slc').length === 1);
+  }
+
+  /* ------------------------------------------- due dates: whole hours, SAST, rounded up */
+  {
+    const b = boot();
+    await wait(80);
+    const P = b.w.HLPortal;
+    /* All instants are written in UTC; SAST is UTC+2. Sunday 22 Nov 2026. */
+    const at = s => Date.parse(s);
+    ok("13:20 SAST reads 2pm", P.fmtDue(at("2026-11-22T11:20:00Z")) === "Sunday 22 November @ 2pm");
+    ok("14:00 SAST stays 2pm", P.fmtDue(at("2026-11-22T12:00:00Z")) === "Sunday 22 November @ 2pm");
+    ok("14:00:01 SAST is 3pm - never earlier than the deadline",
+       P.fmtDue(at("2026-11-22T12:00:01Z")) === "Sunday 22 November @ 3pm");
+    ok("23:30 SAST is midnight, on the next day's date",
+       P.fmtDue(at("2026-11-22T21:30:00Z")) === "Monday 23 November @ midnight");
+    ok("11:10 SAST is 12pm", P.fmtDue(at("2026-11-22T09:10:00Z")) === "Sunday 22 November @ 12pm");
+    ok("09:05 SAST is 10am", P.fmtDue(at("2026-11-22T07:05:00Z")) === "Sunday 22 November @ 10am");
+    ok("a UTC time on the 21st that is already the 22nd in SAST (22:30Z = 00:30)",
+       P.fmtDue(at("2026-11-21T22:30:00Z")) === "Sunday 22 November @ 1am");
+    ok("23:00Z on the 21st is 1am on the 22nd SAST",
+       P.fmtDue(at("2026-11-21T23:00:00Z")) === "Sunday 22 November @ 1am");
+    ok("a numeric string works like a number",
+       P.fmtDue(String(at("2026-11-22T11:20:00Z"))) === "Sunday 22 November @ 2pm");
+    ok("a date string works too", P.fmtDue("2026-11-22T11:20:00Z") === "Sunday 22 November @ 2pm");
+    ok("no deadline is no text", P.fmtDue(null) === "" && P.fmtDue("") === "" && P.fmtDue(0) === "");
+    ok("dueAt rounds up to the hour", P.dueAt(at("2026-11-22T11:20:00Z")) === at("2026-11-22T12:00:00Z"));
+    ok("and leaves a whole hour alone", P.dueAt(at("2026-11-22T12:00:00Z")) === at("2026-11-22T12:00:00Z"));
+  }
+  {
+    /* The clock counts to the ROUNDED time. A deadline 30 min past the hour, 2 h 30 min
+       from now, rounds to the next hour, so the clock shows the full span to it. */
+    const now = Date.now();
+    const raw = Math.floor(now / 3600000) * 3600000 + 3 * 3600000 - 30 * 60000;   /* hh:30, ~2.5h on */
+    const rounded = Math.ceil(raw / 3600000) * 3600000;
+    const b = boot({ list: [res({ deal_stage_due_at: raw })], serverTime: now });
+    await wait(80);
+    const shownH = Number(b.$('[data-hl-cd-h]').textContent);
+    const shownM = Number(b.$('[data-hl-cd-m]').textContent);
+    const want = Math.floor((rounded - Date.now()) / 60000);
+    ok("the countdown runs to the rounded hour, not the stored minute",
+       Math.abs(shownH * 60 + shownM - want) <= 1);
+    ok("and the date beside it is that same hour",
+       b.$('[data-hl-due]').textContent === b.w.HLPortal.fmtDue(rounded));
   }
 
   /* ---------------------------------------------------- nothing to show */

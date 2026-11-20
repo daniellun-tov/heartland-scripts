@@ -87,7 +87,7 @@
         <span data-hl="unit_name"></span>
         <span data-hl="stage_label"></span>
         <span data-hl="substage_label"></span>
-        <span data-hl="due_label"></span>
+        <span data-hl="due_label"></span> <span data-hl="due_date"></span>
         <span data-hl="grand_total_cents"></span>
       </a>
     </div>
@@ -142,7 +142,9 @@
       <p data-hl-blocked-reason></p>
     </div>
 
-    <!-- the step presentation; the script fills and hides this -->
+    <!-- the step presentation; the script fills and hides this. The card is the side
+         column's since 20 Nov; the bare strip host is the older per-step form. -->
+    <div data-hl-slides-card class="hl-card"></div>
     <div data-hl-slides></div>
 
     <!-- LISTS. One row is drawn per list; the script clones it per item and removes
