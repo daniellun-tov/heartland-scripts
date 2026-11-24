@@ -577,7 +577,17 @@ window.Wized = window.Wized || [];
           const key = norm(FACETS[facet], el.getAttribute('data-value'));
 
           set.has(key) ? set.delete(key) : set.add(key);
-          el.classList.toggle('is-active', set.has(key));
+          /* 2026-11-24: the map legend's type items carry the same
+             data-filter/data-value as the drawer chips (Clarity: the legend
+             letters drew a third of the phone dead taps). Mark every element
+             for this facet + value, so a legend tap and its drawer chip
+             always agree. */
+          const on = set.has(key);
+          document.querySelectorAll(`[data-filter="${facet}"][data-value]`).forEach((m) => {
+            if (norm(FACETS[facet], m.getAttribute('data-value')) !== key) return;
+            m.classList.toggle('is-active', on);
+            if (m.hasAttribute('aria-pressed')) m.setAttribute('aria-pressed', String(on));
+          });
           apply();
         }),
       );
@@ -1490,7 +1500,19 @@ let audioContext;
       viewLinks.forEach(function (l) {
         l.addEventListener('click', function (e) {
           e.preventDefault();
-          setView(l.getAttribute('data-view'));
+          var v = l.getAttribute('data-view');
+          /* 2026-11-24: a tap on the view that is already showing was a dead
+             tap (Clarity). Bring that panel's top into view instead. */
+          if (l.classList.contains('is-current')) {
+            var panel = (component.querySelector(v === 'list' ? '.unit-filter_list' : '.unit-filter_map') || component);
+            if (panel) {
+              var y = panel.getBoundingClientRect().top + window.pageYOffset - 72;
+              if (window.lenis && window.lenis.scrollTo) window.lenis.scrollTo(Math.max(0, y));
+              else window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+            }
+            return;
+          }
+          setView(v);
         });
       });
       // default to map view on load
