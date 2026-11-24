@@ -68,7 +68,7 @@
   /* Prices in the CMS are stored both as text ("R3,595,000") and as a number.
      Format the number ourselves so every place on the page agrees. */
   function money(n) { return "R " + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " "); } // ordinary spaces - heartland-rand-format
-  function short(n) { return "R" + (n / 1000000).toFixed(2).replace(/0$/, "").replace(/\.0$/, "") + "m"; }
+  function short(n) { return "R " + (n / 1000000).toFixed(2).replace(/0$/, "").replace(/\.0$/, "").replace(".", ",") + "m"; } // heartland-rand-format: R 7,9m
 
   /* PHASE. The page says which phase it is in, on .sd2_page:
        data-sd2-phase="prelaunch"   waitlist + countdown until data-sd2-launch, then it flips to
@@ -1323,7 +1323,7 @@
       else if (k === "reserved") { el.textContent = String(reserved); }
       else if (k === "sold") { el.textContent = String(sold); }
       else if (k === "total") { el.textContent = String(UNITS.length); }
-      else if (k === "from-price") { el.textContent = from && isFinite(from) ? short(from) : "On consultation"; }
+      else if (k === "from-price") { el.textContent = from && isFinite(from) ? money(from) : "On consultation"; }
     });
     // Type cards: "N homes · M available" and the from-price per type.
     Object.keys(TYPES).forEach(function (k) {
@@ -1533,7 +1533,10 @@
       else if (k === "note") { el.textContent = "We hold home " + u.n + " for 7 days from receipt of the reservation fee."; }
     });
     if (GATED && !PRE) {
-      qsa("[data-sd2-selected=price]").forEach(function (el) { el.setAttribute("data-sd2-price", ""); });
+      qsa("[data-sd2-selected=price]").forEach(function (el) {
+        el.setAttribute("data-sd2-price", "");
+        if (el.closest("[data-sd2-bar]") && fromPrice()) { el.setAttribute("data-sd2-from", money(fromPrice())); }
+      });
     }
     d.dispatchEvent(new CustomEvent("sd2:selected", { detail: u }));
     if (PRE) { return; }
@@ -2466,7 +2469,9 @@
        prices) or a dash (figures derived from the price), so the calculator can't give it away. */
     function paintPrices() {
       var f = fromPrice();
-      qsa("[data-sd2-count=from-price], .sd2_type_from_val, [data-sd2-wl=from], .sd2_fin_val[data-sd2-fin=price], .sd2_fin_note")
+      /* The "from" prices (hero card, type cards, waitlist row) are deliberately NOT gated: signed-out
+         visitors see the development's from-price. Per-home prices and the finance figures stay gated. */
+      qsa(".sd2_fin_val[data-sd2-fin=price], .sd2_fin_note")
         .forEach(function (el) { el.setAttribute("data-sd2-price", ""); });
       qsa("[data-sd2-fin], .sd2_calc_row_val, .sd2_calc_big").forEach(function (el) {
         if (el.hasAttribute("data-sd2-price") || /^(home|rate|years|dep-pct)$/.test(el.getAttribute("data-sd2-fin") || "")) { return; }
@@ -3571,7 +3576,8 @@
       ".sd2_inv_tag::before{content:\"\";width:.4rem;height:.4rem;border-radius:50%;background:#8A9380}" +
       ".sd2_inv_tag.is-fin{margin-top:1.5rem}" +
       "@media screen and (max-width: 479px){.sd2_price_row{align-items:flex-start}.sd2_fin_action .sd2_btn{width:100%}}" +
-      "html.sd2-live:not(.sd2-gated):not(.sd2-member) [data-sd2-price]::after{content:none}";
+      "html.sd2-live:not(.sd2-gated):not(.sd2-member) [data-sd2-price]::after{content:none}" +
+      "html.sd2-gated:not(.sd2-member) [data-sd2-from]::after{content:\"From \" attr(data-sd2-from);text-decoration:none}";
       d.head.appendChild(st);
     })();
 
