@@ -70,6 +70,35 @@
   function money(n) { return "R " + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " "); } // ordinary spaces - heartland-rand-format
   function short(n) { return "R " + (n / 1000000).toFixed(2).replace(/0$/, "").replace(/\.0$/, "").replace(".", ",") + "m"; } // heartland-rand-format: R 7,9m
 
+  /* PRICES FROM XANO (switch, 24 Nov 2026). Today every per-home figure rides in the page HTML
+     (CMS bindings: data-price, data-price-text, data-levy, data-rates on the map items and the
+     price text in the detail cards and strip), so "gated" only ever meant hidden by CSS.
+     With data-sd2-prices="xano" on .sd2_page (or ?sd2_prices=xano to test) the bundle stops
+     reading any of that and the figures come from Xano instead:
+       - the DEVELOPMENT and per-TYPE "from" prices are public: GET public/inventory?property=sanford
+       - the PER-HOME figures (price, levy, rates) are members-only: once module 15 says the visitor
+         is on the Sanford plan (html.sd2-member), the Memberstack token is exchanged at
+         POST auth/memberstack and GET member/prices?property=sanford is merged into UNITS.
+     Until then (and for anyone who is not a member) UNITS carry price 0 / levy 0 / rates 0 and
+     nothing per-home is written to the DOM, text or attribute: gateScrub() also blanks the
+     Designer's placeholder text in every gated slot. The Xano token lives in memory only.
+     Switch off (the default) and none of this runs: the page behaves exactly as before. */
+  var XP = /^xano$/i.test(PAGE.getAttribute("data-sd2-prices") || "") || /[?&]sd2_prices=xano\b/.test(w.location.search);
+  var XANO = "https://x7aj-untn-pq4t.n7e.xano.io/api:i0YhKPAV";
+  var XP_PROPERTY = "sanford";
+  var FROM = { dev: 0, byLetter: {} };            // public from-prices (rand), only when the basis is "available"
+  var MP = { ok: false, tok: "", busy: false };   // member prices state; tok = Xano token, memory only
+  var BOOTED = false;
+  var RAND_RE = /R\s*\d/;
+  /* Rand text when there is a figure; in XP mode an empty slot (never "R 0" / "NaN") when there is not. */
+  function mny(n, empty) { return XP && !(n > 0) ? (empty || "") : money(n); }
+  /* "R 4 515,96": rand with cents, comma decimal (heartland-rand-format). Levies and rates. */
+  function mnyc(n) {
+    if (XP && !(n > 0)) { return ""; }
+    var p = Number(n).toFixed(2).split(".");
+    return "R " + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ") + "," + p[1];
+  }
+
   /* PHASE. The page says which phase it is in, on .sd2_page:
        data-sd2-phase="prelaunch"   waitlist + countdown until data-sd2-launch, then it flips to
                                     live BY ITSELF at that moment - no publish needed
@@ -176,6 +205,7 @@
   /* The development's "from" price: the cheapest home still available. Before launch it is
      the only price the page shows — per-home prices are released at launch. */
   function fromPrice() {
+    if (XP) { return FROM.dev; }
     var av = UNITS.filter(function (u) { return u.status === "Available" && u.price; });
     var pool = av.length ? av : UNITS.filter(function (u) { return u.price; });
     return pool.length ? Math.min.apply(null, pool.map(function (u) { return u.price; })) : 0;
@@ -1284,17 +1314,20 @@
         Object.keys(TYPES).forEach(function (k) { if (TYPES[k].letter === l) { type = TYPES[k]; } });
       }
       var no = text(qs(".sd2_pin_no", item)) || item.getAttribute("data-no") || "";
+      if (XP) {   // never read, and never leave in the DOM, a per-home figure the CMS may still be binding
+        ["data-price", "data-price-text", "data-levy", "data-rates"].forEach(function (a) { item.removeAttribute(a); });
+      }
       UNITS.push({
         slug: slug, no: no, n: String(parseInt(no, 10) || no),
         name: item.getAttribute("data-name") || "",
         typeSlug: type ? type.slug : typeSlug, letter: type ? type.letter : letterOf(typeSlug),
-        price: num(item.getAttribute("data-price")),
-        priceText: item.getAttribute("data-price-text") || "",
+        price: XP ? 0 : num(item.getAttribute("data-price")),
+        priceText: XP ? "" : item.getAttribute("data-price-text") || "",
         // Investment figures (module 19): gross yield % (CMS "Gross Yield %", text like "8.24"),
         // monthly levy and rates. Absent attributes read as 0 and the module falls back.
         yld: num(item.getAttribute("data-yield")),
-        levy: num(item.getAttribute("data-levy")),
-        rates: num(item.getAttribute("data-rates")),
+        levy: XP ? 0 : num(item.getAttribute("data-levy")),
+        rates: XP ? 0 : num(item.getAttribute("data-rates")),
         x: num(item.getAttribute("data-x")), y: num(item.getAttribute("data-y")),
         status: statusOf(item),
         map: item,
@@ -1311,11 +1344,154 @@
 
   function unitBy(slug) { for (var i = 0; i < UNITS.length; i++) { if (UNITS[i].slug === slug) { return UNITS[i]; } } return null; }
 
+  /* ---- prices from Xano (switch: data-sd2-prices="xano"; see the note under money()) ---- */
+  function xpJson(r) {
+    return r.text().then(function (t) {
+      var j = null;
+      try { j = JSON.parse(t); } catch (e) {}
+      if (!r.ok) { var err = new Error((j && (j.message || j.error)) || ("HTTP " + r.status)); err.status = r.status; throw err; }
+      return j;
+    });
+  }
+
+  /* Where Memberstack keeps the member token: _ms-mid in localStorage, a cookie or sessionStorage,
+     sometimes as a JSON-quoted string. Same reading as heartland-reserve.js (copied, not imported). */
+  function xpUnquote(v) {
+    var t = String(v === null || v === undefined ? "" : v).trim();
+    if (t.length > 1 && t.charAt(0) === '"' && t.charAt(t.length - 1) === '"') { t = t.slice(1, -1); }
+    return t;
+  }
+  function xpFromStore(which) { try { var st = w[which]; return st ? xpUnquote(st.getItem("_ms-mid")) : ""; } catch (e) { return ""; } }
+  function xpFromCookie() {
+    var parts = String(d.cookie || "").split(";");
+    for (var i = 0; i < parts.length; i++) {
+      var c = parts[i].trim();
+      if (c.indexOf("_ms-mid=") === 0) { try { return xpUnquote(decodeURIComponent(c.slice(8))); } catch (e) { return ""; } }
+    }
+    return "";
+  }
+  function xpMemberToken() { return xpFromStore("localStorage") || xpFromCookie() || xpFromStore("sessionStorage"); }
+
+  /* Everything that shows a per-home figure, repainted from UNITS. */
+  function xpRepaint() {
+    paintCounts();
+    positionPins();
+    paintSelection();   // ends in paintSelected(): detail card, sticky bar, Unit ID, then sd2:selected (calculator, invest)
+    try { d.dispatchEvent(new CustomEvent("sd2:catalogue", { detail: { prices: true } })); } catch (e) {}   // calculator price stops, finance, invest chips, wl from-price
+    gateScrub();
+  }
+
+  /* Blank every gated slot that still carries rand text for someone who is not a member: the
+     Designer's placeholders, the CMS bindings while they last, or figures of a member who has
+     just signed out. Only text that reads as a rand figure is touched, so "Sold", "Type A", the
+     "·" separators and the pre-launch countdown stay. The data-sd2-price attributes are not touched:
+     they are what the head CSS turns into "Sign up to see pricing" / the dash. */
+  function gateScrub() {
+    if (!XP || MP.ok) { return; }
+    var clr = function (el) { if (el && RAND_RE.test(el.textContent || "")) { el.textContent = ""; } };
+    qsa("[data-sd2-fin]").forEach(function (el) {
+      if (/^(home|rate|years|dep-pct)$/.test(el.getAttribute("data-sd2-fin") || "")) { return; }
+      clr(el);
+    });
+    qsa(".sd2_fin_val, .sd2_fin_note, .sd2_calc_row_val, .sd2_calc_big, .sd2_calc_field_val, .sd2_calc_sub_item, .sd2_kv_val, .sd2_price, .sd2_strip_sub, .sd2_bar_price, [data-sd2-selected=price], [data-sd2-detail=price], [data-sd2-detail=levies], [data-sd2-detail=rates], [data-inv], [data-inv-fin]")
+      .forEach(function (el) { if (!el.children.length) { clr(el); } });
+    qsa("input[data-calc=price]").forEach(function (inp) { inp.removeAttribute("aria-valuetext"); });
+    qsa("[data-sd2-bar] [data-sd2-from]").forEach(function (el) { if (!fromPrice()) { el.removeAttribute("data-sd2-from"); } });
+  }
+
+  /* Public: development and per-type from-prices. Failure leaves them at 0 ("On consultation"). */
+  function xpInventory() {
+    if (!XP || !w.fetch) { return; }
+    w.fetch(XANO + "/public/inventory?property=" + XP_PROPERTY)
+      .then(xpJson)
+      .then(function (j) {
+        if (!j) { return; }
+        var cents = function (o) { return o && o.price_from_basis === "available" && o.price_from_cents > 0 ? Math.round(o.price_from_cents / 100) : 0; };
+        FROM.dev = cents(j);
+        FROM.byLetter = {};
+        (j.types || []).forEach(function (t) {
+          var l = letterOf(t.code) || letterOf(t.name);
+          if (l) { FROM.byLetter[l] = cents(t); }
+        });
+        log("inventory", FROM);
+        if (BOOTED) {
+          paintCounts();
+          paintSelected();
+          try { d.dispatchEvent(new CustomEvent("sd2:catalogue", { detail: { prices: true } })); } catch (e) {}
+          gateScrub();
+        }
+      })
+      .catch(function (e) { log("inventory failed", e && e.message); });
+  }
+
+  /* Members only: Memberstack token -> Xano token -> per-home figures, merged into UNITS by slug. */
+  function xpMemberLoad(tries, again) {
+    var ms = xpMemberToken();
+    if (!ms) {   // the token can land a beat after the member object does
+      if (tries < 6) { setTimeout(function () { xpMemberLoad(tries + 1); }, 400); } else { MP.busy = false; log("member prices: no Memberstack token"); }
+      return;
+    }
+    var xtok = MP.tok ? Promise.resolve(MP.tok) : w.fetch(XANO + "/auth/memberstack", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: ms })
+    }).then(xpJson).then(function (a) {
+      var t = a && (a.authToken || a.token || a.auth_token);
+      if (!t) { throw new Error("no token in the auth response"); }
+      MP.tok = t;
+      return t;
+    });
+    xtok.then(function (t) {
+      return w.fetch(XANO + "/member/prices?property=" + XP_PROPERTY, { headers: { Authorization: "Bearer " + t } }).then(xpJson);
+    }).then(function (j) {
+      var got = 0;
+      ((j && j.units) || []).forEach(function (r) {
+        var u = unitBy(r.slug);
+        if (!u) { return; }
+        u.price = r.price_cents > 0 ? r.price_cents / 100 : 0;
+        u.levy = r.levy_monthly_cents > 0 ? r.levy_monthly_cents / 100 : 0;
+        u.rates = r.rates_monthly_cents > 0 ? r.rates_monthly_cents / 100 : 0;
+        if (u.price) { got++; }
+      });
+      MP.busy = false;
+      if (!got) { log("member prices: none returned"); xpFailed(); return; }
+      if (!d.documentElement.classList.contains("sd2-member")) { xpLock(); return; }   // signed out while it loaded
+      MP.ok = true;
+      xpRepaint();
+    }).catch(function (e) {
+      if (e && e.status === 401 && MP.tok && !again) { MP.tok = ""; xpMemberLoad(0, true); return; }   // stale Xano token: exchange once more
+      MP.tok = "";
+      MP.busy = false;
+      log("member prices failed" + (e && e.status === 403 ? " (not on plan)" : ""), e && e.message);
+      xpFailed();
+    });
+  }
+  /* A member whose figures did not load would otherwise see empty price slots with no prompt (the
+     head CSS draws "Sign up to see pricing" only for non-members). Say what happened instead. */
+  function xpFailed() {
+    if (!d.documentElement.classList.contains("sd2-member")) { return; }
+    qsa("[data-sd2-detail=price], [data-sd2-selected=price]").forEach(function (el) {
+      if (!el.textContent) { el.textContent = "Refresh to see pricing"; }
+    });
+  }
+  /* Module 15 calls this from setMember with whether the visitor is on the Sanford plan. */
+  function xpMember(onPlan) {
+    if (!XP || !w.fetch) { return; }
+    if (!onPlan) { if (MP.ok || MP.tok) { xpLock(); } return; }
+    if (MP.ok || MP.busy) { return; }
+    MP.busy = true;
+    xpMemberLoad(0);
+  }
+  /* Signed out (or off the plan): forget every per-home figure and go back to the gated page. */
+  function xpLock() {
+    MP.ok = false; MP.tok = ""; MP.busy = false;
+    UNITS.forEach(function (u) { u.price = 0; u.levy = 0; u.rates = 0; });
+    xpRepaint();
+  }
+
   function paintCounts() {
     var avail = UNITS.filter(function (u) { return u.status === "Available"; });
     var reserved = UNITS.filter(function (u) { return u.status === "Reserved"; }).length;
     var sold = UNITS.filter(function (u) { return u.status === "Sold"; }).length;
-    var from = avail.length ? Math.min.apply(null, avail.map(function (u) { return u.price || Infinity; })) : 0;
+    var from = XP ? FROM.dev : (avail.length ? Math.min.apply(null, avail.map(function (u) { return u.price || Infinity; })) : 0);
     qsa("[data-sd2-count]").forEach(function (el) {
       var k = el.getAttribute("data-sd2-count");
       if (k === "available") { el.textContent = String(avail.length); }
@@ -1335,7 +1511,7 @@
       var f = qs(".sd2_type_from_val", t.el);
       if (f) {
         var pool = av.length ? av : (PRE ? us : []);
-        var m = pool.length ? Math.min.apply(null, pool.map(function (u) { return u.price || Infinity; })) : 0;
+        var m = XP ? (FROM.byLetter[t.letter] || 0) : (pool.length ? Math.min.apply(null, pool.map(function (u) { return u.price || Infinity; })) : 0);
         f.textContent = m && isFinite(m) ? money(m) : "on consultation";
       }
       var fb = qs(".sd2_filter[data-filter=\"" + k + "\"]");
@@ -1445,7 +1621,16 @@
             row.parentNode.insertBefore(note, row.nextSibling);
           }
         }
+        if (price && XP && !PRE && u.status !== "Sold") { price.textContent = mny(u.price); }   // members only; empty until member prices arrive
         if (price && !PRE && GATED && u.status !== "Sold") { price.setAttribute("data-sd2-price", ""); }
+        if (XP) {   // levies and rates: same rule, same dash for non-members as the other derived figures
+          [["levies", u.levy], ["rates", u.rates]].forEach(function (kv) {
+            var v = qs("[data-sd2-detail=" + kv[0] + "]", u.detail);
+            if (!v) { return; }
+            v.textContent = mnyc(kv[1]);
+            if (GATED) { v.setAttribute("data-sd2-price", "derived"); }
+          });
+        }
         var cta = qs("[data-sd2-detail=cta]", u.detail);
         if (cta && !PRE) {
           cta.textContent = u.status === "Sold" ? "Sold, see other homes" : u.status === "Reserved" ? "Join the waiting list" : "Reserve home " + u.n;
@@ -1526,7 +1711,7 @@
       if (k === "n") { el.textContent = u.n; }
       else if (k === "type") { el.textContent = "Type " + u.letter; }
       else if (k === "type-line") { el.textContent = "Type " + u.letter + (TYPES[u.typeSlug] && TYPES[u.typeSlug].desc ? " · " + TYPES[u.typeSlug].desc.toLowerCase() : ""); }
-      else if (k === "price") { el.textContent = u.price ? money(u.price) : (u.priceText || "On consultation"); }
+      else if (k === "price") { el.textContent = XP ? mny(u.price) : (u.price ? money(u.price) : (u.priceText || "On consultation")); }
       else if (k === "home-type") { el.textContent = "Home " + u.n + " · Type " + u.letter; }
       else if (k === "cta") { el.textContent = "Reserve home " + u.n; }
       else if (k === "ref") { el.textContent = "SH-" + (u.no.length < 2 ? "0" + u.no : u.no); }
@@ -1959,7 +2144,8 @@
       on(t, "click", function (e) { e.preventDefault(); paintVr(t.getAttribute("data-type-slug")); });
     });
     // TYPES is read by the boot block below, so label and paint once the catalogue is in.
-    d.addEventListener("sd2:catalogue", function () {
+    d.addEventListener("sd2:catalogue", function (e) {
+      if (e && e.detail && e.detail.prices) { return; }   // a price repaint is not a new catalogue: leave the tour where it is
       vrTabs.forEach(function (t) {
         // The tab text is CMS-bound to the type name ("Sanford Heart A"); show the short form.
         var tt = TYPES[t.getAttribute("data-type-slug")];
@@ -2039,6 +2225,7 @@
       var u = SEL.selected && unitBy(SEL.selected);
       var price = CALC.touched && CALC.price ? CALC.price : (u ? u.price : 0);
       if (PRE) { price = fromPrice(); u = null; }
+      if (XP && !MP.ok) { return; }   // per-home and derived figures: members only
       if (!price) { return; }
       var dep = Math.round(price * CALC.dep / 100), loan = price - dep, m = monthly(price, CALC.dep, CALC.rate, CALC.years);
       qsa("[data-sd2-fin]").forEach(function (el) {
@@ -2052,8 +2239,8 @@
         else if (k === "rate") { el.textContent = CALC.rate + "%"; }
         else if (k === "years") { el.textContent = CALC.years + " years"; }
         else if (k === "home") { el.textContent = u ? "Home " + u.n : ""; }
-        else if (k === "levies") { el.textContent = u && u.detail ? text(qs("[data-sd2-detail=levies]", u.detail)) : ""; }
-        else if (k === "rates") { el.textContent = u && u.detail ? text(qs("[data-sd2-detail=rates]", u.detail)) : ""; }
+        else if (k === "levies") { el.textContent = XP ? (u ? mny(u.levy) : "") : (u && u.detail ? text(qs("[data-sd2-detail=levies]", u.detail)) : ""); }
+        else if (k === "rates") { el.textContent = XP ? (u ? mny(u.rates) : "") : (u && u.detail ? text(qs("[data-sd2-detail=rates]", u.detail)) : ""); }
         else if (k === "note") { el.textContent = "Based on " + (PRE ? "the from price of " + money(price) : (u ? "home " + u.n : "the selected home") + " at " + money(price)) + ", " + CALC.dep + "% deposit, " + CALC.rate + "% over " + CALC.years + " years. Indicative only."; }
       });
       // "+ est. levies & rates" only when the CMS has figures for this home.
@@ -2531,6 +2718,7 @@
       html.classList.toggle("sd2-member", ST.onList);
       html.classList.toggle("sd2-signed-in", !!m);
       html.classList.add("sd2-auth-known");
+      xpMember(ST.onList);   // prices from Xano (switch): fetch the per-home figures for a member, drop them on sign-out
       paintWaitlist();
       paintSelected();
       d.dispatchEvent(new CustomEvent("sd2:member", { detail: ST.member }));
@@ -3589,13 +3777,13 @@
       return 0;
     }
     function fig(u) {
-      var levy = u.levy || (u.detail ? num(text(qs("[data-sd2-detail=levies]", u.detail))) : 0);
-      var rates = u.rates || (u.detail ? num(text(qs("[data-sd2-detail=rates]", u.detail))) : 0);
+      var levy = XP ? u.levy : (u.levy || (u.detail ? num(text(qs("[data-sd2-detail=levies]", u.detail))) : 0));
+      var rates = XP ? u.rates : (u.rates || (u.detail ? num(text(qs("[data-sd2-detail=rates]", u.detail))) : 0));
       var rent = u.price * u.yld / 100 / 12;
       return { yld: u.yld, rent: rent, levy: levy, rates: rates, costs: levy + rates,
                net: u.price ? (rent - levy - rates) * 12 / u.price * 100 : 0, duty: duty(u.price) };
     }
-    function homes() { return UNITS.filter(function (u) { return u.yld > 0 && u.price > 0; }); }
+    function homes() { return UNITS.filter(function (u) { return u.yld > 0 && (XP || u.price > 0); }); }   // XP: the yield % is public, the price is not
     function range(list) {
       var pool = list.filter(function (u) { return u.status === "Available"; });
       if (!pool.length) { pool = list; }
@@ -3696,12 +3884,12 @@
       var set = function (k, v) { qsa("[data-inv=\"" + k + "\"]", drawer).forEach(function (n) { n.textContent = v; }); };
       set("title", "Home " + u.n + " · Type " + u.letter + (t && t.desc ? " · " + t.desc.toLowerCase() : ""));
       set("yld", pct(f.yld));
-      set("rent", money(f.rent));
-      set("rent2", money(f.rent));
+      set("rent", mny(f.rent));
+      set("rent2", mny(f.rent));
       set("costs", f.costs ? money(f.costs) : "·");
       set("net", f.costs ? pct(f.net) : "·");
-      set("price", money(u.price));
-      set("duty", money(f.duty));
+      set("price", mny(u.price));
+      set("duty", mny(f.duty));
       set("me-key", "Home " + u.n + ", Sanford Heart");
       set("me-val", pct(f.yld));
       set("bm-key", COPY.benchLabel);
@@ -3784,6 +3972,7 @@
         act.appendChild(el("a", "sd2_btn is-outline-dark", "See the Investment Case →", { href: "#", "data-sd2-invest-open": "" }));
       }
       paintFin();
+      if (XP && drawer && cur && drawer.classList.contains("is-open")) { paint(); }   // member prices arrived while the drawer was open
     }
     function paintFin() {
       var list = homes();
@@ -3792,7 +3981,7 @@
       if (u && !(u.yld > 0)) { u = null; }
       var y = qs("[data-inv-fin=yld]"), du = qs("[data-inv-fin=duty]");
       if (y) { y.textContent = u ? pct(u.yld) : range(list); }
-      var p = u ? u.price : fromPrice();
+      var p = XP && !MP.ok ? 0 : (u ? u.price : fromPrice());
       if (du) { du.textContent = p ? "≈ " + money(duty(p)) : "·"; }
     }
 
@@ -3822,6 +4011,8 @@
   (function boot() {
     readTypes();
     readUnits();
+    xpInventory();   // prices from Xano (switch): public from-prices, in flight while the page paints
+    gateScrub();     // ...and no Designer placeholder survives for a visitor who is not a member
     log("types", Object.keys(TYPES), "units", UNITS.map(function (u) { return u.no + ":" + u.status; }));
     paintCounts();
     tones();
@@ -3930,6 +4121,8 @@
       if (!ph || ph === "Example Text") { if (FIELDS[id][1]) { el.setAttribute("placeholder", FIELDS[id][1]); } else { el.removeAttribute("placeholder"); } }
     });
     paintSelected();   // re-fill Unit ID now that the field carries its name
+    gateScrub();
+    BOOTED = true;
     d.documentElement.classList.add("sd2-ready");
     w.SD2 = { units: function () { return UNITS; }, types: function () { return TYPES; }, pick: pick, state: SEL };
   })();
