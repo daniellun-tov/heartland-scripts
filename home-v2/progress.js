@@ -33,7 +33,7 @@
     img.className = 'homev2-progress_img';
     img.alt = '';
     img.decoding = 'async';
-    if (i > 0) img.loading = 'lazy';
+    img.loading = 'lazy'; /* the section is well below the hero: even the first tile waits (26 Nov 2026, it was 543 KB on first load) */
     /* a video item with a Photo URL shows that still on its tile (no loop); the lightbox still plays the full film */
     img.src = it.type === 'video' ? (it.photo || it.poster) : it.photo;
     holder.appendChild(img);
