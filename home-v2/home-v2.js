@@ -186,7 +186,7 @@
   addEventListener('pagehide',savePos); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') savePos(); });
   const goBack=()=>{ if(!returnY) return; const y=returnY; setTimeout(()=>{ returnY=0; if(G) ScrollTrigger.refresh(); const t=Math.min(y,document.documentElement.scrollHeight-innerHeight);
       if(rm||!G) scrollTo(0,t); else if(lenis) lenis.scrollTo(t,{duration:Math.min(2.8,1.2+t/8000),easing:k=>1-Math.pow(1-k,4)}); else scrollTo({top:t,behavior:'smooth'}); },rm||!G?0:350); };
-  if(!G||rm){ loader.remove(); hero(); vidReady.then(()=>SVH&&SVH.play()); goBack(); }
+  if(!G||rm){ loader.remove(); const hs=$('#heroScene'); if(hs) hs.classList.add('is-open'); hero(); vidReady.then(()=>SVH&&SVH.play()); goBack(); }
   else{
     lockScroll(); if(scrollY>0) scrollTo(0,0);
     const narrow=matchMedia('(max-width:760px)').matches;
@@ -195,8 +195,11 @@
     const sc=$('#heroScene'), veil=$('.is-hero .homev2_veil');
     /* the scene runs one gable height below the hero (it shows behind the next section's gable), so the window is measured on the hero itself, not on the scene */
     const heroBox=$('.is-hero');
-    const clipAt=(v,h)=>{ const H=heroBox.offsetHeight, ext=Math.max(0,sc.offsetHeight-H), t=v/100*H; return `inset(${t}px ${h}% ${t+ext}px ${h}%)`; };
-    const setWin=(v,h)=>{ sc.style.clipPath=clipAt(v,h); num.style.top=`calc(${100-v}% + 18px)`; };
+    /* the window is a dark mask over the scene (#heroScene::after in the page head, a polygon with a hole), not a clip on the scene:
+       the hero still paints full size at first paint, so Chrome takes it as the LCP and the film fading in later does not replace it (26 Nov 2026).
+       --wx = left/right inset, --wy1/--wy2 = the window's top/bottom edge in scene px (the scene's extra gable height stays masked) */
+    const winAt=(v,h)=>{ const H=heroBox.offsetHeight, t=v/100*H; sc.style.setProperty('--wx',h+'%'); sc.style.setProperty('--wy1',t+'px'); sc.style.setProperty('--wy2',(H-t)+'px'); };
+    const setWin=(v,h)=>{ winAt(v,h); num.style.top=`calc(${100-v}% + 18px)`; };
     const draw=p=>{ setWin(A[0]+(B[0]-A[0])*p, A[1]+(B[1]-A[1])*p); num.textContent=String(Math.round(p*100)).padStart(2,'0'); };
     setWin(A[0],A[1]); gsap.set(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:0}); gsap.set(veil,{opacity:0}); gsap.set(sc,{scale:1.18}); heroTitle();
     const clock={p:0}; let shown=0;
@@ -211,9 +214,9 @@
       const s={p:shown};
       gsap.to(s,{p:1,duration:Math.max(.3,(1-shown)*1.4),ease:'out',onUpdate(){ draw(s.p); },onComplete(){
         if(SVH) SVH.play();
-        gsap.timeline({onComplete(){ loader.remove(); sc.style.clipPath=''; unlockScroll(); goBack(); }})
+        gsap.timeline({onComplete(){ loader.remove(); sc.classList.add('is-open'); unlockScroll(); goBack(); }})
           .to(num,{opacity:0,y:8,duration:.4,ease:'io'},0)
-          .add(()=>{ const w={v:B[0],h:B[1]}; gsap.to(w,{v:0,h:0,duration:1.3,ease:'io',onUpdate(){ sc.style.clipPath=clipAt(w.v,w.h); }}); },.1)
+          .add(()=>{ const w={v:B[0],h:B[1]}; gsap.to(w,{v:0,h:0,duration:1.3,ease:'io',onUpdate(){ winAt(w.v,w.h); }}); },.1)
           .to(sc,{scale:1.12,duration:2,ease:'out'},.1)
           .to(veil,{opacity:1,duration:1.2,ease:'out'},.55)
           .to(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:1,duration:.8,ease:'out'},.85)
@@ -480,6 +483,13 @@
   tsRun();
 
   /* unit types: Xano via Wized (getUnitTypes) replaces the two fallback types */
+  /* decorative lavender loops (embeds e10, e11): the embeds carry data-src + preload=none so nothing downloads with the page;
+     each clip loads and plays once it is within a screen of view, and pauses off screen (26 Nov 2026, PageSpeed payload) */
+  (()=>{ const vs=$$('video[data-vid][data-src]'); if(!vs.length) return;
+    const on=v=>{ if(!v.src){ v.muted=true; v.loop=true; v.playsInline=true; v.src=v.dataset.src; } const p=v.play(); if(p&&p.catch) p.catch(()=>{}); };
+    if(!('IntersectionObserver' in window)){ vs.forEach(on); return; }
+    const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting) on(e.target); else if(e.target.src) e.target.pause(); }),{rootMargin:'100% 0px'});
+    vs.forEach(v=>io.observe(v)); })();
   (()=>{ const half=b=>{ const w=Math.floor(b); return (b-w)>=.5?(w?w+'½':'½'):String(w); };
     /* 26 Oct 2026 (Scopepin #6/#28): the frame shows the type's axo render = the first unit_media image (the isometric house on a
        transparent background); render_image (the 3D floor plan) is only a last resort. The frame images carry Webflow's srcset,
