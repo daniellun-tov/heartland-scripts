@@ -155,10 +155,17 @@
   /* loader → hero */
   const loader=$('#loader'), num=$('#ldN');
   const heroLines=$$('.is-hero .homev2_line > span');
+  /* the H1 is the LCP element, so it rises as soon as the loader starts instead of waiting for the window to open (once only) */
+  let titleDone=false;
+  function heroTitle(){
+    if(titleDone) return; titleDone=true;
+    if(!G||rm){ heroLines.forEach(s=>s.style.transform='none'); return; }
+    gsap.to(heroLines,{y:'0%',duration:1.6,ease:'out',stagger:.12});
+  }
   function hero(){
-    if(!G||rm){ heroLines.forEach(s=>s.style.transform='none'); $('.is-hero .homev2-hero_cta').style.cssText='opacity:1;transform:none'; $$('.is-hero .homev2-hero_split span').forEach(e=>e.style.cssText='opacity:1;transform:none'); return; }
+    heroTitle();
+    if(!G||rm){ $('.is-hero .homev2-hero_cta').style.cssText='opacity:1;transform:none'; $$('.is-hero .homev2-hero_split span').forEach(e=>e.style.cssText='opacity:1;transform:none'); return; }
     gsap.timeline()
-      .to(heroLines,{y:'0%',duration:1.6,ease:'out',stagger:.12},0)
       .to('.is-hero .homev2-hero_cta',{opacity:1,y:0,duration:1,ease:'out'},.8)
       .to('.is-hero .homev2-hero_split span',{opacity:1,y:0,duration:.9,ease:'out',stagger:.1},.9);
   }
@@ -191,7 +198,7 @@
     const clipAt=(v,h)=>{ const H=heroBox.offsetHeight, ext=Math.max(0,sc.offsetHeight-H), t=v/100*H; return `inset(${t}px ${h}% ${t+ext}px ${h}%)`; };
     const setWin=(v,h)=>{ sc.style.clipPath=clipAt(v,h); num.style.top=`calc(${100-v}% + 18px)`; };
     const draw=p=>{ setWin(A[0]+(B[0]-A[0])*p, A[1]+(B[1]-A[1])*p); num.textContent=String(Math.round(p*100)).padStart(2,'0'); };
-    setWin(A[0],A[1]); gsap.set(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:0}); gsap.set(veil,{opacity:0}); gsap.set(sc,{scale:1.18});
+    setWin(A[0],A[1]); gsap.set(['.homev2-nav_component','.is-hero .homev2-hero_split'],{opacity:0}); gsap.set(veil,{opacity:0}); gsap.set(sc,{scale:1.18}); heroTitle();
     const clock={p:0}; let shown=0;
     const follow=()=>{ const target=Math.min(clock.p,.99,vidP()); if(target>shown){ shown+=Math.max(.002,(target-shown)*.12); if(shown>target) shown=target; draw(shown); } };
     gsap.ticker.add(follow);
