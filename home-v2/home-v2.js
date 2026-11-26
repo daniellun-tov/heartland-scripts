@@ -205,7 +205,7 @@
     gsap.to(clock,{p:1,duration:2.4,ease:'io',delay:.15});
     const cn=navigator.connection||{}, slow=cn.saveData||/(^|-)(2g|3g)$/.test(cn.effectiveType||'');
     /* phones and slow connections don't hold the page for the whole film: after ~5 s (3 s on slow links) the window opens on the poster and the film fades in once it can play */
-    const minTime=new Promise(r=>setTimeout(r,2550)), cap=new Promise(r=>setTimeout(r,slow?3000:(narrow?5000:20000)));  /* a very slow connection still gets the page after 20 s */
+    const minTime=new Promise(r=>setTimeout(r,2550)), cap=new Promise(r=>setTimeout(r,slow?3000:(narrow?2550:20000)));  /* phones open the window at the 2.55 s minimum (PageSpeed LCP); the film fades in once it can play. A very slow connection still gets the page after 20 s */
     Promise.all([minTime,Promise.race([vidReady,cap])]).then(()=>{
       gsap.ticker.remove(follow);
       const s={p:shown};
